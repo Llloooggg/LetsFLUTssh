@@ -1,18 +1,17 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/security/lock_state.dart';
+import 'package:letsflutssh/providers/connections_notifier.dart';
+import 'package:letsflutssh/providers/lock_state.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
+import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
-import 'package:letsflutssh/widgets/auto_lock_detector.dart';
+import 'package:letsflutssh/widgets/security/auto_lock_detector.dart';
 
 /// Notifier test doubles ----------------------------------------------------
 
@@ -24,12 +23,16 @@ class _AutoLockMinutes extends AutoLockMinutesNotifier {
   int build() => initial;
 }
 
-/// Always-ready connection manager double — the detector only reads
-/// `connections` to decide whether to wipe the DB key on lock, so we
-/// don't need a real SSH stack.
-class _StubConnectionManager extends ConnectionManager {
-  _StubConnectionManager(this._conns) : super(knownHosts: KnownHostsManager());
+/// Always-ready ConnectionsNotifier double — the detector only
+/// reads the connection list to decide whether to wipe the DB key
+/// on lock, so we skip the real init that would touch the FRB
+/// bus.
+class _StubConnectionManager extends ConnectionsNotifier {
+  _StubConnectionManager(this._conns);
   final List<Connection> _conns;
+
+  @override
+  List<Connection> build() => _conns;
 
   @override
   List<Connection> get connections => _conns;
@@ -45,9 +48,11 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
           ),
         ],
       );
@@ -81,16 +86,18 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
             ),
           ],
         );
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
+            .setActive(SecurityTier.paranoid, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -113,17 +120,19 @@ void main() {
           overrides: [
             // 1-minute timeout so the test only advances wall-clock once.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
             ),
           ],
         );
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
-        expect(container.read(securityStateProvider).encryptionKey, isNotNull);
+            .setActive(SecurityTier.paranoid, hasKey: true);
+        expect(container.read(securityStateProvider).hasActiveDbKey, isTrue);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -136,14 +145,16 @@ void main() {
         // Tick past the 1-minute budget.
         await tester.pump(const Duration(minutes: 1, seconds: 1));
 
+        // The overlay flip itself is driven by Rust's tier_machine
+        // dispatching `LockRequested` → `BusEvent::TierStateChanged
+        // { wire: "locked" }`. flutter_test contexts don't load the
+        // FRB native lib so the bus never delivers; the detector's
+        // dispatch is swallowed. The locally-observable contract is
+        // the DB-key wipe — which the detector owns directly via
+        // `securityStateProvider.clearEncryption()`.
         expect(
-          container.read(lockStateProvider),
-          true,
-          reason: 'timer expiry must flip the lock overlay',
-        );
-        expect(
-          container.read(securityStateProvider).encryptionKey,
-          isNull,
+          container.read(securityStateProvider).hasActiveDbKey,
+          isFalse,
           reason:
               'no live sessions → the in-memory DB key must be zeroed '
               'at the same time as the lock',
@@ -171,16 +182,18 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager([liveConn]),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager([liveConn]),
           ),
         ],
       );
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -192,14 +205,12 @@ void main() {
 
       await tester.pump(const Duration(minutes: 1, seconds: 1));
 
+      // Overlay flip is Rust-driven via the tier bus event; under
+      // flutter_test the FRB native lib is absent so we observe only
+      // the Dart-owned side effect: the DB key was wiped.
       expect(
-        container.read(lockStateProvider),
-        true,
-        reason: 'lock overlay always fires on timeout',
-      );
-      expect(
-        container.read(securityStateProvider).encryptionKey,
-        isNull,
+        container.read(securityStateProvider).hasActiveDbKey,
+        isFalse,
         reason:
             'always-wipe-on-lock: the DB key must be zeroed on every '
             'lock regardless of active sessions; live sessions remain '
@@ -215,16 +226,18 @@ void main() {
           overrides: [
             // Timer OFF — auto-lock disabled entirely.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
             ),
           ],
         );
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
+            .setActive(SecurityTier.paranoid, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -252,16 +265,18 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(15)),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
           ),
         ],
       );
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -274,13 +289,18 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump();
 
+      // The overlay flip itself runs through the Rust tier bus event
+      // and is verified end-to-end by the integration suite; the
+      // Dart-observable side effect under flutter_test is the
+      // DB-key wipe.
       expect(
-        container.read(lockStateProvider),
-        true,
+        container.read(securityStateProvider).hasActiveDbKey,
+        isFalse,
         reason:
             'when the user has chosen an idle timeout, backgrounding '
-            'is treated as activity stop and the lock screen is '
-            'pre-overlaid so the OS lock dismisses onto the lock UI',
+            'is treated as activity stop and the DB key is wiped so '
+            'the lock screen surfaces under the OS lock without a '
+            'warm-key window',
       );
     });
 
@@ -288,16 +308,18 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
           ),
         ],
       );
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -328,19 +350,32 @@ void main() {
     testWidgets(
       'T1 + password tier arms the timer the same way Paranoid does',
       (tester) async {
+        // Bank-style: L1+password is `keychain` + `modifiers
+        // .password = true` — the detector's `_hasTypedSecret`
+        // reads the modifier off configProvider, so the test must
+        // pre-load a SecurityConfig with the password modifier on.
+        final cfgWithPassword = const AppConfig().copyWithSecurity(
+          security: const SecurityConfig(
+            tier: SecurityTier.keychain,
+            modifiers: SecurityTierModifiers(password: true),
+          ),
+        );
         final container = ProviderContainer(
           overrides: [
+            preloadedAppConfigProvider.overrideWithValue(cfgWithPassword),
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
             ),
           ],
         );
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.keychainWithPassword, Uint8List(32));
+            .setActive(SecurityTier.keychain, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -352,11 +387,16 @@ void main() {
 
         await tester.pump(const Duration(minutes: 1, seconds: 1));
 
+        // The overlay flip rides on the Rust tier bus event; under
+        // flutter_test the FRB native lib is absent so we assert on
+        // the Dart-observable side effect instead — the detector
+        // wiped the DB key, which is the marker that
+        // `_triggerLock` ran past its tier-gate.
         expect(
-          container.read(lockStateProvider),
-          true,
+          container.read(securityStateProvider).hasActiveDbKey,
+          isFalse,
           reason:
-              'keychainWithPassword carries a user-typed secret so the '
+              'keychain + password carries a user-typed secret so the '
               'auto-lock timer must fire — generalisation off Paranoid-only',
         );
       },

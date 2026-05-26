@@ -72,7 +72,16 @@ class SFr extends S {
   String get copyModeExtending => 'Glissez pour étendre la sélection';
 
   @override
+  String get copyModeSetAnchor => 'Définir l\'ancre';
+
+  @override
+  String get copyModeCopySelection => 'Copier la sélection';
+
+  @override
   String get required => 'Requis';
+
+  @override
+  String get errFillRequiredFields => 'Remplis les champs requis marqués *';
 
   @override
   String get settings => 'Paramètres';
@@ -237,13 +246,15 @@ class SFr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Clé SSH reçue : $filename';
-  }
-
-  @override
   String importedSessions(int count) {
-    return '$count session(s) importée(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions importées',
+      one: '1 session importée',
+      zero: 'Aucune session importée',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -302,7 +313,13 @@ class SFr extends S {
 
   @override
   String nSelectedCount(int count) {
-    return '$count sélectionné(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sélectionnés',
+      one: '1 sélectionné',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -351,12 +368,26 @@ class SFr extends S {
 
   @override
   String nSessions(int count) {
-    return '$count session(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+      zero: '0 session',
+    );
+    return '$_temp0';
   }
 
   @override
   String nFolders(int count) {
-    return '$count dossier(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dossiers',
+      one: '1 dossier',
+      zero: '0 dossier',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -366,7 +397,13 @@ class SFr extends S {
 
   @override
   String willDeleteSessionsInside(int count) {
-    return 'Cela supprimera également $count session(s) à l\'intérieur.';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Cela supprimera également $count sessions à l\'intérieur.',
+      one: 'Cela supprimera également 1 session à l\'intérieur.',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -381,10 +418,51 @@ class SFr extends S {
   String get auth => 'Authentification';
 
   @override
+  String get sectionAuthentication => 'Authentification';
+
+  @override
+  String get sectionAdvanced => 'Avancé';
+
+  @override
+  String get moreOptions => 'Plus d\'options';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString règles de redirection',
+      one: '1 règle de redirection',
+      zero: 'Aucune règle de redirection de port',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Gérer…';
+
+  @override
+  String get authMethodAgent => 'Utiliser le ssh-agent du système';
+
+  @override
   String get options => 'Options';
 
   @override
   String get sessionName => 'Nom de la session';
+
+  @override
+  String get sessionNameAutoFromHost => 'Auto depuis l\'hôte';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Auto depuis l\'hôte de l\'URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Auto depuis le bucket par défaut';
 
   @override
   String get hintMyServer => 'Mon serveur';
@@ -418,6 +496,9 @@ class SFr extends S {
 
   @override
   String get hintOptional => 'Facultatif';
+
+  @override
+  String get savedTypeToChange => 'Enregistré — saisir pour modifier';
 
   @override
   String get hidePemText => 'Masquer le texte PEM';
@@ -534,11 +615,6 @@ class SFr extends S {
   @override
   String get importModeReplaceDescription =>
       'Remplacer toutes les sessions par celles importées';
-
-  @override
-  String errorPrefix(String error) {
-    return 'Erreur : $error';
-  }
 
   @override
   String get folderName => 'Nom du dossier';
@@ -706,11 +782,28 @@ class SFr extends S {
   String get calculateFolderSizes => 'Calculer la taille des dossiers';
 
   @override
+  String get verboseConnectionLog => 'Journal de connexion détaillé';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Enregistrer la trace complète du handshake SSH et de l\'authentification dans le fichier de log (pour diagnostiquer les échecs de connexion)';
+
+  @override
   String get exportData => 'Exporter les données';
 
   @override
+  String get exportRecordings => 'Enregistrements de session';
+
+  @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count hôte(s) trouvé(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hôtes trouvés',
+      one: '1 hôte trouvé',
+      zero: '0 hôte trouvé',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -764,7 +857,13 @@ class SFr extends S {
 
   @override
   String importSshKeysFound(int count) {
-    return '$count clé(s) trouvée(s) — choisissez lesquelles importer';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count clés trouvées — choisissez lesquelles importer',
+      one: '1 clé trouvée — choisissez si vous l\'importez',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -883,9 +982,6 @@ class SFr extends S {
   String get sourceCode => 'Code source';
 
   @override
-  String get enableLogging => 'Activer la journalisation';
-
-  @override
   String get logIsEmpty => 'Le journal est vide';
 
   @override
@@ -987,6 +1083,26 @@ class SFr extends S {
   String get disconnected => 'Déconnecté';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Connexion à $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Connecté à $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Déconnecté de $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Échec de la connexion à $host';
+  }
+
+  @override
   String get exit => 'Quitter';
 
   @override
@@ -1003,19 +1119,12 @@ class SFr extends S {
   String get exportSessionsViaQr => 'Exporter les sessions via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Les mots de passe et clés SSH ne sont PAS inclus.\nLes sessions importées devront être complétées avec les identifiants.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Trop de sessions pour un seul QR code. Désélectionnez-en ou utilisez l\'export .lfs.';
 
   @override
   String get qrTooLarge =>
       'Trop volumineux — désélectionnez des éléments ou utilisez l\'export en fichier .lfs.';
-
-  @override
-  String get exportAll => 'Tout exporter';
 
   @override
   String get showQr => 'Afficher le QR';
@@ -1031,6 +1140,26 @@ class SFr extends S {
 
   @override
   String get liveLog => 'Log en direct';
+
+  @override
+  String get archivedLog => 'Log archivé';
+
+  @override
+  String get loggingLevel => 'Niveau de log';
+
+  @override
+  String get loggingLevelSubtitleInfo =>
+      'Entrées routinières + avertissements + erreurs';
+
+  @override
+  String get loggingLevelSubtitleWarn =>
+      'Uniquement les chemins dégradés et les erreurs';
+
+  @override
+  String get loggingLevelSubtitleError => 'Uniquement les erreurs';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Aucun log routinier n\'est écrit';
 
   @override
   String transferNItems(int count) {
@@ -1325,30 +1454,6 @@ class SFr extends S {
   String get progressDecrypting => 'Déchiffrement…';
 
   @override
-  String get progressParsingArchive => 'Analyse de l\'archive…';
-
-  @override
-  String get progressImportingSessions => 'Importation des sessions';
-
-  @override
-  String get progressImportingFolders => 'Importation des dossiers';
-
-  @override
-  String get progressImportingManagerKeys => 'Importation des clés SSH';
-
-  @override
-  String get progressImportingTags => 'Importation des étiquettes';
-
-  @override
-  String get progressImportingSnippets => 'Importation des snippets';
-
-  @override
-  String get progressApplyingConfig => 'Application de la configuration…';
-
-  @override
-  String get progressImportingKnownHosts => 'Importation de known_hosts…';
-
-  @override
   String get progressCollectingData => 'Collecte des données…';
 
   @override
@@ -1385,11 +1490,8 @@ class SFr extends S {
   String get importAction => 'Importer';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Enregistrez d\'abord la session pour attribuer des étiquettes';
-
-  @override
-  String get noTagsAssigned => 'Aucune étiquette attribuée';
+  String get noTagsAvailable =>
+      'Pas encore d\'étiquette — créez-en une dans Outils → Étiquettes.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1415,7 +1517,14 @@ class SFr extends S {
 
   @override
   String nSubitems(int count) {
-    return '$count élément(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count éléments',
+      one: '1 élément',
+      zero: '0 élément',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1487,23 +1596,6 @@ class SFr extends S {
 
   @override
   String get transferStatusQueued => 'En file d\'attente';
-
-  @override
-  String get transferStartingUpload => 'Démarrage de l\'envoi...';
-
-  @override
-  String get transferStartingDownload => 'Démarrage du téléchargement...';
-
-  @override
-  String get transferCopying => 'Copie en cours...';
-
-  @override
-  String get transferDone => 'Terminé';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total fichiers';
-  }
 
   @override
   String get fileConflictTitle => 'Le fichier existe déjà';
@@ -1650,6 +1742,9 @@ class SFr extends S {
   String get addKey => 'Ajouter une clé';
 
   @override
+  String get addKeyMenuPaste => 'Coller le PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Sélecteur de fichiers indisponible sur ce système';
 
@@ -1698,6 +1793,57 @@ class SFr extends S {
   String get publicKeyCopied => 'Clé publique copiée dans le presse-papiers';
 
   @override
+  String get sshCertificate => 'Certificat';
+
+  @override
+  String get certImport => 'Importer un certificat';
+
+  @override
+  String get certImportTooltip =>
+      'Joindre un certificat OpenSSH signé par votre CA (le fichier `-cert.pub` produit par `ssh-keygen -s …`). À utiliser lorsque les serveurs vérifient par signature CA au lieu d\'`authorized_keys`. Sauter si vos serveurs utilisent l\'auth par clé simple.';
+
+  @override
+  String get certImportPickerTitle =>
+      'Sélectionner un fichier de certificat OpenSSH';
+
+  @override
+  String get certValidFrom => 'Valide à partir du';
+
+  @override
+  String get certValidTo => 'Valide jusqu\'au';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Ce certificat expire bientôt.';
+
+  @override
+  String get certExpired => 'Expiré';
+
+  @override
+  String get certRemove => 'Supprimer le certificat';
+
+  @override
+  String get certRemoveConfirmTitle => 'Supprimer le certificat ?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Après suppression, la session se reconnectera via la simple clé publique.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Impossible de parser le certificat : $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Ce certificat n\'est pas associé à la clé sélectionnée.';
+
+  @override
   String get pastePrivateKey => 'Coller la clé privée (PEM)';
 
   @override
@@ -1725,33 +1871,14 @@ class SFr extends S {
   String get generated => 'Générée';
 
   @override
-  String get passphraseRequired => 'Phrase secrète requise';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'La clé SSH pour $host est chiffrée. Entrez la phrase secrète pour la déverrouiller.';
-  }
-
-  @override
-  String get passphraseWrong =>
-      'Phrase secrète incorrecte. Veuillez réessayer.';
-
-  @override
   String get passphrase => 'Phrase secrète';
-
-  @override
-  String get rememberPassphrase => 'Retenir pour cette session';
 
   @override
   String get enterMasterPassword =>
       'Entrez le mot de passe principal pour accéder à vos identifiants.';
 
   @override
-  String get wrongMasterPassword =>
-      'Mot de passe incorrect. Veuillez réessayer.';
-
-  @override
-  String get newPassword => 'Nouveau mot de passe';
+  String get wrongMasterPassword => 'Mot de passe incorrect. Réessayez.';
 
   @override
   String get currentPassword => 'Mot de passe actuel';
@@ -1844,12 +1971,6 @@ class SFr extends S {
   @override
   String get wizardReducedBanner =>
       'Le trousseau du système n\'est pas accessible sur cette installation. Choisissez entre aucun chiffrement (T0) et un mot de passe maître (Paranoid). Installez gnome-keyring, kwallet ou un autre fournisseur libsecret pour activer le niveau Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Rien à ce niveau.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Aucune menace non couverte.';
 
   @override
   String get tierBadgeCurrent => 'Actuel';
@@ -2075,6 +2196,159 @@ class SFr extends S {
   String get commandCopied => 'Commande copiée dans le presse-papiers';
 
   @override
+  String get snippetTokensHint =>
+      'Touchez pour insérer un placeholder. Ils sont remplacés à l\'exécution par les valeurs de la session active :';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Tout autre avec des doubles accolades vous demande une valeur à l\'exécution.';
+
+  @override
+  String get snippetFillTitle => 'Compléter les paramètres du snippet';
+
+  @override
+  String get snippetFillSubmit => 'Exécuter';
+
+  @override
+  String get broadcastSetDriver => 'Diffuser depuis ce panneau';
+
+  @override
+  String get broadcastClearDriver => 'Arrêter la diffusion depuis ce panneau';
+
+  @override
+  String get broadcastAddReceiver => 'Recevoir la diffusion ici';
+
+  @override
+  String get broadcastRemoveReceiver => 'Arrêter la réception';
+
+  @override
+  String get broadcastClearAll => 'Tout arrêter';
+
+  @override
+  String get broadcastPasteTitle => 'Envoyer le collage à tous les panneaux ?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars caractères seront envoyés à $count autres panneaux.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Envoyer';
+
+  @override
+  String get portForwarding => 'Redirection';
+
+  @override
+  String get portForwardingEmpty => 'Aucune règle pour l\'instant';
+
+  @override
+  String get addForwardRule => 'Ajouter une règle';
+
+  @override
+  String get editForwardRule => 'Modifier la règle';
+
+  @override
+  String get deleteForwardRule => 'Supprimer la règle';
+
+  @override
+  String get localForward => 'Locale';
+
+  @override
+  String get remoteForward => 'Distante';
+
+  @override
+  String get dynamicForward => 'Dynamique';
+
+  @override
+  String get forwardKind => 'Type';
+
+  @override
+  String get bindAddress => 'Adresse d\'écoute';
+
+  @override
+  String get bindPort => 'Port d\'écoute';
+
+  @override
+  String get targetHost => 'Hôte cible';
+
+  @override
+  String get targetPort => 'Port cible';
+
+  @override
+  String get forwardDescription => 'Description (facultatif)';
+
+  @override
+  String get forwardEnabled => 'Activée';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Lier à 0.0.0.0 expose la redirection sur toutes les interfaces — en général, choisissez 127.0.0.1.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Local : ouvre un port sur cet appareil qui tunnelise vers une cible accessible depuis le serveur SSH. Utile pour accéder aux bases de données distantes ou interfaces admin sur localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Distant : demande au serveur SSH d\'ouvrir un port qui tunnelise vers une cible accessible depuis cet appareil. Utile pour partager un dev server local avec un hôte distant (serveur peut nécessiter GatewayPorts yes pour binds non-loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dynamique : un proxy SOCKS5 sur cet appareil qui route chaque connexion via le serveur SSH. Pointez votre navigateur ou curl sur localhost:bindPort pour envoyer tout le trafic via SSH.';
+
+  @override
+  String get proxyJump => 'Se connecter via';
+
+  @override
+  String get proxyJumpNone => 'Connexion directe';
+
+  @override
+  String get proxyJumpSavedSession => 'Session enregistrée';
+
+  @override
+  String get proxyJumpCustom => 'Personnalisé';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Les sauts personnalisés utilisent les identifiants de cette session. Pour une auth de bastion distincte, enregistrez le bastion comme session.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'via $label';
+  }
+
+  @override
+  String get recordSession => 'Enregistrer la session';
+
+  @override
+  String get recordSessionHelp =>
+      'Sauvegarder la sortie du terminal sur disque pour cette session. Chiffrée au repos quand un mot de passe maître ou une clé matérielle protège la base de sessions ; sinon stockée en clair à côté de la base.';
+
+  @override
+  String get recordingsBrowserTitle => 'Enregistrements';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Parcourir, rejouer et supprimer des sessions enregistrées';
+
+  @override
+  String get recordingsEmpty => 'Aucun enregistrement';
+
+  @override
+  String get playRecording => 'Lire';
+
+  @override
+  String get deleteRecording => 'Supprimer';
+
+  @override
+  String get recordingPlaybackTitle => 'Rejouer l\'enregistrement';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Étiquettes';
 
   @override
@@ -2186,8 +2460,7 @@ class SFr extends S {
       'Port par défaut pour les nouvelles sessions';
 
   @override
-  String get parallelWorkersSubtitle =>
-      'Travailleurs SFTP de transfert parallèles';
+  String get parallelWorkersSubtitle => 'Workers SFTP de transfert parallèles';
 
   @override
   String get maxHistorySubtitle =>
@@ -2200,20 +2473,6 @@ class SFr extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Interroger GitHub pour une nouvelle version au lancement de l\'application';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Écrire les événements de l\'application dans un fichier journal rotatif';
-
-  @override
-  String get exportWithoutPassword => 'Exporter sans mot de passe ?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'L\'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.';
-
-  @override
-  String get continueWithoutPassword => 'Continuer sans mot de passe';
 
   @override
   String get threatColdDiskTheft => 'Vol de disque éteint';
@@ -2283,9 +2542,6 @@ class SFr extends S {
   String get colT1PasswordBiometric => 'T1 + mot de passe + biométrie';
 
   @override
-  String get colT2 => 'T2 Matériel';
-
-  @override
   String get colT2Password => 'T2 + mot de passe';
 
   @override
@@ -2318,6 +2574,11 @@ class SFr extends S {
   String get resetAllDataConfirmAction => 'Tout réinitialiser';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Tapez $phrase ci-dessous pour confirmer :';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Réinitialisation…';
 
   @override
@@ -2325,6 +2586,62 @@ class SFr extends S {
 
   @override
   String get resetAllDataFailed => 'Échec de la réinitialisation';
+
+  @override
+  String get recordingsTitle => 'Enregistrements';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Utilisé';
+
+  @override
+  String get recordingsCapLabel => 'Limite';
+
+  @override
+  String get recordingsCapHint =>
+      'Limite stricte sur le dossier recordings/. En cas de dépassement, le plus ancien enregistrement est supprimé en premier ; l\'enregistrement en cours n\'est jamais touché.';
+
+  @override
+  String get recordingsClearAllAction => 'Effacer tous les enregistrements';
+
+  @override
+  String get recordingsClearAllConfirmTitle =>
+      'Effacer tous les enregistrements ?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Chaque session enregistrée sous <app>/recordings/ sera supprimée. L\'enregistrement en cours (le cas échéant) reste. Cette action est irréversible.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count enregistrements supprimés';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Limite mise à jour. $bytes libérés.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Limite mise à jour. Rien à supprimer.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2335,7 +2652,7 @@ class SFr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Avancé : clé liée au matériel. Les données sont irrécupérables si la puce de cet appareil est perdue ou remplacée.';
+      'Avancé : clé liée au matériel, toujours protégée par mot de passe. Les données sont irrécupérables si la puce de cet appareil est perdue ou remplacée.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2357,6 +2674,10 @@ class SFr extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Barrière de secret saisi avant le déverrouillage du coffre.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Requis — la couche Hardware est toujours protégée par mot de passe.';
 
   @override
   String get modifierBiometricLabel => 'Raccourci biométrique';
@@ -2386,8 +2707,68 @@ class SFr extends S {
       'fprintd non installé ou aucune empreinte enregistrée.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'Un TPM sans mot de passe fournit de l\'isolation, pas de l\'authentification. Quiconque peut exécuter cette application peut déverrouiller les données.';
+  String get t2RequiresPasswordTitle =>
+      'Définir un mot de passe maître pour la couche Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'La couche Hardware a besoin d\'un mot de passe comme modifier. La biométrie est un raccourci optionnel par-dessus.';
+
+  @override
+  String get t2MigrationPromptTitle =>
+      'La couche Hardware a besoin d\'un mot de passe';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Les installations Hardware existantes sans mot de passe doivent en définir un maintenant pour continuer.';
+
+  @override
+  String get t2MigrationContinue => 'Continuer';
+
+  @override
+  String get t2MigrationSetPasswordTitle =>
+      'Définir un mot de passe pour garder la couche Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Saisis un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe et repartir de zéro';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal de la couche Hardware échoué — choisis un autre mot de passe ou wipe.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Activer le raccourci biométrique sur la couche Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Libère ton mot de passe depuis un slot OS protégé par biométrie.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'L\'overlay biométrique n\'est pas encore disponible sur cette plateforme.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Définis d\'abord le mot de passe de la couche Hardware.';
+
+  @override
+  String get t2UnlockTitle => 'Déverrouiller avec ton mot de passe maître';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'La clé hardware-bound est protégée par ton mot de passe.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Utiliser la biométrie';
+
+  @override
+  String get t2PasswordChanged =>
+      'Mot de passe de la couche Hardware mis à jour.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2413,4 +2794,959 @@ class SFr extends S {
 
   @override
   String get masterPasswordLabel => 'Mot de passe maître';
+
+  @override
+  String get globalErrorTitle => 'Erreur inattendue';
+
+  @override
+  String get globalErrorBody =>
+      'Une erreur inattendue s\'est produite. L\'app continue de fonctionner.';
+
+  @override
+  String get globalErrorLogSavedNote =>
+      'Tous les détails ont été écrits dans le fichier de log.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Activez la journalisation dans les Réglages pour enregistrer les détails des erreurs.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Erreur : $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Activer la journalisation';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Journalisation activée — les erreurs seront écrites dans le fichier de log';
+
+  @override
+  String get fatalErrorQuitButton => 'Quitter';
+
+  @override
+  String get fatalErrorWipeButton => 'Effacer toutes les données';
+
+  @override
+  String get fatalErrorWipingButton => 'Effacement…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'L\'effacement supprime tous les fichiers de l\'app (config, base de données, blobs du vault, logs) ; le prochain lancement repart d\'une installation propre. Irréversible.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Effacer toutes les données ?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'Cela supprime définitivement tous les fichiers de config, de base de données et de vault. L\'app redémarrera depuis une installation vierge. Continuer ?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Tout effacer';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'Cette archive n\'est pas protégée par mot de passe. Quiconque possède le fichier peut en lire le contenu.';
+
+  @override
+  String get clipboardCopyFailed => 'Échec de la copie dans le presse-papiers.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Le nom d\'hôte contient des caractères non ASCII — vérifiez chaque caractère par rapport à ce que vous avez saisi. Des codepoints visuellement proches (cyrillique / grec) peuvent usurper un domaine latin.';
+
+  @override
+  String get playbackPause => 'Pause';
+
+  @override
+  String get recordingPlayLocked =>
+      'Déverrouillez l\'app pour lire cet enregistrement chiffré.';
+
+  @override
+  String get recordToggleStart => 'Démarrer l\'enregistrement';
+
+  @override
+  String get recordToggleStop => 'Arrêter l\'enregistrement';
+
+  @override
+  String get foregroundServiceTitle => 'SSH actif';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count connexions actives',
+      one: '1 connexion active',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Type de session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Nom d’utilisateur';
+
+  @override
+  String get webDavAuthMethod => 'Méthode d’auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => 'Certificat de confiance (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Colle le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laisse vide pour utiliser le trust store du système.';
+
+  @override
+  String get acceptAnyCert => 'Accepter tout certificat';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Ignore toutes les vérifications de certificat et de nom d\'hôte pour les handshakes TLS de cette session. Issue de secours quand ni le trust store système ni un certificat épinglé ne conviennent.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Vulnérable aux attaques MITM — n\'importe qui sur le réseau peut usurper le serveur. À n\'utiliser que sur des réseaux privés de confiance.';
+
+  @override
+  String get webDavCopyUrl => 'Copier l’URL WebDAV';
+
+  @override
+  String get webDavOpenInBrowser => 'Ouvrir dans le navigateur';
+
+  @override
+  String get errWebDavAuthFailed => 'Échec d’authentification WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Chemin introuvable';
+
+  @override
+  String get errWebDavConflict =>
+      'L’opération entre en conflit avec l’état actuel';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Le serveur WebDAV a rejeté la requête : $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'La base URL WebDAV est requise';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'La base URL doit être en http:// ou https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Vide pour AWS, ou rempli pour MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Adressage path-style';
+
+  @override
+  String get s3PathStyleHint => 'Requis pour MinIO ; laisse off pour AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket par défaut';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix par défaut';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Générer une presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Expire dans';
+
+  @override
+  String get s3CopyUri => 'Copier l\'URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 minutes';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 heure';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 heures';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 heures';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 jours';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (vérifie access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Le bucket n\'existe pas ou est inaccessible';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Le bucket est dans une region différente de la configuration';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'Le serveur S3 a rejeté la requête : $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Activer le sync WebDAV';
+
+  @override
+  String get syncPassphrase => 'Passphrase de sync';
+
+  @override
+  String get syncPassphraseHint =>
+      'Chiffre l\'archive de sync. Doit différer du master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'La passphrase de sync ne peut pas être identique au master password.';
+
+  @override
+  String get syncRemotePath => 'Chemin distant';
+
+  @override
+  String get syncRemotePathHint =>
+      'Chemin sous la base URL WebDAV — par défaut letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Dernier push : $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Dernier pull : $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Jamais';
+
+  @override
+  String get syncUpToDate => 'Sync à jour';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push de $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '$count changements appliqués depuis le remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync désactivé';
+
+  @override
+  String get errSyncEtagMismatch =>
+      'Le remote a changé — pull d\'abord, puis push';
+
+  @override
+  String get errSyncUnauthorized => 'Échec d\'authentification WebDAV';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Erreur réseau : $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'L\'archive sync du remote nécessite un build plus récent';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Touche ton hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN du hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Le hardware key n\'a pas répondu';
+
+  @override
+  String get hardwareKeyNotFound => 'Aucun hardware key détecté';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'L\'accès direct au hardware key n\'est pas disponible sur cette plateforme';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Nécessite un entitlement Apple Developer Program ; utilise ssh-agent sur macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Cette clé SSH nécessite un hardware key — touche-le pour t\'authentifier';
+
+  @override
+  String get errSkWrongPin => 'PIN incorrect';
+
+  @override
+  String get hardwareKeyImport => 'Importer un hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Demande de hardware key annulée';
+
+  @override
+  String get agentEndpointSectionTitle =>
+      'Intégration des clients SSH externes';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Exposer les hardware keys aux clients SSH du système';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Permet à git, ssh et aux plugins IDE de ce poste d\'utiliser tes keys FIDO2 / smart-card / TPM.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Copier la commande export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Copier le nom du pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Demande de signature';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester veut signer avec $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Un client SSH externe';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Autoriser une fois';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Autoriser et mémoriser';
+
+  @override
+  String get agentEndpointDeny => 'Refuser';
+
+  @override
+  String get agentEndpointStatusRunning => 'En cours';
+
+  @override
+  String get agentEndpointStatusStopped => 'Arrêté';
+
+  @override
+  String get agentEndpointStatusUnsupported =>
+      'Indisponible sur cette plateforme';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Refusé : les clients externes ne peuvent pas ajouter de keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Impossible de démarrer le ssh-agent endpoint : $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'Ajouter une clé carte à puce / jeton';
+
+  @override
+  String get pkcs11ModuleLabel => 'Module PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Détecté automatiquement';
+
+  @override
+  String get pkcs11ModuleCustom => 'Module personnalisé...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Choisir la bibliothèque PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Aucun module PKCS#11 trouvé. Installez OpenSC ou choisissez la bibliothèque du fournisseur.';
+
+  @override
+  String get pkcs11InitializeFailed =>
+      'Le module PKCS#11 n\'a pas pu s\'initialiser.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Aucun jeton dans le lecteur.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Jeton : $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Numéro de série : $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Le jeton nécessite une connexion.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN pour $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Confirmer sur le PIN-pad du jeton.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN incorrect. $remaining essais restants.';
+  }
+
+  @override
+  String get pkcs11PinLocked =>
+      'Le PIN du jeton est verrouillé. Déverrouillez avec le PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Le jeton n\'a pas de clés SSH-compatibles (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported =>
+      'Les clés GOST ne fonctionnent pas avec SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Le jeton \"$label\" n\'est pas inséré.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Jeton enregistré introuvable. Reconnectez-le et réessayez.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Échec de la signature : $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Les cartes à puce / jetons PKCS#11 ne sont pas disponibles sur cette plateforme.';
+
+  @override
+  String get pkcs11Badge => 'Carte à puce / jeton';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module : $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Numéro de série du jeton : $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Objet : $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Choisir le module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Choisir le jeton';
+
+  @override
+  String get pkcs11WizardStepKey => 'Choisir la clé';
+
+  @override
+  String get pkcs11WizardStepPin => 'Saisir le PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Importer la clé';
+
+  @override
+  String get pkcs11SaveInProgress =>
+      'Lecture de la clé publique depuis le jeton...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Clé de carte à puce ajoutée.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Recherche de modules PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Chargement des jetons...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Chargement des clés...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module chargé.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Aucun jeton présent.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Échec du chargement du module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad sur l\'appareil)';
+
+  @override
+  String get pkcs11WizardBack => 'Retour';
+
+  @override
+  String get pkcs11WizardNext => 'Suivant';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Ajouter une clé hardware';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'La clé privée vit dans le hardware sécurisé de l\'appareil et ne peut pas être exportée.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'Cette clé fonctionne uniquement sur ce Mac.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Cette clé fonctionne uniquement sur cet iPhone.';
+
+  @override
+  String get sshKeyHelloDeviceBound =>
+      'Cette clé fonctionne uniquement sur ce PC.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Exiger Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Autoriser le passcode de l\'appareil en fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Exiger Windows Hello (PIN, empreinte ou visage)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Clés hardware indisponibles';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'L\'app doit être signée pour utiliser le Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello n\'est pas configuré sur ce PC.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'Pas de TPM détecté — software-backed uniquement.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Générer';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Génération de la clé dans le hardware sécurisé...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing requis — voir USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Signature via hardware sécurisé...';
+
+  @override
+  String get sshKeyPublicCopy => 'Copier la clé publique';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Ajoutez cette ligne à ~/.ssh/authorized_keys sur le serveur.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Clé SSH Secure Enclave';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Nom de la clé';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Clé SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Libellé de la clé';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Authentifier avec Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, empreinte ou visage — Windows Hello signe ce challenge SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Pas de TPM sur cet appareil. La clé reste en stockage utilisateur ; Windows Hello reste obligatoire à chaque signature.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Le firmware TPM ne gère pas P-384. Choisis P-256 ou RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Configure d\'abord Windows Hello dans Paramètres -> Options de connexion.';
+
+  @override
+  String get tpmSshTitle => 'Générer une clé SSH adossée au TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (recommandé)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Algorithme non pris en charge par le firmware TPM.';
+
+  @override
+  String get tpmSshPinProtect => 'Protéger avec un PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'Le TPM verrouille la clé après plusieurs PIN erronés.';
+
+  @override
+  String get tpmSshPinMismatch => 'Les PIN ne correspondent pas.';
+
+  @override
+  String get tpmSshStorageBlob =>
+      'Stocker la clé encapsulée dans les données de l\'app';
+
+  @override
+  String get tpmSshStorageHandle => 'Persister dans un slot de mémoire TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Signature plus rapide. Consomme un slot persistant du TPM.';
+
+  @override
+  String get tpmSshLabel => 'Libellé de la clé';
+
+  @override
+  String get tpmSshImportTitle => 'Importer une clé SSH protégée par TPM';
+
+  @override
+  String get tpmSshImportFormat => 'Fichier TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'PIN TPM pour $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN incorrect.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM en cooldown de lockout. Attendre $duration et réessayer.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Génération de la clé dans le TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signature avec TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'Aucun TPM détecté sur cet appareil.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM désactivé dans le firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'L\'app ne peut pas accéder au TPM. Ajoute l\'utilisateur au groupe `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Le slot persistant $handle est déjà utilisé.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Cette clé signe SANS prompt Hello / PIN — toute personne ayant accès au bureau pendant que tu es connecté peut l\'utiliser.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Génération de la clé hardware-bound...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'Authentifie-toi pour utiliser la clé SSH';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Clé détruite : une nouvelle biométrie a été enregistrée. Réenregistre la clé publique sur tes serveurs.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM non disponible sur cet appareil';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Exiger la biométrie / déverrouillage à chaque signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Les clés hardware-bound ne peuvent pas être exportées';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Supprimer cette clé la retire du stockage hardware. Les serveurs la rejetteront jusqu\'à ce que tu en enregistres une nouvelle.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Configure d\'abord la biométrie ou le PIN de l\'appareil';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE seulement)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (compatibilité maximale)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM indisponible';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Ton appareil n\'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l\'isolation StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Utiliser TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Annuler';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Clés de sécurité matérielles';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialogue système de security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key système (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key système (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID direct (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Indisponible sur cette plateforme';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Préférer l\'USB HID direct au dialogue système';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Avancé : contourner $brokerLabel sur les plateformes où les deux chemins fonctionnent. Le HID direct expose plus de features de l\'authenticator mais demande une autorisation par app.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'Intégration SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'La prise en charge des clés matérielles n\'est pas disponible sur cet appareil.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Seul $transport est disponible sur cet appareil ; le toggle est désactivé.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub importé';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Était sur un autre appareil — régénérez ici pour l\'utiliser';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Régénérer ici';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Supprimer le stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Régénérez cette clé sur cet appareil avant utilisation';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Localisez le module PKCS#11 pour le token « $token »';
+  }
+
+  @override
+  String get arrowLeft => 'Flèche gauche';
+
+  @override
+  String get arrowUp => 'Flèche haut';
+
+  @override
+  String get arrowDown => 'Flèche bas';
+
+  @override
+  String get arrowRight => 'Flèche droite';
+
+  @override
+  String get copyMode => 'Mode copie';
+
+  @override
+  String get exitCopyMode => 'Quitter le mode copie';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Importé : $items';
+  }
 }

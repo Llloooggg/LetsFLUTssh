@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/global_error_dialog.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // AppLogger.setThreshold opens the file sink, which routes log
+  // messages through `lfs_core::log_sanitize` + format helpers —
+  // bootstrap FRB so the canonical pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   // The crash-boundary dialog is the last thing a user sees before the
   // app either recovers or they have to file a bug. The contract pinned
   // here:
@@ -32,6 +41,11 @@ void main() {
     late BuildContext captured;
     await tester.pumpWidget(
       MaterialApp(
+        // Wire l10n so the dialog's `S.of(context).<key>` reads
+        // resolve at pump time. Tests render the English strings
+        // through the canonical generated bindings.
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
         home: Builder(
           builder: (ctx) {
             captured = ctx;

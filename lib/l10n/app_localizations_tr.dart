@@ -72,7 +72,16 @@ class STr extends S {
   String get copyModeExtending => 'Seçimi genişletmek için sürükle';
 
   @override
+  String get copyModeSetAnchor => 'Bağlantı noktası ayarla';
+
+  @override
+  String get copyModeCopySelection => 'Seçimi kopyala';
+
+  @override
   String get required => 'Gerekli';
+
+  @override
+  String get errFillRequiredFields => '* ile işaretli zorunlu alanları doldur';
 
   @override
   String get settings => 'Ayarlar';
@@ -237,11 +246,6 @@ class STr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH anahtarı alındı: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count oturum içe aktarıldı';
   }
@@ -379,10 +383,50 @@ class STr extends S {
   String get auth => 'Kimlik Doğrulama';
 
   @override
+  String get sectionAuthentication => 'Kimlik doğrulama';
+
+  @override
+  String get sectionAdvanced => 'Gelişmiş';
+
+  @override
+  String get moreOptions => 'Diğer seçenekler';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString port yönlendirme kuralı',
+      zero: 'Port yönlendirme kuralı yok',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Yönet…';
+
+  @override
+  String get authMethodAgent => 'Sistem ssh-agent kullan';
+
+  @override
   String get options => 'Seçenekler';
 
   @override
   String get sessionName => 'Oturum Adı';
+
+  @override
+  String get sessionNameAutoFromHost => 'Host\'tan otomatik';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URL host\'undan otomatik';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Varsayılan bucket\'tan otomatik';
 
   @override
   String get hintMyServer => 'Sunucum';
@@ -416,6 +460,9 @@ class STr extends S {
 
   @override
   String get hintOptional => 'İsteğe bağlı';
+
+  @override
+  String get savedTypeToChange => 'Kaydedildi — değiştirmek için yazın';
 
   @override
   String get hidePemText => 'PEM metnini gizle';
@@ -531,11 +578,6 @@ class STr extends S {
   @override
   String get importModeReplaceDescription =>
       'Tüm oturumları içe aktarılanlarla değiştir';
-
-  @override
-  String errorPrefix(String error) {
-    return 'Hata: $error';
-  }
 
   @override
   String get folderName => 'Klasör adı';
@@ -703,7 +745,17 @@ class STr extends S {
   String get calculateFolderSizes => 'Klasör Boyutlarını Hesapla';
 
   @override
+  String get verboseConnectionLog => 'Ayrıntılı bağlantı günlüğü';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'SSH handshake ve kimlik doğrulama izinin tamamını log dosyasına kaydet (bağlantı hatalarını teşhis etmek için)';
+
+  @override
   String get exportData => 'Veriyi Dışa Aktar';
+
+  @override
+  String get exportRecordings => 'Oturum Kayıtları';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -876,9 +928,6 @@ class STr extends S {
   String get sourceCode => 'Kaynak Kod';
 
   @override
-  String get enableLogging => 'Günlükleri Etkinleştir';
-
-  @override
   String get logIsEmpty => 'Günlük boş';
 
   @override
@@ -980,6 +1029,26 @@ class STr extends S {
   String get disconnected => 'Bağlantı kesildi';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host bağlanılıyor';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host bağlanıldı';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host bağlantısı kesildi';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host bağlantısı başarısız oldu';
+  }
+
+  @override
   String get exit => 'Çıkış';
 
   @override
@@ -996,19 +1065,12 @@ class STr extends S {
   String get exportSessionsViaQr => 'Oturumları QR ile Dışa Aktar';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.';
 
   @override
   String get qrTooLarge =>
       'Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
-
-  @override
-  String get exportAll => 'Tümünü Dışa Aktar';
 
   @override
   String get showQr => 'QR Göster';
@@ -1024,6 +1086,24 @@ class STr extends S {
 
   @override
   String get liveLog => 'Canlı Günlük';
+
+  @override
+  String get archivedLog => 'Arşivlenmiş günlük';
+
+  @override
+  String get loggingLevel => 'Log seviyesi';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Rutin kayıtlar + uyarılar + hatalar';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Sadece sorunlu yollar ve hatalar';
+
+  @override
+  String get loggingLevelSubtitleError => 'Sadece hatalar';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Rutin log yazılmıyor';
 
   @override
   String transferNItems(int count) {
@@ -1311,30 +1391,6 @@ class STr extends S {
   String get progressDecrypting => 'Şifre çözülüyor…';
 
   @override
-  String get progressParsingArchive => 'Arşiv ayrıştırılıyor…';
-
-  @override
-  String get progressImportingSessions => 'Oturumlar içe aktarılıyor';
-
-  @override
-  String get progressImportingFolders => 'Klasörler içe aktarılıyor';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH anahtarları içe aktarılıyor';
-
-  @override
-  String get progressImportingTags => 'Etiketler içe aktarılıyor';
-
-  @override
-  String get progressImportingSnippets => 'Snippet\'ler içe aktarılıyor';
-
-  @override
-  String get progressApplyingConfig => 'Yapılandırma uygulanıyor…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts içe aktarılıyor…';
-
-  @override
   String get progressCollectingData => 'Veriler toplanıyor…';
 
   @override
@@ -1371,11 +1427,8 @@ class STr extends S {
   String get importAction => 'İçe aktar';
 
   @override
-  String get saveSessionToAssignTags =>
-      'Etiket atamak için önce oturumu kaydedin';
-
-  @override
-  String get noTagsAssigned => 'Atanmış etiket yok';
+  String get noTagsAvailable =>
+      'Henüz etiket yok — Tools → Tags üzerinden oluşturun.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1473,23 +1526,6 @@ class STr extends S {
 
   @override
   String get transferStatusQueued => 'Sırada';
-
-  @override
-  String get transferStartingUpload => 'Yükleme başlıyor...';
-
-  @override
-  String get transferStartingDownload => 'İndirme başlıyor...';
-
-  @override
-  String get transferCopying => 'Kopyalanıyor...';
-
-  @override
-  String get transferDone => 'Tamamlandı';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total dosya';
-  }
 
   @override
   String get fileConflictTitle => 'Dosya zaten mevcut';
@@ -1634,6 +1670,9 @@ class STr extends S {
   String get addKey => 'Anahtar ekle';
 
   @override
+  String get addKeyMenuPaste => 'PEM yapıştır';
+
+  @override
   String get filePickerUnavailable => 'Dosya seçici bu sistemde kullanılamıyor';
 
   @override
@@ -1681,6 +1720,56 @@ class STr extends S {
   String get publicKeyCopied => 'Public key panoya kopyalandı';
 
   @override
+  String get sshCertificate => 'Sertifika';
+
+  @override
+  String get certImport => 'Sertifika içe aktar';
+
+  @override
+  String get certImportTooltip =>
+      'CA\'nızın imzaladığı bir OpenSSH sertifikası ekleyin (`ssh-keygen -s …` ile üretilen `-cert.pub` dosyası). Sunucular `authorized_keys` yerine CA imzasıyla doğruluyorsa kullanın. Sunucularınız plain key auth kullanıyorsa atlayın.';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH sertifika dosyasını seç';
+
+  @override
+  String get certValidFrom => 'Geçerlilik başlangıcı';
+
+  @override
+  String get certValidTo => 'Geçerlilik bitişi';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Bu sertifikanın süresi yakında dolacak.';
+
+  @override
+  String get certExpired => 'Süresi doldu';
+
+  @override
+  String get certRemove => 'Sertifikayı kaldır';
+
+  @override
+  String get certRemoveConfirmTitle => 'Sertifika kaldırılsın mı?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Sertifika kaldırıldığında oturum düz public key kimlik doğrulamasına geri döner.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Sertifika parse edilemedi: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Bu sertifika seçili anahtarla eşleşmiyor.';
+
+  @override
   String get pastePrivateKey => 'Özel anahtarı yapıştır (PEM)';
 
   @override
@@ -1708,31 +1797,14 @@ class STr extends S {
   String get generated => 'Oluşturuldu';
 
   @override
-  String get passphraseRequired => 'Passphrase gerekli';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host için SSH anahtarı şifrelenmiş. Kilidini açmak için passphrase girin.';
-  }
-
-  @override
-  String get passphraseWrong => 'Yanlış passphrase. Tekrar deneyin.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Bu oturumluk hatırla';
 
   @override
   String get enterMasterPassword =>
       'Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.';
 
   @override
-  String get wrongMasterPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
-
-  @override
-  String get newPassword => 'Yeni şifre';
+  String get wrongMasterPassword => 'Yanlış şifre. Tekrar deneyin.';
 
   @override
   String get currentPassword => 'Mevcut şifre';
@@ -1823,12 +1895,6 @@ class STr extends S {
   @override
   String get wizardReducedBanner =>
       'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Bu katmanda hiçbir şey.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Kapsanmayan tehdit yok.';
 
   @override
   String get tierBadgeCurrent => 'Geçerli';
@@ -2050,6 +2116,159 @@ class STr extends S {
   String get commandCopied => 'Komut panoya kopyalandı';
 
   @override
+  String get snippetTokensHint =>
+      'Yer tutucu eklemek için dokunun. Çalışma zamanında aktif oturumun değerleriyle değiştirilir:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Çift süslü parantezli başka herhangi bir şey snippet çalıştırıldığında size bir değer sorar.';
+
+  @override
+  String get snippetFillTitle => 'Snippet parametrelerini doldur';
+
+  @override
+  String get snippetFillSubmit => 'Çalıştır';
+
+  @override
+  String get broadcastSetDriver => 'Bu panelden yayınla';
+
+  @override
+  String get broadcastClearDriver => 'Bu panelden yayını durdur';
+
+  @override
+  String get broadcastAddReceiver => 'Yayını burada al';
+
+  @override
+  String get broadcastRemoveReceiver => 'Yayını almayı durdur';
+
+  @override
+  String get broadcastClearAll => 'Tüm yayınları durdur';
+
+  @override
+  String get broadcastPasteTitle => 'Yapıştırmayı tüm panellere gönder?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars karakter diğer $count panele gönderilecek.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Gönder';
+
+  @override
+  String get portForwarding => 'Yönlendirme';
+
+  @override
+  String get portForwardingEmpty => 'Henüz kural yok';
+
+  @override
+  String get addForwardRule => 'Kural ekle';
+
+  @override
+  String get editForwardRule => 'Kuralı düzenle';
+
+  @override
+  String get deleteForwardRule => 'Kuralı sil';
+
+  @override
+  String get localForward => 'Yerel';
+
+  @override
+  String get remoteForward => 'Uzak';
+
+  @override
+  String get dynamicForward => 'Dinamik';
+
+  @override
+  String get forwardKind => 'Tür';
+
+  @override
+  String get bindAddress => 'Bağlama adresi';
+
+  @override
+  String get bindPort => 'Bağlama portu';
+
+  @override
+  String get targetHost => 'Hedef sunucu';
+
+  @override
+  String get targetPort => 'Hedef port';
+
+  @override
+  String get forwardDescription => 'Açıklama (isteğe bağlı)';
+
+  @override
+  String get forwardEnabled => 'Etkin';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Yerel: bu cihazda bir port açar ve SSH sunucusundan erişilebilir hedefe tünel kurar. localhost:bindPort üzerinden uzak veritabanlarına veya yönetim arayüzlerine erişmek için kullanışlı.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Uzak: SSH sunucusundan bir port açmasını ister; port bu cihazdan erişilebilir hedefe tünel kurar. Yerel dev sunucuyu uzak bir host ile paylaşmak için kullanışlı (sunucu non-loopback bağlamalar için GatewayPorts yes gerektirebilir).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Dinamik: bu cihazda her bağlantıyı SSH sunucusu üzerinden yönlendiren bir SOCKS5 proxy. Tüm trafiği SSH üzerinden göndermek için tarayıcıyı veya curl\'u localhost:bindPort\'a yönlendirin.';
+
+  @override
+  String get proxyJump => 'Üzerinden bağlan';
+
+  @override
+  String get proxyJumpNone => 'Doğrudan bağlantı';
+
+  @override
+  String get proxyJumpSavedSession => 'Kaydedilmiş oturum';
+
+  @override
+  String get proxyJumpCustom => 'Özel';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Özel hoplar bu oturumun kimlik bilgilerini kullanır. Farklı bastion auth için bastion\'u ayrı bir oturum olarak kaydet.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label üzerinden';
+  }
+
+  @override
+  String get recordSession => 'Oturumu kaydet';
+
+  @override
+  String get recordSessionHelp =>
+      'Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı oturum veritabanını koruyorsa diskte şifrelidir; aksi takdirde veritabanının yanına plaintext olarak yazılır.';
+
+  @override
+  String get recordingsBrowserTitle => 'Kayıtlar';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Kaydedilmiş oturumlara göz atın, oynatın ve silin';
+
+  @override
+  String get recordingsEmpty => 'Henüz kayıt yok';
+
+  @override
+  String get playRecording => 'Oynat';
+
+  @override
+  String get deleteRecording => 'Sil';
+
+  @override
+  String get recordingPlaybackTitle => 'Kaydı oynat';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Etiketler';
 
   @override
@@ -2175,20 +2394,6 @@ class STr extends S {
       'Uygulama başlatıldığında GitHub\'da yeni sürümü denetle';
 
   @override
-  String get enableLoggingSubtitle =>
-      'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
-
-  @override
-  String get exportWithoutPassword => 'Parolasız dışa aktarılsın mı?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.';
-
-  @override
-  String get continueWithoutPassword => 'Parolasız devam et';
-
-  @override
   String get threatColdDiskTheft => 'Kapalı makineden disk hırsızlığı';
 
   @override
@@ -2257,9 +2462,6 @@ class STr extends S {
   String get colT1PasswordBiometric => 'T1 + parola + biyometrik';
 
   @override
-  String get colT2 => 'T2 Donanım';
-
-  @override
   String get colT2Password => 'T2 + parola';
 
   @override
@@ -2292,6 +2494,11 @@ class STr extends S {
   String get resetAllDataConfirmAction => 'Her şeyi sıfırla';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Onaylamak için aşağıya $phrase yazın:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Sıfırlanıyor…';
 
   @override
@@ -2299,6 +2506,61 @@ class STr extends S {
 
   @override
   String get resetAllDataFailed => 'Sıfırlama başarısız';
+
+  @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Kullanılan';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ klasörüne uygulanan sert cap. Aşıldığında en eski recording önce silinir; sürmekte olan recording asla dokunulmaz.';
+
+  @override
+  String get recordingsClearAllAction => 'Tüm recordings\'i sil';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Tüm recordings silinsin mi?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ altındaki her kayıtlı oturum silinecek. Sürmekte olan recording (varsa) kalır. Bu işlem geri alınamaz.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count recording silindi';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap güncellendi. $bytes geri kazanıldı.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap güncellendi. Silinecek bir şey yok.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2309,7 +2571,7 @@ class STr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
+      'Gelişmiş: donanıma bağlı anahtar, her zaman parola ile korunur. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2331,6 +2593,10 @@ class STr extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Kasa açılmadan önce yazılan gizli geçiş kapısı.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Zorunlu — Hardware tier her zaman parola ile korunur.';
 
   @override
   String get modifierBiometricLabel => 'Biyometrik kısayol';
@@ -2360,8 +2626,66 @@ class STr extends S {
       'fprintd kurulu değil veya kayıtlı parmak izi yok.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.';
+  String get t2RequiresPasswordTitle =>
+      'Hardware tier için master password belirle';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware tier modifier olarak password gerektirir. Biometric bunun üzerinde opsiyonel bir shortcut\'tır.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware tier password gerektiriyor';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Password\'siz mevcut Hardware install\'lar devam etmek için şimdi bir tane belirlemeli.';
+
+  @override
+  String get t2MigrationContinue => 'Devam';
+
+  @override
+  String get t2MigrationSetPasswordTitle =>
+      'Hardware tier\'ı korumak için bir password belirle';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Yeni bir master password gir. Hardware module içinde zaten sealed olan DB key bu password altında re-seal edilir — session\'ların ve key\'lerin sağlam kalır.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe edip sıfırdan başla';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware tier re-seal başarısız — farklı bir password seç ya da wipe et.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Hardware tier üzerinde biometric shortcut\'ı etkinleştir';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Password\'ünü biometric-gated bir OS slot\'undan serbest bırakır.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Biometric overlay bu platformda henüz mevcut değil.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Önce Hardware tier password\'ünü belirle.';
+
+  @override
+  String get t2UnlockTitle => 'Master password ile aç';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Hardware-bound anahtar password\'ün ile korunur.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Biometric kullan';
+
+  @override
+  String get t2PasswordChanged => 'Hardware tier password\'ü güncellendi.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2386,4 +2710,943 @@ class STr extends S {
 
   @override
   String get masterPasswordLabel => 'Ana parola';
+
+  @override
+  String get globalErrorTitle => 'Beklenmeyen hata';
+
+  @override
+  String get globalErrorBody =>
+      'Beklenmeyen bir hata oluştu. Uygulama çalışmaya devam edecek.';
+
+  @override
+  String get globalErrorLogSavedNote => 'Tüm ayrıntılar log dosyasına yazıldı.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Hata ayrıntılarını kaydetmek için Ayarlar\'dan log\'u etkinleştir.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Hata: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Log\'u etkinleştir';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Log etkin — hatalar log dosyasına yazılacak';
+
+  @override
+  String get fatalErrorQuitButton => 'Çık';
+
+  @override
+  String get fatalErrorWipeButton => 'Tüm verileri sil';
+
+  @override
+  String get fatalErrorWipingButton => 'Siliniyor…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Silme, tüm uygulama dosyalarını (config, veritabanı, vault blob\'ları, log\'lar) kaldırır; sonraki açılış temiz bir kurulumdan başlar. Geri alınamaz.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Tüm veriler silinsin mi?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'Bu, tüm config, veritabanı ve vault dosyalarını kalıcı olarak siler. Uygulama boş bir kurulumdan yeniden başlar. Devam edilsin mi?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Her şeyi sil';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'Bu arşiv parola korumalı değil. Dosyaya sahip olan herkes içeriğini okuyabilir.';
+
+  @override
+  String get clipboardCopyFailed => 'Panoya kopyalanamadı.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Host adı ASCII olmayan karakterler içeriyor — her karakteri yazdığınla karşılaştır. Görsel olarak benzer kod noktaları (Kiril / Yunan) bir Latin alan adını taklit edebilir.';
+
+  @override
+  String get playbackPause => 'Duraklat';
+
+  @override
+  String get recordingPlayLocked =>
+      'Bu şifreli kaydı oynatmak için uygulamanın kilidini aç.';
+
+  @override
+  String get recordToggleStart => 'Kaydı başlat';
+
+  @override
+  String get recordToggleStop => 'Kaydı durdur';
+
+  @override
+  String get foregroundServiceTitle => 'SSH aktif';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count etkin bağlantı',
+      one: '1 etkin bağlantı',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Session türü';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Kullanıcı adı';
+
+  @override
+  String get webDavAuthMethod => 'Auth yöntemi';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => 'Güvenilen sertifika (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Sunucu sertifikasını yapıştırın (bir veya birden çok PEM bloğu). Sadece bu oturum için ek bir root CA olarak eklenir — diğer uygulamaları etkilemez. Sistem trust store\'unu kullanmak için boş bırakın.';
+
+  @override
+  String get acceptAnyCert => 'Her sertifikayı kabul et';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Bu oturumun TLS handshake\'lerinde tüm sertifika ve hostname kontrollerini atla. Sistem trust store da pinned cert de uygun değilse son çare.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM saldırılarına karşı savunmasız — ağdaki herkes sunucu kimliğine bürünebilir. Yalnızca güvenilir özel ağlarda kullanın.';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL kopyala';
+
+  @override
+  String get webDavOpenInBrowser => 'Tarayıcıda aç';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV auth başarısız';
+
+  @override
+  String get errWebDavNotFound => 'Path bulunamadı';
+
+  @override
+  String get errWebDavConflict => 'Operasyon mevcut state ile çakışıyor';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV server isteği reddetti: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL gerekli';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL http:// veya https:// olmalı';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'AWS için boş bırak, MinIO / R2 / Spaces için endpoint gir';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'MinIO için gerekli; AWS için off bırak';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL üret';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Süre sonu';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI kopyala';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 dakika';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 saat';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 saat';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 saat';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 gün';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret kontrol et)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket yok veya erişilemiyor';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket başka bir region\'da';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 sunucusu request\'i reddetti: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync etkinleştir';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Sync arşivini şifreler. Master password\'dan farklı olmalı.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase, master password ile aynı olamaz.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV base URL altındaki path — varsayılan letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Son push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Son pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Hiç';
+
+  @override
+  String get syncUpToDate => 'Sync güncel';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes push edildi';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote\'dan $count değişiklik uygulandı';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync devre dışı';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote değişti — önce pull, sonra push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV kimlik doğrulama başarısız';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Ağ hatası: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Remote sync arşivi daha yeni bir build gerektiriyor';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Hardware key\'e dokun';
+
+  @override
+  String get hardwareKeyPin => 'Hardware key PIN';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key yanıt vermedi';
+
+  @override
+  String get hardwareKeyNotFound => 'Hardware key bulunamadı';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Bu platformda doğrudan hardware key erişimi yok';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement gerekli; macOS\'ta ssh-agent kullan';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'Bu SSH key bir hardware key gerektiriyor — auth için dokun';
+
+  @override
+  String get errSkWrongPin => 'PIN hatalı';
+
+  @override
+  String get hardwareKeyImport => 'Hardware key import et (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Hardware key prompt iptal edildi';
+
+  @override
+  String get agentEndpointSectionTitle => 'Harici SSH client entegrasyonu';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Hardware-bound keys\'i sistem SSH client\'larına aç';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Bu cihazdaki git, ssh ve IDE plugin\'lerinin FIDO2 / smart-card / TPM keys\'lerinizi kullanmasına izin verir.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export komutunu kopyala';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe adını kopyala';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'İmza isteği';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester, $keyLabel ile imzalamak istiyor';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Harici bir SSH client';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Bir kez yetkilendir';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Yetkilendir ve hatırla';
+
+  @override
+  String get agentEndpointDeny => 'Reddet';
+
+  @override
+  String get agentEndpointStatusRunning => 'Çalışıyor';
+
+  @override
+  String get agentEndpointStatusStopped => 'Durdu';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Bu platformda desteklenmiyor';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Reddedildi: harici client\'lar key ekleyemez.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent endpoint başlatılamadı: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'Smart card / token anahtarı ekle';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 modülü';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Otomatik algılandı';
+
+  @override
+  String get pkcs11ModuleCustom => 'Özel modül...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 kütüphanesi seç';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 modülü bulunamadı. OpenSC yükle veya vendor kütüphanesi seç.';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 modülü initialise olmadı.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Hiçbir okuyucuda token yok.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Seri: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token login gerektiriyor.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token için PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Token\'ın PIN-pad\'inde onayla.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN yanlış. $remaining deneme kaldı.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'Token PIN kilitli. PUK ile aç.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token\'da SSH için kullanılabilir key yok (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST key\'leri SSH ile kullanılamaz.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" takılı değil.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Kaydedilmiş token bulunamadı. Yeniden tak ve dene.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing başarısız: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart card / PKCS#11 token\'lar bu platformda yok.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 module seç';
+
+  @override
+  String get pkcs11WizardStepToken => 'Token seç';
+
+  @override
+  String get pkcs11WizardStepKey => 'Key seç';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN gir';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Key\'i import et';
+
+  @override
+  String get pkcs11SaveInProgress => 'Token\'dan public key okunuyor...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Smart card key eklendi.';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 module\'leri taranıyor...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Token\'lar yükleniyor...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Key\'ler yükleniyor...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module yüklendi.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token yok.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Module yüklenemedi.';
+
+  @override
+  String get pkcs11PinPadHint => '(Cihaz üzerinde PIN pad)';
+
+  @override
+  String get pkcs11WizardBack => 'Geri';
+
+  @override
+  String get pkcs11WizardNext => 'İleri';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Hardware anahtarı ekle';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key cihazın secure hardware bileşeninde yaşıyor ve dışa aktarılamaz.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'Bu key yalnızca bu Mac üzerinde çalışır.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Bu key yalnızca bu iPhone üzerinde çalışır.';
+
+  @override
+  String get sshKeyHelloDeviceBound =>
+      'Bu key yalnızca bu PC üzerinde çalışır.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Touch ID / Face ID zorunlu olsun';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Cihaz passcode\'unu fallback olarak kabul et';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Windows Hello zorunlu olsun (PIN, parmak izi veya yüz)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key kullanılamıyor';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Secure Enclave için uygulamanın code-signed olması gerekir.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Bu PC\'de Windows Hello yapılandırılmamış.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM algılanmadı — yalnızca software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Oluştur';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Key secure hardware içinde oluşturuluyor...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing gerekli — USER_GUIDE.md → Hardware-bound keys bölümüne bakın.';
+
+  @override
+  String get sshKeySignInProgress => 'Secure hardware ile imzalanıyor...';
+
+  @override
+  String get sshKeyPublicCopy => 'Public key\'i kopyala';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Bu satırı sunucudaki ~/.ssh/authorized_keys dosyasına ekleyin.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Key adı';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH anahtarı';
+
+  @override
+  String get helloWizardLabelHint => 'Anahtar etiketi';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello ile doğrula';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, parmak izi veya yüz — Windows Hello bu SSH challenge\'ını imzalar.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Bu cihazda TPM yok. Anahtar kullanıcı alanına düşer; Windows Hello yine her imzayı gate eder.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM firmware P-384 desteklemiyor. P-256 veya RSA-2048 seç.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Önce Windows Hello\'yu Ayarlar -> Oturum açma seçeneklerinde kur.';
+
+  @override
+  String get tpmSshTitle => 'TPM-backed SSH key oluştur';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (önerilen)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'Bu TPM firmware bu algorithm\'i desteklemiyor.';
+
+  @override
+  String get tpmSshPinProtect => 'PIN ile koru';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'Yanlış PIN denemeleri sonrası TPM key\'i kilitler.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN\'ler eşleşmiyor.';
+
+  @override
+  String get tpmSshStorageBlob => 'Wrapped key\'i app data\'da sakla';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM memory slot\'unda tut';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Daha hızlı signing. TPM\'in persistent slot\'larından birini tüketir.';
+
+  @override
+  String get tpmSshLabel => 'Key etiketi';
+
+  @override
+  String get tpmSshImportTitle => 'TPM korumalı SSH key import et';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label için TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN hatalı.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM lockout cooldown\'da. $duration bekle ve tekrar dene.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Key TPM\'de oluşturuluyor...';
+
+  @override
+  String get tpmSshSigning => 'TPM ile signing...';
+
+  @override
+  String get tpmSshUnavailable => 'Bu cihazda TPM bulunamadı.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM firmware\'de devre dışı.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'Uygulama TPM\'e erişemiyor. Kullanıcıyı `tss` grubuna ekle.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle zaten kullanımda.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Bu key Hello / PIN prompt\'u OLMADAN imzalar — sen logged in iken desktop\'a erişen herkes kullanabilir.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Hardware-bound key generate ediliyor...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH key kullanmak için authenticate ol';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key destroy edildi: yeni biometric enroll edildi. Public key\'i sunucularda yeniden register et.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable => 'Bu cihazda StrongBox HSM yok';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Her signature için biometric / device unlock iste';
+
+  @override
+  String get keystoreKeyExportDisabled => 'Hardware-bound keys export edilemez';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Bu key\'i silmek hardware store\'dan da çıkarır. Yeni bir tane register edene kadar sunucular reject eder.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Önce biometric ya da device PIN enroll et';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM kullanılamıyor';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Cihazın StrongBox HSM \'i expose etmiyor. Onun yerine TEE destekli bir key oluşturulsun mu? Hâlâ hardware-backed, sadece StrongBox isolation yok.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE kullan';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'İptal';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Donanım security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Sistem security key diyaloğu';
+
+  @override
+  String get fido2BrokerIosLabel => 'Sistem security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'Sistem security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'Doğrudan USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Bu platformda kullanılamıyor';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Sistem diyaloğu yerine doğrudan USB HID tercih edilsin';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'İleri seviye: her iki yolun da çalıştığı platformlarda $brokerLabel bypass edilir. Doğrudan HID daha fazla authenticator özelliği sunar ama app bazında permission grant gerektirir.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'SSH entegrasyonu';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Bu cihazda donanım anahtarı desteği mevcut değil.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Bu cihazda yalnızca $transport mevcut; toggle devre dışı.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'İçe aktarılmış stub';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Başka bir cihazdaydı — kullanmak için burada yeniden üret';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Burada yeniden üret';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Stub\'ı kaldır';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Kullanmadan önce bu key\'i bu cihazda yeniden üret';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '\"$token\" token\'ı için PKCS#11 modülünü bul';
+  }
+
+  @override
+  String get arrowLeft => 'Sol ok';
+
+  @override
+  String get arrowUp => 'Yukarı ok';
+
+  @override
+  String get arrowDown => 'Aşağı ok';
+
+  @override
+  String get arrowRight => 'Sağ ok';
+
+  @override
+  String get copyMode => 'Kopyalama modu';
+
+  @override
+  String get exitCopyMode => 'Kopyalama modundan çık';
+
+  @override
+  String importedGeneric(String items) {
+    return 'İçe aktarıldı: $items';
+  }
 }

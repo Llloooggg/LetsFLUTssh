@@ -32,33 +32,59 @@ class ServerAddress {
 }
 
 /// SSH authentication credentials.
+///
+/// `keyId` carries a reference to a row in the manager's key store —
+/// the connect path stages the private PEM bytes from Rust directly
+/// into the SecretStore by id, so the bytes do not need to round-
+/// trip through `keyData` on the Dart heap. `keyData` stays as the
+/// transport for inline / quick-connect / legacy paths that have no
+/// stored row to stage from.
 class SshAuth {
   final String password;
   final String keyPath;
   final String keyData; // raw PEM text
+  final String keyId;
   final String passphrase;
+
+  /// `true` when the session defers to a system ssh-agent (Unix
+  /// `$SSH_AUTH_SOCK`, Windows OpenSSH named pipe / Pageant) for
+  /// every signature. Set by [Session.toSSHConfig] when the saved
+  /// row's [AuthType] is `agent`; the connect path short-circuits
+  /// to [SshAuthAgent] before the auth composer runs so no key /
+  /// password column has to be populated.
+  final bool useAgent;
 
   const SshAuth({
     this.password = '',
     this.keyPath = '',
     this.keyData = '',
+    this.keyId = '',
     this.passphrase = '',
+    this.useAgent = false,
   });
 
   /// True if any auth method is configured.
   bool get hasAuth =>
-      password.isNotEmpty || keyPath.isNotEmpty || keyData.isNotEmpty;
+      useAgent ||
+      password.isNotEmpty ||
+      keyPath.isNotEmpty ||
+      keyData.isNotEmpty ||
+      keyId.isNotEmpty;
 
   SshAuth copyWith({
     String? password,
     String? keyPath,
     String? keyData,
+    String? keyId,
     String? passphrase,
+    bool? useAgent,
   }) => SshAuth(
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
+    keyId: keyId ?? this.keyId,
     passphrase: passphrase ?? this.passphrase,
+    useAgent: useAgent ?? this.useAgent,
   );
 
   @override
@@ -68,10 +94,13 @@ class SshAuth {
           password == other.password &&
           keyPath == other.keyPath &&
           keyData == other.keyData &&
-          passphrase == other.passphrase;
+          keyId == other.keyId &&
+          passphrase == other.passphrase &&
+          useAgent == other.useAgent;
 
   @override
-  int get hashCode => Object.hash(password, keyPath, keyData, passphrase);
+  int get hashCode =>
+      Object.hash(password, keyPath, keyData, keyId, passphrase, useAgent);
 }
 
 /// SSH connection configuration model.
@@ -101,17 +130,6 @@ class SSHConfig {
   String get keyData => auth.keyData;
   String get passphrase => auth.passphrase;
   bool get hasAuth => auth.hasAuth;
-
-  /// Validate required fields. Returns error message or null.
-  String? validate() {
-    if (host.trim().isEmpty) return 'Host is required';
-    if (port < 1 || port > 65535) return 'Port must be 1-65535';
-    if (user.trim().isEmpty) return 'Username is required';
-    if (!hasAuth) return 'Password or SSH key is required';
-    if (keepAliveSec < 0) return 'Keep-alive must be non-negative';
-    if (timeoutSec < 1) return 'Timeout must be at least 1 second';
-    return null;
-  }
 
   SSHConfig copyWith({
     ServerAddress? server,

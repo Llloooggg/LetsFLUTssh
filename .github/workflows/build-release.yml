@@ -107,12 +107,57 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          cache: true
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
+          flutter-version: 3.41.9
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - name: Install Linux build dependencies
+        # `libtss2-dev` is required by `tss-esapi` for the native TPM2
+        # backend (`lfs_core::platform::linux::tpm_native`). The native
+        # module compiles into every Linux release build so a future
+        # `LFS_TPM_BACKEND=native` flip needs no rebuild — the
+        # subprocess backend stays the runtime default until verified.
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libtss2-dev lld
+
+      - uses: ./.github/actions/setup-rust
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
@@ -193,12 +238,12 @@ jobs:
           Description: Lightweight cross-platform SSH/SFTP client
            A full-featured SSH terminal and SFTP file browser with session
            management, encrypted credential storage, and tiling terminal layout.
-          Depends: libgtk-3-0, libsecret-1-0
+          Depends: libgtk-3-0, libsecret-1-0, libtss2-esys-3.0.2-0 | libtss2-esys-0
           Section: net
           Priority: optional
           EOF
           dpkg-deb --build $PKG
-          mv ${PKG}.deb letsflutssh-${VER}-linux-amd64.deb
+          mv ${PKG}.deb letsflutssh-${VER}-linux-x64.deb
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -207,11 +252,179 @@ jobs:
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
-            letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
+
+  build-linux-arm64:
+    # Native ARM64 build on the GitHub-hosted `ubuntu-24.04-arm`
+    # runner (free for public repositories). Targets users on
+    # Raspberry Pi 5 (8 GB), Asahi Linux on Apple Silicon, AWS
+    # Graviton, Ampere Altra, and any other aarch64 desktop
+    # Linux. Cross-compile from ubuntu-latest x86_64 was the
+    # alternative; native runner is simpler (no `gcc-aarch64-linux-gnu`
+    # cross-toolchain, no `cargo --target aarch64-unknown-linux-gnu`
+    # gymnastics, no QEMU for the AppImage build) and produces
+    # binaries identical in shape to what an end-user would
+    # build from source on their own ARM64 machine.
+    needs: preflight
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    env:
+      SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      # Flutter does NOT publish a Linux ARM64 SDK tarball — `subosito/
+      # flutter-action`'s resolver returns "Unable to determine Flutter
+      # version" for any architecture: arm64 query because Flutter's
+      # `releases_linux.json` contains zero arm64 entries (verified
+      # 2026-05-03 across stable / beta / dev). The official
+      # documented install on ARM64 hardware (per
+      # https://docs.flutter.dev/get-started/install/linux) is
+      # `git clone flutter/flutter` + `flutter precache`, which
+      # bootstraps the Dart SDK and fetches per-arch engine artifacts
+      # for the host triple. We mirror that path here, pinning to a
+      # framework commit SHA (not tag — tags are mutable) so the
+      # SDK we run is cryptographically reproducible across reruns.
+      - name: Cache Flutter SDK + engine artefacts
+        id: flutter-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: ${{ runner.temp }}/flutter
+          # Cache key carries the full SHA + OS + arch — bumping
+          # FLUTTER_SHA below invalidates automatically.
+          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+
+      - name: Install Flutter SDK (git clone)
+        if: steps.flutter-cache.outputs.cache-hit != 'true'
+        env:
+          # `git rev-parse 3.41.9` against flutter/flutter — the
+          # framework HEAD of the 3.41.9 stable tag. Bump in
+          # lockstep with a Flutter version roll.
+          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+        run: |
+          git -c advice.detachedHead=false clone \
+            --filter=blob:none \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" checkout "$FLUTTER_SHA"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --linux
+
+      - name: Add Flutter to PATH
+        run: echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Install Linux build dependencies
+        # Same set as build-linux-x64; `libtss2-dev` is required
+        # by tss-esapi for the native TPM2 backend (NI-1).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libtss2-dev lld
+
+      - uses: ./.github/actions/setup-rust
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Linux ARM64
+        run: flutter build linux --release
+
+      - name: Package tar.gz
+        # Same reproducible-tar invocation as the x64 path —
+        # SOURCE_DATE_EPOCH + sort=name + numeric-owner + gzip -n
+        # produce a deterministic stream so two runs at the same
+        # commit yield identical sha256.
+        run: |
+          cd build/linux/arm64/release/bundle
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+
+      - name: Cache appimagetool (aarch64)
+        # Separate cache key from x64 — appimagetool ships per-arch
+        # binaries; the aarch64 release on the AppImage org repo
+        # carries its own sha256 (verified against the upstream
+        # 1.9.1 release artefact at workflow-author time).
+        id: cache-appimagetool-arm64
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: appimagetool
+          key: appimagetool-1.9.1-aarch64-f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+
+      - name: Package AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Download appimagetool if not cached, then verify hash (even from cache).
+          if [ ! -f appimagetool ]; then
+            gh release download 1.9.1 --repo AppImage/appimagetool --pattern 'appimagetool-aarch64.AppImage' --output appimagetool
+          fi
+          echo "f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158  appimagetool" | sha256sum -c
+          chmod +x appimagetool
+          APPDIR=AppDir
+          mkdir -p $APPDIR/usr/bin $APPDIR/usr/lib $APPDIR/usr/share/applications $APPDIR/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/arm64/release/bundle/* $APPDIR/usr/bin/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/usr/share/applications/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/
+          cp assets/icons/icon.png $APPDIR/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cp assets/icons/icon.png $APPDIR/letsflutssh.png
+          cat > $APPDIR/AppRun << 'APPRUN'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "$HERE/usr/bin/letsflutssh" "$@"
+          APPRUN
+          chmod +x $APPDIR/AppRun
+          ARCH=aarch64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+
+      - name: Package deb
+        run: |
+          VER=${{ needs.preflight.outputs.version }}
+          PKG=letsflutssh_${VER}_arm64
+          mkdir -p $PKG/DEBIAN
+          mkdir -p $PKG/usr/bin
+          mkdir -p $PKG/usr/lib/letsflutssh
+          mkdir -p $PKG/usr/share/applications
+          mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/arm64/release/bundle/* $PKG/usr/lib/letsflutssh/
+          ln -sf /usr/lib/letsflutssh/letsflutssh $PKG/usr/bin/letsflutssh
+          cp linux/packaging/letsflutssh.desktop $PKG/usr/share/applications/
+          cp assets/icons/icon.png $PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cat > $PKG/DEBIAN/control << EOF
+          Package: letsflutssh
+          Version: ${VER}
+          Architecture: arm64
+          Maintainer: LetsFLUTssh <noreply@letsflutssh.dev>
+          Description: Lightweight cross-platform SSH/SFTP client
+           A full-featured SSH terminal and SFTP file browser with session
+           management, encrypted credential storage, and tiling terminal layout.
+          Depends: libgtk-3-0, libsecret-1-0, libtss2-esys-3.0.2-0 | libtss2-esys-0
+          Section: net
+          Priority: optional
+          EOF
+          dpkg-deb --build $PKG
+          mv ${PKG}.deb letsflutssh-${VER}-linux-arm64.deb
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-arm64
+          retention-days: 7
+          path: |
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
 
   build-windows:
     needs: preflight
-    runs-on: windows-latest
+    # Pinned explicitly to silence the `windows-2025` → `windows-2025-vs2026`
+    # redirect notice GitHub fires on `windows-latest` until the May 2026
+    # forced migration. Pinned label = reproducible toolchain (VS 2026 +
+    # MSVC + Rust). Bump when GitHub deprecates this label.
+    runs-on: windows-2025-vs2026
     permissions:
       contents: read
     steps:
@@ -219,10 +432,68 @@ jobs:
         with:
           submodules: recursive
 
+      # Pin x64 Temurin so the `jni` Flutter plugin links against an
+      # x64 `jvm.lib`. The default `JAVA_HOME` on the
+      # `windows-2025-vs2026` runner points at an ARM64 Temurin tree
+      # (`Java_Temurin-Hotspot_jdk\<ver>\aarch64`), and the `jni`
+      # plugin's Windows vcxproj resolves `jvm.lib` through that
+      # path — link fails with `LNK4272: library machine type 'ARM64'
+      # conflicts with target machine type 'x64'` + an unresolved
+      # `__imp_JNI_CreateJavaVM`. `jni` is a transitive dep of
+      # `path_provider_android` (Android-only at runtime) but its
+      # plugin descriptor declares a Windows build target, so
+      # Flutter compiles it on every Windows release. Fix is the
+      # explicit x64 architecture pin.
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: 17
+          architecture: x64
+
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          cache: true
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
+          flutter-version: 3.41.9
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
+
+      - uses: ./.github/actions/setup-rust
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
@@ -265,6 +536,7 @@ jobs:
       - name: Package EXE installer
         run: |
           $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
+          $env:OUTPUT_ARCH = "x64"
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe" .
@@ -295,6 +567,175 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
 
+  build-windows-arm64:
+    # Native ARM64 Windows build on the GitHub-hosted
+    # `windows-11-arm` runner. Targets Snapdragon X / Surface Pro X
+    # devices — a small but growing user base for ARM64 Windows
+    # desktop. Native runner over cross-compile from windows-latest
+    # for the same reasons as Linux ARM64: no separate target add /
+    # linker swap, cargokit picks the host triple naturally, and
+    # the Inno Setup + Authenticode flows are unchanged.
+    needs: preflight
+    runs-on: windows-11-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      # Same git-clone path as build-linux-arm64 (see the long
+      # comment there) — Flutter publishes zero Windows ARM64
+      # tarballs, the documented install is `git clone` + `flutter
+      # precache`. `shell: bash` resolves to Git Bash on the
+      # `windows-11-arm` runner, which handles forward / backward
+      # slashes uniformly through the underlying Win32 API.
+      - name: Cache Flutter SDK + engine artefacts
+        id: flutter-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: ${{ runner.temp }}/flutter
+          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+
+      - name: Install Flutter SDK (git clone)
+        if: steps.flutter-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+        run: |
+          git -c advice.detachedHead=false clone \
+            --filter=blob:none \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" checkout "$FLUTTER_SHA"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --windows
+
+      - name: Add Flutter to PATH
+        shell: bash
+        run: echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/setup-rust
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows
+        # Flutter 3.41.9's `flutter build windows` does NOT accept
+        # `--target-platform` (that's an Android-build flag); it
+        # picks arch automatically from
+        # `_operatingSystemUtils.hostPlatform == HostPlatform.
+        # windows_arm64`. On `windows-11-arm` we get either:
+        #   - native ARM64 — if `flutter precache --windows`
+        #     downloaded an ARM64 Dart SDK (Flutter 3.27+ ships
+        #     one and uname -m at install time picks it).
+        #   - x64-via-Prism — if Flutter pulled the x64 Dart SDK
+        #     and ran it through Windows ARM64's x64 emulation
+        #     layer, in which case the host self-reports as x64
+        #     and we get an x64 binary (still runs on ARM64
+        #     hardware via Prism).
+        # Either is a valid release artifact; the downstream
+        # `Resolve build dir` step picks whichever path Flutter
+        # actually used.
+        run: flutter build windows --release
+
+      - name: Resolve build dir
+        # `flutter build windows` writes to either
+        # `build\windows\arm64\runner\Release\` (native ARM64
+        # build) or `build\windows\x64\runner\Release\` (x64
+        # binary, runs on ARM64 via Prism). Detect which one
+        # Flutter actually picked + export `BUILD_DIR` for the
+        # signing / packaging steps below.
+        shell: bash
+        run: |
+          if [ -d "build/windows/arm64/runner/Release" ]; then
+            printf '%s\n' 'BUILD_DIR=build\windows\arm64\runner\Release' >> "$GITHUB_ENV"
+          elif [ -d "build/windows/x64/runner/Release" ]; then
+            printf '%s\n' 'BUILD_DIR=build\windows\x64\runner\Release' >> "$GITHUB_ENV"
+          else
+            echo "::error::Flutter produced no recognised Windows build dir"
+            ls -la build/windows/ || true
+            exit 1
+          fi
+
+      - name: Self-signed Authenticode
+        # Same self-sign-then-discard certificate flow as
+        # build-windows; the alternative SmartScreen dialog is
+        # equally relevant on ARM64 (the Authenticode signature
+        # is the property of the publisher identity, not the CPU
+        # architecture).
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=LetsFLUTssh Open Source, O=Llloooggg, C=XX" `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -KeyAlgorithm RSA `
+            -KeyLength 3072 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(2)
+          $exe = "$env:BUILD_DIR\letsflutssh.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $exe `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $exe
+
+      - name: Package zip
+        run: Compress-Archive -Path $env:BUILD_DIR\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
+
+      - name: Install Inno Setup
+        # Inno Setup ships an x86 installer that runs under x64
+        # emulation on ARM64 Windows. The installer it produces
+        # carries an `ArchitecturesAllowed` clause in
+        # `windows/packaging/setup.iss` that determines whether
+        # the resulting installer marks itself as ARM64 — see
+        # the setup.iss tweak below before this build is
+        # declared a first-class shipping channel.
+        run: choco install innosetup -y --no-progress
+
+      - name: Package EXE installer
+        # `setup.iss` reads `OUTPUT_ARCH` from the env to pick the
+        # filename slug (`-windows-arm64-setup.exe` here, `-windows-
+        # x64-setup.exe` on the AMD64 job). Inno Setup 6.3+'s
+        # `ArchitecturesAllowed=x64compatible` covers both AMD64 and
+        # ARM64 hosts, so a single directive in the script handles
+        # both runner shapes — no per-arch `#if`.
+        run: |
+          $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
+          $env:OUTPUT_ARCH = "arm64"
+          $env:BUILD_DIR = "${{ github.workspace }}\$env:BUILD_DIR"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
+          Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe" .
+
+      - name: Self-signed Authenticode (installer)
+        # Mirror the build-windows installer-signing step. Inno Setup
+        # re-wraps the signed `letsflutssh.exe` into a separate PE
+        # that needs its own signature, otherwise SmartScreen flags
+        # the installer as "Unknown publisher" even though the
+        # bundled binary inside it is signed.
+        shell: pwsh
+        run: |
+          $cert = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -like '*LetsFLUTssh Open Source*' } |
+            Select-Object -First 1
+          $installer = "letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $installer `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $installer
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-arm64
+          retention-days: 7
+          path: |
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe
+
   build-macos:
     needs: preflight
     runs-on: macos-latest
@@ -308,7 +749,52 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          cache: true
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
+          flutter-version: 3.41.9
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
+
+      - uses: ./.github/actions/setup-rust
+        # Universal binary — cargokit runs cargo twice (one per
+        # arch) and `lipo`s the dylib outputs into a fat binary
+        # bundled into the .app's Frameworks dir.
+        with:
+          targets: x86_64-apple-darwin aarch64-apple-darwin
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
@@ -399,6 +885,154 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
+  build-ios-unsigned:
+    # Unsigned `.ipa` build — the `.ipa` is published as a release
+    # artifact so a user with their own Apple Developer ID (or even
+    # a free Apple ID + Xcode for personal-use 7-day signing) can
+    # re-sign it locally and install on a device without rebuilding
+    # the whole project from source. The job also doubles as
+    # iOS-cfg compile validation: a regression that only manifests
+    # on `cfg(target_os = "ios")` (e.g. a divergence between the
+    # macOS and iOS Apple-stack code paths in `lfs_os_security`) is
+    # caught here rather than waiting for an external user to
+    # discover it. The `rust-cross-check` matrix in ci.yml already
+    # covers `aarch64-apple-ios` for `cargo check` on every PR;
+    # this job extends the validation to a full Flutter iOS bundle
+    # build that exercises cargokit's iOS xcframework path
+    # end-to-end and produces a downloadable artifact.
+    needs: preflight
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
+          flutter-version: 3.41.9
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
+
+      - uses: ./.github/actions/setup-rust
+        # `aarch64-apple-ios` for real devices, `*-ios-sim` +
+        # `x86_64-apple-ios` for the simulator slice cargokit
+        # produces alongside; all three feed into the
+        # xcframework bundled in the .app's Frameworks dir.
+        with:
+          targets: aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Pre-flight cargo build for iOS (surface rustc errors)
+        # `flutter build ios` invokes cargokit which invokes cargo
+        # under Xcode's stdout filter — rustc diagnostics get
+        # collapsed to a single "could not compile $crate (lib)
+        # due to N previous errors" line in the GitHub Actions
+        # log, without the actual `error[Exxxx]` body. Run cargo
+        # directly here first so any iOS-cfg compile regression
+        # surfaces with full rustc output before the Xcode wrapper
+        # gets a chance to swallow it. Real-device target only —
+        # the simulator slices (aarch64-apple-ios-sim,
+        # x86_64-apple-ios) tend to share the same iOS-cfg paths,
+        # and the device target is what end users actually run.
+        #
+        # `working-directory: rust` is load-bearing: rustup walks
+        # UP from CWD looking for `rust-toolchain.toml`, so cargo
+        # invoked from the repo root would pick up the runner's
+        # default-stable toolchain — which does NOT have the iOS
+        # targets the `setup-rust` composite added to the pinned
+        # 1.95.0 toolchain. cd'ing into `rust/` makes rustup find
+        # the toml + use 1.95.0, where the targets actually live.
+        #
+        # `IPHONEOS_DEPLOYMENT_TARGET=13.0` is also load-bearing:
+        # without it, the rustc target `aarch64-apple-ios` defaults
+        # to iOS 10.0, but vendored OpenSSL (3.6.x) compiles against
+        # the current Xcode 15+ SDK headers and emits references to
+        # `__chkstk_darwin` — a stack-checking symbol added in iOS
+        # 13. Linker fails with "Undefined symbols for architecture
+        # arm64: ___chkstk_darwin". The app's Podfile pins
+        # `platform :ios, '13.0'` so the production `flutter build
+        # ios` step uses iOS 13 already; we just need to mirror it
+        # for the standalone cargo invocation here. Matches the
+        # README + pubspec iOS requirement.
+        working-directory: rust
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: '13.0'
+        run: cargo build -p lfs_frb --release --target aarch64-apple-ios
+
+      - name: Build iOS (no codesign)
+        # `--no-codesign` skips the provisioning-profile / signing
+        # identity requirement so the build runs without an Apple
+        # Developer Program account. Output is an unsigned `.app`
+        # bundle inside `build/ios/iphoneos/` that the next step
+        # repacks into a `.ipa` shape.
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned .ipa
+        # Wrap the `.app` bundle in the `Payload/` directory layout
+        # iOS expects from a `.ipa`, then zip. The output cannot be
+        # installed as-is — iOS rejects unsigned binaries. End users
+        # re-sign locally:
+        #   unzip letsflutssh-X.Y.Z-ios-unsigned.ipa
+        #   codesign -f -s "<Apple ID Developer cert>" \
+        #            --entitlements <entitlements.plist> \
+        #            Payload/Runner.app
+        #   zip -r resigned.ipa Payload/
+        # Free Apple ID users can equivalently drop the `.app` into
+        # Xcode (Window → Devices & Simulators) which signs + installs
+        # with a 7-day personal-team certificate.
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ios-unsigned
+          retention-days: 7
+          path: letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa
+
   build-android:
     needs: preflight
     runs-on: ubuntu-latest
@@ -417,7 +1051,59 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          cache: true
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
+          flutter-version: 3.41.9
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
+
+      - uses: ./.github/actions/setup-rust
+        # Per-ABI cargo invocations through the cargokit gradle
+        # plugin produce `liblfs_frb.so` for every supported ABI.
+        with:
+          targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+
+      - name: Install cargo-ndk
+        # `cargo-ndk` finds the right NDK toolchain headers/libs
+        # for each Android ABI when cargokit invokes cargo.
+        # `ANDROID_NDK_HOME` is set by the runner image; cargo-ndk
+        # reads it automatically. Pinned to a specific version to
+        # keep the install reproducible.
+        run: cargo install --locked --version 4.1.2 cargo-ndk
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
@@ -441,7 +1127,7 @@ jobs:
         run: |
           cd build/app/outputs/flutter-apk
           mv app-arm64-v8a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
-          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm32.apk
           mv app-x86_64-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -452,7 +1138,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') || inputs.create_release == true
-    needs: [preflight, build-linux-x64, build-windows, build-macos, build-android]
+    needs: [preflight, build-linux-x64, build-linux-arm64, build-windows, build-windows-arm64, build-macos, build-ios-unsigned, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -466,6 +1152,48 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
+
+      - name: Generate Rust SBOM (CycloneDX)
+        # Software Bill of Materials for the Rust workspace in
+        # CycloneDX 1.5 JSON format — every transitive crate (russh,
+        # tokio, RustCrypto family, …) with version, license, source
+        # URL. Attached to the release as
+        # `letsflutssh-<version>.rust-sbom.cdx.json`.
+        #
+        # Modern supply-chain tools (Dependency-Track, Trivy SBOM
+        # scan, GitHub's own dependency graph) consume this format
+        # directly, so a downstream user can answer "does this
+        # release ship a vulnerable version of <crate>?" without
+        # re-running cargo against our lockfile.
+        #
+        # The Dart-side SBOM is not generated here — Dart's pub
+        # ecosystem does not have a maintained CycloneDX tool with
+        # a published-and-pinnable version on pub.dev today.
+        # Pubspec dependency tree is already exposed through
+        # GitHub's automatic dependency graph
+        # (https://github.com/Llloooggg/LetsFLUTssh/network/dependencies)
+        # which derives the same data from `pubspec.lock`. If a
+        # cyclonedx-dart tool stabilises later, add a sibling step
+        # here.
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Pinned version for reproducibility (same rationale as
+          # cargo-llvm-cov / cargo-machete in `make setup-rust-tools`).
+          cargo install --locked --version 0.5.7 cargo-cyclonedx
+          (cd rust && cargo cyclonedx --all --format json)
+          # cargo-cyclonedx writes per-crate `bom.json` files next
+          # to each crate's Cargo.toml; collect them under one
+          # release artefact.
+          mkdir -p sbom
+          find rust/crates -maxdepth 2 -name 'bom.json' -print0 \
+            | while IFS= read -r -d '' f; do
+                crate=$(basename "$(dirname "$f")")
+                cp "$f" "sbom/${crate}.cdx.json"
+              done
+          tar czf "artifacts/letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz" -C sbom .
+          echo "Rust SBOM bundle → letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz ($(du -h "artifacts/letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz" | cut -f1))"
 
       - name: Sign release artefacts (Ed25519)
         # Single signature per release:
@@ -512,8 +1240,10 @@ jobs:
           # Build the manifest (sha256sum format), names only.
           MANIFEST="artifacts/letsflutssh-${VERSION}.sha256sums"
           : > "$MANIFEST"
-          for d in artifacts/linux-x64 artifacts/windows-x64 \
-                   artifacts/macos-universal artifacts/android-apk; do
+          for d in artifacts/linux-x64 artifacts/linux-arm64 \
+                   artifacts/windows-x64 artifacts/windows-arm64 \
+                   artifacts/macos-universal artifacts/android-apk \
+                   artifacts/ios-unsigned; do
             [ -d "$d" ] || continue
             (cd "$d" && find . -maxdepth 1 -type f \
               ! -name '*.sig' ! -name '*.intoto.jsonl' \
@@ -545,11 +1275,70 @@ jobs:
             artifacts/linux-x64/*.tar.gz
             artifacts/linux-x64/*.AppImage
             artifacts/linux-x64/*.deb
+            artifacts/linux-arm64/*.tar.gz
+            artifacts/linux-arm64/*.AppImage
+            artifacts/linux-arm64/*.deb
             artifacts/windows-x64/*.zip
             artifacts/windows-x64/*.exe
+            artifacts/windows-arm64/*.zip
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
+            artifacts/ios-unsigned/*.ipa
+
+      - name: Install cosign
+        # Sigstore client. Pinned to v4.1.1 (released 2026-03-26),
+        # the latest stable at the time of writing. Cosign binary
+        # itself is pinned to v3.0.6 (released 2026-04-06) — the
+        # action would otherwise default to the latest at run
+        # time, which silently rotates our trust-establishment
+        # surface. Both pins update together when a security or
+        # CVE fix demands; routine version bumps stay deliberate.
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: 'v3.0.6'
+
+      - name: Cosign keyless sign release manifest
+        # Layered alongside the existing Ed25519 manifest signature:
+        #
+        #   * Ed25519 (above) — the trust anchor the in-app updater
+        #     uses; pinned public key baked into
+        #     `release_signing.dart`. This is what gates auto-update.
+        #   * Cosign keyless (this step) — OIDC-rooted signature
+        #     with a Rekor transparency-log entry. No private key
+        #     in the repo or in any secret; the workflow's GitHub
+        #     OIDC identity (`https://github.com/<repo>/.github/
+        #     workflows/build-release.yml@<ref>`) is the signer
+        #     identity, and the public log entry is independently
+        #     auditable via `cosign verify-blob` against that
+        #     identity.
+        #
+        # Two-anchor signing means a future compromise of either
+        # private key (Ed25519 leak) OR a future compromise of
+        # the OIDC issuer alone is not sufficient to forge a
+        # release — an attacker would need both the Ed25519 key
+        # AND a way to mint a Sigstore-trusted GitHub OIDC token
+        # for this repo.
+        #
+        # `id-token: write` permission already granted on the
+        # release job (used by attest-build-provenance above);
+        # cosign's keyless flow consumes the same OIDC token
+        # without additional secret config.
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          MANIFEST="artifacts/letsflutssh-${VERSION}.sha256sums"
+          # `--yes` skips the interactive Rekor-upload prompt.
+          # The bundle file holds the signature + certificate +
+          # transparency-log entry in one Sigstore-format blob,
+          # ready for `cosign verify-blob --bundle <bundle>` on
+          # the consumer side.
+          cosign sign-blob \
+            --yes \
+            --bundle "${MANIFEST}.cosign-bundle" \
+            "$MANIFEST"
+          echo "Cosign keyless signed → $(basename "${MANIFEST}.cosign-bundle")"
 
       - name: Export provenance for release
         # A single `attest-build-provenance` call covers every artefact
@@ -567,8 +1356,10 @@ jobs:
           # Use any binary to pull the bundle — they all map to the
           # same attestation.
           anchor=""
-          for f in artifacts/linux-x64/* artifacts/windows-x64/* \
-                   artifacts/macos-universal/* artifacts/android-apk/*; do
+          for f in artifacts/linux-x64/* artifacts/linux-arm64/* \
+                   artifacts/windows-x64/* artifacts/windows-arm64/* \
+                   artifacts/macos-universal/* artifacts/android-apk/* \
+                   artifacts/ios-unsigned/*; do
             [ -f "$f" ] || continue
             case "$f" in
               *.sig|*.intoto.jsonl|*.sha256sums*) continue ;;
@@ -627,6 +1418,35 @@ jobs:
             RANGE="$TAG"
           else
             RANGE="$PREV_TAG..$TAG"
+          fi
+
+          # Defensive cap. The per-commit list targets normal release windows
+          # (tens of commits between tags). If a range ever spans hundreds of
+          # commits — a fork point or a missing intermediate tag — enumerating
+          # every entry produces an unreadable wall and can approach GitHub's
+          # release-body size limit. Past the cap, emit per-type counts plus a
+          # compare link instead. Hand-written prose for a milestone release is
+          # edited into the GitHub Release directly, never stored in the repo.
+          COMMIT_COUNT=$(git log "$RANGE" --oneline --no-merges | wc -l | tr -d ' ')
+          if [ "$COMMIT_COUNT" -gt 200 ]; then
+            echo "Range $RANGE has $COMMIT_COUNT commits — emitting summary instead of full list"
+            SUMMARY=$(git log "$RANGE" --format='%s' --no-merges \
+              | sed -E 's/^([a-z]+)(\([a-z0-9-]+\))?!?:.*/\1/' \
+              | grep -E '^(feat|fix|refactor|perf|security|i18n|l10n|revert|chore|build|test|docs|ci|style)$' \
+              | sort | uniq -c | sort -rn \
+              | awk '{printf "- %s: %s\n", $2, $1}')
+            {
+              echo "body<<CHANGELOG_EOF"
+              echo "This release spans ${COMMIT_COUNT} commits. Summary by change type:"
+              echo
+              printf '%s\n' "$SUMMARY"
+              if [ -n "$PREV_TAG" ]; then
+                echo
+                echo "Full commit log: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+              fi
+              echo "CHANGELOG_EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           FEATURES=""
@@ -713,14 +1533,21 @@ jobs:
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
-            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+            artifacts/windows-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
-            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm32.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
+            artifacts/ios-unsigned/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.sig
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.cosign-bundle
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.rust-sbom.cdx.tar.gz

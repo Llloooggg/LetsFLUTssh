@@ -1,0 +1,1095 @@
+//! Session recorder.
+//!
+//! Owns the canonical state + file IO for active recordings.
+//! Per-frame AES-GCM crypto runs Rust-side
+//! (`crypto::aes_gcm_encrypt_raw`); this module brings the file
+//! handle + byte counter alongside so a recording's state lives
+//! in one place rather than half on each side of the FRB
+//! boundary.
+//!
+//! [`queue`] adds the per-recording write queue: each id gets a
+//! dedicated tokio worker that drains an mpsc channel of
+//! `QueueEntry` items in arrival order. The Dart shim is then a
+//! fire-and-forget enqueue layer — the asciinema event stream
+//! lands on disk in the same order the user typed / saw it even
+//! when concurrent FRB calls overlap on the runtime.
+//!
+//! # Surfaces
+//!
+//! - [`RecorderRegistry::register`] — counter-only; the caller
+//!   (Dart `SessionRecorder` legacy path) owns file IO.
+//! - [`RecorderRegistry::register_with_io`] — registry owns the
+//!   file handle + encryption key. Pair with
+//!   [`RecorderRegistry::record_frame`] /
+//!   [`RecorderRegistry::close_with_io`] so the consumer never
+//!   sees plaintext after the registry takes over.
+//!
+//! # Frame format (encrypted mode)
+//!
+//! Each frame is `[len(4 LE)][nonce(12)][ciphertext + tag]` —
+//! mirrors the existing Dart-era format so files written by
+//! either driver are interoperable. The leading file marker is
+//! `LFR1` + version byte `0x01`.
+
+pub mod browser;
+pub mod index_sidecar;
+pub mod migrate;
+pub mod queue;
+pub mod reader;
+pub mod storage_cap;
+
+use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::sync::{Arc, Mutex};
+
+use rand::Rng;
+
+use crate::bus::{Event, EventBus};
+use crate::error::Error;
+
+/// File-format magic — `LFR1` (LetsFLUTssh Recorder). Pinned so
+/// every reader (Rust playback path + on-disk integrity probe)
+/// branches consistently on the first four bytes. `pub(crate)`
+/// so the playback adapter in `lfs_frb::api::recorder` reads off
+/// the same constant the writer emits.
+pub(crate) const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
+
+/// Public view of [`LFR_MAGIC`] — used by the FRB-side migration
+/// helper that walks the recordings directory and renames
+/// `.lfsr` files whose first four bytes do not match the magic
+/// (i.e. plaintext-asciinema recordings that picked up the wrong
+/// extension because of the pre-fix Dart-side `secrets_has`
+/// check). Returns a copy so the caller cannot mutate the const.
+#[must_use]
+pub fn lfr_magic() -> [u8; 4] {
+    LFR_MAGIC
+}
+/// On-disk format version byte (post-magic).
+///
+/// Single canonical version — every `.lfsr` file on disk uses this
+/// layout. Earlier on-disk shapes (HKDF-chained recording key,
+/// no header-wrapped key) were dropped before public release; a
+/// hard-reset baseline clears any prior files instead of preserving
+/// them through a reader compat ladder.
+///
+/// Layout: `[magic(4)][version(1) = 0x01][wrap_nonce(12)]
+/// [wrapped_recording_key(48 = 32 ct + 16 GCM tag)] [frames…]`
+///
+/// Each frame: `[len(4 LE)][nonce(12)][ciphertext + tag]`,
+/// AES-256-GCM with `frame_index.to_le_bytes()` as AAD. The recording
+/// key is random per file and stored only in wrapped form — tier
+/// transitions rotate the DB key and re-wrap the header (~ 64 bytes
+/// of disk I/O per recording) without rewriting frame bodies.
+pub(crate) const LFR_VERSION: u8 = 1;
+
+/// Fixed-width on-disk header:
+/// `[magic(4)][version(1)][wrap_nonce(12)][wrapped_recording_key(48 = 32 + 16 GCM tag)]`.
+/// Read+rewrite-in-place is the only mutation the rewrap migration
+/// performs; the byte count is pinned here so the migration code
+/// path and the writer agree on a single source of truth.
+pub const LFR_HEADER_LEN: usize = 4 + 1 + NONCE_LEN + 32 + 16;
+
+/// AAD bound into the wrapped-recording-key GCM tag. Pinned —
+/// bumping it makes every existing `.lfsr` file unrecoverable
+/// because the reader recomputes the same AAD to unwrap.
+pub(crate) const KEYWRAP_AAD: &[u8] = b"letsflutssh-recording-keywrap-v1";
+
+pub(crate) const NONCE_LEN: usize = 12;
+/// Per-frame plaintext-length cap for `.lfsr` envelopes. Mirrors
+/// the Dart reader's `_maxFramePlaintextBytes` cap — a malformed
+/// (or hostile) file with a `0xffffffff` length prefix would
+/// otherwise pull a 4 GiB allocation before the AEAD failure had
+/// a chance to fire. 16 MiB fits every realistic recording (long
+/// asciinema event line + paste storm) with room to spare.
+pub(crate) const MAX_FRAME_PLAINTEXT_BYTES: u32 = 16 * 1024 * 1024;
+
+/// Hard upper bound on a single recording file size before the
+/// driver rolls to a new file under the same session. 100 MB is
+/// large enough for a multi-hour vim-heavy editing session, small
+/// enough that the asciinema export of a single recording stays
+/// trivially shareable. The recorder queue ([`queue`]) reads this
+/// directly to gate the rotate decision; the constant never crosses
+/// the FRB boundary.
+pub const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
+
+/// Stable identifier for an active recording. The Dart side
+/// allocates this off `Uuid().v4()` so the same string flows
+/// through Riverpod ownership before the Rust side has finished
+/// opening the underlying file.
+pub type RecorderId = String;
+
+/// What kind of frame the recorder is writing — terminal output
+/// (stdout / stderr) or terminal input (user keystrokes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordDirection {
+    Output,
+    Input,
+}
+
+/// Per-recording metadata — what the FRB layer hands over to a
+/// late subscriber as the initial state.
+#[derive(Debug, Clone)]
+pub struct RecorderSnapshot {
+    pub id: RecorderId,
+    pub session_id: String,
+    pub path: String,
+    pub bytes_written: u64,
+    pub encrypted: bool,
+}
+
+pub struct RecorderActor {
+    pub id: RecorderId,
+    pub session_id: String,
+    pub path: String,
+    pub bytes_written: u64,
+    pub encrypted: bool,
+    /// Wall-clock timestamp captured at register time, used as the
+    /// `t = 0` anchor for asciinema event deltas. `None` for
+    /// counter-only actors that don't compose events here.
+    started_at: Option<std::time::SystemTime>,
+    /// Owned file handle when the registry drives IO. `None` for
+    /// counter-only actors registered via [`RecorderRegistry::register`].
+    /// Wrapped in `Arc<Mutex>` so frame writes can drop the
+    /// registry mutex first and contend only on this handle.
+    file: Option<Arc<Mutex<std::fs::File>>>,
+    /// 32-byte AES-256 per-file recording key — drives every frame's
+    /// GCM tag + the sidecar index encryption. Random per file
+    /// (generated by `register_with_io`), wrapped under [`db_key`]
+    /// inside the file header. Wrapped in `Zeroizing` so the bytes
+    /// wipe on `RecorderActor` drop instead of lingering in the
+    /// registry's process memory after the recording closes.
+    key: Option<zeroize::Zeroizing<[u8; 32]>>,
+    /// DB-side wrap key held alongside the recording key so
+    /// `rotate_to` can mint a fresh recording key under the same
+    /// wrap discipline without needing the FRB caller to thread the
+    /// DB key back in. Cleared when the actor closes; the recorder
+    /// never touches the file system without the wrap key paired
+    /// to the recording key it produced.
+    db_key: Option<zeroize::Zeroizing<[u8; 32]>>,
+    /// Monotonic per-frame counter used as AES-GCM AAD on encrypted
+    /// recordings (LFR v2). Reset to 0 on rotate. Never persisted
+    /// on disk: the reader recomputes it from frame position so a
+    /// disk-side swap of two frames invalidates the GCM tag.
+    frame_index: u64,
+    /// Sidecar index writer. Appends one 12-byte plaintext entry (or
+    /// one 44-byte encrypted block) per asciinema event so playback
+    /// can binary-search a target timestamp into a byte offset
+    /// without scanning the whole main file. Resets on rotate
+    /// alongside `frame_index` / `file`. Wrapped in `Arc<Mutex>` so
+    /// the registry lock can drop before the (potentially blocking)
+    /// sidecar append runs. See [`crate::recorder::index_sidecar`].
+    index: Option<Arc<Mutex<index_sidecar::IndexWriter>>>,
+}
+
+impl RecorderActor {
+    pub fn new(id: RecorderId, session_id: String, path: String, encrypted: bool) -> Self {
+        Self {
+            id,
+            session_id,
+            path,
+            bytes_written: 0,
+            encrypted,
+            started_at: None,
+            file: None,
+            key: None,
+            db_key: None,
+            frame_index: 0,
+            index: None,
+        }
+    }
+
+    pub fn snapshot(&self) -> RecorderSnapshot {
+        RecorderSnapshot {
+            id: self.id.clone(),
+            session_id: self.session_id.clone(),
+            path: self.path.clone(),
+            bytes_written: self.bytes_written,
+            encrypted: self.encrypted,
+        }
+    }
+}
+
+impl std::fmt::Debug for RecorderActor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecorderActor")
+            .field("id", &self.id)
+            .field("session_id", &self.session_id)
+            .field("path", &self.path)
+            .field("bytes_written", &self.bytes_written)
+            .field("encrypted", &self.encrypted)
+            .finish()
+    }
+}
+
+/// Process-singleton registry. Owned by `AppState`. The full
+/// frame-write driver loop lands in the next 5.4 commit; today
+/// the registry only manages actor creation + removal so the
+/// FRB surface stabilises ahead of the consumer port.
+pub struct RecorderRegistry {
+    inner: Mutex<RegistryInner>,
+}
+
+struct RegistryInner {
+    by_id: HashMap<RecorderId, RecorderActor>,
+}
+
+impl RecorderRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(RegistryInner {
+                by_id: HashMap::new(),
+            }),
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Register a fresh recording actor. Emits `RecorderStarted`
+    /// for any subscribed view. Idempotent on repeated id —
+    /// later registers replace the row.
+    pub fn register(
+        &self,
+        id: RecorderId,
+        session_id: String,
+        path: String,
+        encrypted: bool,
+        bus: &EventBus,
+    ) -> RecorderSnapshot {
+        let actor = RecorderActor::new(id.clone(), session_id, path, encrypted);
+        let snap = actor.snapshot();
+        {
+            let mut g = self.lock();
+            g.by_id.insert(id.clone(), actor);
+        }
+        bus.publish(Event::RecorderStarted {
+            id,
+            path: snap.path.clone(),
+        });
+        snap
+    }
+
+    /// Tear down a recording actor. Idempotent on a missing id.
+    /// Emits `RecorderStopped` so subscribers can refresh their
+    /// recording list.
+    pub fn close(&self, id: &str, bus: &EventBus) {
+        let removed = {
+            let mut g = self.lock();
+            g.by_id.remove(id)
+        };
+        if removed.is_some() {
+            bus.publish(Event::RecorderStopped { id: id.to_string() });
+        }
+    }
+
+    pub fn snapshot(&self, id: &str) -> Option<RecorderSnapshot> {
+        self.lock().by_id.get(id).map(|a| a.snapshot())
+    }
+
+    pub fn count(&self) -> usize {
+        self.lock().by_id.len()
+    }
+
+    /// Snapshot every currently-registered actor's on-disk path.
+    /// Used by the recordings storage-cap sweep
+    /// ([`crate::recorder::storage_cap::enforce_storage_cap`]) so
+    /// the LRU eviction loop never unlinks a file the registry is
+    /// still writing to. The clone-out keeps the registry mutex
+    /// off the disk walk that follows; readers downstream operate
+    /// on the snapshot independently.
+    pub fn active_paths(&self) -> Vec<std::path::PathBuf> {
+        let g = self.lock();
+        g.by_id
+            .values()
+            .map(|a| std::path::PathBuf::from(&a.path))
+            .collect()
+    }
+
+    /// Test escape hatch: panics while holding the registry's
+    /// inner mutex so an integration-test thread can poison it.
+    /// `#[doc(hidden)]` keeps it out of the rendered API surface;
+    /// calling this at runtime is unconditionally a panic.
+    #[doc(hidden)]
+    pub fn force_poison_for_tests(&self) -> ! {
+        let _g = self.inner.lock().unwrap();
+        panic!("RecorderRegistry::force_poison_for_tests");
+    }
+
+    /// Bump the byte counter for an actor — used by the
+    /// counter-only path where Dart still owns file IO. Pair
+    /// with [`RecorderRegistry::register`] (no file handle on
+    /// the actor).
+    pub fn record_chunk(&self, id: &str, bytes: u64, bus: &EventBus) {
+        let new_total = {
+            let mut g = self.lock();
+            let Some(actor) = g.by_id.get_mut(id) else {
+                return;
+            };
+            actor.bytes_written = actor.bytes_written.saturating_add(bytes);
+            actor.bytes_written
+        };
+        bus.publish(Event::RecorderBytesWritten {
+            id: id.to_string(),
+            total_bytes: new_total,
+        });
+    }
+
+    /// Register an IO-owned recording actor. Opens [`path`] in
+    /// append mode and writes the full v1 LFR1 header when
+    /// [`db_key`] is `Some` — magic + version + wrapped per-file
+    /// recording key. Plaintext mode (`db_key = None`) writes
+    /// nothing on open: the file is directly playable as asciinema
+    /// once the caller pumps the header line through
+    /// [`RecorderRegistry::record_frame`].
+    ///
+    /// When `db_key` is `Some`, a 32-byte recording key is generated
+    /// at random per file and wrapped under `db_key` (AES-256-GCM,
+    /// AAD = [`KEYWRAP_AAD`]). The recording key drives every
+    /// subsequent frame's GCM tag + the sidecar index encryption.
+    /// Tier transitions (master-password rotation, T0↔T1 toggle)
+    /// only re-wrap the 65-byte header — frame bodies are not touched.
+    pub fn register_with_io(
+        &self,
+        id: RecorderId,
+        session_id: String,
+        path: String,
+        db_key: Option<zeroize::Zeroizing<[u8; 32]>>,
+        bus: &EventBus,
+    ) -> Result<RecorderSnapshot, Error> {
+        // mkdir -p the parent so callers hand in `<app_support>/recordings/<session>/<ts>.<ext>`
+        // without preparing the chain themselves; SQLite-style "open
+        // creates the file but not the parent" was the historical trap
+        // and is what this branch sidesteps.
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| Error::Recorder(format!("mkdir {}: {e}", parent.display())))?;
+            }
+        }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|e| Error::Recorder(format!("open {path}: {e}")))?;
+        // Harden the file mode to 0600 immediately after open so a
+        // crash mid-record does not leave plaintext terminal output
+        // (or the encrypted envelope) at the umask-default mode —
+        // typically 0644 on Linux, group/world-readable on multi-
+        // user hosts. See ARCH §3.13 file-mode invariant.
+        if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&path)) {
+            return Err(Error::Recorder(format!("harden {path}: {msg}")));
+        }
+        let encrypted = db_key.is_some();
+        let mut bytes_written: u64 = 0;
+        // Generate a fresh recording key + write the wrapped header
+        // when running encrypted. The recording key is what every
+        // frame's GCM tag is signed under; the wrap binds it to the
+        // current DB key without baking the DB key into the file.
+        let recording_key = if let Some(ref dk) = db_key {
+            let mut rk_bytes = [0u8; 32];
+            rand::rng().fill_bytes(&mut rk_bytes);
+            let recording_key = zeroize::Zeroizing::new(rk_bytes);
+            let header = build_lfsr_header(dk, &recording_key)?;
+            file.write_all(&header)
+                .map_err(|e| Error::Recorder(format!("header write: {e}")))?;
+            bytes_written = header.len() as u64;
+            Some(recording_key)
+        } else {
+            None
+        };
+        let index_key = derive_index_key(recording_key.as_deref())?;
+        let index = open_index_writer(&path, index_key)?;
+        let actor = RecorderActor {
+            id: id.clone(),
+            session_id,
+            path: path.clone(),
+            bytes_written,
+            encrypted,
+            started_at: Some(std::time::SystemTime::now()),
+            file: Some(Arc::new(Mutex::new(file))),
+            key: recording_key,
+            db_key,
+            frame_index: 0,
+            index,
+        };
+        let snap = actor.snapshot();
+        {
+            let mut g = self.lock();
+            g.by_id.insert(id.clone(), actor);
+        }
+        // Best-effort LRU eviction sweep against the configured
+        // cap. The recordings root is two levels up from the new
+        // file's path (`<root>/<sessionId>/<file>`). Active-paths
+        // snapshot is taken AFTER the insert so the newly-opened
+        // file is skipped by the sweep itself. Failures are logged
+        // but never block the register flow — the cap is a
+        // best-effort cleanup, not a precondition.
+        if let Some(root) = recordings_root_from_path(std::path::Path::new(&snap.path)) {
+            let cap = read_storage_cap_from_config_store();
+            let active = self.active_paths();
+            match storage_cap::enforce_storage_cap(&root, cap, &active) {
+                Ok(outcome) => {
+                    if outcome.files_evicted > 0 {
+                        crate::app_log_info!(
+                            "Recorder",
+                            "register_with_io eviction sweep: {} files, {} bytes reclaimed",
+                            outcome.files_evicted,
+                            outcome.bytes_reclaimed
+                        );
+                    }
+                }
+                Err(e) => {
+                    crate::app_log_warn!(
+                        "Recorder",
+                        "register_with_io eviction sweep failed (best-effort): {e}"
+                    );
+                }
+            }
+        }
+        bus.publish(Event::RecorderStarted { id, path });
+        Ok(snap)
+    }
+
+    /// Compose the asciinema v2 header line (`{"version": 2, …}`)
+    /// using the registered recording's `started_at` anchor and
+    /// caller-supplied terminal dimensions, then append it as a
+    /// frame. Body of the header lands as the first JSON-Lines
+    /// entry of the file so any plaintext export — and the
+    /// encrypted file once decrypted — starts as a valid
+    /// asciinema document.
+    pub fn record_header(
+        &self,
+        id: &str,
+        width: u32,
+        height: u32,
+        shell_label: &str,
+        bus: &EventBus,
+    ) -> Result<u64, Error> {
+        let started_at = {
+            let g = self.lock();
+            let actor = g
+                .by_id
+                .get(id)
+                .ok_or_else(|| Error::Recorder(format!("{id} not registered")))?;
+            actor
+                .started_at
+                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?
+        };
+        let timestamp_secs = started_at
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        // Hand-build the JSON instead of pulling serde derive on a
+        // single-call shape — the header is fixed, the values are
+        // sanitised at the boundary, and a matching encoder is the
+        // only path that produces byte-identical output to the
+        // legacy Dart writer.
+        let escaped_shell = json_escape(shell_label);
+        let line = format!(
+            "{{\"version\":2,\"width\":{width},\"height\":{height},\"timestamp\":{timestamp_secs},\"env\":{{\"TERM\":\"xterm-256color\",\"SHELL\":\"{escaped_shell}\"}}}}\n"
+        );
+        self.record_frame(id, line.as_bytes(), bus)
+    }
+
+    /// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
+    /// utf8_str]` for the given direction, then append it as a
+    /// frame. `delta_secs` is the wall-clock delta from the
+    /// recording's `started_at` anchor — same semantics the legacy
+    /// Dart `_enqueueEvent` produced. Bytes that don't decode as
+    /// UTF-8 are passed through with replacement characters so a
+    /// stray binary chunk doesn't sink the whole event.
+    pub fn record_event(
+        &self,
+        id: &str,
+        kind: RecordDirection,
+        bytes: &[u8],
+        bus: &EventBus,
+    ) -> Result<u64, Error> {
+        if bytes.is_empty() {
+            // Nothing to record — return the running total so
+            // callers don't observe a state change.
+            let g = self.lock();
+            return Ok(g.by_id.get(id).map(|a| a.bytes_written).unwrap_or(0));
+        }
+        let (started_at, index) = {
+            let g = self.lock();
+            let actor = g
+                .by_id
+                .get(id)
+                .ok_or_else(|| Error::Recorder(format!("{id} not registered")))?;
+            let started_at = actor
+                .started_at
+                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?;
+            (started_at, actor.index.clone())
+        };
+        let delta = std::time::SystemTime::now()
+            .duration_since(started_at)
+            .unwrap_or_default()
+            .as_micros() as f64
+            / 1_000_000.0;
+        let kind_char = match kind {
+            RecordDirection::Output => 'o',
+            RecordDirection::Input => 'i',
+        };
+        let payload = String::from_utf8_lossy(bytes);
+        let escaped = json_escape(&payload);
+        // asciinema v2 spec: float seconds with whatever precision
+        // the writer wants. Match the Dart writer's `delta.toString()`
+        // shape (no fixed-width, no trailing zeros) so the output is
+        // byte-identical for the same delta.
+        let line = format!("[{},\"{kind_char}\",\"{escaped}\"]\n", format_delta(delta));
+        let (write_offset, new_total) = self.record_frame_at(id, line.as_bytes(), bus)?;
+        // Append the sidecar entry AFTER the main frame lands. A crash
+        // between the two writes leaves the trailing entry missing —
+        // the reader treats that as "no scrub-target past this offset"
+        // and falls back to sequential decode for any seek into the
+        // dangling range. Sidecar errors are logged but not surfaced
+        // so a transient idx-write failure cannot kill the main
+        // recording.
+        if let Some(idx) = index {
+            let ts_ms = (delta * 1000.0).clamp(0.0, u32::MAX as f64) as u32;
+            let entry = index_sidecar::IndexEntry {
+                offset: write_offset,
+                timestamp_ms: ts_ms,
+            };
+            if let Ok(mut w) = idx.lock() {
+                if let Err(e) = w.append(entry) {
+                    crate::app_log_warn!("Recorder", "sidecar append failed (best-effort): {e}");
+                }
+            }
+        }
+        Ok(new_total)
+    }
+
+    /// Encrypt (when keyed) and append a frame to the recording's
+    /// file. Plaintext mode writes the bytes verbatim. Returns
+    /// the running byte total. Errors when the actor was not
+    /// registered through [`RecorderRegistry::register_with_io`].
+    pub fn record_frame(&self, id: &str, plaintext: &[u8], bus: &EventBus) -> Result<u64, Error> {
+        self.record_frame_at(id, plaintext, bus).map(|(_, n)| n)
+    }
+
+    /// Same as [`record_frame`] but also returns the byte offset the
+    /// frame landed at in the main file (the value of
+    /// `actor.bytes_written` BEFORE this frame was appended). The
+    /// sidecar-aware [`record_event`] uses this so the offset matches
+    /// the on-disk position even under concurrent callers — the
+    /// offset claim and the `bytes_written` bump happen under the
+    /// same critical section, with the file write sandwiched in
+    /// between under the file mutex.
+    ///
+    /// Lock ordering invariant: registry → file. `rotate_to` /
+    /// `close_with_io` already follow this order; this method matches
+    /// it by claiming offset + frame_index under the registry lock,
+    /// taking the file mutex while still holding the registry lock,
+    /// writing, then dropping both. Concurrent callers serialise on
+    /// the registry mutex — acceptable for the recorder's frame
+    /// cadence (one frame per ~10 ms via the queue worker) and the
+    /// only way to guarantee offset/write/bump atomicity without
+    /// inverting the lock order against the rotate / close paths.
+    fn record_frame_at(
+        &self,
+        id: &str,
+        plaintext: &[u8],
+        bus: &EventBus,
+    ) -> Result<(u64, u64), Error> {
+        // Snapshot the IO handle + key + claim frame_index + the
+        // pre-write offset under the registry lock. The file mutex
+        // is taken under the registry mutex so two concurrent callers
+        // serialise their writes in the same order they claimed
+        // offsets — `O_APPEND` keeps the writes atomic + contiguous,
+        // and the file mutex pins claim-order = disk-order. Holding
+        // the registry mutex across the write keeps the
+        // `lock-ordering: registry → file` invariant intact with
+        // `rotate_to` / `close_with_io`.
+        //
+        // The recorder's frame cadence is one frame per ~10 ms
+        // through the queue worker, so registry-wide serialisation
+        // on the write path is acceptable. The previous
+        // "release registry, then file" pattern was a perf
+        // micro-optimisation that broke the sidecar's offset
+        // contract.
+        let mut g = self.lock();
+        // Snapshot writer state and bump frame_index in one borrow,
+        // then drop the borrow so the post-write `bytes_written`
+        // bump can re-borrow the same actor.
+        let (file_arc, key, frame_index, pre_write_offset) = {
+            let Some(actor) = g.by_id.get_mut(id) else {
+                return Err(Error::Recorder(format!("{id} not registered")));
+            };
+            let Some(file_arc) = actor.file.as_ref().cloned() else {
+                return Err(Error::Recorder(format!(
+                    "recorder {id} has no file handle (counter-only registration)"
+                )));
+            };
+            let idx = actor.frame_index;
+            actor.frame_index = actor.frame_index.saturating_add(1);
+            let key = actor.key.clone();
+            let pre = actor.bytes_written;
+            (file_arc, key, idx, pre)
+        };
+        let frame = build_frame(plaintext, key.as_deref(), frame_index)?;
+        {
+            let mut handle = file_arc
+                .lock()
+                .map_err(|_| Error::Io("recorder file mutex poisoned".to_string()))?;
+            handle
+                .write_all(&frame)
+                .map_err(|e| Error::Recorder(format!("frame write: {e}")))?;
+        }
+        // Re-borrow under the same registry critical section. The
+        // outer `g` lock is held end-to-end so two concurrent
+        // callers serialise on offset / write / bump.
+        let new_total = {
+            let Some(actor) = g.by_id.get_mut(id) else {
+                drop(g);
+                return Ok((pre_write_offset, frame.len() as u64));
+            };
+            actor.bytes_written = actor.bytes_written.saturating_add(frame.len() as u64);
+            actor.bytes_written
+        };
+        drop(g);
+        bus.publish(Event::RecorderBytesWritten {
+            id: id.to_string(),
+            total_bytes: new_total,
+        });
+        Ok((pre_write_offset, new_total))
+    }
+
+    /// Atomically close the current file for [`id`], open a fresh
+    /// file at [`new_path`], write the magic + version byte when the
+    /// recording is encrypted, and reset the per-actor byte counter.
+    /// The actor's id stays stable so subscribers tracking the
+    /// recording across rotations don't have to re-bind. Returns the
+    /// new snapshot (with the new path + zero `bytes_written`).
+    ///
+    /// Errors when the actor was registered counter-only (no file
+    /// handle) or has already been closed.
+    pub fn rotate_to(
+        &self,
+        id: &str,
+        new_path: String,
+        bus: &EventBus,
+    ) -> Result<RecorderSnapshot, Error> {
+        // Hold the registry lock while we swap the file handle out
+        // so a concurrent record_frame either finishes against the
+        // old handle or sees the new handle — never half-rotated state.
+        let snap = {
+            let mut g = self.lock();
+            let Some(actor) = g.by_id.get_mut(id) else {
+                return Err(Error::Recorder(format!("{id} not registered")));
+            };
+            let Some(old_file) = actor.file.take() else {
+                return Err(Error::Recorder(format!(
+                    "recorder {id} has no file handle (counter-only registration)"
+                )));
+            };
+            // Drop the old sidecar writer alongside the main file so
+            // the new file pair starts a fresh entry-sequence chain.
+            actor.index.take();
+            // Best-effort flush before we drop the old file. The
+            // append-mode write already calls write_all under the
+            // mutex, so a missed flush is a logging concern — the
+            // OS still flushes on drop.
+            if let Ok(mut handle) = old_file.lock() {
+                let _ = handle.flush();
+            }
+            drop(old_file);
+
+            // mkdir -p covers rotation targets handed in fresh from
+            // Dart — sibling files normally share the parent with the
+            // initial-register path, but a future caller that rotates
+            // across sessions should still get the directory chain.
+            if let Some(parent) = std::path::Path::new(&new_path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        Error::Recorder(format!("rotate mkdir {}: {e}", parent.display()))
+                    })?;
+                }
+            }
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&new_path)
+                .map_err(|e| Error::Recorder(format!("rotate open {new_path}: {e}")))?;
+            // Same chmod 0600 harden the initial-register path
+            // applies — every rotation creates a fresh file at
+            // umask-default mode otherwise.
+            if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&new_path)) {
+                return Err(Error::Recorder(format!(
+                    "recorder rotate harden {new_path}: {msg}"
+                )));
+            }
+            let mut bytes_written: u64 = 0;
+            // Every rotated file gets a FRESH per-file recording key
+            // so a compromise of one rotation slice does not unlock
+            // its siblings. The wrap key (DB key held alongside the
+            // actor) re-seals the new recording key into the new
+            // file's v1 header; sidecar then HKDFs off the new
+            // recording key, also fresh per rotation.
+            let new_recording_key = if let Some(ref dk) = actor.db_key {
+                let mut rk_bytes = [0u8; 32];
+                rand::rng().fill_bytes(&mut rk_bytes);
+                let new_rk = zeroize::Zeroizing::new(rk_bytes);
+                let header = build_lfsr_header(dk, &new_rk)?;
+                file.write_all(&header)
+                    .map_err(|e| Error::Recorder(format!("rotate header write: {e}")))?;
+                bytes_written = header.len() as u64;
+                Some(new_rk)
+            } else {
+                None
+            };
+            actor.file = Some(Arc::new(Mutex::new(file)));
+            actor.path = new_path.clone();
+            actor.bytes_written = bytes_written;
+            // Reset the per-frame AAD counter — every rotated file
+            // starts a fresh GCM tag chain so a frame from the old
+            // file cannot be replayed at the same position in the
+            // new file.
+            actor.frame_index = 0;
+            // Rotate the recording key in place. Old key drops with
+            // the previous `actor.key` Zeroizing buffer; new key
+            // drives the next frame's GCM tag + the sidecar HKDF.
+            actor.key = new_recording_key;
+            let index_key = derive_index_key(actor.key.as_deref())?;
+            actor.index = open_index_writer(&new_path, index_key)?;
+            actor.snapshot()
+        };
+        bus.publish(Event::RecorderStarted {
+            id: id.to_string(),
+            path: new_path,
+        });
+        Ok(snap)
+    }
+
+    /// Flush + close an IO-owned recording. Mirrors
+    /// [`RecorderRegistry::close`] but ensures the file handle
+    /// flushes pending writes before drop. Idempotent on a
+    /// missing id.
+    pub fn close_with_io(&self, id: &str, bus: &EventBus) -> Result<(), Error> {
+        let removed = {
+            let mut g = self.lock();
+            g.by_id.remove(id)
+        };
+        if let Some(actor) = removed {
+            if let Some(file) = actor.file {
+                let mut handle = file
+                    .lock()
+                    .map_err(|_| Error::Io("recorder file mutex poisoned".to_string()))?;
+                handle
+                    .flush()
+                    .map_err(|e| Error::Recorder(format!("close flush: {e}")))?;
+                // File drops with the guard; OS handle closes.
+            }
+            // Sidecar writer drops here with its BufWriter — the
+            // wrapped File closes after flushing pending bytes. No
+            // explicit flush needed: every `append` already flushed,
+            // and a pending block can only exist mid-write.
+            drop(actor.index);
+            // Re-run the eviction sweep now that the just-closed
+            // file is no longer in the active-paths set. A long
+            // recording that pushed the tree past the cap during
+            // its lifetime gets reclaimed here on close, before
+            // the next register would otherwise inherit the bloat.
+            if let Some(root) = recordings_root_from_path(std::path::Path::new(&actor.path)) {
+                let cap = read_storage_cap_from_config_store();
+                let active = self.active_paths();
+                match storage_cap::enforce_storage_cap(&root, cap, &active) {
+                    Ok(outcome) => {
+                        if outcome.files_evicted > 0 {
+                            crate::app_log_info!(
+                                "Recorder",
+                                "close_with_io eviction sweep: {} files, {} bytes reclaimed",
+                                outcome.files_evicted,
+                                outcome.bytes_reclaimed
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        crate::app_log_warn!(
+                            "Recorder",
+                            "close_with_io eviction sweep failed (best-effort): {e}"
+                        );
+                    }
+                }
+            }
+            bus.publish(Event::RecorderStopped { id: id.to_string() });
+        }
+        Ok(())
+    }
+}
+
+/// Resolve `<recordings_root>` from an actor's per-file path. The
+/// canonical layout is
+/// `<recordings_root>/<sessionId>/<isoTimestamp>.<lfsr|cast>` —
+/// two levels up from the file lands on the root the storage-cap
+/// sweep operates against. Returns `None` when:
+///
+/// - the path lacks two parents (test paths like `/tmp/foo` —
+///   skip rather than evict against `/`);
+/// - the resolved root has no further parent (filesystem root, `/`
+///   or `C:\`) — same defensive posture, an accidental sweep
+///   against `/` would walk the entire filesystem looking for
+///   recording files;
+/// - the resolved root is the empty path.
+///
+/// Production callers route through
+/// `<appSupport>/recordings/<sessionId>/<file>` where the root
+/// always has a parent (the app-support dir), so the canonical
+/// path resolves cleanly.
+/// Derive the index-sidecar AES-256 key from the recorder key. Returns
+/// `None` when the recorder is in plaintext mode (no recorder key →
+/// no index key; the sidecar is also plaintext). The HKDF info tag
+/// (`letsflutssh-recording-idx-v1`) is distinct from the recorder
+/// file's tag (`letsflutssh-recording-v1`) so a leak of one key does
+/// not compromise the other. Chains off the recorder key (not the DB
+/// key) so the actor stays self-sufficient — `register_with_io` does
+/// not need a second secrets-store lookup at construction time.
+fn derive_index_key(
+    recorder_key: Option<&[u8; 32]>,
+) -> Result<Option<zeroize::Zeroizing<[u8; 32]>>, Error> {
+    let Some(rk) = recorder_key else {
+        return Ok(None);
+    };
+    let derived = crate::crypto::hkdf_sha256(rk, &[], index_sidecar::INDEX_HKDF_INFO, 32)?;
+    let arr: [u8; 32] = derived
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::Recorder("index key derivation length".to_string()))?;
+    Ok(Some(zeroize::Zeroizing::new(arr)))
+}
+
+/// Open a fresh sidecar writer next to `recording_path`. Wraps the
+/// `index_sidecar::IndexWriter::create` shape so call sites pass a
+/// `String` path without converting first.
+fn open_index_writer(
+    recording_path: &str,
+    index_key: Option<zeroize::Zeroizing<[u8; 32]>>,
+) -> Result<Option<Arc<Mutex<index_sidecar::IndexWriter>>>, Error> {
+    let idx_path = index_sidecar::sidecar_path(std::path::Path::new(recording_path));
+    let writer = index_sidecar::IndexWriter::create(&idx_path, index_key)?;
+    Ok(Some(Arc::new(Mutex::new(writer))))
+}
+
+fn recordings_root_from_path(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let session_dir = path.parent()?;
+    let root = session_dir.parent()?;
+    if root.as_os_str().is_empty() {
+        return None;
+    }
+    // Root must itself have a parent — filesystem root (`/` on
+    // Unix, drive root on Windows) returns `None` here and the
+    // sweep is skipped. This is the test-suite guard plus a
+    // defence-in-depth net against a misconfigured caller.
+    root.parent()?;
+    Some(root.to_path_buf())
+}
+
+/// Snapshot the configured cap from the live `config_store`
+/// actor. Returns the default
+/// ([`crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`]) when
+/// the actor has not been initialised yet (cold-start register
+/// race) or when the snapshot JSON does not carry a parseable
+/// value — both branches fall back to the canonical default so
+/// the sweep still bounds the tree rather than skipping entirely.
+fn read_storage_cap_from_config_store() -> u64 {
+    let default = crate::config::DEFAULT_RECORDINGS_STORAGE_CAP_BYTES;
+    let Some(json) = crate::config_store::instance().get_json() else {
+        return default;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
+        return default;
+    };
+    value
+        .as_object()
+        .and_then(|o| o.get("recordings_storage_cap_bytes"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(default)
+}
+
+/// JSON-escape a string for embedding inside a `"…"` JSON
+/// literal. Handles the spec-mandated escapes (control chars,
+/// quote, backslash). Bidi-override + isolate chars
+/// (U+202A..U+202E, U+2066..U+2069) cross over as `\uXXXX`
+/// escapes so a Trojan-Source attack — a recording whose
+/// playback renders differently from the bytes on disk —
+/// surfaces as visible escape sequences in any text-grep audit
+/// of the `.cast` file. Asciinema players parse the JSON
+/// unicode-escape and render the original glyph at playback
+/// time, so legitimate RTL terminal recordings (Arabic /
+/// Hebrew) still display correctly. Other UTF-8 passes through
+/// verbatim.
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\x08' => out.push_str("\\b"),
+            '\x0c' => out.push_str("\\f"),
+            c if (c as u32) < 0x20 || matches!(c as u32, 0x202A..=0x202E | 0x2066..=0x2069) => {
+                use std::fmt::Write as _;
+                let cp = c as u32;
+                if cp <= 0xFFFF {
+                    let _ = write!(out, "\\u{cp:04x}");
+                } else {
+                    // Outside BMP — emit a surrogate pair so the
+                    // escape stays inside the spec's `\uXXXX` shape.
+                    let v = cp - 0x10000;
+                    let hi = 0xD800 + (v >> 10);
+                    let lo = 0xDC00 + (v & 0x3FF);
+                    let _ = write!(out, "\\u{hi:04x}\\u{lo:04x}");
+                }
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Format the asciinema event delta `t` as a JSON-friendly
+/// number. Whole seconds emit as `"N"`, fractional seconds emit
+/// as `"N.frac"` with up to six digits of precision (microsecond
+/// resolution — same as the Dart writer's
+/// `Duration.inMicroseconds / 1e6` produced).
+fn format_delta(t: f64) -> String {
+    if t == 0.0 {
+        return "0".to_string();
+    }
+    if t.fract() == 0.0 {
+        return format!("{}", t as i64);
+    }
+    let formatted = format!("{t:.6}");
+    // Trim trailing zeros + dangling `.` so `1.500000` becomes
+    // `1.5` instead of carrying the noise. `f64`'s default Display
+    // produces scientific notation for sub-microsecond values
+    // (`1e-7`); the asciinema spec accepts any JSON number, but
+    // the Dart writer never emitted scientific shapes since its
+    // delta is microsecond-quantised. Stay in the same lane.
+    let trimmed = formatted.trim_end_matches('0');
+    let trimmed = trimmed.trim_end_matches('.');
+    trimmed.to_string()
+}
+
+/// Build the v1 LFR1 on-disk header:
+/// `[magic(4) = "LFR1"][version(1) = 1][wrap_nonce(12)][wrapped_recording_key(48 = 32 + 16 GCM tag)]`.
+///
+/// `db_key` is the AES-256 wrap key — the DB encryption key held in
+/// `secrets::ACTIVE_DBKEY_SECRET_ID`. `recording_key` is the random
+/// per-file 32-byte AES-256 key that drives every frame's GCM tag
+/// + the sidecar HKDF chain.
+///
+/// AAD = [`KEYWRAP_AAD`]: pinned tag binding the wrap to this
+/// format. Tier-change rewrap (`migrate::rewrap_lfsr_header`)
+/// invokes the same builder against the new DB key to overwrite
+/// the header in place without rewriting any frame body.
+///
+/// Returns a heap-allocated `Vec` of exactly [`LFR_HEADER_LEN`]
+/// bytes — caller writes the slice and stamps the byte count
+/// into the actor's running total.
+pub(crate) fn build_lfsr_header(
+    db_key: &[u8; 32],
+    recording_key: &[u8; 32],
+) -> Result<Vec<u8>, Error> {
+    let mut wrap_nonce = [0u8; NONCE_LEN];
+    rand::rng().fill_bytes(&mut wrap_nonce);
+    let wrapped =
+        crate::crypto::aes_gcm_encrypt_raw(db_key, &wrap_nonce, recording_key, KEYWRAP_AAD)?;
+    let mut header = Vec::with_capacity(LFR_HEADER_LEN);
+    header.extend_from_slice(&LFR_MAGIC);
+    header.push(LFR_VERSION);
+    header.extend_from_slice(&wrap_nonce);
+    header.extend_from_slice(&wrapped);
+    debug_assert_eq!(header.len(), LFR_HEADER_LEN);
+    Ok(header)
+}
+
+/// Unwrap a v1 LFR1 header. Returns the 32-byte per-file recording
+/// key the wrapped slot carries. `header_bytes` must be the first
+/// [`LFR_HEADER_LEN`] bytes of the file — magic + version are
+/// re-checked here so a partial / mis-stamped header surfaces as a
+/// typed `Error::Recorder`.
+///
+/// The inverse of [`build_lfsr_header`]: same `KEYWRAP_AAD`,
+/// matching nonce, AES-256-GCM authenticated decrypt yields the
+/// recording key for either playback or the rewrap migration.
+pub fn unwrap_lfsr_header(
+    header_bytes: &[u8],
+    db_key: &[u8; 32],
+) -> Result<zeroize::Zeroizing<[u8; 32]>, Error> {
+    if header_bytes.len() < LFR_HEADER_LEN {
+        return Err(Error::Recorder(format!(
+            "lfsr header truncated: {} bytes, want {}",
+            header_bytes.len(),
+            LFR_HEADER_LEN
+        )));
+    }
+    if header_bytes[..4] != LFR_MAGIC {
+        return Err(Error::Recorder("lfsr header bad magic".to_string()));
+    }
+    if header_bytes[4] != LFR_VERSION {
+        return Err(Error::Recorder(format!(
+            "lfsr header unsupported version: {:#04x}",
+            header_bytes[4]
+        )));
+    }
+    let wrap_nonce = &header_bytes[5..5 + NONCE_LEN];
+    let wrapped = &header_bytes[5 + NONCE_LEN..LFR_HEADER_LEN];
+    let plain = crate::crypto::aes_gcm_decrypt_raw(db_key, wrap_nonce, wrapped, KEYWRAP_AAD)?;
+    if plain.len() != 32 {
+        return Err(Error::Recorder(format!(
+            "wrapped recording key wrong length: {}",
+            plain.len()
+        )));
+    }
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&plain);
+    Ok(zeroize::Zeroizing::new(out))
+}
+
+/// Build the on-disk frame for `plaintext`. With `Some(key)`
+/// returns `[len(4 LE)][nonce(12)][ciphertext+tag]`; with
+/// `None` returns `plaintext` as-is so plaintext recordings
+/// remain valid asciinema documents.
+///
+/// LFR v2: `frame_index` is bound into the GCM AAD as
+/// `frame_index.to_le_bytes()` (8 bytes). The index is NOT written
+/// to disk — both writer and reader recompute it from frame
+/// position so an attacker who swaps two frames can't move the
+/// AAD with them. Tag mismatch on the swapped position fires
+/// instead, and the reader treats it as the recording-format
+/// error it is.
+fn build_frame(
+    plaintext: &[u8],
+    key: Option<&[u8; 32]>,
+    frame_index: u64,
+) -> Result<Vec<u8>, Error> {
+    let Some(key) = key else {
+        return Ok(plaintext.to_vec());
+    };
+    let mut nonce = [0u8; NONCE_LEN];
+    rand::rng().fill_bytes(&mut nonce);
+    let aad = frame_index.to_le_bytes();
+    let ct = crate::crypto::aes_gcm_encrypt_raw(key, &nonce, plaintext, &aad)?;
+    let mut frame = Vec::with_capacity(4 + NONCE_LEN + ct.len());
+    let pt_len = u32::try_from(plaintext.len())
+        .map_err(|_| Error::Io("recorder plaintext exceeds u32 frame length".to_string()))?;
+    frame.extend_from_slice(&pt_len.to_le_bytes());
+    frame.extend_from_slice(&nonce);
+    frame.extend_from_slice(&ct);
+    Ok(frame)
+}
+
+impl Default for RecorderRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests;

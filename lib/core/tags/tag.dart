@@ -1,31 +1,24 @@
-import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 /// A user-defined tag for organizing sessions and folders.
+///
+/// Stays Flutter-package-free — the [Tag] model is plain data so
+/// `core/tags/` can be consumed by tests / future headless tools
+/// without dragging in `package:flutter`. UI-side helpers (the
+/// [Color] resolver) live in `lib/widgets/core/tag_color.dart`.
 class Tag {
   final String id;
   final String name;
 
   /// Hex color string (e.g. '#FF5722'), or null for default.
+  /// The Flutter [Color] resolution lives in the
+  /// `lib/widgets/core/tag_color.dart` extension.
   final String? color;
   final DateTime createdAt;
 
   Tag({String? id, required this.name, this.color, DateTime? createdAt})
     : id = id ?? const Uuid().v4(),
       createdAt = createdAt ?? DateTime.now();
-
-  /// Parse the stored hex color to a Flutter [Color].
-  /// Returns null if no color is set or format is invalid.
-  Color? get colorValue {
-    final c = color;
-    if (c == null || c.isEmpty) return null;
-    try {
-      final hex = c.replaceFirst('#', '');
-      return Color(int.parse('FF$hex', radix: 16));
-    } catch (_) {
-      return null;
-    }
-  }
 
   Tag copyWith({String? name, String? color}) {
     return Tag(

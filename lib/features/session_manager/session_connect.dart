@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
+import '../../core/ssh/errors.dart';
+import '../../core/ssh/port_forward_runtime.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
-import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/toast.dart';
 import '../workspace/workspace_controller.dart';
 
 /// Shared connection logic used by both main.dart and mobile_shell.dart.
@@ -19,20 +21,34 @@ import '../workspace/workspace_controller.dart';
 class SessionConnect {
   SessionConnect._();
 
-  /// Open a terminal tab and connect to session in background.
-  /// Returns false if session is invalid (missing credentials).
+  /// Default action when the user taps a session row — picks the
+  /// kind-appropriate tab. SSH gets a terminal pane; kinds without
+  /// a PTY ([`Session.hasTerminal`] == false — WebDAV / S3 today)
+  /// always open a file-browser tab. Callers that don't know the
+  /// kind in advance (the session-row tap, the "open the new
+  /// session" path after Save) route through here so the dispatch
+  /// lives in one place. Falling through to `addTerminalTab` on a
+  /// non-PTY kind would open a terminal pane against a null
+  /// `transport` and crash on `Bad state` the moment the pane tried
+  /// to read the russh handle.
   static Future<bool> connectTerminal(
     BuildContext context,
     WidgetRef ref,
     Session session,
   ) async {
+    if (!session.hasTerminal) {
+      return connectSftp(context, ref, session);
+    }
     final conn = await _createConnection(context, ref, session, 'terminal');
     if (conn == null) return false;
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);
     return true;
   }
 
-  /// Open an SFTP tab and connect to session in background.
+  /// Open a file-browser tab. Works for every kind: SSH gets an
+  /// SFTP browser; WebDAV / S3 get the matching file-browser
+  /// dispatch picked up by `SFTPInitializer` from
+  /// [`Connection.kind`].
   /// Returns false if session is invalid (missing credentials).
   static Future<bool> connectSftp(
     BuildContext context,
@@ -44,6 +60,12 @@ class SessionConnect {
     ref.read(workspaceProvider.notifier).addSftpTab(conn);
     return true;
   }
+
+  /// Hard cap on ProxyJump chain depth. Catches typo loops before
+  /// they spend real bandwidth dialing 50 hops, while still leaving
+  /// room for realistic enterprise stacks (corp gateway → region →
+  /// cluster → service ≈ 4, doubled for safety).
+  static const int maxProxyJumpDepth = 8;
 
   /// Validate session and create a background connection, or return null on failure.
   ///
@@ -57,54 +79,158 @@ class SessionConnect {
     Session session,
     String logLabel,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final fresh = await store.loadWithCredentials(session.id) ?? session;
-    if (!fresh.isValid) {
+    // No `loadWithCredentials` round-trip — the cached `session`
+    // carries the metadata + per-slot stored-secret flags that
+    // `Session.hasCredentials` reads. The connect path inside
+    // `ConnectionsNotifier._authFromConfig` stages the actual
+    // credential bytes directly from the DB into the SecretStore
+    // via `db_sessions_stage_secrets`, so plaintext never has to
+    // ride the Dart heap.
+    if (!session.isValid) {
       if (context.mounted) _showIncompleteMessage(context);
       return null;
     }
+    final fresh = session;
+    // Session label is user-supplied free-form text — log the marker
+    // instead of the value (which may contain hostnames / project
+    // names) hitting the on-disk log file.
     AppLogger.instance.log(
-      'Opening $logLabel for ${fresh.label}',
+      'Opening $logLabel for <session-label>',
       name: 'Session',
     );
-    final config = await _resolveConfig(ref, fresh);
-    final manager = ref.read(connectionManagerProvider);
-    return manager.connectAsync(
+    final manager = ref.read(connectionsProvider.notifier);
+
+    // WebDAV and S3 sessions skip the SSH connect orchestrator
+    // entirely — there is no ProxyJump chain, no SSH auth compose,
+    // no russh handshake. The respective connect paths read the
+    // join-table detail row and the SecretStore-staged secret
+    // directly inside Rust.
+    if (fresh.kind == SessionKind.webdav) {
+      return manager.connectWebDavAsync(fresh);
+    }
+    if (fresh.kind == SessionKind.s3) {
+      return manager.connectS3Async(fresh);
+    }
+
+    final config = fresh.toSSHConfig();
+
+    // ProxyJump chain — connect every bastion bottom-up before the
+    // final session. ConnectionsNotifier._doConnect reads the bastion's
+    // transport off `conn.bastion?.transport` and tunnels via
+    // `connectViaProxy`.
+    Connection? bastion;
+    if (fresh.hasProxyJump) {
+      try {
+        bastion = await _ensureBastion(ref, fresh, <String>{fresh.id});
+      } on SSHError catch (e) {
+        if (context.mounted) {
+          Toast.show(
+            context,
+            message: e.userMessage,
+            level: ToastLevel.warning,
+          );
+        }
+        return null;
+      }
+    }
+
+    final conn = manager.connectAsync(
       config,
       label: fresh.label.isNotEmpty ? fresh.label : fresh.displayName,
       sessionId: fresh.id,
+      bastion: bastion,
     );
+    await _attachPortForwards(ref, fresh.id, conn);
+    return conn;
   }
 
-  /// Build SSHConfig, resolving keyId from the key store if set.
-  static Future<SSHConfig> _resolveConfig(
+  /// Recursively connect every bastion in the chain bottom-up,
+  /// returning the immediate hop the final session connects through.
+  /// Each hop tunnels through its parent's `RustTransport` via
+  /// `connectViaProxy`; the bottom hop talks to its server directly.
+  ///
+  /// [visited] tracks session ids already in the chain (cycle guard).
+  /// Depth ceiling is [maxProxyJumpDepth] to bound runaway loops
+  /// even when no cycle exists.
+  static Future<Connection> _ensureBastion(
     WidgetRef ref,
-    Session session,
+    Session current,
+    Set<String> visited,
   ) async {
-    final config = session.toSSHConfig();
-    if (session.keyId.isEmpty) return config;
-
-    final keyStore = ref.read(keyStoreProvider);
-    final entry = await keyStore.get(session.keyId);
-    if (entry == null) {
-      AppLogger.instance.log(
-        'Key ${session.keyId} not found in key store',
-        name: 'Session',
-      );
-      return config;
+    if (visited.length >= maxProxyJumpDepth) {
+      throw ProxyJumpDepthError(visited.length);
     }
-    // Key label is free-form user-chosen text (e.g. "Burzuf",
-    // "work-laptop"), so there is no regex the sanitiser could match
-    // without false positives. Log the marker `<label>` so the log
-    // tells us "keyId X resolved to a label" without leaking the
-    // label itself.
-    AppLogger.instance.log(
-      'Resolved keyId ${session.keyId} → <label>',
-      name: 'Session',
+    // Resolve the bastion: saved-session id wins over override.
+    Session? bastionSession;
+    SSHConfig bastionConfig;
+    String bastionLabel;
+    if (current.viaSessionId != null) {
+      // Same shape as the non-bastion connect: read the cached
+      // session (no credentials on the heap) and let the connect
+      // path stage secrets directly from the DB into the
+      // SecretStore.
+      bastionSession = ref
+          .read(sessionMutatorProvider)
+          .get(current.viaSessionId!);
+      if (bastionSession == null) {
+        throw ProxyJumpBastionError(
+          current.viaSessionId!,
+          'bastion session missing',
+        );
+      }
+      if (visited.contains(bastionSession.id)) {
+        throw ProxyJumpCycleError(bastionSession.id);
+      }
+      bastionConfig = bastionSession.toSSHConfig();
+      bastionLabel = bastionSession.label.isNotEmpty
+          ? bastionSession.label
+          : bastionSession.displayName;
+    } else {
+      // Override bastion — reuses the final session's credentials.
+      // Documented limitation: for distinct bastion auth, save the
+      // bastion as its own session and link via viaSessionId.
+      final ov = current.viaOverride!;
+      bastionConfig = SSHConfig(
+        server: ServerAddress(host: ov.host, port: ov.port, user: ov.user),
+        auth: current.toSSHConfig().auth,
+      );
+      bastionLabel = '${ov.user}@${ov.host}:${ov.port}';
+    }
+
+    final manager = ref.read(connectionsProvider.notifier);
+
+    // Recursively materialise this bastion's own bastion chain.
+    Connection? upstream;
+    if (bastionSession != null && bastionSession.hasProxyJump) {
+      upstream = await _ensureBastion(ref, bastionSession, {
+        ...visited,
+        bastionSession.id,
+      });
+    }
+
+    final conn = manager.connectAsync(
+      bastionConfig,
+      label: bastionLabel,
+      sessionId: bastionSession?.id,
+      bastion: upstream,
+      internal: true,
     );
-    return config.copyWith(
-      auth: config.auth.copyWith(keyData: entry.privateKey),
-    );
+    return conn;
+  }
+
+  /// Read the saved port-forward rules for [sessionId] and attach a
+  /// runtime that opens listeners on connect / closes them on
+  /// disconnect. Cheap when the rule list is empty — the runtime is
+  /// only constructed when the user has configured at least one rule.
+  static Future<void> _attachPortForwards(
+    WidgetRef ref,
+    String sessionId,
+    Connection conn,
+  ) async {
+    final rules = await loadPortForwards(sessionId);
+    if (rules.isEmpty) return;
+    final runtime = PortForwardRuntime(rules: rules);
+    conn.addExtension(runtime);
   }
 
   static void _showIncompleteMessage(BuildContext context) {
@@ -121,8 +247,8 @@ class SessionConnect {
     WidgetRef ref,
     SSHConfig config,
   ) {
-    AppLogger.instance.log('Quick connect to ${config.host}', name: 'Session');
-    final manager = ref.read(connectionManagerProvider);
+    AppLogger.instance.log('Quick connect to <host>', name: 'Session');
+    final manager = ref.read(connectionsProvider.notifier);
     final conn = manager.connectAsync(config);
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);
   }

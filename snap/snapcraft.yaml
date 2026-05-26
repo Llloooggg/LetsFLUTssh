@@ -1,0 +1,82 @@
+# Snapcraft manifest for the Snap Store distribution channel.
+#
+# Build locally:
+#   snapcraft pack --use-lxd          # producing letsflutssh_*_amd64.snap
+#
+# Publish (one-time setup):
+#   1. snapcraft register letsflutssh           # claim the name
+#   2. snapcraft login                           # Ubuntu One credentials
+#   3. snapcraft upload --release=stable letsflutssh_*_amd64.snap
+#
+# Subsequent releases: build, upload, --release=<channel>. The
+# Snap Store's review queue auto-promotes confined apps that
+# clear the static analysis; classic-confined apps need manual
+# Canonical review.
+#
+# **Status**: draft template — needs validation against the
+# current snapcraft schema (`snapcraft expand-extensions` /
+# `snapcraft lint`) before first publish. The flutter extension's
+# behaviour, the assumes / plugs lists, and the deb dependency
+# transcription have all changed across snapcraft versions; do
+# not assume this YAML is publish-ready as-is.
+
+name: letsflutssh
+title: LetsFLUTssh
+summary: Lightweight cross-platform SSH/SFTP client.
+description: |
+  LetsFLUTssh is a full-featured SSH terminal and SFTP file
+  browser with session management, encrypted credential
+  storage (AES-GCM with Argon2id KDF, optional TPM2 / Secure
+  Enclave / TPM-backed Windows Hello binding), and tiling
+  terminal layout. Open-source alternative to Xshell /
+  Termius. Backed by russh (pure-Rust SSH transport) — no
+  OpenSSH-shell-out, no historical CVE pattern.
+
+# `version` is set per-build by `snapcraft pack` reading
+# pubspec.yaml; the placeholder here is what `snap info` shows
+# before the first build runs.
+version: '0.0.0'
+grade: stable
+confinement: strict
+base: core24
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+apps:
+  letsflutssh:
+    command: usr/bin/letsflutssh
+    extensions: [gnome]
+    plugs:
+      - home               # ~/ access for SSH config + key files
+      - removable-media    # /media/<user>/* for portable drives
+      - network            # SSH outbound
+      - network-bind       # local port-forward listeners
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - unity7
+      - opengl
+      - audio-playback
+      - password-manager-service  # libsecret access for L2 keychain tier
+
+parts:
+  letsflutssh:
+    plugin: flutter
+    source: .
+    flutter-target: lib/main.dart
+    build-packages:
+      - clang
+      - cmake
+      - ninja-build
+      - pkg-config
+      - libgtk-3-dev
+      - libsecret-1-dev
+      - libtss2-dev          # required by tss-esapi (NI-1 native TPM2 backend)
+      - lld
+    stage-packages:
+      - libgtk-3-0
+      - libsecret-1-0
+      - libtss2-esys-3.0.2-0t64

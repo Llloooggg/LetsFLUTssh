@@ -2,20 +2,18 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../l10n/app_localizations.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/connection_progress.dart';
+import '../../widgets/core/app_button.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/terminal/connection_progress.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../utils/logger.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/mobile_selection_bar.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/mobile_selection_bar.dart';
 import '../file_browser/breadcrumb_path.dart';
 import '../file_browser/file_browser_controller.dart';
 import '../file_browser/file_pane_dialogs.dart';
@@ -53,7 +51,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
   @override
   String? sftpError;
   bool _showRemote = true; // Start on remote pane
-  bool _storagePermissionDenied = false;
   @override
   final progressKey = GlobalKey<ConnectionProgressState>();
 
@@ -64,7 +61,8 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
 
   @override
   void onSftpReady(SFTPInitResult result) {
-    _storagePermissionDenied = result.storagePermissionDenied;
+    // No-op — Android storage permission flow retired (SAF replaces
+    // the legacy MANAGE_EXTERNAL_STORAGE gate).
   }
 
   FilePaneController? get _localCtrl => sftpResult?.localCtrl;
@@ -93,8 +91,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
     return Column(
       children: [
         _buildToolbar(context),
-        if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
-          _buildPermissionBanner(context),
         Expanded(
           // Horizontal swipe toggles Local ↔ Remote — mobile users
           // expect the same gesture they get from every tab-style UI
@@ -132,6 +128,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
 
   @override
   void dispose() {
+    disposeSftpBrowser();
     sftpResult?.dispose();
     _pathController.dispose();
     _pathFocusNode.dispose();
@@ -154,7 +151,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildToggleRow(context),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               _buildNavigationRow(context),
             ],
           ),
@@ -185,7 +182,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
             style: _segmentedButtonStyle(),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         ..._platformButtons(context),
         AppIconButton(
           icon: Icons.refresh,
@@ -230,13 +227,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
           onTap: _pickLocalFolder,
           tooltip: S.of(context).pickFolder,
         ),
-      if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
+      if (Platform.isAndroid && !_showRemote)
         AppIconButton(
-          icon: Icons.security,
+          icon: Icons.folder_open,
           size: 20,
           boxSize: 36,
-          onTap: _requestAndRefreshPermission,
-          tooltip: S.of(context).grantPermission,
+          onTap: _pickLocalFolder,
+          tooltip: S.of(context).pickFolder,
         ),
     ];
   }
@@ -249,7 +246,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
           Expanded(
             child: _editingPath ? _buildPathEditor() : _buildBreadcrumb(),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           AppIconButton(
             icon: Icons.arrow_back,
             size: 22,
@@ -385,54 +382,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
     );
   }
 
-  Widget _buildPermissionBanner(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: theme.colorScheme.errorContainer,
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber, size: 20, color: theme.colorScheme.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              S.of(context).storagePermissionLimited,
-              style: TextStyle(
-                fontSize: AppFonts.sm,
-                color: theme.colorScheme.onErrorContainer,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          AppButton.secondary(
-            label: S.of(context).grantPermission,
-            dense: true,
-            onTap: _requestAndRefreshPermission,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _requestAndRefreshPermission() async {
-    const channel = MethodChannel('com.letsflutssh/permissions');
-    try {
-      final granted = await channel.invokeMethod<bool>(
-        'requestStoragePermission',
-      );
-      if (granted == true && mounted) {
-        setState(() => _storagePermissionDenied = false);
-        // Re-navigate to shared storage now that we have permission
-        await _localCtrl?.navigateTo('/storage/emulated/0');
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Permission re-request failed: $e',
-        name: 'MobileFileBrowser',
-      );
-    }
-  }
-
   Future<void> _pickLocalFolder() async {
     final path = await FilePicker.getDirectoryPath();
     if (path != null && _localCtrl != null) {
@@ -468,6 +417,12 @@ class _MobileFileListState extends State<MobileFileList> {
   void initState() {
     super.initState();
     ctrl.addListener(_onChanged);
+    // Selection mutators bump `selectedListenable` instead of the
+    // broad ChangeNotifier; subscribe separately so the mobile
+    // selection bar (`MobileSelectionBar`'s selected-count badge,
+    // its enable-state for delete/transfer actions) repaints on
+    // every per-row tap.
+    ctrl.selectedListenable.addListener(_onChanged);
   }
 
   @override
@@ -475,7 +430,9 @@ class _MobileFileListState extends State<MobileFileList> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onChanged);
+      oldWidget.controller.selectedListenable.removeListener(_onChanged);
       widget.controller.addListener(_onChanged);
+      widget.controller.selectedListenable.addListener(_onChanged);
       _selectionMode = false;
     }
   }
@@ -483,6 +440,7 @@ class _MobileFileListState extends State<MobileFileList> {
   @override
   void dispose() {
     ctrl.removeListener(_onChanged);
+    ctrl.selectedListenable.removeListener(_onChanged);
     super.dispose();
   }
 
@@ -569,7 +527,7 @@ class _MobileFileListState extends State<MobileFileList> {
       child: Row(
         children: [
           Icon(Icons.sort, size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           GestureDetector(
             onTap: () => _showSortMenu(context),
             child: Text(
@@ -611,7 +569,7 @@ class _MobileFileListState extends State<MobileFileList> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Text(
                 l10n.sort,
                 style: TextStyle(
@@ -650,9 +608,9 @@ class _MobileFileListState extends State<MobileFileList> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(localizeError(S.of(context), ctrl.error!)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           AppButton.secondary(
             label: S.of(context).retry,
             icon: Icons.refresh,
@@ -672,10 +630,11 @@ class _MobileFileListState extends State<MobileFileList> {
       color: subtitleColor,
     );
 
+    final locale = Localizations.localeOf(context);
     // Subtitle: "size · date · rwx..." for files, "date · rwx..." for dirs
     final parts = <String>[
-      if (!entry.isDir) formatSize(entry.size),
-      formatTimestamp(entry.modTime),
+      if (!entry.isDir) formatSize(entry.size, locale: locale),
+      formatTimestamp(entry.modTime, locale: locale),
       entry.modeString,
     ];
 
@@ -703,7 +662,7 @@ class _MobileFileListState extends State<MobileFileList> {
                   ? AppTheme.folderIcon
                   : theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

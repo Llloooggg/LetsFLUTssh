@@ -7,10 +7,16 @@ import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/utils/platform.dart';
-import 'package:letsflutssh/widgets/threshold_draggable.dart';
+import 'package:letsflutssh/widgets/core/threshold_draggable.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SessionTree.build now routes through `lfs_core::session_tree`
+  // (FRB sync). Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
   late List<Session> sessions;
   late List<SessionTreeNode> tree;
 
@@ -1235,5 +1241,85 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
+  });
+
+  group('SessionTreeView — per-protocol row icon', () {
+    testWidgets('SSH row renders Icons.terminal', (tester) async {
+      final ssh = Session(
+        id: 'ssh-1',
+        label: 'ssh-host',
+        kind: SessionKind.ssh,
+        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+      );
+      final t = SessionTree.build([ssh]);
+      await tester.pumpWidget(buildApp(overrideTree: t));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.terminal), findsOneWidget);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+      expect(find.byIcon(Icons.inventory_2_outlined), findsNothing);
+    });
+
+    testWidgets('WebDAV row renders Icons.cloud_outlined', (tester) async {
+      final dav = Session(
+        id: 'dav-1',
+        label: 'nextcloud',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'cloud.example.com', user: 'alice'),
+      );
+      final t = SessionTree.build([dav]);
+      await tester.pumpWidget(buildApp(overrideTree: t));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsNothing);
+      expect(find.byIcon(Icons.inventory_2_outlined), findsNothing);
+    });
+
+    testWidgets('S3 row renders Icons.inventory_2_outlined', (tester) async {
+      final s3 = Session(
+        id: 's3-1',
+        label: 'backups',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: 's3.amazonaws.com', user: 'AKIA...'),
+      );
+      final t = SessionTree.build([s3]);
+      await tester.pumpWidget(buildApp(overrideTree: t));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.terminal), findsNothing);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+    });
+
+    testWidgets('mixed list — each row picks its own icon', (tester) async {
+      final mix = [
+        Session(
+          id: 'a',
+          label: 'a',
+          kind: SessionKind.ssh,
+          server: const ServerAddress(host: '1.1.1.1', user: 'u'),
+        ),
+        Session(
+          id: 'b',
+          label: 'b',
+          kind: SessionKind.webdav,
+          server: const ServerAddress(host: '2.2.2.2', user: 'u'),
+        ),
+        Session(
+          id: 'c',
+          label: 'c',
+          kind: SessionKind.s3,
+          server: const ServerAddress(host: '3.3.3.3', user: 'u'),
+        ),
+      ];
+      final t = SessionTree.build(mix);
+      await tester.pumpWidget(buildApp(overrideTree: t));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.terminal), findsOneWidget);
+      expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
+    });
   });
 }

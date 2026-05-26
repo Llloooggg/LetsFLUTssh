@@ -8,30 +8,80 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+// Single-writer claim flag for `EarlyCrashHandler`. Only the first
+// thread that observes `0` and atomically swaps it to `1` is allowed
+// to write the crash file. Every subsequent crash on any thread
+// returns without touching the file. Invariant: only the first
+// thread's crash gets written; subsequent crashes are silent to
+// avoid file corruption mid-write. `volatile LONG` is the correct
+// shape for `InterlockedExchange` on x86 / x64 / ARM64 Windows.
+static volatile LONG g_crash_logged = 0;
+
 // Early-boot crash logger. Writes a single-line diagnostic to
 // `%LOCALAPPDATA%\LetsFLUTssh\startup-crash.log` when the process
 // dies before the Dart logger initialises. Without this the app
 // silently vanishes on Windows when a native DLL load, mitigation
 // policy, or COM init fails — no WER dump (we disabled it) and no
 // file the user can point at.
+//
+// At crash time the process is in an undefined state: the heap may
+// be torn, the C runtime may be unsafe to call, and other threads
+// may also be unwinding. Buffered stdio (`_wfopen_s` / `fwprintf` /
+// `fclose`) flushes via heap allocations that can deadlock or
+// double-fault. We therefore use raw Win32 (`CreateFileW` +
+// `WriteFile`) and bound the payload to a small fixed stack buffer.
 static LONG WINAPI EarlyCrashHandler(EXCEPTION_POINTERS* ex) {
-  wchar_t buf[MAX_PATH] = {0};
-  DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", buf, MAX_PATH);
+  // Claim the single-writer slot. `InterlockedExchange` returns the
+  // prior value — non-zero means another crash already wrote.
+  if (::InterlockedExchange(&g_crash_logged, 1) != 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  wchar_t local_app_data[MAX_PATH] = {0};
+  DWORD len = ::GetEnvironmentVariableW(L"LOCALAPPDATA", local_app_data, MAX_PATH);
   if (len == 0 || len >= MAX_PATH) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
-  wchar_t path[MAX_PATH];
-  _snwprintf_s(path, MAX_PATH, _TRUNCATE,
-               L"%s\\LetsFLUTssh\\startup-crash.log", buf);
-  ::CreateDirectoryW(path + 0, nullptr);  // idempotent, best-effort.
-  FILE* f = nullptr;
-  if (_wfopen_s(&f, path, L"a") == 0 && f != nullptr) {
-    time_t now = ::time(nullptr);
-    fwprintf(f, L"%lld  exc=0x%08lX  addr=%p\n", (long long)now,
-             ex->ExceptionRecord->ExceptionCode,
-             ex->ExceptionRecord->ExceptionAddress);
-    fclose(f);
+  wchar_t dir[MAX_PATH];
+  if (_snwprintf_s(dir, MAX_PATH, _TRUNCATE, L"%s\\LetsFLUTssh", local_app_data) < 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
   }
+  ::CreateDirectoryW(dir, nullptr);  // idempotent, best-effort.
+
+  wchar_t path[MAX_PATH];
+  if (_snwprintf_s(path, MAX_PATH, _TRUNCATE, L"%s\\startup-crash.log", dir) < 0) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  HANDLE h = ::CreateFileW(
+      path,
+      FILE_APPEND_DATA,
+      FILE_SHARE_READ,
+      nullptr,
+      OPEN_ALWAYS,
+      FILE_ATTRIBUTE_NORMAL,
+      nullptr);
+  if (h == INVALID_HANDLE_VALUE) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  // Forensic note: timestamp, exception code, faulting address. Bounded
+  // to <= 1 KiB on the stack — no heap, no CRT iostreams.
+  char line[1024];
+  time_t now = ::time(nullptr);
+  int written = _snprintf_s(
+      line,
+      sizeof(line),
+      _TRUNCATE,
+      "%lld  exc=0x%08lX  addr=%p\r\n",
+      static_cast<long long>(now),
+      ex->ExceptionRecord->ExceptionCode,
+      ex->ExceptionRecord->ExceptionAddress);
+  if (written > 0) {
+    DWORD bytes_written = 0;
+    ::WriteFile(h, line, static_cast<DWORD>(written), &bytes_written, nullptr);
+  }
+  ::CloseHandle(h);
   return EXCEPTION_CONTINUE_SEARCH;  // Let default termination run.
 }
 
@@ -100,15 +150,67 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // DLL load, COM init, window create) is covered.
   ::SetUnhandledExceptionFilter(EarlyCrashHandler);
 
+  // Single-instance gate. Acquire a named mutex in the per-user
+  // `Local\` namespace — owned by this process for its lifetime.
+  // A second launch from the Start menu / Explorer / `letsflutssh.exe`
+  // CLI sees `ERROR_ALREADY_EXISTS` here, surfaces a native
+  // `MessageBoxW` info dialog, and exits without loading the
+  // Flutter engine, the bundled `lfs_frb.dll`, the Defender
+  // real-time scan that bundled DLL triggers, or any of the Dart
+  // bootstrap chain. Previous attempts gated single-instance from
+  // Dart (`lib/core/single_instance/single_instance.dart`,
+  // `RandomAccessFile.lock`) — that ran AFTER the engine + native
+  // blob load had already paid their cost, defeating the speed
+  // benefit of rejecting the duplicate launch and forcing the
+  // boot ordering to coordinate "FRB ready" vs "lock check"
+  // semantics. Doing it here, pre-engine, removes the whole
+  // class of ordering concerns. The mutex auto-releases when the
+  // process exits (clean or crash) — no stale-lock files to
+  // clean up, no fcntl-per-process / per-fd footgun.
+  //
+  // Dialog text is hardcoded English. Pulling it from
+  // `lib/l10n/app_*.arb` would require running enough of the
+  // Flutter engine to reach the localisation runtime, which
+  // defeats the "reject before paying engine cost" benefit. The
+  // brief modal is acceptable in EN-only — `MessageBoxW` itself
+  // renders in the OS theme + system locale for the OK button.
+  HANDLE single_instance_mutex =
+      ::CreateMutexW(nullptr, TRUE, L"Local\\LetsFLUTssh-SingleInstance");
+  if (single_instance_mutex == nullptr) {
+    // Mutex object couldn't be created at all (extremely rare —
+    // out of handles or kernel resource exhaustion). Fall through
+    // to the normal launch — the OS is in a bad state anyway, no
+    // point in adding a custom failure mode.
+  } else if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+    ::MessageBoxW(nullptr,
+                  L"An instance of LetsFLUTssh is already running.",
+                  L"LetsFLUTssh",
+                  MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
+    ::CloseHandle(single_instance_mutex);
+    return EXIT_SUCCESS;
+  }
+  // single_instance_mutex stays held for the process lifetime —
+  // Windows releases it on process exit. We intentionally don't
+  // close it on the success path.
+
   // Harden the process before anything else — policies apply to
   // every subsequent DLL load + allocation in the process.
   ApplyProcessMitigationPolicies();
 
-  // Attach to console when present (e.g., 'flutter run') or create a
-  // new console when running with a debugger.
-  if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
-    CreateAndAttachConsole();
-  }
+  // Attach to the parent console when present (e.g. running under
+  // `flutter run` from a terminal) so stdout / stderr land in the
+  // same window. Failing that, do NOT call `AllocConsole` — the
+  // Flutter template's old `IsDebuggerPresent()` fallback opens a
+  // standalone black "LetsFLUTssh" console window on systems where
+  // a kernel-level telemetry / management agent flips the
+  // debugger-present flag (Windows IoT LTSC enterprise installs are
+  // the canonical case). The user sees that empty console pop up
+  // alongside the real app window for a few seconds before the
+  // splash overlays it. Dropping the fallback removes the false
+  // positive — release builds genuinely don't need stdout, and
+  // debug builds run from `flutter run` already inherit a parent
+  // console via `AttachConsole`.
+  ::AttachConsole(ATTACH_PARENT_PROCESS);
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.

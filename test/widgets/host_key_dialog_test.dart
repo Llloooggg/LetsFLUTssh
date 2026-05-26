@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/host_key_dialog.dart';
-import '''package:letsflutssh/l10n/app_localizations.dart''';
+import 'package:letsflutssh/widgets/ssh_keys/host_key_dialog.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 
 void main() {
   Widget buildApp({required void Function(BuildContext) onPressed}) {
@@ -10,7 +10,10 @@ void main() {
       supportedLocales: S.supportedLocales,
       home: Scaffold(
         body: Builder(
-          builder: (context) => ElevatedButton(onPressed: () => onPressed(context), child: const Text('Open')),
+          builder: (context) => ElevatedButton(
+            onPressed: () => onPressed(context),
+            child: const Text('Open'),
+          ),
         ),
       ),
     );
@@ -109,7 +112,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
+            HostKeyDialog.showNewHost(
+              ctx,
+              host: 'h',
+              port: 22,
+              keyType: 'k',
+              fingerprint: 'f',
+            );
           },
         ),
       );
@@ -145,7 +154,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
+            HostKeyDialog.showKeyChanged(
+              ctx,
+              host: 'h',
+              port: 22,
+              keyType: 'k',
+              fingerprint: 'f',
+            );
           },
         ),
       );
@@ -159,7 +174,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
+            HostKeyDialog.showKeyChanged(
+              ctx,
+              host: 'h',
+              port: 22,
+              keyType: 'k',
+              fingerprint: 'f',
+            );
           },
         ),
       );
@@ -173,7 +194,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showKeyChanged(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'f');
+            HostKeyDialog.showKeyChanged(
+              ctx,
+              host: 'h',
+              port: 22,
+              keyType: 'k',
+              fingerprint: 'f',
+            );
           },
         ),
       );
@@ -290,7 +317,9 @@ void main() {
       expect(find.byTooltip('Copy fingerprint'), findsOneWidget);
     });
 
-    testWidgets('copy button shows snackbar', (tester) async {
+    testWidgets('copy button surfaces a "fingerprint copied" toast', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
@@ -307,15 +336,27 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.copy));
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(find.text('Fingerprint copied'), findsOneWidget);
+      // Drain Toast's auto-dismiss timer (1s in this callsite — see
+      // host_key_dialog.dart). pumpAndSettle alone hangs because the
+      // Toast's AnimationController has Duration.zero so settles
+      // immediately, but the dismiss Timer fires later.
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('fingerprint is selectable', (tester) async {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(ctx, host: 'h', port: 22, keyType: 'k', fingerprint: 'SHA256:selectable-fp');
+            HostKeyDialog.showNewHost(
+              ctx,
+              host: 'h',
+              port: 22,
+              keyType: 'k',
+              fingerprint: 'SHA256:selectable-fp',
+            );
           },
         ),
       );
@@ -329,7 +370,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           onPressed: (ctx) {
-            HostKeyDialog.showNewHost(ctx, host: 'new.host', port: 22, keyType: 'ssh-ed25519', fingerprint: 'fp');
+            HostKeyDialog.showNewHost(
+              ctx,
+              host: 'new.host',
+              port: 22,
+              keyType: 'ssh-ed25519',
+              fingerprint: 'fp',
+            );
           },
         ),
       );

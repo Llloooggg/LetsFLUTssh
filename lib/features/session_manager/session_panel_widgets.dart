@@ -35,7 +35,7 @@ class _PanelHeader extends StatelessWidget {
                 S.of(context).sessionsHeader,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
@@ -50,7 +50,7 @@ class _PanelHeader extends StatelessWidget {
               backgroundColor: buttonBg,
               borderRadius: AppTheme.radiusSm,
             ),
-            if (mobile) const SizedBox(width: 8),
+            if (mobile) const SizedBox(width: AppSpacing.sm),
             AppIconButton(
               icon: Icons.add,
               onTap: onAddSession,
@@ -82,7 +82,7 @@ class _SearchBar extends StatelessWidget {
         child: Row(
           children: [
             Icon(Icons.search, size: 12, color: AppTheme.fgFaint),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextField(
                 decoration: InputDecoration(
@@ -122,40 +122,49 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.dns_outlined,
-            size: 40,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            S.of(context).noSavedSessions,
-            style: TextStyle(
-              fontSize: AppFonts.md,
+      child: Padding(
+        // Gutter on every side so the centred column stops short of
+        // the sidebar edge — matches the rhythm of [AppEmptyState]
+        // used in the collection dialogs and keeps the primary
+        // action button surrounded by visible breathing room.
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.dns_outlined,
+              size: 40,
               color: Theme.of(
                 context,
-              ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ).colorScheme.onSurface.withValues(alpha: 0.3),
             ),
-          ),
-          const SizedBox(height: 8),
-          // `SelectionContainer.disabled` keeps the ambient MainScreen
-          // `SelectionArea` from registering the button's label as
-          // selectable — without it drag-select caught "+ Add Session"
-          // as if it were body text, and Ctrl+C copied the label.
-          SelectionContainer.disabled(
-            child: AppButton.secondary(
-              label: S.of(context).addSession,
-              icon: Icons.add,
-              onTap: onAdd,
-              dense: true,
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              S.of(context).noSavedSessions,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            // The only action this state offers — render at the
+            // primary accent weight so the user reads it as the
+            // expected next move. `SelectionContainer.disabled`
+            // keeps the ambient MainScreen `SelectionArea` from
+            // registering the button's label as drag-selectable
+            // body text.
+            SelectionContainer.disabled(
+              child: AppButton.primary(
+                label: S.of(context).addSession,
+                icon: Icons.add,
+                onTap: onAdd,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -174,6 +183,30 @@ class _SessionDetailsPanel extends StatelessWidget {
     this.folderItemCount = 0,
   });
 
+  /// Build the per-kind detail rows. SSH carries the host /
+  /// login / port tuple on the in-memory row; WebDAV and S3
+  /// keep their transport details on the matching join table
+  /// (the dialog edit flow fetches them async) — the panel
+  /// shows the protocol tag and the label so it does not
+  /// surface stale empty rows for those kinds.
+  List<(String, String)> _rowsForSession(Session s, S l10n) {
+    final name = s.label.isNotEmpty ? s.label : s.displayName;
+    switch (s.kind) {
+      case SessionKind.webdav:
+        return [(l10n.name, name), (l10n.protocol, 'WebDAV')];
+      case SessionKind.s3:
+        return [(l10n.name, name), (l10n.protocol, 'S3')];
+      case SessionKind.ssh:
+        return [
+          (l10n.name, name),
+          (l10n.host, s.host),
+          (l10n.login, s.user),
+          (l10n.protocol, 'SSH'),
+          (l10n.port, s.port.toString()),
+        ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
@@ -182,13 +215,7 @@ class _SessionDetailsPanel extends StatelessWidget {
     final List<(String, String)> rows;
     if (session != null) {
       final s = session!;
-      rows = [
-        (l10n.name, s.label.isNotEmpty ? s.label : s.displayName),
-        (l10n.host, s.host),
-        (l10n.login, s.user),
-        (l10n.protocol, 'SSH'),
-        (l10n.port, s.port.toString()),
-      ];
+      rows = _rowsForSession(s, l10n);
     } else if (folderPath != null && folderPath!.isNotEmpty) {
       final folderName = folderPath!.split('/').last;
       rows = [
@@ -275,7 +302,11 @@ class _SidebarFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final savedCount = ref.watch(sessionProvider).length;
+    // `.select` so the footer rebuilds only when the count changes,
+    // not on every per-session field edit (label rename, folder
+    // move, etc.) that the full list rebuild would otherwise
+    // trigger.
+    final savedCount = ref.watch(sessionProvider.select((s) => s.length));
     final summary = ref.watch(connectionSummaryProvider);
     final connectedCount = summary.connectedTotal;
     final connectingCount = summary.connectingTotal;
@@ -295,7 +326,7 @@ class _SidebarFooter extends ConsumerWidget {
 
     return Container(
       height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.only(left: 12, right: 8),
+      padding: const EdgeInsetsDirectional.only(start: 12, end: 8),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),

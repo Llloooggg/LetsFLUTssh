@@ -17,16 +17,16 @@ void main() {
       expect(FlutterError.onError, isNotNull);
     });
 
-    test('logs error details via AppLogger', () {
-      // Verify AppLogger.log accepts error and stackTrace parameters
-      // This ensures our error handler can pass full context
-      AppLogger.instance.log(
-        'Test error',
-        name: 'Test',
-        error: Exception('test'),
-        stackTrace: StackTrace.current,
+    test('AppLogger accepts error + stackTrace without throwing', () {
+      expect(
+        () => AppLogger.instance.log(
+          'Test error',
+          name: 'Test',
+          error: Exception('test'),
+          stackTrace: StackTrace.current,
+        ),
+        returnsNormally,
       );
-      // No crash = parameters accepted
     });
   });
 

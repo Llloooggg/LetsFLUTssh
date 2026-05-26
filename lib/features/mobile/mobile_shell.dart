@@ -10,10 +10,10 @@ import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
 import '../session_manager/session_connect.dart';
 import '../session_manager/session_panel.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/context_menu.dart';
-import '../../widgets/status_indicator.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/context_menu.dart';
+import '../../widgets/core/status_indicator.dart';
 import '../settings/settings_screen.dart';
 import '../tabs/tab_model.dart';
 import '../tools/tools_screen.dart';
@@ -42,8 +42,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
 
-    // Watch connection state changes so SFTP button updates when connect finishes
-    ref.watch(connectionsProvider);
+    // Watch the projected summary instead of the raw list — the
+    // SFTP-button gate only reads "is there a connected
+    // connection", which is exactly what `connectionSummaryProvider`
+    // projects via a four-field structural value, so consumer
+    // rebuilds collapse to "summary set membership / totals
+    // changed", not "any per-connection event fired".
+    ref.watch(connectionSummaryProvider);
 
     // Force rebuild when theme changes — static AppTheme colors update via
     // setBrightness() in the app root, but this widget must re-run build()
@@ -59,8 +64,8 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       onPopInvokedWithResult: (didPop, _) => _handlePopScope(didPop, context),
       child: Scaffold(
         // Disable body resize on the terminal page — when the soft keyboard
-        // opens the viewport must NOT shrink, otherwise xterm reflows its
-        // buffer and the SSH server receives a smaller terminal size, which
+        // opens the viewport must NOT shrink, otherwise the terminal reflows
+        // its buffer and the SSH server receives a smaller terminal size, which
         // produces duplicate/garbled lines at the top of the scrollback.
         resizeToAvoidBottomInset: _navIndex != 1,
         // Extend the body under the bottom nav bar on the terminal page. The
@@ -131,7 +136,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ),
             child: Icon(Icons.terminal, size: 14, color: AppTheme.onAccent),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             'LetsFLUTssh',
             style: AppFonts.inter(
@@ -147,7 +152,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               final connectedCount = summary.connectedTotal;
               final connectingCount = summary.connectingTotal;
               final activeCount = summary.activeTotal;
-              final savedCount = ref.watch(sessionProvider).length;
+              // `.select` — same reason as desktop sidebar footer:
+              // rebuild only when the count changes, not on every
+              // per-row field edit.
+              final savedCount = ref.watch(
+                sessionProvider.select((s) => s.length),
+              );
               final Color? connectionIconColor;
               if (connectedCount > 0) {
                 connectionIconColor = AppTheme.green;
@@ -181,7 +191,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               );
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           AppIconButton(
             icon: Icons.build_outlined,
             size: 15,
@@ -191,7 +201,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             onTap: () => ToolsScreen.show(context),
             tooltip: S.of(context).tools,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           AppIconButton(
             icon: Icons.settings,
             size: 15,
@@ -552,13 +562,13 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                       color: isConnected ? AppTheme.green : AppTheme.fgFaint,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Icon(
                     isTerminal ? Icons.terminal : Icons.folder,
                     size: 12,
                     color: iconColor,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     tab.label,
                     style: AppFonts.inter(
@@ -567,7 +577,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                     ),
                   ),
                   if (isActive) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
@@ -651,7 +661,7 @@ class _MobileTerminalPage extends ConsumerWidget {
               ),
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               S.of(context).noActiveTerminals,
               style: AppFonts.inter(
@@ -659,7 +669,7 @@ class _MobileTerminalPage extends ConsumerWidget {
                 color: AppTheme.fgDim,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               S.of(context).connectFromSessionsTab,
               style: AppFonts.inter(
@@ -690,7 +700,7 @@ class _MobileTerminalPage extends ConsumerWidget {
               ),
               if (onOpenSftp != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _MobileCompanionButton(
                     label: S.of(context).files,
                     icon: Icons.folder_open,
@@ -744,7 +754,7 @@ class _MobileSftpPage extends ConsumerWidget {
               ),
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               S.of(context).noActiveFileBrowsers,
               style: AppFonts.inter(
@@ -752,7 +762,7 @@ class _MobileSftpPage extends ConsumerWidget {
                 color: AppTheme.fgDim,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               S.of(context).useSftpFromSessions,
               style: AppFonts.inter(
@@ -783,7 +793,7 @@ class _MobileSftpPage extends ConsumerWidget {
               ),
               if (onOpenSsh != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _MobileCompanionButton(
                     label: S.of(context).terminal,
                     icon: Icons.terminal,
@@ -856,7 +866,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(widget.icon, size: 13, color: widget.color),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
                 widget.label,

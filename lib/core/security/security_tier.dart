@@ -1,58 +1,43 @@
-/// Named security tiers.
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
+
+/// Named security tiers — re-export of the FRB-mirror enum so call
+/// sites keep the short `SecurityTier.plaintext` / `.keychain` /
+/// `.hardware` / `.paranoid` identifiers. The single source of truth
+/// (variant set + wire-string grammar) lives in
+/// `lfs_core::security::SecurityTier`; route any wire conversion
+/// through [`rust_sec_cfg.securityTierToWire`] /
+/// [`rust_sec_cfg.securityTierFromWire`] so a future variant whose
+/// Dart name diverges from the wire grammar (a keyword collision
+/// forces FRB to append `_`) keeps the on-wire byte canonical.
 ///
-/// The user-facing UI presents four numbered tiers (L0–L3) in a linear
+/// The user-facing UI presents four numbered tiers (T0–T2) in a linear
 /// "more backend = higher number" ladder, plus a separate `paranoid`
 /// branch shown as an **alternative** — master password, no OS trust,
 /// not on the numbered ladder. The enum never orders its values; any
 /// `<` / `>` comparison is a bug. Use tier predicates (`isParanoid`,
 /// `hasKeychain`, `hasHardwareVault`) instead.
 ///
-/// Wizard and Settings both read this enum and render numbered badges
-/// + Paranoid label separately.
-enum SecurityTier {
-  /// L0 — bare DB on disk. Only file permissions (0600 POSIX /
-  /// user-only ACL Windows) stand between the data and anyone with
-  /// filesystem access. Shown with a red warning in the wizard.
-  plaintext,
+/// **Bank-style model**: one tier per key-storage strategy + an
+/// orthogonal `password` modifier on top. There is no dedicated
+/// `keychainWithPassword` tier — runtime callers branching on
+/// "T1 + password" check `modifiers.password`, not the tier itself.
+typedef SecurityTier = rust_sec_cfg.DbSecurityTier;
 
-  /// L1 — DB key lives in the OS secure storage (Keychain, Credential
-  /// Manager, libsecret, EncryptedSharedPreferences). No user secret
-  /// input; app auto-unlocks on launch.
-  keychain,
-
-  /// L2 — L1 + a short user-typed password checked on open. The
-  /// password is a UX gate against a coworker at the desk, **not** a
-  /// cryptographic layer (no Argon2id, no key wrapping on top of the
-  /// keychain storage). Compared against a salted HMAC held split
-  /// across disk + keychain.
-  keychainWithPassword,
-
-  /// L3 — DB key wrapped by a hardware-bound vault (Secure Enclave,
-  /// StrongBox, TPM2, Windows Hello). Unlock requires a 4–6 digit PIN
-  /// or (optionally) a live biometric prompt; the hardware enforces
-  /// attempt rate limiting and lockout after N failures, so the short
-  /// PIN is cryptographically meaningful.
-  hardware,
-
-  /// Alternative branch — master password + Argon2id slow KDF + DB
-  /// key derived fresh at every unlock, never stored in the OS. For
-  /// users who do not trust the OS / hardware. Biometric is forbidden
-  /// by design (biometric = caching the derived key, which breaks the
-  /// "no-OS-trust" contract).
-  paranoid,
-}
-
-/// Orthogonal per-tier switches.
+/// Orthogonal per-tier switches — the bank-style modifier shape:
+/// `password` and `biometric` are the two orthogonal switches the
+/// wizard presents. `biometric` requires `password` (biometric is a
+/// shortcut for entering the password, never its replacement).
 ///
-/// The bank-style modifier shape that Phase E/F lands on: `password`
-/// and `biometric` are the two orthogonal switches the wizard
-/// presents. `biometric` requires `password` (biometric is a shortcut
-/// for entering the password, never its replacement).
+/// The bag carries exactly `password` + `biometric`; any other key
+/// in a hand-edited config is ignored on read rather than rejected.
 ///
-/// `biometricShortcut` + `pinLength` are retained for the transition
-/// window: existing persisted configs carry those fields, and some
-/// call sites still read them. `biometricShortcut` is kept in sync
-/// with `biometric` by the wizard so both readers see the same flag.
+/// The class is a plain Dart data holder — wire codec lives Rust-side
+/// in `lfs_core::security::SecurityTierModifiers` and crosses the FRB
+/// boundary via the typed [`rust_sec_cfg.DbSecurityTierModifiers`] +
+/// `securityConfigFromJson` / `securityConfigToJson`. Callers that
+/// persist the bag route through [`SecurityConfig`] (or the AppConfig
+/// composite); the modifier alone never crosses FRB on its own outside
+/// the wizard fan-out.
 class SecurityTierModifiers {
   /// User-typed password gate on the unlock path. Bank-style primary
   /// auth. Structurally irrelevant on `plaintext`; on `paranoid` the
@@ -66,76 +51,25 @@ class SecurityTierModifiers {
   /// user from typing it). Disabled in the UI when `password` is off.
   final bool biometric;
 
-  /// Deprecated alias for [biometric]. Kept so existing call sites
-  /// that read `biometricShortcut` continue to work until Phase F
-  /// rewrites them. The wizard keeps both fields in sync on write.
-  final bool biometricShortcut;
-
-  /// PIN length for the hardware tier in the v1 model (4-6 digits).
-  /// In the bank-style model passwords are arbitrary text, so this
-  /// value is advisory — the wizard in the current transition window
-  /// still renders a digit cell grid at this length when the user
-  /// picks T2.
-  final int pinLength;
-
-  const SecurityTierModifiers({
-    this.password = false,
-    this.biometric = false,
-    this.biometricShortcut = false,
-    this.pinLength = 6,
-  });
+  const SecurityTierModifiers({this.password = false, this.biometric = false});
 
   static const defaults = SecurityTierModifiers();
 
-  SecurityTierModifiers copyWith({
-    bool? password,
-    bool? biometric,
-    bool? biometricShortcut,
-    int? pinLength,
-  }) => SecurityTierModifiers(
-    password: password ?? this.password,
-    biometric: biometric ?? this.biometric,
-    biometricShortcut: biometricShortcut ?? this.biometricShortcut,
-    pinLength: pinLength ?? this.pinLength,
-  );
-
-  Map<String, dynamic> toJson() => {
-    'password': password,
-    'biometric': biometric,
-    'biometric_shortcut': biometricShortcut,
-    'pin_length': pinLength,
-  };
-
-  factory SecurityTierModifiers.fromJson(Map<String, dynamic> json) {
-    const d = SecurityTierModifiers.defaults;
-    final rawPin = (json['pin_length'] as num?)?.toInt() ?? d.pinLength;
-    final biometricShortcut =
-        json['biometric_shortcut'] as bool? ?? d.biometricShortcut;
-    return SecurityTierModifiers(
-      password: json['password'] as bool? ?? d.password,
-      // `biometric` falls back to `biometric_shortcut` on legacy
-      // configs so a v1-persisted install reads as bank-style after
-      // reload without a migration step.
-      biometric: json['biometric'] as bool? ?? biometricShortcut,
-      biometricShortcut: biometricShortcut,
-      // Defensive: clamp to the supported range so a tampered config
-      // cannot crash the PIN widget with an out-of-range cell count.
-      pinLength: rawPin < 4 || rawPin > 8 ? d.pinLength : rawPin,
-    );
-  }
+  SecurityTierModifiers copyWith({bool? password, bool? biometric}) =>
+      SecurityTierModifiers(
+        password: password ?? this.password,
+        biometric: biometric ?? this.biometric,
+      );
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SecurityTierModifiers &&
           password == other.password &&
-          biometric == other.biometric &&
-          biometricShortcut == other.biometricShortcut &&
-          pinLength == other.pinLength;
+          biometric == other.biometric;
 
   @override
-  int get hashCode =>
-      Object.hash(password, biometric, biometricShortcut, pinLength);
+  int get hashCode => Object.hash(password, biometric);
 }
 
 /// Complete security configuration — tier + modifiers.
@@ -146,6 +80,11 @@ class SecurityTierModifiers {
 /// distinguished `SecurityConfig` instance — const canonicalisation
 /// would make a sentinel indistinguishable from a legitimate
 /// Plaintext-after-wizard configuration.
+///
+/// Wire codec lives Rust-side; the persistence boundary
+/// (`AppConfig._securityConfigToTyped` / `_securityConfigFromTyped`)
+/// rebuilds this Dart shell from the typed
+/// [`rust_sec_cfg.DbSecurityConfig`] mirror that FRB hands back.
 class SecurityConfig {
   final SecurityTier tier;
   final SecurityTierModifiers modifiers;
@@ -166,22 +105,53 @@ class SecurityConfig {
   bool get isParanoid => tier == SecurityTier.paranoid;
   bool get isPlaintext => tier == SecurityTier.plaintext;
 
-  /// True when the tier stores the DB key in an OS keychain slot of
-  /// any kind (L1 or L2). Used by code paths that need to decide
-  /// between "read from keychain" and "derive fresh".
-  bool get usesKeychain =>
-      tier == SecurityTier.keychain ||
-      tier == SecurityTier.keychainWithPassword;
+  /// True when the tier stores the DB key in the OS keychain.
+  /// Used by code paths that need to decide between "read from
+  /// keychain" and "derive fresh". The bank-style password
+  /// modifier is orthogonal: `keychain` covers both passwordless
+  /// T1 and T1 + typed password.
+  bool get usesKeychain => tier == SecurityTier.keychain;
 
   /// True when the tier binds the key to a hardware-bound vault.
   bool get usesHardwareVault => tier == SecurityTier.hardware;
 
-  /// True when the tier has any user-typed secret (password, PIN, or
-  /// master password) on the unlock path.
-  bool get hasUserSecret =>
-      tier == SecurityTier.keychainWithPassword ||
-      tier == SecurityTier.hardware ||
-      tier == SecurityTier.paranoid;
+  /// True when the config carries any user-typed secret on the
+  /// unlock path. Paranoid and Hardware are mandatory-password by
+  /// definition — Hardware uses the typed password as the primary
+  /// gate on top of the hardware-bound vault; biometric is the
+  /// optional shortcut that releases that password from an
+  /// OS-managed slot, never a replacement. Keychain flips on the
+  /// explicit `modifiers.password` modifier (the bank-style T1+pw
+  /// shape — a password-gated keychain, not a dedicated tier).
+  bool get hasUserSecret {
+    switch (tier) {
+      case SecurityTier.paranoid:
+      case SecurityTier.hardware:
+        return true;
+      case SecurityTier.keychain:
+        return modifiers.password;
+      case SecurityTier.plaintext:
+        return false;
+    }
+  }
+
+  /// True when the user must supply a typed password to provision
+  /// or unlock [tier]. Mirrors [hasUserSecret] but is keyed on the
+  /// tier alone (modifiers ignored) so the wizard / Settings
+  /// pickers can decide ahead of the modifier bag whether a
+  /// password slot is mandatory. Hardware and Paranoid always
+  /// require a password; Keychain leaves the call to the modifier
+  /// toggle; Plaintext has nothing to gate.
+  static bool requiresPasswordForTier(SecurityTier tier) {
+    switch (tier) {
+      case SecurityTier.paranoid:
+      case SecurityTier.hardware:
+        return true;
+      case SecurityTier.keychain:
+      case SecurityTier.plaintext:
+        return false;
+    }
+  }
 
   SecurityConfig copyWith({
     SecurityTier? tier,
@@ -190,21 +160,6 @@ class SecurityConfig {
     tier: tier ?? this.tier,
     modifiers: modifiers ?? this.modifiers,
   );
-
-  Map<String, dynamic> toJson() => {
-    'tier': _tierToString(tier),
-    'modifiers': modifiers.toJson(),
-  };
-
-  factory SecurityConfig.fromJson(Map<String, dynamic> json) {
-    final tierStr = json['tier'] as String?;
-    final parsed = _tierFromString(tierStr);
-    final modifiersJson = json['modifiers'];
-    final modifiers = modifiersJson is Map<String, dynamic>
-        ? SecurityTierModifiers.fromJson(modifiersJson)
-        : SecurityTierModifiers.defaults;
-    return SecurityConfig(tier: parsed, modifiers: modifiers);
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -217,41 +172,6 @@ class SecurityConfig {
   int get hashCode => Object.hash(tier, modifiers);
 
   @override
-  String toString() => 'SecurityConfig(${_tierToString(tier)}, $modifiers)';
-}
-
-String _tierToString(SecurityTier tier) {
-  switch (tier) {
-    case SecurityTier.plaintext:
-      return 'plaintext';
-    case SecurityTier.keychain:
-      return 'keychain';
-    case SecurityTier.keychainWithPassword:
-      return 'keychain_with_password';
-    case SecurityTier.hardware:
-      return 'hardware';
-    case SecurityTier.paranoid:
-      return 'paranoid';
-  }
-}
-
-SecurityTier _tierFromString(String? s) {
-  switch (s) {
-    case 'plaintext':
-      return SecurityTier.plaintext;
-    case 'keychain':
-      return SecurityTier.keychain;
-    case 'keychain_with_password':
-      return SecurityTier.keychainWithPassword;
-    case 'hardware':
-      return SecurityTier.hardware;
-    case 'paranoid':
-      return SecurityTier.paranoid;
-    default:
-      // Unknown or missing string → treat as plaintext so the caller
-      // sees `SecurityConfig.none` (plaintext + defaults) and routes
-      // into the wizard. Never silently guess a non-plaintext tier
-      // from corrupt config.
-      return SecurityTier.plaintext;
-  }
+  String toString() =>
+      'SecurityConfig(${rust_sec_cfg.securityTierToWire(value: tier)}, $modifiers)';
 }

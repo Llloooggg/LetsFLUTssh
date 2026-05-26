@@ -67,10 +67,11 @@ or above its own privilege level:
   app-level code sees it. Use the system keyboard for password
   fields; this is a user-side discipline the app does not try to
   enforce with a non-actionable warning.
-- **Upstream dependency vulnerabilities** — `dartssh2`,
-  `pointycastle`, `xterm`, Flutter itself. Report those to the
-  respective maintainers. Scope for this repository is strictly the
-  code we wrote.
+- **Upstream dependency vulnerabilities** — `russh` + `russh-sftp` +
+  the broader RustCrypto stack vendored at `rust/`, the bundled
+  SQLCipher 4.x + OpenSSL `rusqlite` vendors, `alacritty_terminal`,
+  Flutter itself. Report those to the respective maintainers. Scope
+  for this repository is strictly the code we wrote.
 
 ## Threat boundary
 
@@ -105,11 +106,17 @@ UX decision on top of that choice.
 
 The default. The database key is held in the OS keychain
 (`Keychain` on Apple, `Credential Manager` on Windows, `libsecret` on
-Linux, `EncryptedSharedPreferences` on Android). On Apple, Android,
-and Windows the OS keychain is itself hardware-backed (Secure Enclave,
-StrongBox / TEE, DPAPI with TPM binding) — the effective guarantee is
-hardware-bound-via-OS. On Linux `libsecret` has no TPM integration;
-this is flagged honestly in the per-platform backing matrix below.
+Linux). Android keeps its T1 secret in an AES-256-GCM frame whose
+wrap key lives in **AndroidKeyStore** (TEE / StrongBox-backed when the
+device exposes one), with the wrapped ciphertext bytes persisted as a
+0600 file under `<appFilesDir>/lfs_secure_storage/<alias>.bin` —
+deliberately not `EncryptedSharedPreferences` (avoids dragging in
+`androidx-security-crypto` which duplicates the GCM frame work
+`lfs_core` already does). On Apple, Android, and Windows the wrap
+key is hardware-backed (Secure Enclave, StrongBox / TEE, DPAPI with
+TPM binding) — the effective guarantee is hardware-bound-via-OS. On
+Linux `libsecret` has no TPM integration; this is flagged honestly
+in the per-platform backing matrix below.
 
 - Recoverable: replacing the device is transparent as long as the
   user can transfer the keychain, and `.lfs` archives carry
@@ -137,14 +144,19 @@ in the path**. The chip refuses to unseal without the original device.
   needs to re-run the wizard on the new device and re-add their
   sessions from a `.lfs` archive or manual re-entry. The wizard
   warns about this in its T2 subtitle.
+- **Password is mandatory.** T2 always seals the database key under a
+  user-typed password; biometric is the optional shortcut that
+  releases that password from a biometric-gated OS slot, never a
+  replacement for it.
 
 ### Escape — derived-only (Paranoid)
 
 A separate branch, not a "higher tier". The database key is **not
 persisted** anywhere. The user chooses a master password; on every
-unlock the key is derived per-session through Argon2id (46 MiB / 2
-iterations / 1 lane — OWASP 2024 recommended floor, per
-`KdfParams.productionDefaults`) and lives only in a page-locked
+unlock the key is derived per-session through Argon2id (64 MiB / 3
+iterations / 1 lane — one tier above the OWASP 2024 floor, canonical
+in `lfs_core::security::master_password::KdfParams::defaults` and
+mirrored Dart-side as `KdfParams.productionDefaults`) and lives only in a page-locked
 native buffer during the unlocked window. On lock the buffer is
 zeroed and freed.
 
@@ -169,20 +181,59 @@ wizard and Settings surface the active backing level as a subtitle
 ("Backing: Hardware / TEE / Secure Enclave / software") so users see
 exactly what they are relying on.
 
-| Platform | T1 backing | T2 backing |
-|---|---|---|
-| iOS | Keychain → Secure Enclave | Secure Enclave (direct) |
-| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs |
-| Android | EncryptedSharedPreferences → Keystore (StrongBox / TEE) | Keystore direct (StrongBox / TEE) |
-| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 |
-| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct via `tpm2-tools` |
+T2 is mandatory-password by tier across every platform — biometric
+is the optional shortcut layer that releases the typed password from
+an OS-managed slot, never a replacement. The "Biometric overlay"
+column names the OS API used to gate that slot; "—" means the
+overlay is not wired on this platform yet (the password path still
+works, the biometric shortcut is unavailable).
+
+| Platform | T1 backing | T2 backing | Biometric overlay | Rust ownership |
+|---|---|---|---|---|
+| iOS | Keychain → Secure Enclave | Secure Enclave (direct) | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | `lfs_os_security::secure_key_storage` + `hardware_tier_vault::apple` (`security-framework` + `objc2`) |
+| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | same as iOS — shared Apple-cfg Rust path |
+| Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with password-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` alias `lfs.hardware_tier_vault.l3.bio` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
+| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | Hello-gated NCrypt persistent key `letsflutssh_hardware_vault_bio_v1` with `NCRYPT_UI_PROTECT_KEY_FLAG \| NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`, separate from the primary so enrolment changes invalidate only the overlay | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware vault → `lfs_os_security::windows::hardware_vault` (direct `windows` crate FFI to NCrypt) |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in. v3 envelope format wraps the sealed `(public, private)` pair as a TCG ASN.1 DER `id-loadablekey` body per `draft-bottomley-tpm2-keys-asn1` — wire-compatible with `openssl-tpm2-engine` and `ssh-tpm-agent` | TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by the `fprintd` enrolment hash (SHA-256 of sorted enrolled-finger names); re-enrolment flips the hash so the overlay invalidates while the primary password vault keeps working. Requires `fprintd` (capability-ladder rung 5 — optional OS dep with graceful degradation; the install snippet lives in the main README) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` + `tpm_tcg_pem` (subprocess + native backends share a TCG ASN.1 PEM envelope); `lfs_core::security::hardware_tier_vault::linux` (overlay orchestrator over fprintd + TPM2 seal) |
 
 **Linux notes.** T1 on Linux is the weakest default across the
 matrix because `libsecret` does not integrate with TPM. Users who
 want hardware binding on Linux should pick T2 (requires a TPM 2.0 +
-`tpm2-tools`; install snippet in the main README). The biometric
-modifier on Linux flows through `fprintd` and requires at least one
-enrolled finger.
+either `tpm2-tools` or `libtss2-dev` for the native backend; install
+snippet in the main README). The biometric modifier on Linux flows
+through `fprintd` and requires at least one enrolled finger. The
+`tss-esapi` native backend ([`lfs_core::platform::linux::tpm_native`](
+../rust/crates/lfs_core/src/platform/linux/tpm_native.rs)) talks
+directly to `/dev/tpm0` through the TSS2 ABI — no per-operation
+`fork()` + temp-file plumbing — and produces byte-identical sealed
+envelopes to the subprocess path so the two paths interoperate
+seamlessly.
+
+**Linux T2 biometric overlay.** The Hardware tier's biometric
+shortcut on Linux is a second TPM2-sealed envelope
+(`hardware_vault_password_overlay_linux.bin`) keyed by the fprintd
+enrolment hash, orchestrated by
+[`lfs_core::security::hardware_tier_vault::linux`](
+../rust/crates/lfs_core/src/security/hardware_tier_vault.rs). It is
+intentionally separate from the primary `hardware_vault.bin` so a
+new fingerprint enrolled / an old one dropped flips the hash, the
+overlay's TPM unseal fails, and the user only loses the shortcut —
+the primary password path keeps unsealing under the typed password.
+The overlay requires `fprintd` (capability-ladder rung 5 — optional
+OS dep with graceful degradation): when the daemon is unreachable
+the Settings toggle disables with a localised reason and the
+README install snippet covers the per-distro `apt` / `dnf` /
+`pacman` / `zypper` commands.
+
+**Android notes.** The AndroidKeyStore wrap key is generated via
+direct JNI to `java.security.KeyStore` (no Kotlin business-logic
+shim — the Kotlin side carries only the JavaVM bootstrap object
+`LfsJniBootstrap` and the `BiometricPrompt` callback adapter
+`LfsBiometricCallback`, both pure plumbing). Biometric variant uses
+`setUserAuthenticationValidityDurationSeconds(60)` for cross-API
+time-bound auth. StrongBox-backed wrap keys (`setIsStrongBoxBacked(true)`,
+API 28+) are requested for the T2 hardware tier; failure
+silently falls back to TEE.
 
 ## Orthogonal modifiers
 
@@ -230,30 +281,41 @@ architecture.
 - **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock +
   OS workstation-lock hook. Any tier with a typed secret arms the
   timer (Paranoid + any tier with the password modifier). Locking
-  the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock) routes through
-  `SessionLockListener` — Windows WTS, macOS
-  `NSDistributedNotificationCenter`, Linux systemd-logind D-Bus — so
-  the in-app lock fires even when the user hasn't been idle long
-  enough to trip the timer. **Every lock unconditionally wipes the
-  DB key and closes the drift / SQLite3MultipleCiphers handle**,
+  the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock) routes through the
+  Rust path `lfs_os_security::session_lock_listener` —
+  Windows hidden message-only window subscribing to
+  `WTSRegisterSessionNotification`, macOS dedicated `NSRunLoop`
+  thread observing `NSDistributedNotificationCenter`
+  `com.apple.screenIsLocked`, Linux zbus subscription to
+  `org.freedesktop.login1.Session.Lock`. All three forward via a
+  shared `tokio::sync::broadcast` to a single FRB Stream, so the
+  Dart side has one subscription regardless of OS. The in-app
+  lock fires even when the user hasn't been idle long enough to
+  trip the timer. **Every lock unconditionally wipes the
+  DB key and closes the rusqlite / SQLCipher handle**,
   zeroing both the Dart-side `SecretBuffer` and the C-layer
-  page-cipher cache (the live cipher is ChaCha20-Poly1305).
-  Previously the wipe was gated on "no active SSH sessions" so the
-  user's reconnect UX survived; that gate left the DB key warm
-  whenever any session was connected, which flattened T1+password
-  and T2+password in the threat matrix. The gate is gone now. Live
-  sessions stay reconnectable through a per-session credential
+  page-cipher cache (the live cipher is AES-256-CBC + HMAC-SHA512).
+  Live sessions stay reconnectable through a per-session credential
   cache (`SessionCredentialCache`) — each session's password / key
   bytes / passphrase are kept in `mlock`-pinned native memory
   outside the encrypted store, so closing the store on lock does
-  not cost the user their connections. The cache is evicted on
+  not cost the user their connections. The cache is the only
+  reason the wipe can be unconditional: a "skip wipe while a
+  session is connected" exception would leave the DB key warm
+  whenever any session was alive, flattening T1+password and
+  T2+password against RAM-forensics-on-locked-machine in the
+  matrix below — defence the cache lets the policy keep. The cache is evicted on
   explicit disconnect, on any wipe / reset path, and on app
   shutdown.
 - **Page-locked in-memory secrets** — DB key, Argon2id-derived keys,
   and biometric-stored passwords live in FFI-allocated buffers
   locked into physical RAM with `mlock` (POSIX) or `VirtualLock`
   (Windows), zeroed and unlocked on dispose. They cannot page to
-  swap or hibernate.
+  swap or hibernate. The Rust side adds `Zeroizing<Vec<u8>>` for
+  every transient cleartext copy held in `lfs_core::security::SecretStore`
+  (the only cached-plaintext owner per the plaintext-discipline boundary contract);
+  drop = byte-clear regardless of whether the buffer was page-locked,
+  belt-and-braces against accidental compiler-side copy elision.
 - **Hardened password entry** — every secret-entry field goes
   through `SecurePasswordField`, which forces `autocorrect`,
   `enableSuggestions`, `enableIMEPersonalizedLearning`, smart-quote
@@ -283,6 +345,30 @@ architecture.
   `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,
   `SetErrorMode` / mitigation policies on Windows (suppresses WER
   crash dumps that would otherwise contain the cipher key).
+  Complementary runtime probe `lfs_os_security::is_being_debugged()`
+  (FRB-exposed as `osSecurityIsBeingDebugged`) reads the *current*
+  tracer state (Linux `/proc/self/status` → TracerPid, macOS
+  `sysctl` → `P_TRACED`, Windows `IsDebuggerPresent`; iOS
+  short-circuits to `false`). Startup hardening BLOCKS new attaches;
+  the runtime probe READS the current attach state.
+- **Anti-debug biometric gate** — every biometric unlock attempt
+  (startup `T1+pw` / `T2+pw` ladder, mid-session `LockScreen` retry,
+  inline retry inside the typed-secret unlock dialog) routes through
+  one funnel: `_tryBiometricCommit` in
+  [`SecurityInitController`](../lib/app/security_init_controller.dart).
+  The funnel calls `ProcessHardening.isBeingDebugged()` first; on a
+  positive probe it logs through `logCritical` and returns false
+  without touching the OS-stored password. The dialog falls through
+  to the typed-secret form (master password / PIN), so a debugger
+  watching the process cannot scoop the auto-released secret out of
+  RAM after a biometric prompt completes — the user has to type the
+  secret, narrowing the attack window to keystrokes the user is
+  actively producing. Probe is fail-safe-false on FRB error
+  (unreadable `/proc`, sandboxed iOS) so a hardened host cannot
+  brick legitimate unlock. Developer caveat: a Flutter dev build
+  attached via Xcode / `gdb -p` will see biometric refused on
+  every unlock — the user types the password in that session, no
+  security regression for the legit path.
 - **Clipboard hygiene** — password / token / passphrase copies
   route through `SecureClipboard.setText`, which declares the
   per-OS "don't sync, don't history" markers in the same system
@@ -293,10 +379,52 @@ architecture.
   on Android 13+). A 30-second auto-wipe timer on top only clears
   the clipboard when the live value still matches what the app
   wrote, so a user who copied something else mid-window never loses
-  their own data.
+  their own data. Failure posture is platform-aware: a Rust-path
+  failure on Windows / macOS / iOS / Android **refuses** the copy
+  and the caller surfaces a toast, because the stock fallback
+  would deposit the secret into a cloud-syncing pasteboard
+  without the opt-out flags. Linux has no cloud clipboard so the
+  fallback there is the same posture as the Rust path.
 - **Known hosts / TOFU verification** — DB-backed; the host-key
   callback refuses silent changes and surfaces an unambiguous dialog
   with both fingerprints.
+- **OpenSSH user certificates** — stored keys may be paired with a
+  CA-signed certificate (`ssh-keygen -s ca_key id_*.pub`). The app
+  matches the OpenSSH semantics: it holds the cert blob alongside
+  the private key, presents `(key, cert)` at userauth time, and
+  lets the server enforce the validity window, principals list, and
+  critical-options (`force-command`, `source-address`, etc.). The
+  client does not validate the CA signature against a trusted-CA
+  set itself — that's the server's job (`TrustedUserCAKeys` in
+  `sshd_config`); a tampered cert simply fails the connect with an
+  auth error. The cert blob is public material (the signed half),
+  but the storage and connect path route it through the same
+  SecretStore staging path as the private PEM so the connect
+  cascade audit lists a single uniform namespace
+  (`key.priv.<id>` + `key.cert.<id>`).
+- **WebDAV credentials** — WebDAV passwords and bearer tokens live
+  in the same SecretStore that holds SSH credentials, under the
+  `session.webdav.<session_id>` id. The persisted
+  `webdav_session_details` row carries only the base URL, username,
+  auth method tag (`basic` / `digest` / `bearer`), and an optional
+  self-signed cert fingerprint — never the secret itself. The
+  auth-method tag is per-session, so an enterprise install can mix
+  Basic-over-TLS and Bearer-token sessions without a global
+  preference. Self-signed fingerprint pinning is opt-in; an empty
+  fingerprint uses the system trust store (bundled `webpki-roots`)
+  exactly like the auto-update channel.
+- **S3 credentials** — S3 secret access keys live in the same
+  SecretStore under the `session.s3.<session_id>` id. The persisted
+  `s3_session_details` row carries only the access key id, region,
+  endpoint, addressing style, default bucket, and default prefix —
+  never the secret itself. Presigned URLs for time-limited
+  downloads are signed with AWS Signature V4 in query-parameter
+  mode; the signature lands as `X-Amz-Signature` in the URL, and
+  the URL ceases to authorise once the chosen expiry passes (the
+  UI offers presets up to AWS's 7-day maximum). Anyone with the
+  URL inside the validity window can download the object, so the
+  user is responsible for sharing it through a channel that is at
+  least as confidential as the bucket itself.
 - **Deep-link URI parsing** — `letsflutssh://` scheme with host / port
   validation and path-traversal rejection.
 - **File permission handling** — `chmod 600` on credentials,
@@ -323,14 +451,19 @@ generated directly from the canonical `SecurityThreat` /
 `ThreatStatus` vocabulary in `lib/core/security/threat_vocabulary.dart`
 so this document and the UI cannot drift. Short summary:
 
-| Threat | T0 | T1 | T1 + pw | T2 | T2 + pw | Paranoid |
-|---|---|---|---|---|---|---|
-| Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ |
-| Offline brute force on password | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| Bystander at unlocked machine | ✗ | ✗ | ✓ | ✗ | ✓ | ✓ |
-| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
-| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
+| Threat | T0 | T1 | T1 + pw | T2 + pw | Paranoid |
+|---|---|---|---|---|---|
+| Cold disk theft | ✗ | ✓ | ✓ | ✓ | ✓ |
+| Keyring / keychain file exfiltration | ✗ | ✗ | ✓ | ✓ | ✓ |
+| Offline brute force on password | ✗ | ✗ | ✓ | ✓ | ✓ |
+| Bystander at unlocked machine | ✗ | ✗ | ✓ | ✓ | ✓ |
+| RAM forensics on locked machine | ✗ | ✗ | ✗ | ✓ | ✓ |
+| OS kernel / keychain breach | ✗ | ✗ | ✗ | ✓ | ✓ |
+
+The standalone "T2" column is gone — Hardware tier is always
+password-gated by contract; biometric is the optional shortcut
+that releases that password from a biometric-gated OS slot, not
+a separate tier variant.
 
 *Deliberately omitted:* same-user malware and live process memory
 dump are ✗ on every tier. Including them in the per-tier table would
@@ -358,8 +491,10 @@ or crypto wallet on consumer hardware.
 * **Offline brute force** is ✓ only when a user password is set —
   the threat as formulated ("attacker tries passwords offline") does
   not apply without a password, and Argon2id with production
-  parameters (46 MiB / 2 iterations / 1 lane — the OWASP 2024 floor
-  per `KdfParams.productionDefaults`) is what turns brute-force
+  parameters (64 MiB / 3 iterations / 1 lane — one tier above the
+  OWASP 2024 floor, canonical in
+  `lfs_core::security::master_password::KdfParams::defaults` and
+  mirrored Dart-side as `KdfParams.productionDefaults`) is what turns brute-force
   attempts into a wall-clock problem. T2 + pw gets the
   same ✓ as T1 + pw because the blob-plus-chip requirement adds to
   (not replaces) the Argon2id cost; removing the pw on T2 drops the
@@ -387,22 +522,175 @@ or crypto wallet on consumer hardware.
 ## Import / export
 
 `.lfs` archives carry portable user data — sessions, SSH keys,
-known_hosts, snippets, tags, and user preferences. They **never
-carry** `security_tier` or `security_modifiers`. Security
-configuration is strictly per-install: importing on a device B an
-archive made on device A does not try to adopt device A's
-hardware-vault setup; device B's existing security setup is
-preserved. Users re-run the wizard only when setting up a new device
-from scratch.
+known_hosts, snippets, tags, user preferences, paired OpenSSH
+certificates, WebDAV / S3 per-session config, SFTP bookmarks, and
+port-forward rules. They **never carry** `security_tier` or
+`security_modifiers`. Security configuration is strictly
+per-install: importing on a device B an archive made on device A
+does not try to adopt device A's hardware-vault setup; device B's
+existing security setup is preserved. Users re-run the wizard only
+when setting up a new device from scratch.
+
+### Per-row secret discipline
+
+Several per-session secrets stay on the source device by design.
+The archive ships only an opaque SecretStore-id pointer for each;
+the receiving device finds the pointer missing in its own
+SecretStore and surfaces a "re-enter password" / "re-enter access
+key" prompt on first connect:
+
+| Travels (sensitive part) | Travels (opaque pointer) | Stays on source device |
+|---|---|---|
+| Session passwords (inside AES-GCM envelope) | `webdav_session_details.credential_secret_id` | WebDAV password / bearer token bytes |
+| Software SSH key PEM (inside AES-GCM envelope) | `s3_session_details.secret_access_key_secret_id` | S3 secret access key bytes |
+| Session passphrases (inside AES-GCM envelope) | — | — |
+
+The opaque-pointer pattern keeps the wire format honest: a peer
+who decrypts the archive sees the user knows the secret exists,
+not what the secret is.
+
+### PKCS#11 token metadata sensitivity
+
+`.lfs` archives include the PKCS#11 token serial number, the
+`CKA_ID` bytes of the private-key object, and the
+RFC 7512 `pkcs11:` URI for every `backend = 'pkcs11'` row. The
+sensitivity rating is **low**:
+
+- The token serial + object id let a peer device probe its own
+  inserted tokens and ask "is the same hardware in my reader?".
+  They do not reveal anything an attacker who already has the
+  physical token would not also have via vendor tooling.
+- The matching private key material lives on the token's secure
+  element; the bytes never leave the chip. The serial / object id
+  identify which key to call into, not how to compute its
+  signatures.
+- The `pkcs11_module_path` field — the per-host install location
+  of the vendor library — is **never on the wire**. The receiving
+  device re-discovers it locally via the well-known-paths scan
+  keyed on the token serial. A peer who saw the path would learn
+  nothing useful (it points at a vendor `.so` / `.dll` / `.dylib`
+  that the well-known-paths scan finds anyway).
+
+Device-bound key backends — Apple Secure Enclave, Windows Hello,
+TPM 2.0, Android Hardware Keystore / StrongBox — ship as
+public-half-only stubs. The wrapped private blobs (`tpm_blob`,
+`enclave_tag`, `hello_credential_name`, `keystore_alias`) never
+travel; only the row's label + public key + backend discriminator
+do. The user picks "Re-generate here" on the stub to mint a fresh
+hardware-backed key on the receiving device.
 
 The encryption format is AES-256-GCM under an Argon2id-derived key,
-with the `LFSE 0x02` header carrying the KDF parameters. The import
-path enforces parameter caps (`maxImportArgon2idMemoryKiB`,
-`maxImportArgon2idIterations`, `maxImportArgon2idParallelism`) so a
-hostile header cannot pin the isolate into swap. Archives declaring
-a schema version the current build does not understand are rejected
-with `UnsupportedLfsVersionException` rather than silently dropping
+with the `LFSE 0x03` header carrying the KDF parameters. The pre-IV
+header (magic + version + KDF params + salt) is bound into the
+AES-GCM AAD so an attacker who flips header bytes to coerce a
+weaker KDF derivation invalidates the AEAD tag rather than feeding
+cooked params into the verifier. Pre-AAD legacy `0x02` envelopes
+still decode through a transparent fallback so existing exports
+keep importing. The import path enforces parameter caps
+(`maxImportArgon2idMemoryKiB`, `maxImportArgon2idIterations`,
+`maxImportArgon2idParallelism`) so a hostile header cannot pin the
+isolate into swap. Archives declaring a schema version the current
+build does not understand are rejected with
+`UnsupportedLfsVersionException` rather than silently dropping
 unknown fields.
+
+### WebDAV sync — passphrase posture
+
+Settings → Sync ships the same encrypted `.lfs` archive to a
+user-configured WebDAV endpoint. The crypto envelope is the
+same as the manual export path (Argon2id + AES-256-GCM under
+the LFSE header), but the at-rest key is a dedicated **sync
+passphrase** — never the master password. The UI enforces this
+on save: the typed passphrase is hashed through
+`MasterPasswordManager.verifyAndDerive`, and if it matches the
+on-disk master-password verifier, the save is rejected with the
+**Sync passphrase cannot match the master password** banner.
+
+The rationale is reuse-of-key blast radius: an attacker who
+exfiltrates the WebDAV remote and breaks the sync passphrase
+should not also win the local DB cipher key. Using two distinct
+secrets means a passphrase leak compromises only the synced
+archive, never the on-disk SQLCipher pages.
+
+Both the WebDAV credentials and the sync passphrase live in
+`lfs_core::secrets::SecretStore` under the canonical ids
+`sync.webdav.password` and `sync.passphrase`. `config.json`
+carries only the SecretStore id pointers; plaintext never lands
+on disk in the preferences file. Wipe-all clears both slots
+alongside every other SecretStore entry.
+
+## FIDO2 hardware-bound SSH keys (`sk-*`)
+
+OpenSSH `sk-ssh-ed25519@openssh.com` and `sk-ecdsa-sha2-nistp256@openssh.com` keys hold their private half on a hardware authenticator (YubiKey, SoloKey, Titan, Feitian, Nitrokey, Trezor). The signing scalar never leaves the device, the app never sees it, and at-rest theft of the laptop yields nothing the attacker can replay against an SSH server.
+
+What we persist alongside the SSH key row: the opaque CTAP2 credential id, the SSH `application` field (typically `ssh:`), the user-verification flag captured at import, and the OpenSSH public-key body. None of these grants signing capability — the device matches the credential id against its on-board secret on every assertion. An attacker reading the on-disk SQLCipher DB obtains the credential id but still needs the physical device (and the PIN, when user-verification is set) to mint a signature.
+
+PIN entry is per-connect, never cached: the `hardware_key_prompt_dialog` collects the PIN, hands it straight to `lfs_core::fido2::get_assertion`, and the PIN string is dropped at the end of the FRB call. The Rust core forwards it once to the CTAP2 layer and never retains it.
+
+The connect path's `FidoSigner` (russh `auth::Signer` impl) SHA-256-hashes the SSH userauth signature input, sends it to the device as the WebAuthn `clientDataHash`, and embeds the resulting CTAP signature in the OpenSSH `sk-*` wire-format trailer (`flags || u32 counter` for sk-ed25519; `mpint r || mpint s || flags || u32 counter` for sk-ecdsa-p256). The counter increments per assertion — replay across the wire is detectable by any SSH server that tracks it.
+
+### OS broker vs direct USB HID
+
+Two transports reach the device. On Windows / macOS / iOS / Android the default is the **OS-managed security-key broker** (Windows `webauthn.dll`, Apple `ASAuthorizationSecurityKeyPublicKeyCredentialProvider`, Android `androidx.credentials.CredentialManager`). The broker dialog covers USB / NFC / BLE / the platform authenticator without an admin permission grant, without the Apple Developer Program entitlement on macOS for self-signed builds (the dispatcher transparently falls through to direct HID when AS reports the entitlement is missing), and surfaces a user-visible **system dialog** the user already recognises — making a silent / programmatic signature attempt fail to materialise as a familiar prompt and giving the user a tamper-detection signal ("I didn't initiate this"). Linux uses the direct CTAP2 HID transport via `ctap-hid-fido2` exclusively (no broker primitive exists on Linux).
+
+The "Prefer direct USB HID over system dialog" toggle in Settings forces the direct-HID path on Windows / macOS for advanced users; it is disabled on Linux (one path) and on iOS / Android (no HID fallback). The trade-off the toggle exposes is honest: direct HID carries the full CTAP2 surface (hmac-secret, large-blob, credBlob — none of which SSH consumes today per PROTOCOL.u2f's "No extensions are yet defined for SSH use") and avoids an extra OS-mediated process boundary, but it needs a per-app permission grant (`udev` rules on Linux, HID class access on Windows) and lacks the system-dialog tamper signal.
+
+Broker subsetting is documented for forward compatibility: WebAuthn.dll exposes `hmac-secret` only on `MakeCredential` (not `GetAssertion`), ASAuthorization and Credential Manager never expose it. A future cert-via-FIDO feature that wants to store per-host secrets in the credential's hmac-secret extension would have to use the direct HID path or stay disabled on broker-only platforms.
+
+## Apple Secure Enclave SSH keys
+
+On macOS (T2 Intel + Apple Silicon) and iOS, SSH keys can be generated directly on Apple's Secure Enclave coprocessor — the same silicon that holds Touch ID / Face ID templates. The chip refuses to export the private bytes; every connect-time signature routes through `SecKeyCreateSignature`, and the OS surfaces a biometric / passcode prompt at the FFI boundary per the access-control flags chosen at key creation. At-rest theft of the laptop yields nothing the attacker can replay — the chip refuses to sign without a fresh biometric / passcode unlock, and the wrapped key material is bound to the device's UID such that another device cannot deserialise it.
+
+What we persist alongside the SSH key row: the opaque `kSecAttrApplicationTag` bytes (`letsflutssh.ssh.<uuid>`) and the OpenSSH public-key body. None of these grants signing capability — the chip matches the tag against its on-board key on every `SecKeyCreateSignature` call. An attacker reading the on-disk SQLCipher DB obtains the tag but cannot redirect the chip to sign for them.
+
+Auth policy at create time picks between `kSecAccessControlBiometryCurrentSet` (Touch ID / Face ID required; re-enrolment invalidates the key by clearing the chip's biometric template binding) and `kSecAccessControlUserPresence` (biometry OR device passcode; survives re-enrolment, costs the passcode-as-fallback weakness). Both shapes pin to `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` so the key never syncs to iCloud Keychain and never persists past a passcode unset.
+
+`.lfs` archive export of SE-bound keys carries the row + the tag envelope only; the importing device's connect path checks the chip's register via `apple_se_ssh::list()` and surfaces "Missing on this device — re-generate" when the tag isn't present. Cross-device portability is impossible by chip design.
+
+Code-signing requirement: unsigned / ad-hoc bundles surface `errSecMissingEntitlement` (`-34018`) on the first `SecKeyCreateRandomKey` call. The wizard probe step classifies this separately so the UI can route the user at the `codesign -s -` remediation in USER_GUIDE.md. Distributed releases are signed and work out of the box.
+
+## Windows Hello SSH keys
+
+On Windows 10 1607+ with Hello configured, SSH keys can be generated directly under the Microsoft Platform Crypto Provider — TPM 2.0 on hardware-capable hosts, the PCP software KSP fallback otherwise. The provider refuses to export the private bytes; every connect-time signature routes through `NCryptSignHash`, and Windows surfaces the Hello prompt (PIN / fingerprint / face) at the FFI boundary per the `NCRYPT_UI_POLICY_PROPERTY` set at key creation. At-rest theft of the laptop yields nothing the attacker can replay — the chip refuses to sign without a fresh Hello unlock, and the wrapped key material is bound to the user's CNG namespace such that another Windows install cannot deserialise it.
+
+We deliberately avoid `KeyCredentialManager.RequestSignAsync` even though it has a friendlier surface. KCM produces RSA-PSS signatures; SSH `rsa-sha2-256` / `rsa-sha2-512` requires PKCS#1 v1.5; the two padding schemes are not re-encodable into each other. The only Windows path that emits SSH-compatible signatures is NCrypt + PCP with explicit `BCRYPT_PAD_PKCS1` (RSA) or no padding (ECDSA).
+
+What we persist alongside the SSH key row: the CNG persistent-key name (`letsflutssh-ssh-<user-hash>-<uuid>`) and the OpenSSH public-key body. None of these grants signing capability — `NCryptOpenKey` matches the name against the user's CNG namespace on every sign call, and the Hello prompt gates the operation regardless. An attacker reading the on-disk SQLCipher DB obtains the name but cannot redirect CNG to sign for them without unlocking Hello.
+
+UI policy at create time pins `NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`. The "force high protection" flag requires Hello to be configured at the OS level — finalize fails with `NTE_USER_CANCELLED` when it isn't (the OS surfaces the configure-Hello dialog and the user dismissed it). This is the deliberate opposite default from the T2 hardware-vault path, which omits UI policy because it is the *vault* the primary master-password unlock already gated against. The SSH path takes the prompt every time because the Hello ceremony *is* the SSH authentication factor.
+
+TPM-tier classification is honest in the UI. Probe inspects `NCRYPT_IMPL_TYPE_PROPERTY` on a throw-away key and labels the wizard accordingly: "Windows Hello" for `NCRYPT_IMPL_HARDWARE_FLAG` set (TPM 2.0 backing), "Windows Hello (Software-gated)" for the software KSP fallback. The weaker path is *never* labelled as plain "Windows Hello" — per the capability ladder's rung-6 honest-label rule, the user always knows which tier the key landed at.
+
+`.lfs` archive export of Hello-bound keys carries the row + the CNG name only; the importing device's connect path tries `NCryptOpenKey` and surfaces `Error::KeyNotFound` when the name isn't registered in the destination user's CNG namespace. Cross-device portability is impossible by provider design.
+
+## TPM 2.0 SSH keys
+
+Two paths, opposite UI-policy defaults from the Hello path above:
+
+- **Linux** uses `tss-esapi` (libtss2-esys) directly. `TPM2_Create` produces a wrapped `(public, private)` blob pair that we wrap in the TCG draft `draft-bottomley-tpm2-keys-asn1` "TSS2 PRIVATE KEY" envelope for cross-tool compat — same `id-loadablekey` shape `ssh-tpm-agent` and `openssl-tpm2-engine` consume, emitted/decoded by the shared `lfs_os_security::linux::tpm_tcg_pem` helper so the T2 hardware-vault seal path and the T-4 SSH-signing path stay in lockstep. Every sign re-issues `TPM2_Load` + `TPM2_Sign` and tears the transient handle down — the private bytes never leave the chip. PIN-bound keys carry a `TPM2B_AUTH` value; the TPM's dictionary-attack lockout fires after 4 wrong PINs and locks the **entire chip** (BitLocker / disk-unlock included) for a cooldown window.
+- **Windows** reuses the Microsoft Platform Crypto Provider via `lfs_os_security::windows::ncrypt_ssh::create_silent`, but **without** setting `NCRYPT_UI_POLICY_PROPERTY` — the resulting key signs unattended. This is the deliberate opposite of the Hello-gated SSH path; the wizard surfaces the silent-warning copy in red so the user understands the trade-off before opting in. CNG-name prefix `letsflutssh-tpm-` distinguishes silent TPM keys from Hello-gated `letsflutssh-ssh-` keys when `NCryptEnumKeys` walks the provider.
+
+What we persist on `ssh_keys` (schema v12): `tpm_provider` discriminator (`'tss-esapi'` / `'cng-pcp'`), `tpm_blob` (Linux TSS2 PRIVATE KEY ASN.1 bytes — the private half is TPM-encrypted; without the chip's storage primary it's an opaque envelope), `tpm_handle` (Linux persistent NV handle), `tpm_pin_required` (Linux PIN flag), `cng_key_name` (Windows CNG name). None of these grants signing capability on a different device — `TPM2_Load` re-derives the parent under the chip's storage primary, which differs across TPMs; `NCryptOpenKey` is bound to the user's CNG namespace on the host that created the key.
+
+**Threat model footguns** users need to understand:
+
+- **TPM lockout is hardware-wide.** Wrong PIN 4 times on a PIN-bound TPM SSH key locks the **entire TPM** — including BitLocker / LUKS unlock and any other TPM-bound credential — for the cooldown window. Wizard copy surfaces this aggressively at every PIN entry surface.
+- **Persistent slots are scarce.** Typical fTPM ships ~7 free persistent handles. The wizard defaults to blob mode for this reason.
+- **TPM clear wipes everything.** `tpm2_clear` (or a BIOS reset) re-derives the storage primary; every blob signed under the old primary is unrecoverable. Treat the chip clear as equivalent to losing the SSH key.
+- **Silent variant is desktop-access-equivalent.** Windows TPM (silent) SSH keys sign without any prompt. Anyone with access to the desktop while the user is logged in can sign. This is intentional — the variant is for headless service accounts where a prompt is impossible — but it's a strictly weaker contract than Hello-gated keys. The badge popover surfaces the warning so the user knows what they get.
+- **Cross-tool blob import is restricted.** `.tpm` files carrying a PCR policy reject at import in v1 with a typed reason — the PCR-binding UX is a v2 commitment (see Appendix B in `ARCHITECTURE.md`).
+
+`.lfs` archive export semantics: Linux blob-mode rows ship the wrapped bytes + row metadata; the importing chip can sign only if its storage primary derives byte-identically (the storage-primary template matches `tpm2 createprimary -C o` defaults, which is the documented contract). Persistent-handle Linux rows and every Windows TPM row are not portable — the chip / CNG namespace differs.
+
+## In-process ssh-agent endpoint
+
+`Settings → External SSH client integration` exposes the app's hardware-bound keys to other SSH-protocol-speaking applications on the same host (`git`, OpenSSH `ssh`, IDE plugins). The endpoint is off by default; the user opts in explicitly. When running it binds a Unix domain socket at `${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` (Linux / macOS) with parent-directory mode `0o700`, or a Windows named pipe at `\\.\pipe\letsflutssh-agent.<pid>` whose default DACL grants only the current user SID + SYSTEM.
+
+Security posture: the endpoint refuses every `ADD_IDENTITY` / `ADD_IDENTITY_CONSTRAINED` / `REMOVE_IDENTITY` / `REMOVE_ALL_IDENTITIES` / `ADD_SMARTCARD_KEY` / `REMOVE_SMARTCARD_KEY` request with `SSH_AGENT_FAILURE` — external clients cannot push key material in. Software keys (plain-text PEM rows) are never published through the agent's `request_identities`; only hardware-bound rows whose `agent_policy != 'deny'` appear. Every SIGN_REQUEST routes through a confirmation dialog when the key's `agent_policy` is `'ask'` (the default); `'always'` skips the dialog, `'deny'` refuses outright AND hides the key from listing. Touch / PIN prompts the hardware backend itself requires still fire on top.
+
+Per-key dispatch policy is stored on `ssh_keys.agent_policy` (schema v8) and never crosses the wire to peer devices on a sync merge — incoming sync rows always land at `'ask'` so authorising a key on one host does not auto-authorise it on another.
+
+Mobile builds compile out the entire module — Android and iOS app sandboxes deny the cross-process IPC the agent protocol depends on, and there is no `ssh` / `git` shell on those platforms to consume the socket.
 
 ## Known limits
 
@@ -444,10 +732,10 @@ digest. Two files are published alongside the binaries:
 
 The auto-updater is the only consumer of this pair. It verifies the
 manifest signature against the public key baked into the installed
-app (`lib/core/update/release_signing.dart`), then compares the
-downloaded artefact's sha256 with the entry in the verified manifest.
-A MITM'd GitHub response cannot forge a manifest signature without
-the private key.
+app (`rust/crates/lfs_core/src/update_signing.rs::PRIMARY_PUBLIC_KEY`),
+then compares the downloaded artefact's sha256 with the entry in the
+verified manifest. A MITM'd GitHub response cannot forge a manifest
+signature without the private key.
 
 **Trust anchor.** The baked public key in the installed binary — not
 anything downloaded at update time. The PEM public key is
@@ -499,8 +787,8 @@ dead for existing installs. Incident response:
 
 1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely
    fresh Ed25519 key pair (generated offline).
-2. Replace the `_pinnedPublicKeys` entry in
-   `lib/core/update/release_signing.dart` with the fresh public key.
+2. Replace the `PRIMARY_PUBLIC_KEY` constant in
+   `rust/crates/lfs_core/src/update_signing.rs` with the fresh public key.
 3. Cut a new release. Existing installs will refuse to auto-update
    (they still trust only the leaked key) — this is the correct
    defensive behaviour.
@@ -577,9 +865,10 @@ for the current version.
 
 ## Out of scope
 
-- Vulnerabilities in upstream dependencies (`dartssh2`,
-  `pointycastle`, `xterm`) — please report those to their maintainers
-  directly.
+- Vulnerabilities in upstream dependencies (`russh` + `russh-sftp` +
+  the RustCrypto stack vendored under `rust/`, bundled SQLCipher /
+  OpenSSL via `rusqlite`, `alacritty_terminal`) — please report those
+  to their maintainers directly.
 - Denial of service via local access.
 - Issues requiring physical device access (cold-RAM attacks, chip
   probes, boot-media swaps).

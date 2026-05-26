@@ -1,62 +1,146 @@
+import 'dart:convert' show utf8;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
-import '../core/session/qr_codec.dart';
-import '../features/settings/export_import.dart';
+import '../src/rust/api/archive.dart' as rust_archive;
+import '../core/session/qr_decoded_source.dart';
+import '../core/import/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
-import '../providers/connection_provider.dart';
-import '../providers/key_provider.dart';
-import '../providers/session_provider.dart';
 import '../providers/snippet_provider.dart';
 import '../providers/tag_provider.dart';
 import '../utils/format.dart';
 import '../utils/logger.dart';
-import '../widgets/app_dialog.dart';
-import '../widgets/lfs_import_dialog.dart';
-import '../widgets/link_import_preview_dialog.dart';
-import '../widgets/toast.dart';
+import '../widgets/core/app_dialog.dart';
+import '../widgets/import_export/lfs_import_dialog.dart';
+import '../widgets/import_export/link_import_preview_dialog.dart';
+import '../widgets/core/toast.dart';
 import 'navigator_key.dart';
 
-/// Apply the QR deep-link payload to the user's stores.
+/// Side-effect seams for the LFS / QR / paste-link import dispatchers
+/// in this file. The dispatchers are pure UI glue — every line that
+/// matters (probe → open → apply → drop, plus the password / preview
+/// dialog round-trips) goes through one of the six fields below, so
+/// tests can drive every branch (notLfs reject, dialog cancel, open
+/// throws, apply throws, config-restore on/off, handle drop on
+/// failure) without booting FRB or rendering a real dialog.
 ///
-/// Mirror of `.lfs` + paste-link paths: the preview dialog lets the
-/// user pick what to bring in and merge vs. replace before any write
-/// touches the DB. Context is resolved off [navigatorKey] — the deep-
-/// link pump may fire before any `BuildContext` with a Toast surface
-/// is mounted, so every post-import notification routes through
-/// `addPostFrameCallback`.
-Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
+/// Production wiring lives in [ImportFlowSeams.production]; tests
+/// swap the bag via [debugSetImportFlowSeams] (clear by passing
+/// `null` in `tearDown`).
+@visibleForTesting
+class ImportFlowSeams {
+  const ImportFlowSeams({
+    required this.probeArchive,
+    required this.openArchive,
+    required this.dropHandle,
+    required this.applyHandle,
+    required this.showLfsDialog,
+    required this.showLinkPreviewDialog,
+  });
+
+  factory ImportFlowSeams.production() => const ImportFlowSeams(
+    probeArchive: ExportImport.probeArchive,
+    openArchive: openArchiveWithTypedErrors,
+    dropHandle: rust_archive.dbImportDrop,
+    applyHandle: applyOpenedHandle,
+    showLfsDialog: LfsImportDialog.show,
+    showLinkPreviewDialog: LinkImportPreviewDialog.show,
+  );
+
+  final Future<LfsArchiveKind> Function(String filePath) probeArchive;
+
+  final Future<rust_archive.DbImportOpenResult> Function({
+    required String path,
+    required String password,
+  })
+  openArchive;
+
+  final Future<void> Function({required String handleId}) dropHandle;
+
+  final Future<rust_archive.DbApplyResult> Function({
+    required String handleId,
+    required ImportMode mode,
+    required bool applySessions,
+    required bool applyKeys,
+    required bool applyTags,
+    required bool applySnippets,
+    required bool applyKnownHosts,
+    required bool applyRecordings,
+    Future<void> Function()? refreshAfterImport,
+  })
+  applyHandle;
+
+  final Future<LfsImportDialogResult?> Function(
+    BuildContext context, {
+    required String filePath,
+    bool isEncrypted,
+  })
+  showLfsDialog;
+
+  final Future<LinkImportPreviewResult?> Function(
+    BuildContext context, {
+    required QrDecodedSource source,
+  })
+  showLinkPreviewDialog;
+}
+
+/// Wraps [rust_archive.dbImportOpen] so the Rust-side
+/// `DbImportOpenError::FutureVersion { found, supported }` lands
+/// as the typed [UnsupportedLfsVersionException] the import
+/// dialog chain already maps to a localized message via
+/// `lib/utils/format.dart`. Every other failure (wrong password,
+/// malformed envelope, IO) propagates as the Rust error string
+/// inside `DbImportOpenError::Generic`.
+Future<rust_archive.DbImportOpenResult> openArchiveWithTypedErrors({
+  required String path,
+  required String password,
+}) async {
+  try {
+    return await rust_archive.dbImportOpen(
+      path: path,
+      password: utf8.encode(password),
+    );
+  } on rust_archive.DbImportOpenError_FutureVersion catch (e) {
+    throw UnsupportedLfsVersionException(
+      found: e.found.toInt(),
+      supported: e.supported,
+    );
+  }
+}
+
+ImportFlowSeams _seams = ImportFlowSeams.production();
+
+/// Swap the active [ImportFlowSeams]. Pass `null` to restore the
+/// production wiring. `@visibleForTesting` so a forgotten override
+/// in production code trips the analyzer.
+@visibleForTesting
+void debugSetImportFlowSeams(ImportFlowSeams? seams) {
+  _seams = seams ?? ImportFlowSeams.production();
+}
+
+/// Apply the QR deep-link / paste-link payload to the user's stores.
+///
+/// The [QrDecodedSource] always carries a Rust-staged handle id consumed
+/// by `applyOpenedHandle` — payload bytes never cross the FRB boundary
+/// outwards. The post-import toast is routed through
+/// `addPostFrameCallback` because the deeplink pump may fire before a
+/// `BuildContext` with a Toast surface is mounted.
+Future<void> handleQrImport(WidgetRef ref, QrDecodedSource source) async {
   final ctx = navigatorKey.currentContext;
   if (ctx == null || !ctx.mounted) return;
-  final choice = await LinkImportPreviewDialog.show(ctx, payload: data);
+  final choice = await _seams.showLinkPreviewDialog(ctx, source: source);
   if (choice == null) return;
 
-  // Build the full ImportResult from the payload, then let
-  // [ImportResult.filtered] drop whatever the user unchecked.
-  final fullResult = ImportResult(
-    sessions: data.sessions,
-    emptyFolders: data.emptyFolders,
-    managerKeys: data.managerKeys,
-    tags: data.tags,
-    sessionTags: data.sessionTags,
-    folderTags: data.folderTags,
-    snippets: data.snippets,
-    sessionSnippets: data.sessionSnippets,
-    config: data.config,
-    mode: choice.mode,
-    knownHostsContent: data.knownHostsContent,
-    includeTags: data.tags.isNotEmpty,
-    includeSnippets: data.snippets.isNotEmpty,
-    includeKnownHosts: data.knownHostsContent != null,
-  );
-  final importResult = fullResult.filtered(choice.options, choice.mode);
-
   try {
-    final summary = await _buildImportService(ref).applyResult(importResult);
-    _invalidateImportProviders(ref);
+    final summary = await _applyRustQrSource(
+      ref: ref,
+      rust: source.rust,
+      choice: choice,
+    );
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -93,6 +177,81 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
   }
 }
 
+/// Apply a Rust-staged QR handle. The bytes never crossed the FRB
+/// boundary outwards — `applyOpenedHandle` consumes the handle in
+/// the same sqlite transaction as `.lfs` imports, and the staged
+/// `config_json` is read back from the apply result for restore.
+Future<ImportSummary> _applyRustQrSource({
+  required WidgetRef ref,
+  required rust_archive.DbImportOpenResult rust,
+  required LinkImportPreviewResult choice,
+}) async {
+  final apply = await _seams.applyHandle(
+    handleId: rust.handleId,
+    mode: choice.mode,
+    applySessions: choice.options.includeSessions,
+    // Both "session-linked keys" and "all manager keys" land in the
+    // payload's `mk`/`km` blocks and share the single Rust-side
+    // `apply_keys` gate, so the apply toggle must honor either flag —
+    // the default "Full import" preset sets only `includeAllManagerKeys`.
+    applyKeys: choice.options.hasManagerKeys,
+    applyTags: choice.options.includeTags,
+    applySnippets: choice.options.includeSnippets,
+    applyKnownHosts: choice.options.includeKnownHosts,
+    // QR / paste-link payloads never carry a recordings tree —
+    // only the `.lfs` composer bundles them. Pass false so the
+    // Rust side skips the filesystem-apply step entirely.
+    applyRecordings: false,
+    refreshAfterImport: () => _refreshStores(ref),
+  );
+  // Config restore stays Dart-side — `lfs_core::archive::apply`
+  // leaves `config.json` to the caller. Security tier setup is
+  // per-machine and never travels.
+  final cfg = choice.options.includeConfig
+      ? decodeConfigFromApply(apply)
+      : null;
+  if (cfg != null) {
+    ref
+        .read(configProvider.notifier)
+        .update((current) => cfg.copyWithSecurity(security: current.security));
+  }
+  _invalidateImportProviders(ref);
+  return _summaryFromApply(apply, cfg != null);
+}
+
+/// Public helper for callers that already have a [QrDecodedSource]
+/// + a user-confirmed [LinkImportPreviewResult] (paste-import-link
+/// flow on Settings, where the dialog is shown by the screen and
+/// the apply is dispatched separately).
+Future<void> handleQrImportSource({
+  required BuildContext context,
+  required WidgetRef ref,
+  required QrDecodedSource source,
+  required LinkImportPreviewResult choice,
+}) async {
+  try {
+    final summary = await _applyRustQrSource(
+      ref: ref,
+      rust: source.rust,
+      choice: choice,
+    );
+    if (!context.mounted) return;
+    Toast.show(
+      context,
+      message: formatImportSummary(S.of(context), summary),
+      level: ToastLevel.success,
+    );
+  } catch (e) {
+    AppLogger.instance.log('QR import failed: $e', name: 'App', error: e);
+    if (!context.mounted) return;
+    Toast.show(
+      context,
+      message: S.of(context).importFailed(localizeError(S.of(context), e)),
+      level: ToastLevel.error,
+    );
+  }
+}
+
 /// Show the LFS archive import dialog for [filePath] and apply the
 /// chosen mode on confirm.
 ///
@@ -100,6 +259,11 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
 /// content (e.g. `.apk` with an LFS extension filter Android
 /// ignored) is rejected up front, and unencrypted plain-ZIP exports
 /// skip the password prompt.
+///
+/// The archive opens via `dbImportOpen` Rust-side; the staged handle
+/// is consumed by the apply step on success or dropped on cancel /
+/// failure. Plaintext payload (session passwords, key PEM) never
+/// crosses the FRB boundary outwards.
 Future<void> showLfsImportDialog(
   BuildContext context,
   WidgetRef ref,
@@ -109,7 +273,8 @@ Future<void> showLfsImportDialog(
     'LFS import started: ${filePath.split('/').last}',
     name: 'App',
   );
-  final kind = ExportImport.probeArchive(filePath);
+  final kind = await _seams.probeArchive(filePath);
+  if (!context.mounted) return;
   if (kind == LfsArchiveKind.notLfs) {
     Toast.show(
       context,
@@ -118,7 +283,7 @@ Future<void> showLfsImportDialog(
     );
     return;
   }
-  final result = await LfsImportDialog.show(
+  final result = await _seams.showLfsDialog(
     context,
     filePath: filePath,
     isEncrypted: kind == LfsArchiveKind.encryptedLfs,
@@ -131,28 +296,38 @@ Future<void> showLfsImportDialog(
   final progress = ProgressReporter(l10n.progressReadingArchive);
   AppProgressBarDialog.show(context, progress);
   var progressShown = true;
+  String? handleId;
 
   try {
-    final importResult = await ExportImport.import_(
-      filePath: filePath,
-      masterPassword: result.password,
-      mode: result.mode,
-      options: const ExportOptions(
-        includeSessions: true,
-        includeConfig: true,
-        includeKnownHosts: true,
-        includeManagerKeys: true,
-        includeTags: true,
-        includeSnippets: true,
-      ),
-      progress: progress,
-      l10n: l10n,
+    progress.phase(l10n.progressDecrypting);
+    final opened = await _seams.openArchive(
+      path: filePath,
+      password: result.password,
     );
+    handleId = opened.handleId;
 
-    final summary = await _buildImportService(
-      ref,
-    ).applyResult(importResult, progress: progress, l10n: l10n);
+    final apply = await _seams.applyHandle(
+      handleId: handleId,
+      mode: result.mode,
+      applySessions: true,
+      applyKeys: true,
+      applyTags: true,
+      applySnippets: true,
+      applyKnownHosts: opened.preview.hasKnownHosts,
+      // `.lfs` archive may carry a `recordings/` tree; let the
+      // Rust apply step extract it after the DB transaction
+      // commits. The LFS import dialog has no per-component
+      // toggles today — receiver gets everything in the archive.
+      applyRecordings: opened.preview.recordingCount > 0,
+      refreshAfterImport: () => _refreshStores(ref),
+    );
+    handleId = null; // consumed by apply on success
+    final restoredConfig = decodeConfigFromApply(apply);
+    if (restoredConfig != null) {
+      ref.read(configProvider.notifier).update((_) => restoredConfig);
+    }
     _invalidateImportProviders(ref);
+    final summary = _summaryFromApply(apply, restoredConfig != null);
 
     AppLogger.instance.log(
       'LFS import success: ${summary.sessions} session(s)',
@@ -181,6 +356,11 @@ Future<void> showLfsImportDialog(
       );
     }
   } finally {
+    if (handleId != null) {
+      try {
+        await _seams.dropHandle(handleId: handleId);
+      } catch (_) {}
+    }
     if (progressShown && context.mounted) {
       Navigator.of(context).pop();
     }
@@ -189,65 +369,54 @@ Future<void> showLfsImportDialog(
 }
 
 /// Refresh cached FutureProviders after a QR / LFS / paste-link import
-/// so the UI picks up newly imported keys, tags, and snippets without
-/// an app restart.
+/// so the UI picks up newly imported tags + snippets without an app
+/// restart. Sessions + ssh_keys streams re-fetch off the
+/// `SessionsChanged` / `KeysChanged` events the Rust apply / merge
+/// path already publishes.
 void _invalidateImportProviders(WidgetRef ref) {
-  ref.invalidate(sshKeysProvider);
   ref.invalidate(tagsProvider);
   ref.invalidate(snippetsProvider);
 }
 
-/// Wire the `ImportService` that both the QR and LFS paths share.
+/// Refresh the UI-bound caches after a Rust import apply. Tags +
+/// snippets still own Dart-cached state today; sessions ride the
+/// workspace stream which re-fetches off the `SessionsChanged`
+/// event the Rust apply already publishes.
+Future<void> _refreshStores(WidgetRef ref) async {
+  await ref.read(tagsProvider.notifier).loadAll();
+  await ref.read(snippetsProvider.notifier).loadAll();
+}
+
+/// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`.
+/// `configApplied` mirrors the Dart-side config-restore branch since
+/// the Rust apply leaves `config.json` to the caller.
 ///
-/// Kept as a private helper — callers go through [handleQrImport] /
-/// [showLfsImportDialog]. Every collaborator is pulled from [ref]
-/// so the service is a pure function of current provider state.
-ImportService _buildImportService(WidgetRef ref) {
-  final store = ref.read(sessionStoreProvider);
-  final keyStore = ref.read(keyStoreProvider);
-  final tagStore = ref.read(tagStoreProvider);
-  final snippetStore = ref.read(snippetStoreProvider);
-  final knownHostsMgr = ref.read(knownHostsProvider);
-  return ImportService(
-    addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-    addEmptyFolder: (f) => store.addEmptyFolder(f),
-    deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-    getSessions: () => ref.read(sessionProvider),
-    applyConfig: (config) =>
-        ref.read(configProvider.notifier).update((_) => config),
-    saveManagerKey: (entry) => keyStore.importForMerge(entry),
-    saveTag: (tag) async {
-      await tagStore.add(tag);
-      return tag.id;
-    },
-    tagSession: tagStore.tagSession,
-    tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
-    saveSnippet: (snippet) async {
-      await snippetStore.add(snippet);
-      return snippet.id;
-    },
-    linkSnippetToSession: snippetStore.linkToSession,
-    getEmptyFolders: () => store.emptyFolders,
-    restoreSnapshot: (sessions, folders) =>
-        store.restoreSnapshot(sessions, folders),
-    existingTagIds: () async =>
-        (await tagStore.loadAll()).map((t) => t.id).toSet(),
-    existingSnippetIds: () async =>
-        (await snippetStore.loadAll()).map((s) => s.id).toSet(),
-    getCurrentConfig: () => ref.read(configProvider),
-    loadAllTags: () => tagStore.loadAll(),
-    deleteAllTags: () => tagStore.deleteAll(),
-    loadAllSnippets: () => snippetStore.loadAll(),
-    deleteAllSnippets: () => snippetStore.deleteAll(),
-    exportKnownHosts: () => knownHostsMgr.exportToString(),
-    clearKnownHosts: () => knownHostsMgr.clearAll(),
-    importKnownHosts: (content) async {
-      await knownHostsMgr.importFromString(content);
-    },
-    existingManagerKeyIds: () async => (await keyStore.loadAll()).keys.toSet(),
-    deleteManagerKey: keyStore.delete,
-    runInTransaction: store.database == null
-        ? null
-        : <T>(body) => store.database!.transaction(body),
+/// Throws [LfsImportRolledBackException] when the Rust apply driver
+/// hit a per-row error in Replace mode and rolled the transaction
+/// back. Replace mode is all-or-nothing: returning a "success"
+/// summary against zeroed counters would lie to the user about
+/// whether their pre-import data survived. The catch arms in each
+/// caller surface the exception via `localizeError` ("Import failed
+/// — your data has been restored").
+ImportSummary _summaryFromApply(
+  rust_archive.DbApplyResult apply,
+  bool configApplied, {
+  int skippedSessions = 0,
+}) {
+  if (apply.rolledBack) {
+    throw LfsImportRolledBackException(
+      cause: apply.errors.isEmpty ? 'rolled back' : apply.errors.join('; '),
+    );
+  }
+  return ImportSummary(
+    sessions: apply.sessionsApplied.toInt(),
+    folders: apply.foldersApplied.toInt(),
+    managerKeys: apply.keysApplied.toInt(),
+    tags: apply.tagsApplied.toInt(),
+    snippets: apply.snippetsApplied.toInt(),
+    configApplied: configApplied,
+    knownHostsApplied: apply.knownHostsApplied > 0,
+    skippedSessions: skippedSessions,
+    skippedLinks: apply.linksSkipped.toInt(),
   );
 }

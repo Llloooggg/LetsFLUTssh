@@ -10,5 +10,13 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
+	<!-- System FIDO2 / passkey broker entitlement. Required by
+	     ASAuthorizationSecurityKeyPublicKeyCredentialProvider so the
+	     OS security-key dialog can fire for `sk-*` SSH userauth
+	     signatures. macOS 12+; release builds bundled outside the
+	     Apple Developer Program ship without this entitlement signed
+	     and fall back to the direct HID transport. -->
+	<key>com.apple.developer.web-browser.public-key-credential</key>
+	<true/>
 </dict>
 </plist>

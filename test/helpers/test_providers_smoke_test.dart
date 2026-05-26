@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,7 +7,6 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
 import 'fake_security.dart';
-import 'fake_session_store.dart';
 import 'test_providers.dart';
 
 void main() {
@@ -24,7 +24,10 @@ void main() {
         final c = makeTestProviderContainer();
         addTearDown(c.dispose);
 
-        expect(c.read(sessionStoreProvider), isA<FakeSessionStore>());
+        // SessionMutator is wired via the fake's overrides() helper;
+        // the workspace stream + mutator surface ride off the same
+        // in-memory FakeSessionNotifier instance.
+        expect(c.read(sessionMutatorProvider), isA<SessionMutator>());
         expect(
           c.read(masterPasswordProvider),
           isA<FakeMasterPasswordManager>(),
@@ -53,7 +56,10 @@ void main() {
         final resolved = c.read(masterPasswordProvider);
         expect(resolved, same(mpm));
         expect(await resolved.isEnabled(), isTrue);
-        expect(await resolved.verify('anything'), isTrue);
+        expect(
+          await resolved.verify(Uint8List.fromList(utf8.encode('anything'))),
+          isTrue,
+        );
       },
     );
 
@@ -65,10 +71,16 @@ void main() {
         addTearDown(c.dispose);
 
         expect(await gate.isConfigured(), isFalse);
-        await gate.setPassword('hunter2');
+        await gate.setPassword(Uint8List.fromList(utf8.encode('hunter2')));
         expect(await gate.isConfigured(), isTrue);
-        expect(await gate.verify('hunter2'), isTrue);
-        expect(await gate.verify('wrong'), isFalse);
+        expect(
+          await gate.verify(Uint8List.fromList(utf8.encode('hunter2'))),
+          isTrue,
+        );
+        expect(
+          await gate.verify(Uint8List.fromList(utf8.encode('wrong'))),
+          isFalse,
+        );
         await gate.clear();
         expect(await gate.isConfigured(), isFalse);
       },
@@ -80,11 +92,10 @@ void main() {
       addTearDown(c.dispose);
 
       expect(await vault.isStored(), isFalse);
-      expect(await vault.read(), isNull);
-      final key = Uint8List.fromList(List.generate(32, (i) => i));
-      await vault.store(key);
+      expect(await vault.readToActive(), isFalse);
+      await vault.storeFromActive();
       expect(await vault.isStored(), isTrue);
-      expect(await vault.read(), key);
+      expect(await vault.readToActive(), isTrue);
     });
 
     test('hardware vault fake honours isStored gate on read', () async {

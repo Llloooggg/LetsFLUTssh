@@ -1,72 +1,59 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
-import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
 void main() {
   group('connection providers', () {
-    test('knownHostsProvider returns KnownHostsManager', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final kh = container.read(knownHostsProvider);
-      expect(kh, isA<KnownHostsManager>());
-    });
-
-    test('connectionManagerProvider returns ConnectionManager', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final manager = container.read(connectionManagerProvider);
-      expect(manager, isA<ConnectionManager>());
-      expect(manager.connections, isEmpty);
-    });
-
-    test('connectionManagerProvider uses knownHostsProvider', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final kh = container.read(knownHostsProvider);
-      final manager = container.read(connectionManagerProvider);
-      expect(manager.knownHosts, kh);
-    });
-
-    test('connectionsProvider yields empty list initially', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final asyncValue = container.read(connectionsProvider);
-      // StreamProvider starts with loading, then first yield
-      expect(
-        asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]),
-        isNotNull,
+    test('knownHostsProvider yields an empty map before the stream emits', () {
+      final container = ProviderContainer(
+        overrides: [
+          // The live `knownHostsStreamProvider` reads through FRB.
+          // flutter_test has no native bridge — override with a
+          // never-emitting stream so the derived sync Provider falls
+          // back to its `const {}` default deterministically.
+          knownHostsStreamProvider.overrideWith(
+            (_) => const Stream<Map<String, String>>.empty(),
+          ),
+        ],
       );
+      addTearDown(container.dispose);
+      expect(container.read(knownHostsProvider), isEmpty);
     });
 
-    test('connectionsProvider updates when connection added', () async {
+    test('connectionsProvider exposes a ConnectionsNotifier', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
+      final notifier = container.read(connectionsProvider.notifier);
+      expect(notifier, isA<ConnectionsNotifier>());
+      expect(notifier.connections, isEmpty);
+    });
 
-      // Listen to the provider to start the stream generator
-      container.listen(connectionsProvider, (_, _) {});
-      // Let the stream start and emit initial value
-      await Future.delayed(const Duration(milliseconds: 100));
+    test('connectionsProvider yields empty list initially', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // NotifierProvider returns the list directly — no AsyncValue
+      // wrapping. The Notifier's build() seeds the state from the
+      // empty `_connections` map.
+      expect(container.read(connectionsProvider), isEmpty);
+    });
 
-      // Add a connection via manager — triggers onChange stream
-      final manager = container.read(connectionManagerProvider);
-      manager.connectAsync(
-        const SSHConfig(
-          server: ServerAddress(host: 'test', user: 'u'),
-        ),
-        label: 'Test',
-      );
+    test('connectionRevisionProvider returns 0 for unknown ids', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // Per-id revision is 0 until the first bus event for that id;
+      // consumers reading the provider before any state transition
+      // get a deterministic baseline rather than null.
+      expect(container.read(connectionRevisionProvider('never-seen')), 0);
+    });
 
-      // Wait for onChange event to propagate through the await-for loop
-      await Future.delayed(const Duration(milliseconds: 200));
-
-      final value = container.read(connectionsProvider);
-      value.whenData((connections) {
-        expect(connections, isNotEmpty);
-        expect(connections.first.label, 'Test');
-      });
+    test('connectionByIdProvider returns null for an unknown id', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // The family is the fine-grained surface — looking up an id
+      // the notifier doesn't track must collapse to null cleanly so
+      // a row can render the empty state without an exception.
+      expect(container.read(connectionByIdProvider('never-seen')), isNull);
     });
 
     test(
@@ -121,19 +108,6 @@ void main() {
         connectingTotal: 1,
       );
       expect(connected, isNot(equals(connecting)));
-    });
-
-    test('connectionManagerProvider disposes on container dispose', () async {
-      final container = ProviderContainer();
-      final manager = container.read(connectionManagerProvider);
-      expect(manager.connections, isEmpty);
-
-      // Listen to onChange — it should complete when disposed.
-      final streamDone = manager.onChange.toList();
-      container.dispose();
-
-      // Stream completes (controller closed by dispose).
-      await streamDone;
     });
   });
 }

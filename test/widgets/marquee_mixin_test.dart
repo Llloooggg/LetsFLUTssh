@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/marquee_mixin.dart';
+import 'package:letsflutssh/widgets/core/marquee_mixin.dart';
 
 void main() {
   group('MarqueePainter', () {

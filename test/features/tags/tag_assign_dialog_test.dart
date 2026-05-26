@@ -6,13 +6,13 @@ import 'package:letsflutssh/features/tags/tag_assign_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/data_checkboxes.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/data_checkboxes.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
 import 'tag_manager_dialog_test.dart';
 
 void main() {
-  late FakeTagStore fakeStore;
+  late FakeTagsNotifier fakeStore;
 
   final testTag = Tag(
     id: 't1',
@@ -30,7 +30,15 @@ void main() {
 
   Widget buildApp() {
     return ProviderScope(
-      overrides: [tagStoreProvider.overrideWithValue(fakeStore)],
+      overrides: [
+        tagsProvider.overrideWith(() => fakeStore),
+        sessionTagsProvider.overrideWith(
+          (ref, id) async => fakeStore.tagsForSession(id),
+        ),
+        folderTagsProvider.overrideWith(
+          (ref, id) async => fakeStore.tagsForFolder(id),
+        ),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -68,14 +76,14 @@ void main() {
 
   group('TagAssignDialog', () {
     testWidgets('shows "Edit Tags" title', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       expect(find.text('Edit Tags'), findsOneWidget);
     });
 
     testWidgets('shows empty state when no tags exist', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       expect(find.text('No tags yet'), findsOneWidget);
@@ -85,7 +93,7 @@ void main() {
     });
 
     testWidgets('renders each tag as a data checkbox row', (tester) async {
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await openDialog(tester);
 
       expect(tagRow('Production'), findsOneWidget);
@@ -93,32 +101,32 @@ void main() {
     });
 
     testWidgets('tapping an unassigned tag row assigns it', (tester) async {
-      fakeStore = FakeTagStore([testTag]);
+      fakeStore = FakeTagsNotifier([testTag]);
       await openDialog(tester);
 
       await tester.tap(tagRow('Production'));
       await tester.pumpAndSettle();
 
-      final assigned = await fakeStore.getForSession('test-session');
+      final assigned = fakeStore.tagsForSession('test-session');
       expect(assigned.map((t) => t.id), contains('t1'));
     });
 
     testWidgets('tapping an assigned tag row unassigns it', (tester) async {
-      fakeStore = FakeTagStore([testTag]);
+      fakeStore = FakeTagsNotifier([testTag]);
       await fakeStore.tagSession('test-session', testTag.id);
       await openDialog(tester);
 
       await tester.tap(tagRow('Production'));
       await tester.pumpAndSettle();
 
-      final assigned = await fakeStore.getForSession('test-session');
+      final assigned = fakeStore.tagsForSession('test-session');
       expect(assigned, isEmpty);
     });
 
     testWidgets('pre-assigned tag shows checked, other unchecked', (
       tester,
     ) async {
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await fakeStore.tagSession('test-session', testTag.id);
       await openDialog(tester);
 
@@ -132,7 +140,7 @@ void main() {
     });
 
     testWidgets('select-all toggles every tag at once', (tester) async {
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await openDialog(tester);
 
       // The select-all row is labelled "Select all" and shows the
@@ -143,14 +151,14 @@ void main() {
       await tester.tap(selectAll);
       await tester.pumpAndSettle();
 
-      final assigned = await fakeStore.getForSession('test-session');
+      final assigned = fakeStore.tagsForSession('test-session');
       expect(assigned.map((t) => t.id).toSet(), {'t1', 't2'});
     });
 
     testWidgets('select-all with all assigned clears every tag', (
       tester,
     ) async {
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await fakeStore.tagSession('test-session', testTag.id);
       await fakeStore.tagSession('test-session', testTag2.id);
       await openDialog(tester);
@@ -158,18 +166,21 @@ void main() {
       await tester.tap(tagRow('Select All'));
       await tester.pumpAndSettle();
 
-      final assigned = await fakeStore.getForSession('test-session');
+      final assigned = fakeStore.tagsForSession('test-session');
       expect(assigned, isEmpty);
     });
 
     testWidgets('search field only appears past the threshold', (tester) async {
       // Two tags — well under the threshold, no search box.
-      fakeStore = FakeTagStore([testTag, testTag2]);
+      fakeStore = FakeTagsNotifier([testTag, testTag2]);
       await openDialog(tester);
       expect(find.byIcon(Icons.search), findsNothing);
 
-      // Close the dialog so the next pump rebuilds clean.
-      await tester.tap(find.text('Close'));
+      // Tear the ProviderScope down before the second pump so the
+      // override factory re-runs with the freshly-assigned fakeStore.
+      // Without this, AsyncNotifier's container caches the first
+      // notifier instance even after overrides change.
+      await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
 
       // Seven tags — search field appears.
@@ -177,13 +188,13 @@ void main() {
         for (var i = 0; i < 7; i++)
           Tag(id: 't$i', name: 'Tag $i', createdAt: DateTime(2024, 1, i + 1)),
       ];
-      fakeStore = FakeTagStore(many);
+      fakeStore = FakeTagsNotifier(many);
       await openDialog(tester);
       expect(find.byIcon(Icons.search), findsOneWidget);
     });
 
     testWidgets('close button dismisses dialog', (tester) async {
-      fakeStore = FakeTagStore();
+      fakeStore = FakeTagsNotifier();
       await openDialog(tester);
 
       await tester.tap(find.text('Close'));

@@ -1,0 +1,56 @@
+# Letsflutssh — FIDO2 HID device passthrough rules.
+#
+# Grants the seat-owning user (`uaccess` tag) and the `plugdev`
+# group read/write access to HID raw devices exposed by FIDO2
+# security keys. Without these the `lfs_core::fido2` direct CTAP2
+# path cannot open `/dev/hidraw*` on most distros — `hidraw`
+# defaults to `root:root 0600`.
+#
+# Install:
+#   sudo cp 70-letsflutssh-fido.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#
+# Vendor table mirrors the maintained sk-* vendor list:
+#   1050        Yubico                  (YubiKey 5, 5C, 5Ci, Bio)
+#   0483        STMicroelectronics      (SoloKeys v1, v2)
+#   096e        Feitian                 (BioPass, ePass FIDO)
+#   1209/53c1   SatoshiLabs             (Trezor Model T / Safe)
+#   20a0        Nitrokey                (Nitrokey 3, FIDO2)
+#   18d1        Google                  (Titan Security Key)
+#   1d50        OpenMoko                (OnlyKey + bootloaders)
+
+# Yubico — YubiKey family
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="1050", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# STMicroelectronics — SoloKey
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="0483", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Feitian
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="096e", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# SatoshiLabs — Trezor Model T / Safe 3 / Safe 5 (FIDO2 firmware)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="1209", ATTRS{idProduct}=="53c1", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Nitrokey
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="20a0", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Google — Titan Security Key
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="18d1", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# OpenMoko — OnlyKey + assorted FIDO2 bootloaders / hobby keys
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", \
+  ATTRS{idVendor}=="1d50", \
+  TAG+="uaccess", GROUP="plugdev", MODE="0660"

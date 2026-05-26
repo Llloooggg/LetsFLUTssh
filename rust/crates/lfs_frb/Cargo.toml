@@ -1,0 +1,56 @@
+[package]
+name = "lfs_frb"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+# This is the native blob loaded by the Flutter runtime:
+#   cdylib    -> .so / .dylib / .dll for desktop + Android NDK
+#   staticlib -> static archive for iOS link-into-app
+#   rlib      -> usable from external integration tests in tests/
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+lfs_core = { path = "../lfs_core" }
+lfs_os_security = { path = "../lfs_os_security" }
+flutter_rust_bridge = { workspace = true }
+tokio = { workspace = true }
+# Used by the security-config / capabilities FRB shims to round-trip
+# the `Map<String, dynamic>` payloads Dart consumers persist inside
+# `config.json`. Same crate `lfs_core` already pins.
+serde_json = { workspace = true }
+# `Zeroizing` wrapper for the recorder AES-256 key on the FRB
+# entry path so the derived bytes wipe on drop instead of
+# lingering in `Vec<u8>` allocations across the boundary.
+zeroize = { workspace = true }
+# WebDAV FRB adapter funnels Provider's streamed GET/PUT through a
+# `Vec<u8>` buffer for the v1 surface. `bytes::Bytes` is the
+# de-facto async-Rust chunk type (hyper / reqwest / lfs_core all
+# pin it); `futures-util` carries `StreamExt::next` for the drain
+# loop plus `stream::once` for the put-side single-chunk source.
+bytes = { workspace = true }
+futures-util = { workspace = true }
+# Authorized-keys line composition in the PKCS#11 import path —
+# the helper base64-encodes the SSH wire blob into the `ssh-*`
+# style id_*.pub body before persistence. `lfs_core` already pins
+# the workspace base64; we route through the same version.
+base64 = { workspace = true }
+
+[dev-dependencies]
+# Per-test scratch directories for the keychain-marker lifecycle
+# tests + any future filesystem fixture under
+# `crates/lfs_frb/src/api/`. Pinned to the same major as
+# lfs_core's own dev-dependency; the dependency stays out of
+# the production cdylib.
+tempfile = "3"
+
+# FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
+# macro expansion. Whitelist that single cfg so `clippy -D warnings`
+# does not trip over the otherwise-unknown gate. Do not blanket-allow
+# unknown cfgs — keep other typos visible.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

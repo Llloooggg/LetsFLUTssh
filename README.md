@@ -18,9 +18,7 @@
 
 > **Disclaimer:** This is a functional neuroslop pet project — built with AI assistance under the supervision and direction of a real developer, for personal use, self-education, and fun. Use at your own risk.
 
-Lightweight cross-platform SSH/SFTP client with GUI, built with Flutter.
-
-Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
+Cross-platform SSH/SFTP client with GUI — **Flutter UI on a Rust core** (security, transport, terminal emulation via [`alacritty_terminal`](https://github.com/alacritty/alacritty), and SQLCipher all inside `lfs_core` + `lfs_os_security`, bridged via [`flutter_rust_bridge`](https://github.com/fzyzcjy/flutter_rust_bridge); Flutter only renders, secrets never cross to Dart). Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS, Android, and iOS.
 
 ![SSH Terminal — session tree, tabbed terminal with htop](docs/screenshots/LetsFLUTssh_terminal.png)
 ![SFTP File Browser — dual-pane local/remote with transfer panel](docs/screenshots/LetsFLUTssh_files.png)
@@ -29,34 +27,37 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 - **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & reconnect
 - **SFTP** — dual-pane file browser, drag & drop, transfer queue with parallel workers
+- **WebDAV** — browse Nextcloud / ownCloud / Apache mod_dav / Synology DSM / IIS in the same dual-pane file browser, with Basic / Digest / Bearer authentication and optional self-signed certificate pinning
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
-- **Security** — encrypted SQLite storage (ChaCha20-Poly1305 AEAD via SQLite3MultipleCiphers — native AEAD with per-page 16-byte authentication tags, constant-time by design, D.J. Bernstein / Signal / WireGuard lineage). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
+- **Security** — encrypted SQLite storage via SQLCipher 4.x (AES-256-CBC for confidentiality + HMAC-SHA512 per-page MAC + 256 000 PBKDF2-SHA512 iterations on the page-cipher key; bundled in-tree via `rusqlite`'s `bundled-sqlcipher-vendored-openssl` Cargo feature — both SQLCipher and the OpenSSL it depends on are statically linked, no separate native blob, no submodule, no system-library prereqs on any cross-compile target). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), terminal font slider in Settings, deep links
-- **Auth** — password, key file, PEM text
+- **Auth** — password, key file, PEM text, OpenSSH user certificates paired to stored keys
 - **Themes** — OneDark / One Light, system auto-detection
 
 ### Platforms
 
 | Platform | Version | Status |
 |---|---|---|
-| **Windows** | 10+ (x64)¹ | primary test platform |
-| **Android** | 9.0+ (API 28) | primary test platform |
-| **Linux** | x64, GTK 3 | occasionally tested |
-| **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
-| **iOS** | 13.0+ | not built |
+| **Windows** | 10+ (x64 + ARM64)¹ | primary test platform — x64 fully tested, ARM64 builds via CI but binary may run through Prism on Snapdragon X if Flutter SDK fell back to x64 Dart |
+| **Android** | 9.0+ (API 28) | primary test platform — three per-ABI APKs (`arm64`, `arm32`, `x64`) |
+| **Linux** | x64 + ARM64, GTK 3 | occasionally tested — both architectures shipped; ARM64 covers Raspberry Pi 5, Asahi Linux, AWS Graviton |
+| **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested — universal binary in one `.dmg` / `.tar.gz` |
+| **iOS** | 13.0+ | **unsigned `.ipa` shipped** — re-sign locally to install (no Apple Developer Program account on the project side) |
 
-¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `local_auth`) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
+¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `Windows.Security.Credentials.UI.UserConsentVerifier`, called directly from Rust through the `windows` crate) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
 
 ## Installation
 
 Download the build for your platform from [Releases](https://github.com/Llloooggg/LetsFLUTssh/releases), then follow the per-platform steps below. To build from source instead, see [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
+> **Looking for usage docs?** See [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — step-by-step walkthroughs for every shipped feature (sessions, terminal, SFTP, port forwarding, ProxyJump, snippets, recordings, security tiers, import/export) with worked examples and platform notes.
+
 ### Linux
 
-Available formats: **AppImage**, **.deb**, **tar.gz**.
+Available formats: **AppImage**, **.deb**, **tar.gz** — each shipped per architecture as `letsflutssh-<version>-linux-x64.<ext>` (Intel / AMD / Linux on x86_64) or `-linux-arm64.<ext>` (aarch64 — Raspberry Pi 5, Asahi Linux, AWS Graviton, Ampere Altra). Pick by `uname -m` (`x86_64` → `linux-x64`, `aarch64` → `linux-arm64`).
 
 ```bash
 # AppImage — single self-contained file, no install
@@ -89,7 +90,7 @@ cd letsflutssh && ./letsflutssh
 > fprintd-enroll
 > ```
 >
-> Optional (upgrades the biometric-unlock backing from software to TPM2-hardware): `tpm2-tools` if your machine has a TPM2 chip (`ls /dev/tpmrm0` → exists). The Settings biometric row labels itself `Hardware-backed` when both TPM2 and `fprintd` are available; any biometric-enrolment change invalidates the sealed blob the next time around (equivalent to Apple's `biometryCurrentSet`).
+> Optional (upgrades the biometric-unlock backing from software to TPM2-hardware): a TPM 2.0 chip (`ls /dev/tpmrm0` → exists) plus **either** `tpm2-tools` (the historical subprocess path, still the default) **or** `libtss2-dev` (for the native `tss-esapi` Rust backend, opt-in via `LFS_TPM_BACKEND=native` env var). Both backends produce byte-identical sealed envelopes — choose the subprocess path for simplicity, the native path for lower per-operation latency. The Settings biometric row labels itself `Hardware-backed` when both TPM2 and `fprintd` are available; any biometric-enrolment change invalidates the sealed blob the next time around (equivalent to Apple's `biometryCurrentSet`).
 >
 > ```bash
 > # Debian / Ubuntu / Mint
@@ -108,7 +109,10 @@ cd letsflutssh && ./letsflutssh
 
 ### Windows
 
-Available formats: **EXE installer** (Inno Setup), **portable zip**.
+Available formats:
+- **`letsflutssh-<version>-windows-x64-setup.exe`** — Inno Setup installer for Intel / AMD x86_64.
+- **`letsflutssh-<version>-windows-x64.zip`** — portable zip, x64.
+- **`letsflutssh-<version>-windows-arm64.zip`** — portable zip for Snapdragon X / Surface Pro X / Windows-on-ARM. The .exe inside may be either native ARM64 (preferred — runs at full speed) or x64 (runs via the OS's Prism emulation layer, ~10-20% slower for compute-heavy work but still fully functional). Both ship under the same artefact name because Windows 11 ARM64 runs both transparently.
 
 - **Installer:** double-click the `.exe`, follow the wizard. Adds Start Menu entry and uninstaller.
 - **Portable:** extract the zip anywhere, run `letsflutssh.exe` directly. No install, no registry writes.
@@ -134,9 +138,30 @@ If you do not want T1 unlock, the **Paranoid** tier (master password, Argon2id-d
 
 ### Android
 
-Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm.apk` (32-bit ARM), and `-android-x64.apk` (emulator / x86_64 tablets).
+Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm32.apk` (32-bit ARMv7), and `-android-x64.apk` (emulator / x86_64 tablets).
 
 In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
+
+### iOS
+
+Available format: **unsigned `.ipa`** — `letsflutssh-<version>-ios-unsigned.ipa`. The project does not have an Apple Developer Program account, so the `.ipa` ships without a code-signing identity and **cannot be installed as-is**. Sideload it onto your own device with one of:
+
+- **[AltStore](https://altstore.io)** (free, all host OSes). AltServer on a host computer (mac / Win / Linux) re-signs the `.ipa` with your free Apple ID and pushes to the iPhone over Wi-Fi; the cert expires after 7 days, AltServer refreshes it in the background while the phone is on the same network. Easiest no-Xcode path.
+- **[Sideloadly](https://sideloadly.io)** (free, mac / Win). Drag-and-drop the `.ipa` + your Apple ID. No background refresh — re-sideload manually when the cert expires.
+- **Xcode** (free, mac only). Drop `Payload/Runner.app` (from `unzip ...ipa`) into *Window → Devices and Simulators*. Pushes to a connected device under your free personal team. Same 7-day cert.
+- **[TrollStore](https://github.com/opa334/TrollStore)** (no Apple ID, no host computer). On-device permanent install via the CoreTrust bypass — only works on iOS versions vulnerable to the exploit (currently iOS ≤ 16.7 and select 17.x sub-builds; check the TrollStore compat matrix before trying).
+- **Paid Apple Developer Program ($99 / yr).** Sign the `.app` bundle with your developer cert, repack as `.ipa`, install via Xcode / TestFlight / any standard MDM channel. 1-year cert. Sketch:
+  ```bash
+  unzip letsflutssh-<version>-ios-unsigned.ipa
+  codesign -f -s "Apple Development: <your name>" \
+           --entitlements <your-entitlements.plist> \
+           Payload/Runner.app
+  zip -r resigned.ipa Payload/
+  ```
+
+After install, on the iPhone: **Settings → General → VPN & Device Management → Apple Development: <your-apple-id> → Trust** (only the first time per cert).
+
+Step-by-step walkthrough + free-vs-paid Apple ID limits + update flow live in [USER_GUIDE § iOS sideloading](docs/USER_GUIDE.md#ios-sideloading-no-app-store). The CI artifact compiles against iOS 13.0+.
 
 ### User Data & Uninstalling
 
@@ -152,6 +177,10 @@ Sessions, credentials, known hosts, snippets, tags, and app config live in the O
 
 > [!WARNING]
 > Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
+
+### Other distribution channels
+
+Manifests for Snap Store, Flathub, Homebrew Cask and WinGet live under [`packaging/`](packaging/) and are **draft templates pending validation** — not yet submitted to upstream channels. Until those PRs land, [GitHub Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) is the only sanctioned download path. The in-app updater talks directly to GitHub Releases regardless of how the user originally installed.
 
 ## Security
 

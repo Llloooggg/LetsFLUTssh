@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/form_submit_chain.dart';
+import 'package:letsflutssh/widgets/core/form_submit_chain.dart';
 
 void main() {
   group('FormSubmitChain', () {

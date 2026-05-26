@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/password_strength_meter.dart';
+import 'package:letsflutssh/widgets/security/password_strength_meter.dart';
+
+import '../helpers/frb_bootstrap.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
@@ -10,6 +12,12 @@ Widget _wrap(Widget child) => MaterialApp(
 );
 
 void main() {
+  // PasswordStrengthMeter calls `assessPasswordStrength` on every
+  // controller change, which routes through `lfs_core::password_strength`
+  // — bootstrap FRB so the widget can build.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('PasswordStrengthMeter', () {
     testWidgets('hides itself when the field is empty', (tester) async {
       final ctrl = TextEditingController();

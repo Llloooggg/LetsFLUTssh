@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
+
+import '../../helpers/frb_bootstrap.dart';
 
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
@@ -43,9 +47,57 @@ class _MockFS implements FileSystem {
     if (dirSizeErrors.contains(path)) throw Exception('Size error: $path');
     return dirSizeResults[path] ?? 0;
   }
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
+  @override
+  Future<bool> exists(String path) async => dirs.containsKey(path);
+
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
+}
+
+/// FS whose `list` returns a future the test resolves by hand, one
+/// `Completer` per path — lets a test interleave two in-flight
+/// listings to exercise the refresh-race guard.
+class _GatedFS implements FileSystem {
+  final Map<String, Completer<List<FileEntry>>> pending = {};
+
+  Completer<List<FileEntry>> gate(String path) =>
+      pending.putIfAbsent(path, Completer<List<FileEntry>>.new);
+
+  @override
+  Future<List<FileEntry>> list(String path) => gate(path).future;
+
+  @override
+  Future<String> initialDir() async => '/';
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<int> dirSize(String path) async => 0;
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+  @override
+  Future<bool> exists(String path) async => false;
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 void main() {
+  // The controller delegates sort (`sortFileEntriesBy`) and parent
+  // navigation (`pathParent`) to Rust via sync FRB calls, so the
+  // suite needs the Rust library loaded.
+  setUpAll(requireFrbLoaded);
+
   final now = DateTime(2024, 1, 1);
   final testEntries = [
     FileEntry(
@@ -116,6 +168,43 @@ void main() {
       await ctrl.navigateTo('/home/docs');
       await ctrl.navigateUp();
       expect(ctrl.currentPath, '/home');
+    });
+
+    test('a superseded slow listing does not overwrite the current dir', () {
+      // Race guard: list(/A) is in flight when the user navigates to
+      // /B. Resolving /B then the late /A must leave /B's entries —
+      // the stale /A result is dropped.
+      final gated = _GatedFS();
+      final raceCtrl = FilePaneController(fs: gated, label: 'Race');
+      addTearDown(raceCtrl.dispose);
+      final entryB = FileEntry(
+        name: 'b.txt',
+        path: '/B/b.txt',
+        size: 1,
+        modTime: now,
+        isDir: false,
+      );
+
+      // Both navigations start before either listing resolves.
+      final navA = raceCtrl.navigateTo('/A', addToHistory: false);
+      final navB = raceCtrl.navigateTo('/B', addToHistory: false);
+
+      // Resolve the newer listing (/B) first, then the stale /A.
+      gated.gate('/B').complete([entryB]);
+      gated.gate('/A').complete([
+        FileEntry(
+          name: 'a.txt',
+          path: '/A/a.txt',
+          size: 1,
+          modTime: now,
+          isDir: false,
+        ),
+      ]);
+
+      return Future.wait([navA, navB]).then((_) {
+        expect(raceCtrl.currentPath, '/B');
+        expect(raceCtrl.entries.map((e) => e.name).toList(), ['b.txt']);
+      });
     });
 
     test('navigateUp from root stays at root', () async {
@@ -236,22 +325,56 @@ void main() {
       expect(ctrl.entries, isEmpty);
     });
 
-    test('notifyListeners fires on state changes', () async {
+    test('selectedListenable bumps on selection changes', () async {
+      // Selection mutators stopped firing the broad
+      // `notifyListeners()` to keep the per-row + footer
+      // selection visuals fine-grained — they bump
+      // `selectedListenable` instead, so the file_pane row +
+      // footer-counter `ValueListenableBuilder`s redraw without
+      // a whole-pane setState. The contract under test is that
+      // every selection mutator pushes a new value through the
+      // listenable.
       await ctrl.init();
-      var count = 0;
-      ctrl.addListener(() => count++);
+      var bumps = 0;
+      ctrl.selectedListenable.addListener(() => bumps++);
 
       ctrl.selectSingle('/home/readme.md');
-      expect(count, 1);
+      expect(bumps, 1);
+      expect(ctrl.selectedListenable.value, contains('/home/readme.md'));
 
       ctrl.toggleSelect('/home/app.dart');
-      expect(count, 2);
+      expect(bumps, 2);
+      expect(ctrl.selectedListenable.value, contains('/home/app.dart'));
 
       ctrl.clearSelection();
-      expect(count, 3);
+      expect(bumps, 3);
+      expect(ctrl.selectedListenable.value, isEmpty);
 
       ctrl.selectAll();
-      expect(count, 4);
+      expect(bumps, 4);
+    });
+
+    test('selection mutators do NOT trigger broad notifyListeners', () async {
+      // Inverse of the contract above — guards against a future
+      // edit re-introducing `notifyListeners()` to a selection
+      // mutator and undoing the per-row rebuild win.
+      await ctrl.init();
+      var broadCount = 0;
+      ctrl.addListener(() => broadCount++);
+
+      ctrl.selectSingle('/home/readme.md');
+      ctrl.toggleSelect('/home/app.dart');
+      ctrl.clearSelection();
+      ctrl.selectAll();
+      ctrl.selectPaths({'/home/notes.txt'});
+
+      expect(
+        broadCount,
+        0,
+        reason:
+            'selection mutators must not fan out through the broad '
+            'ChangeNotifier — see FilePaneController selection-mutator note',
+      );
     });
 
     test('dispose can be called safely', () async {

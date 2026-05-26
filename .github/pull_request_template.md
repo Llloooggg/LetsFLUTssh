@@ -5,7 +5,7 @@
 ## Checklist
 
 - Commits follow `type: description` format (see [CONTRIBUTING.md](../docs/CONTRIBUTING.md#commit-messages)) — version bump is automatic, do **not** edit `pubspec.yaml` manually
-- `make check` passes (analyzer + tests)
+- `make check` passes (Dart + Rust: format-check, lint, workflow lint, release hardening, unused-deps, tests)
 - New code has tests (target 100% coverage)
 - User-facing strings added to **all** `lib/l10n/app_*.arb` files (if UI changed)
 - Manually tested on: <!-- e.g. Linux, Windows, Android -->

@@ -51,6 +51,20 @@ class QrScannerActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private val decoded = AtomicBoolean(false)
 
+    // Trap: CameraX delivers `ImageProxy` instances on `cameraExecutor`
+    // independently of the Activity lifecycle. When we finish on a
+    // decoded QR, frames already queued on the executor can still
+    // touch `imageProxy.planes[0]` AFTER `finish()` returns and the
+    // backing buffer is recycled by the camera pipeline. The fix is
+    // two-part: hoist `cameraProvider` to class scope so we can call
+    // `unbindAll()` on the lifecycle thread the moment we decide to
+    // finish (which drains the analyser binding), and gate every
+    // analyser entry on `isCameraActive`. Invariant: once
+    // `isCameraActive == false`, no `analyseFrame` body runs — the
+    // proxy is closed and the call returns immediately.
+    @Volatile private var isCameraActive: Boolean = true
+    private var cameraProvider: ProcessCameraProvider? = null
+
     private val requestCamera = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -77,6 +91,9 @@ class QrScannerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isCameraActive = false
+        cameraProvider?.unbindAll()
+        cameraProvider = null
         cameraExecutor.shutdown()
     }
 
@@ -122,6 +139,7 @@ class QrScannerActivity : ComponentActivity() {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
             val provider = providerFuture.get()
+            cameraProvider = provider
 
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
@@ -149,6 +167,13 @@ class QrScannerActivity : ComponentActivity() {
 
     @OptIn(ExperimentalGetImage::class)
     private fun analyseFrame(imageProxy: ImageProxy) {
+        // Race guard: see the `isCameraActive` invariant on the field.
+        // Frames already queued on `cameraExecutor` after teardown began
+        // must exit before touching the proxy's planes.
+        if (!isCameraActive) {
+            imageProxy.close()
+            return
+        }
         if (decoded.get()) {
             imageProxy.close()
             return
@@ -193,6 +218,14 @@ class QrScannerActivity : ComponentActivity() {
     }
 
     private fun finishWithResult(text: String) {
+        // Ordering invariant: flip the analyser gate FIRST so any queued
+        // frame entering `analyseFrame` short-circuits; then unbind the
+        // CameraX pipeline so no new frames are scheduled; only then
+        // call `finish()`. Reversing the order leaves a window where the
+        // analyser can dereference a recycled image buffer.
+        isCameraActive = false
+        cameraProvider?.unbindAll()
+        cameraProvider = null
         val data = Intent().putExtra(EXTRA_RESULT, text)
         setResult(Activity.RESULT_OK, data)
         finish()

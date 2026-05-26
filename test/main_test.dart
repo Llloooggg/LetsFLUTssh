@@ -1,13 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
-import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/connection/foreground_service.dart';
+import 'package:letsflutssh/platform/foreground_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
@@ -21,9 +21,10 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
-import 'package:letsflutssh/widgets/app_icon_button.dart';
+import 'package:letsflutssh/widgets/core/app_icon_button.dart';
 
-import 'helpers/fake_session_store.dart';
+import 'helpers/fake_session_notifier.dart';
+import 'helpers/frb_bootstrap.dart';
 import 'helpers/test_notifiers.dart';
 
 /// An UpdateNotifier that transitions from idle to updateAvailable
@@ -43,15 +44,45 @@ class _DelayedUpdateNotifier extends UpdateNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // AppLogger paths through `lfs_core::log_sanitize` / format —
+  // bootstrap FRB so logged messages exercise the canonical Rust
+  // pipeline.
+  setUpAll(requireFrbLoaded);
 
-  setUp(() {
+  late Directory tempDir;
+
+  setUp(() async {
     plat.debugDesktopPlatformOverride = true;
     plat.debugMobilePlatformOverride = false;
+    // Bootstrap never completes under flutter_test (no FRB migrations
+    // / real keychain unlock), so the readiness ValueNotifier stays
+    // false and the splash overlay would pin itself on top of every
+    // test target. Skip the overlay entirely so tests interact with
+    // the widget tree beneath.
+    debugShowStartupSplash = false;
+
+    // The update-dialog skip flow flushes a config change (skipped
+    // version). The save path no longer re-inits the store per write,
+    // so route path_provider to a temp dir and pin the store here.
+    tempDir = await Directory.systemTemp.createTemp('main_test_');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => tempDir.path,
+        );
+    await bootstrapRustConfigStore();
   });
 
   tearDown(() {
     plat.debugDesktopPlatformOverride = null;
     plat.debugMobilePlatformOverride = null;
+    debugShowStartupSplash = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
+    if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
   Widget buildApp({
@@ -63,21 +94,14 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(
-          FakeSessionStore(sessions: sessions),
+        ...FakeSessionNotifier(sessions: sessions).overrides(),
+        sessionsLoadingProvider.overrideWithValue(false),
+        knownHostsStreamProvider.overrideWith(
+          (_) => const Stream<Map<String, String>>.empty(),
         ),
-        sessionProvider.overrideWith(
-          sessions != null
-              ? () => PrePopulatedSessionNotifier(sessions)
-              : SessionNotifier.new,
+        connectionsProvider.overrideWith(
+          () => StaticConnectionsNotifier(<Connection>[]),
         ),
-        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-        knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
-        ),
-        connectionsProvider.overrideWith((ref) => Stream.value(<Connection>[])),
-        configStoreProvider.overrideWithValue(ConfigStore()),
         configProvider.overrideWith(
           config != null
               ? () => PrePopulatedConfigNotifier(config)
@@ -425,16 +449,6 @@ void main() {
 
       // Restore
       ErrorWidget.builder = originalBuilder;
-    });
-  });
-
-  group('singleInstanceLock', () {
-    test('is initially null', () {
-      // Reset if needed
-      final previous = singleInstanceLock;
-      singleInstanceLock = null;
-      expect(singleInstanceLock, isNull);
-      singleInstanceLock = previous;
     });
   });
 }

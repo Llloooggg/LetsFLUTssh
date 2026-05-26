@@ -6,11 +6,12 @@ import '../core/security/session_credential_cache.dart';
 ///
 /// Scoped to the Riverpod container so test harnesses using
 /// `ProviderContainer` + dispose get a clean slate, and so the app's
-/// container teardown (app shutdown) zeroes every SecretBuffer via
-/// [SessionCredentialCache.evictAll].
+/// container teardown (app shutdown) drops every cached SecretStore
+/// slot via [SessionCredentialCache.evictAll] — the Rust side zeros
+/// the bytes inside `lfs_core::secrets::SecretStore` on each evict.
 ///
 /// Consumed by:
-///   * `ConnectionManager` — populate on successful auth, evict on
+///   * `ConnectionsNotifier` — populate on successful auth, evict on
 ///     explicit disconnect.
 ///   * `Connection._reconnect*` — read as an override before falling
 ///     back to `Session.auth`.
@@ -18,6 +19,11 @@ import '../core/security/session_credential_cache.dart';
 ///     reset never leaves stale credentials for now-gone sessions.
 final sessionCredentialCacheProvider = Provider<SessionCredentialCache>((ref) {
   final cache = SessionCredentialCache();
-  ref.onDispose(cache.evictAll);
+  // evictAll is async; wrap in a void closure so onDispose accepts
+  // it. Errors are swallowed — provider teardown can't propagate
+  // failures and the FRB call is best-effort anyway.
+  ref.onDispose(() {
+    cache.evictAll().catchError((Object _) {});
+  });
   return cache;
 });

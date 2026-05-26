@@ -2,181 +2,188 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/mobile/terminal_copy_overlay.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/src/rust/api/terminal.dart' as rust_terminal;
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:xterm/xterm.dart';
 
-/// Wraps [child] in a MaterialApp with theme + localization and a fixed
-/// SizedBox so layout is deterministic.
-Widget _app(Widget child) {
-  return MaterialApp(
-    localizationsDelegates: S.localizationsDelegates,
-    supportedLocales: S.supportedLocales,
-    theme: AppTheme.dark(),
-    home: Scaffold(body: SizedBox(width: 800, height: 600, child: child)),
+/// A captured selection update from the overlay, in absolute grid-line
+/// coordinates.
+class _Sel {
+  const _Sel(this.startRow, this.startCol, this.endRow, this.endCol);
+  final int startRow;
+  final int startCol;
+  final int endRow;
+  final int endCol;
+}
+
+/// Build a synthetic frame so the overlay's cell math runs without a live
+/// `TerminalSession`. `displayOffset` lets a test exercise the
+/// absolute-row mapping (viewportRow - displayOffset).
+rust_terminal.TerminalFrame _frame({
+  int cols = 80,
+  int rows = 24,
+  int displayOffset = 0,
+}) {
+  return rust_terminal.TerminalFrame(
+    cols: cols,
+    rows: rows,
+    cursor: const rust_terminal.TerminalCursor(
+      row: 0,
+      col: 0,
+      shape: rust_terminal.TerminalCursorShape.block,
+      visible: true,
+    ),
+    displayOffset: displayOffset,
+    historySize: 0,
+    mouseTracking: rust_terminal.TerminalMouseTracking.none,
+    cells: const [],
   );
 }
 
-TerminalCopyOverlay _buildOverlay({
-  required Terminal terminal,
-  required TerminalController controller,
-  required ScrollController scrollController,
-  Key? key,
-}) => TerminalCopyOverlay(
-  key: key,
-  terminal: terminal,
-  controller: controller,
-  scrollController: scrollController,
-  fontSize: 14,
-  fontFamily: AppFonts.monoFamily,
-  fontFamilyFallback: AppFonts.monoFallback,
-);
-
 void main() {
+  Widget app(Widget child) {
+    return MaterialApp(
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
+      theme: AppTheme.dark(),
+      home: Scaffold(body: SizedBox(width: 800, height: 600, child: child)),
+    );
+  }
+
   group('TerminalCopyOverlay — lifecycle', () {
-    testWidgets('suspends pointer input on mount and restores on dispose', (
+    testWidgets('clears the engine selection on mount and on dispose', (
       tester,
     ) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      final scroll = ScrollController();
-
+      var clears = 0;
       await tester.pumpWidget(
-        _app(
-          _buildOverlay(
-            terminal: terminal,
-            controller: controller,
-            scrollController: scroll,
+        app(
+          TerminalCopyOverlay(
+            snapshotProvider: _frame,
+            onSetSelection: (_, _, _, _) {},
+            onClearSelection: () => clears++,
+            onScroll: (_) {},
+            fontSize: 14,
           ),
         ),
       );
+      // One clear on mount.
+      expect(clears, 1);
 
-      expect(controller.suspendedPointerInputs, isTrue);
-
-      await tester.pumpWidget(_app(const SizedBox.shrink()));
-
-      expect(controller.suspendedPointerInputs, isFalse);
-    });
-
-    testWidgets('clears any pre-existing selection on mount', (tester) async {
-      final terminal = Terminal(maxLines: 100);
-      terminal.write('hello world');
-      final controller = TerminalController();
-      final scroll = ScrollController();
-      final line = terminal.buffer.lines[0];
-      controller.setSelection(line.createAnchor(0), line.createAnchor(5));
-      expect(controller.selection, isNotNull);
-
-      await tester.pumpWidget(
-        _app(
-          _buildOverlay(
-            terminal: terminal,
-            controller: controller,
-            scrollController: scroll,
-          ),
-        ),
-      );
-
-      expect(controller.selection, isNull);
+      await tester.pumpWidget(app(const SizedBox.shrink()));
+      // A second clear on dispose.
+      expect(clears, 2);
     });
   });
 
   group('TerminalCopyOverlay — cursor + selection', () {
-    testWidgets('onAnchorDown sets a selection anchor at the cursor', (
+    testWidgets('onAnchorDown sets a selection at the cursor cell', (
       tester,
     ) async {
-      final terminal = Terminal(maxLines: 100);
-      terminal.write('hello world');
-      final controller = TerminalController();
-      final scroll = ScrollController();
+      _Sel? sel;
       final key = GlobalKey<TerminalCopyOverlayState>();
-
       await tester.pumpWidget(
-        _app(
-          _buildOverlay(
-            terminal: terminal,
-            controller: controller,
-            scrollController: scroll,
+        app(
+          TerminalCopyOverlay(
             key: key,
+            snapshotProvider: _frame,
+            onSetSelection: (sr, sc, er, ec) => sel = _Sel(sr, sc, er, ec),
+            onClearSelection: () {},
+            onScroll: (_) {},
+            fontSize: 14,
           ),
         ),
       );
 
-      // Before first anchor-down, selection is empty and `anchorSet` is
-      // false — parent uses it to swap the hint copy in the Column layout.
-      expect(controller.selection, isNull);
       expect(key.currentState!.anchorSet, isFalse);
 
       key.currentState!.onAnchorDown();
       await tester.pump();
 
-      expect(controller.selection, isNotNull);
       expect(key.currentState!.anchorSet, isTrue);
+      // Cursor starts under the engine cursor (0,0); anchor == cursor here,
+      // so a collapsed single-cell selection at the origin.
+      expect(sel, isNotNull);
+      expect(sel!.startRow, 0);
+      expect(sel!.startCol, 0);
+      expect(sel!.endRow, 0);
+      expect(sel!.endCol, 0);
     });
 
     testWidgets('onAnchorDown is idempotent after the first call', (
       tester,
     ) async {
-      final terminal = Terminal(maxLines: 100);
-      final controller = TerminalController();
-      final scroll = ScrollController();
+      final sels = <_Sel>[];
       final key = GlobalKey<TerminalCopyOverlayState>();
-
       await tester.pumpWidget(
-        _app(
-          _buildOverlay(
-            terminal: terminal,
-            controller: controller,
-            scrollController: scroll,
+        app(
+          TerminalCopyOverlay(
             key: key,
+            snapshotProvider: _frame,
+            onSetSelection: (sr, sc, er, ec) => sels.add(_Sel(sr, sc, er, ec)),
+            onClearSelection: () {},
+            onScroll: (_) {},
+            fontSize: 14,
           ),
         ),
       );
 
       key.currentState!.onAnchorDown();
-      final first = controller.selection;
-      expect(first, isNotNull);
-
       key.currentState!.onAnchorDown();
-      // Second call must not move the anchor — the user lifted and
-      // re-touched and should continue extending, not re-anchor.
-      expect(controller.selection?.begin, first!.begin);
+      // Second anchor-down is a no-op — only the first set a selection.
+      expect(sels.length, 1);
     });
 
-    testWidgets('onCursorPan moves the cursor and extends selection', (
-      tester,
-    ) async {
-      final terminal = Terminal(maxLines: 100);
-      terminal.write('hello world');
-      final controller = TerminalController();
-      final scroll = ScrollController();
+    testWidgets('onCursorPan extends the selection rightward', (tester) async {
+      _Sel? last;
       final key = GlobalKey<TerminalCopyOverlayState>();
-
       await tester.pumpWidget(
-        _app(
-          _buildOverlay(
-            terminal: terminal,
-            controller: controller,
-            scrollController: scroll,
+        app(
+          TerminalCopyOverlay(
             key: key,
+            snapshotProvider: _frame,
+            onSetSelection: (sr, sc, er, ec) => last = _Sel(sr, sc, er, ec),
+            onClearSelection: () {},
+            onScroll: (_) {},
+            fontSize: 14,
           ),
         ),
       );
 
       key.currentState!.onAnchorDown();
-      // Push the finger across roughly five cells. Cell width at
-      // fontSize 14 is ~8-9 px, so 100 px will advance ~10 cells —
-      // enough to know the selection's extent column moved.
+      // Push ~100px right; cell width at fontSize 14 is ~8-9px so the cursor
+      // advances several columns past the anchor.
       key.currentState!.onCursorPan(const Offset(100, 0));
       await tester.pump();
 
-      final sel = controller.selection!;
-      expect(sel.end.x, greaterThan(sel.begin.x));
+      expect(last, isNotNull);
+      // Anchor stays at column 0; the end column advanced.
+      expect(last!.startCol, 0);
+      expect(last!.endCol, greaterThan(0));
+    });
+
+    testWidgets('anchor row accounts for the scroll displayOffset', (
+      tester,
+    ) async {
+      // With the viewport scrolled up by 5 lines, a cursor on viewport row 0
+      // maps to absolute row -5 (negative = scrollback) — the inverse of the
+      // engine's row = absolute + displayOffset mapping.
+      _Sel? sel;
+      final key = GlobalKey<TerminalCopyOverlayState>();
+      await tester.pumpWidget(
+        app(
+          TerminalCopyOverlay(
+            key: key,
+            snapshotProvider: () => _frame(displayOffset: 5),
+            onSetSelection: (sr, sc, er, ec) => sel = _Sel(sr, sc, er, ec),
+            onClearSelection: () {},
+            onScroll: (_) {},
+            fontSize: 14,
+          ),
+        ),
+      );
+
+      key.currentState!.onAnchorDown();
+      await tester.pump();
+      expect(sel!.startRow, -5);
     });
   });
-
-  // CopyModeHint and CopyModeToolbar were removed: the bar's row
-  // now swaps its own contents between normal keys and copy-mode
-  // content inside the same fixed-height Container, which keeps
-  // the terminal widget a constant size across copy-mode toggles.
-  // Coverage for the swap lives in the SshKeyboardBar test file.
 }

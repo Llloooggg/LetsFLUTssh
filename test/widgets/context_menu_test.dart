@@ -2,10 +2,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/shortcut_registry.dart';
+import 'package:letsflutssh/widgets/core/shortcut_registry.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/context_menu.dart';
+import 'package:letsflutssh/widgets/core/context_menu.dart';
 
 void main() {
   Widget wrap(Widget child) {

@@ -4,15 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/ssh/known_hosts.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/connection_provider.dart';
+import '../../providers/known_hosts_provider.dart'
+    show
+        KnownHostsMutator,
+        knownHostFingerprint,
+        knownHostsMutatorProvider,
+        knownHostsStreamProvider;
 import '../../theme/app_theme.dart';
-import '../../widgets/app_collection_toolbar.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_collection_toolbar.dart';
+import '../../widgets/core/app_data_search_bar.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/toast.dart';
+import 'known_hosts_manager_logic.dart';
 
 /// Embeddable known hosts manager — search + list with CRUD.
 ///
@@ -29,64 +35,49 @@ class KnownHostsManagerPanel extends ConsumerStatefulWidget {
 class _KnownHostsManagerPanelState
     extends ConsumerState<KnownHostsManagerPanel> {
   String _filter = '';
-  bool _loading = true;
 
-  KnownHostsManager get _manager => ref.read(knownHostsProvider);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHosts();
-  }
-
-  Future<void> _loadHosts() async {
-    await _manager.load();
-    if (mounted) setState(() => _loading = false);
-  }
-
-  List<MapEntry<String, String>> get _filteredEntries {
-    final entries = _manager.entries.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    if (_filter.isEmpty) return entries;
-    final lower = _filter.toLowerCase();
-    return entries.where((e) {
-      return e.key.toLowerCase().contains(lower) ||
-          e.value.toLowerCase().contains(lower);
-    }).toList();
-  }
+  KnownHostsMutator get _mutator => ref.read(knownHostsMutatorProvider);
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final entries = _filteredEntries;
-    final totalCount = _manager.count;
+    // Stream-driven: the first frame paints the spinner while the
+    // initial FRB fetch is in flight; every subsequent
+    // `KnownHostsChanged` bus event (TOFU accept, settings clear,
+    // .lfs import) re-emits a fresh snapshot here without an
+    // explicit `setState` round-trip.
+    final async = ref.watch(knownHostsStreamProvider);
+    final all = async.hasValue
+        ? async.value as Map<String, String>
+        : const <String, String>{};
 
     return Column(
       children: [
-        _buildToolbar(s, totalCount),
+        _buildToolbar(s, all.length),
         const Divider(height: 1),
-        Expanded(child: _buildBody(s, entries, totalCount)),
+        Expanded(
+          child: async.when(
+            data: (entries) => _buildBody(s, entries),
+            loading: () =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            error: (_, _) => _buildBody(s, all),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildBody(
-    S s,
-    List<MapEntry<String, String>> entries,
-    int totalCount,
-  ) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (entries.isEmpty) {
+  Widget _buildBody(S s, Map<String, String> all) {
+    final filtered = filterKnownHostEntries(all, _filter);
+    if (filtered.isEmpty) {
       return AppEmptyState(
-        message: totalCount == 0 ? s.knownHostsEmpty : s.knownHostsCount(0),
+        message: all.isEmpty ? s.knownHostsEmpty : s.knownHostsCount(0),
       );
     }
     return ListView.separated(
-      itemCount: entries.length,
+      itemCount: filtered.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(s, entries[index]),
+      itemBuilder: (context, index) => _buildEntry(s, filtered[index]),
     );
   }
 
@@ -100,10 +91,11 @@ class _KnownHostsManagerPanelState
       countLabel: s.knownHostsCount(totalCount),
       actions: [
         if (totalCount > 0)
-          _ToolbarButton(
+          AppIconButton(
             icon: Icons.delete_sweep,
             tooltip: s.clearAllKnownHosts,
             onTap: _clearAll,
+            dense: true,
           ),
       ],
     );
@@ -111,15 +103,15 @@ class _KnownHostsManagerPanelState
 
   Widget _buildEntry(S s, MapEntry<String, String> entry) {
     final hostPort = entry.key;
-    final parts = entry.value.split(' ');
-    final keyType = parts.isNotEmpty ? parts[0] : '';
-    final keyData = parts.length > 1 ? parts[1] : '';
+    final split = splitKnownHostValue(entry.value);
+    final keyType = split.keyType;
+    final keyData = split.keyData;
 
     // Compute fingerprint from base64 key data
     String fp;
     try {
       final keyBytes = base64Decode(keyData);
-      fp = KnownHostsManager.fingerprint(keyBytes);
+      fp = knownHostFingerprint(keyBytes);
     } catch (_) {
       fp = '?';
     }
@@ -151,12 +143,11 @@ class _KnownHostsManagerPanelState
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.content_copy, size: 14),
+          AppIconButton(
+            icon: Icons.content_copy,
             tooltip: s.copy,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () {
+            dense: true,
+            onTap: () {
               Clipboard.setData(ClipboardData(text: fp));
               Toast.show(
                 context,
@@ -165,12 +156,12 @@ class _KnownHostsManagerPanelState
               );
             },
           ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, size: 14, color: AppTheme.red),
+          AppIconButton(
+            icon: Icons.delete_outline,
             tooltip: s.removeHost,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            onPressed: () => _removeHost(hostPort),
+            color: AppTheme.red,
+            dense: true,
+            onTap: () => _removeHost(hostPort),
           ),
         ],
       ),
@@ -194,9 +185,8 @@ class _KnownHostsManagerPanelState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _manager.removeHost(hostPort);
+    await _mutator.removeHost(hostPort);
     if (mounted) {
-      setState(() {});
       Toast.show(context, message: s.removedHost(hostPort));
     }
   }
@@ -218,9 +208,8 @@ class _KnownHostsManagerPanelState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _manager.clearAll();
+    await _mutator.clearAll();
     if (mounted) {
-      setState(() {});
       Toast.show(context, message: s.clearedAllHosts);
     }
   }
@@ -246,26 +235,6 @@ class KnownHostsManagerDialog extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       content: const SizedBox(height: 400, child: KnownHostsManagerPanel()),
       actions: [AppButton.cancel(onTap: () => Navigator.pop(context))],
-    );
-  }
-}
-
-/// Small toolbar button for known hosts actions.
-class _ToolbarButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-
-  const _ToolbarButton({required this.icon, required this.tooltip, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(icon, size: 16),
-      tooltip: tooltip,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: onTap,
     );
   }
 }

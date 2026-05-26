@@ -1,198 +1,140 @@
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:letsflutssh/core/transfer/transfer_task.dart';
 
 void main() {
   group('TransferDirection', () {
-    test('contains upload and download', () {
-      expect(TransferDirection.values, contains(TransferDirection.upload));
-      expect(TransferDirection.values, contains(TransferDirection.download));
+    test('exposes upload + download', () {
+      expect(TransferDirection.values, [
+        TransferDirection.upload,
+        TransferDirection.download,
+      ]);
     });
   });
 
   group('TransferStatus', () {
-    test('contains expected statuses', () {
-      expect(TransferStatus.values, contains(TransferStatus.queued));
-      expect(TransferStatus.values, contains(TransferStatus.running));
-      expect(TransferStatus.values, contains(TransferStatus.completed));
-      expect(TransferStatus.values, contains(TransferStatus.failed));
-      expect(TransferStatus.values, contains(TransferStatus.cancelled));
-    });
-  });
-
-  group('TransferTask', () {
-    test('stores all fields', () {
-      final task = TransferTask(
-        name: 'test.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/local/test.txt',
-        targetPath: '/remote/test.txt',
-        run: (_) async {},
-      );
-      expect(task.name, 'test.txt');
-      expect(task.direction, TransferDirection.upload);
-      expect(task.sourcePath, '/local/test.txt');
-      expect(task.targetPath, '/remote/test.txt');
+    test('exposes the five lifecycle states', () {
+      expect(TransferStatus.values, [
+        TransferStatus.queued,
+        TransferStatus.running,
+        TransferStatus.completed,
+        TransferStatus.failed,
+        TransferStatus.cancelled,
+      ]);
     });
   });
 
   group('HistoryEntry', () {
-    test('duration calculated from startedAt and endedAt', () {
-      final start = DateTime(2024, 1, 1, 10, 0, 0);
-      final end = DateTime(2024, 1, 1, 10, 0, 5);
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'file.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.completed,
-        createdAt: start,
-        startedAt: start,
-        endedAt: end,
-      );
-      expect(entry.duration, const Duration(seconds: 5));
+    HistoryEntry make({
+      TransferDirection direction = TransferDirection.upload,
+      TransferStatus status = TransferStatus.completed,
+      Object? error,
+      DateTime? startedAt,
+      DateTime? endedAt,
+    }) => HistoryEntry(
+      id: 'task-1',
+      name: 'photo.jpg',
+      direction: direction,
+      sourcePath: '/local/photo.jpg',
+      targetPath: '/remote/photo.jpg',
+      status: status,
+      error: error,
+      createdAt: DateTime.utc(2026, 1, 1),
+      startedAt: startedAt,
+      endedAt: endedAt,
+    );
+
+    test('required fields land on the instance', () {
+      final h = make();
+      expect(h.id, 'task-1');
+      expect(h.name, 'photo.jpg');
+      expect(h.sourcePath, '/local/photo.jpg');
+      expect(h.targetPath, '/remote/photo.jpg');
+      expect(h.status, TransferStatus.completed);
+      expect(h.createdAt, DateTime.utc(2026, 1, 1));
     });
 
-    test('duration is null when startedAt is null', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'file.txt',
-        direction: TransferDirection.download,
-        sourcePath: '/a',
-        targetPath: '/b',
+    test('optional fields default to documented zero state', () {
+      final h = make();
+      expect(h.error, isNull);
+      expect(h.lastPercent, 0);
+      expect(h.lastMessage, isEmpty);
+      expect(h.startedAt, isNull);
+      expect(h.endedAt, isNull);
+      expect(h.sizeBytes, 0);
+    });
+
+    test('HistoryEntry.directionIcon flips based on direction', () {
+      expect(make(direction: TransferDirection.upload).directionIcon, '↑');
+      expect(make(direction: TransferDirection.download).directionIcon, '↓');
+    });
+
+    test('duration is null when either timestamp is missing', () {
+      expect(make().duration, isNull);
+      expect(make(startedAt: DateTime.utc(2026, 1, 1, 12)).duration, isNull);
+      expect(make(endedAt: DateTime.utc(2026, 1, 1, 12)).duration, isNull);
+    });
+
+    test('duration is endedAt - startedAt when both present', () {
+      final h = make(
+        startedAt: DateTime.utc(2026, 1, 1, 12),
+        endedAt: DateTime.utc(2026, 1, 1, 12, 0, 5),
+      );
+      expect(h.duration, const Duration(seconds: 5));
+    });
+
+    test('failure carries an error object', () {
+      final h = make(
         status: TransferStatus.failed,
-        createdAt: DateTime.now(),
+        error: const FormatException('boom'),
       );
-      expect(entry.duration, isNull);
-    });
-
-    test('duration is null when endedAt is null', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'file.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.running,
-        createdAt: DateTime.now(),
-        startedAt: DateTime.now(),
-      );
-      expect(entry.duration, isNull);
-    });
-
-    test('directionIcon for upload', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'f',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.completed,
-        createdAt: DateTime.now(),
-      );
-      expect(entry.directionIcon, '\u2191'); // ↑
-    });
-
-    test('directionIcon for download', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'f',
-        direction: TransferDirection.download,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.completed,
-        createdAt: DateTime.now(),
-      );
-      expect(entry.directionIcon, '\u2193'); // ↓
-    });
-
-    test('defaults for lastPercent and lastMessage', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'f',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.queued,
-        createdAt: DateTime.now(),
-      );
-      expect(entry.lastPercent, 0);
-      expect(entry.lastMessage, '');
-      expect(entry.error, isNull);
-    });
-
-    test('stores error message', () {
-      final entry = HistoryEntry(
-        id: '1',
-        name: 'f',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.failed,
-        error: 'Permission denied',
-        createdAt: DateTime.now(),
-      );
-      expect(entry.error, 'Permission denied');
+      expect(h.status, TransferStatus.failed);
+      expect(h.error, isA<FormatException>());
     });
   });
 
   group('ActiveEntry', () {
-    test('construction and field access', () {
-      const entry = ActiveEntry(
-        id: 'tr-1',
-        name: 'upload.txt',
-        direction: TransferDirection.upload,
-        sourcePath: '/local/upload.txt',
-        targetPath: '/remote/upload.txt',
-        status: TransferStatus.queued,
-        percent: 42.5,
-        message: 'Uploading...',
-      );
-      expect(entry.id, 'tr-1');
-      expect(entry.name, 'upload.txt');
-      expect(entry.direction, TransferDirection.upload);
-      expect(entry.sourcePath, '/local/upload.txt');
-      expect(entry.targetPath, '/remote/upload.txt');
-      expect(entry.status, TransferStatus.queued);
-      expect(entry.percent, 42.5);
-      expect(entry.message, 'Uploading...');
+    ActiveEntry make({
+      TransferDirection direction = TransferDirection.upload,
+      TransferStatus status = TransferStatus.running,
+      double percent = 0,
+      String message = '',
+    }) => ActiveEntry(
+      id: 'task-2',
+      name: 'photo.jpg',
+      direction: direction,
+      sourcePath: '/local/photo.jpg',
+      targetPath: '/remote/photo.jpg',
+      status: status,
+      percent: percent,
+      message: message,
+    );
+
+    test('required fields land on the instance', () {
+      final a = make(percent: 0.5, message: 'in flight');
+      expect(a.id, 'task-2');
+      expect(a.name, 'photo.jpg');
+      expect(a.sourcePath, '/local/photo.jpg');
+      expect(a.targetPath, '/remote/photo.jpg');
+      expect(a.status, TransferStatus.running);
+      expect(a.percent, 0.5);
+      expect(a.message, 'in flight');
     });
 
-    test('defaults for percent and message', () {
-      const entry = ActiveEntry(
-        id: 'tr-2',
-        name: 'file.txt',
-        direction: TransferDirection.download,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.running,
-      );
-      expect(entry.percent, 0);
-      expect(entry.message, '');
+    test('optional fields default to documented zero state', () {
+      final a = make();
+      expect(a.percent, 0);
+      expect(a.message, isEmpty);
     });
 
-    test('directionIcon returns up arrow for upload', () {
-      const entry = ActiveEntry(
-        id: 'tr-3',
-        name: 'f',
-        direction: TransferDirection.upload,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.queued,
-      );
-      expect(entry.directionIcon, '\u2191'); // ↑
+    test('ActiveEntry.directionIcon flips based on direction', () {
+      expect(make(direction: TransferDirection.upload).directionIcon, '↑');
+      expect(make(direction: TransferDirection.download).directionIcon, '↓');
     });
 
-    test('directionIcon returns down arrow for download', () {
-      const entry = ActiveEntry(
-        id: 'tr-4',
-        name: 'f',
-        direction: TransferDirection.download,
-        sourcePath: '/a',
-        targetPath: '/b',
-        status: TransferStatus.running,
-      );
-      expect(entry.directionIcon, '\u2193'); // ↓
+    test('queued state is representable', () {
+      final a = make(status: TransferStatus.queued);
+      expect(a.status, TransferStatus.queued);
     });
   });
 }

@@ -1,169 +1,110 @@
+/// Coverage for [TransfersState] + [ActiveTransferState] data classes
+/// and the selector providers layered over [transfersProvider].
+///
+/// The notifier's bus + FRB enqueue / cancel pipeline runs end-to-end
+/// in `test/integration/transfer_queue_test.dart`; what's testable
+/// without a real Rust transfer queue is the pure data shape and the
+/// `ref.watch` selectors that the UI panel header reads from.
+library;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/transfer/transfer_manager.dart';
-import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('ActiveTransferState', () {
-    test('defaults', () {
+    test('default constructor sets running=0, queued=0, currentInfo=null', () {
       const state = ActiveTransferState();
       expect(state.running, 0);
       expect(state.queued, 0);
       expect(state.currentInfo, isNull);
-      expect(state.hasActive, isFalse);
     });
 
-    test('hasActive when running > 0', () {
-      const state = ActiveTransferState(running: 1);
-      expect(state.hasActive, isTrue);
+    test('hasActive is false when both running and queued are zero', () {
+      expect(const ActiveTransferState().hasActive, isFalse);
     });
 
-    test('hasActive when queued > 0', () {
-      const state = ActiveTransferState(queued: 2);
-      expect(state.hasActive, isTrue);
+    test('hasActive is true when running > 0', () {
+      expect(const ActiveTransferState(running: 1).hasActive, isTrue);
     });
 
-    test('stores currentInfo', () {
-      const state = ActiveTransferState(
-        running: 1,
-        queued: 0,
-        currentInfo: 'file.txt 50%',
+    test('hasActive is true when queued > 0', () {
+      expect(const ActiveTransferState(queued: 1).hasActive, isTrue);
+    });
+
+    test('hasActive is true when both running and queued > 0', () {
+      expect(
+        const ActiveTransferState(running: 2, queued: 3).hasActive,
+        isTrue,
       );
-      expect(state.currentInfo, 'file.txt 50%');
+    });
+
+    test('currentInfo string is preserved', () {
+      const state = ActiveTransferState(running: 1, currentInfo: '3 of 5');
+      expect(state.currentInfo, '3 of 5');
     });
   });
 
-  group('transfer providers', () {
-    test('transferManagerProvider returns TransferManager', () {
+  group('TransfersState', () {
+    test('default constructor has empty history + empty active', () {
+      const state = TransfersState();
+      expect(state.history, isEmpty);
+      expect(state.active, isEmpty);
+      expect(state.status.hasActive, isFalse);
+    });
+
+    test('explicit constructor preserves all three fields', () {
+      const status = ActiveTransferState(running: 1, queued: 2);
+      const state = TransfersState(status: status);
+      expect(state.status.running, 1);
+      expect(state.status.queued, 2);
+    });
+  });
+
+  group('transfersProvider — initial state', () {
+    test('build() returns an empty TransfersState', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final manager = container.read(transferManagerProvider);
-      expect(manager, isA<TransferManager>());
-      expect(manager.history, isEmpty);
-      expect(manager.queueLength, 0);
-      expect(manager.runningCount, 0);
+      final state = container.read(transfersProvider);
+      // The notifier subscribes to the bus on build() but does not
+      // synchronously populate history/active — that lands on the
+      // first event or the explicit refresh call.
+      expect(state.history, isEmpty);
+      expect(state.active, isEmpty);
+      expect(state.status.running, 0);
+      expect(state.status.queued, 0);
+    });
+  });
+
+  group('selector providers', () {
+    test('transferHistoryProvider reads history from transfersProvider', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // Default state → empty history. The selector is a thin
+      // `ref.watch(transfersProvider).history` projection; the
+      // assertion verifies the wiring is intact, not the data
+      // shape (which is already covered above).
+      expect(container.read(transferHistoryProvider), isEmpty);
     });
 
-    test('transferHistoryProvider yields empty list initially', () async {
+    test('activeTransfersProvider reads active from transfersProvider', () {
       final container = ProviderContainer();
-
-      // Subscribe to force stream to start
-      final sub = container.listen(transferHistoryProvider, (_, _) {});
-
-      // Wait for initial emission
-      await container.read(transferHistoryProvider.future);
-      final history = container.read(transferHistoryProvider).value;
-      expect(history, isEmpty);
-
-      sub.close();
-      container.dispose();
+      addTearDown(container.dispose);
+      expect(container.read(activeTransfersProvider), isEmpty);
     });
 
-    test('transferStatusProvider yields idle state initially', () async {
+    test('transferStatusProvider reads status from transfersProvider', () {
       final container = ProviderContainer();
-
-      final sub = container.listen(transferStatusProvider, (_, _) {});
-
-      final status = await container.read(transferStatusProvider.future);
-      expect(status.running, 0);
-      expect(status.queued, 0);
+      addTearDown(container.dispose);
+      final status = container.read(transferStatusProvider);
       expect(status.hasActive, isFalse);
-
-      sub.close();
-      container.dispose();
-    });
-
-    test('transferManagerProvider disposes on container dispose', () async {
-      final container = ProviderContainer();
-      final manager = container.read(transferManagerProvider);
-      expect(manager, isNotNull);
-
-      // Listen to onChange — it should complete when disposed.
-      final streamDone = manager.onChange.toList();
-      container.dispose();
-
-      // Stream completes (controller closed by dispose).
-      await streamDone;
-    });
-
-    test('transferStatusProvider updates after enqueue completes', () async {
-      final container = ProviderContainer();
-
-      final manager = container.read(transferManagerProvider);
-
-      // Subscribe to streams to force providers to listen
-      final historySubscription = container.listen(
-        transferHistoryProvider,
-        (_, _) {},
-      );
-      final statusSubscription = container.listen(
-        transferStatusProvider,
-        (_, _) {},
-      );
-
-      // Wait for initial values
-      await container.read(transferHistoryProvider.future);
-      await container.read(transferStatusProvider.future);
-
-      // Enqueue a task that takes a moment
-      manager.enqueue(
-        TransferTask(
-          name: 'status_test.txt',
-          direction: TransferDirection.upload,
-          sourcePath: '/local/status_test.txt',
-          targetPath: '/remote/status_test.txt',
-          run: (onProgress) async {
-            await Future.delayed(const Duration(milliseconds: 50));
-          },
-        ),
-      );
-
-      // Wait for task to complete and streams to emit
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      final status = await container.read(transferStatusProvider.future);
       expect(status.running, 0);
       expect(status.queued, 0);
-
-      final history = await container.read(transferHistoryProvider.future);
-      expect(history, isNotEmpty);
-      expect(history.first.name, 'status_test.txt');
-
-      historySubscription.close();
-      statusSubscription.close();
-      container.dispose();
-    });
-
-    test('transferHistoryProvider updates after enqueue completes', () async {
-      final container = ProviderContainer();
-
-      // Subscribe before enqueue
-      final sub = container.listen(transferHistoryProvider, (_, _) {});
-      await container.read(transferHistoryProvider.future);
-
-      final manager = container.read(transferManagerProvider);
-
-      manager.enqueue(
-        TransferTask(
-          name: 'test.txt',
-          direction: TransferDirection.upload,
-          sourcePath: '/local/test.txt',
-          targetPath: '/remote/test.txt',
-          run: (onProgress) async {},
-        ),
-      );
-
-      // Wait for task to complete
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      final history = await container.read(transferHistoryProvider.future);
-      expect(history, isNotEmpty);
-      expect(history.first.name, 'test.txt');
-      expect(history.first.status, TransferStatus.completed);
-
-      sub.close();
-      container.dispose();
     });
   });
 }

@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_strength.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // assessPasswordStrength routes through `lfs_core::password_strength`
+  // — bootstrap FRB so the canonical Rust classifier is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('assessPasswordStrength', () {
     test('empty input maps to empty tier — meter hides', () {
       expect(assessPasswordStrength(''), PasswordStrength.empty);

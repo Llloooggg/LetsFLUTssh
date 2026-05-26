@@ -21,7 +21,10 @@
   "select": "Selecionar",
   "copyModeTapToStart": "Toque para marcar o início da seleção",
   "copyModeExtending": "Arraste para estender a seleção",
+  "copyModeSetAnchor": "Definir âncora",
+  "copyModeCopySelection": "Copiar seleção",
   "required": "Obrigatório",
+  "errFillRequiredFields": "Preencha os campos obrigatórios marcados com *",
   "settings": "Configurações",
   "appSettings": "Configurações do Aplicativo",
   "includePasswords": "Senhas de sessões",
@@ -69,8 +72,7 @@
   "installerFailedOpenedReleasePage": "Falha ao iniciar o instalador; página de lançamento aberta no navegador",
   "versionAvailable": "Versão {version} disponível",
   "currentVersion": "Atual: v{version}",
-  "sshKeyReceived": "Chave SSH recebida: {filename}",
-  "importedSessions": "{count} sessão(ões) importada(s)",
+  "importedSessions": "{count, plural, =0{Nenhuma sessão importada} =1{1 sessão importada} other{{count} sessões importadas}}",
   "importFailed": "Falha na importação: {error}",
   "importSkippedLinks": "{count, plural, one{{count} associação descartada (alvo ausente)} other{{count} associações descartadas (alvos ausentes)}}",
   "importSkippedSessions": "{count, plural, one{{count} sessão corrompida ignorada} other{{count} sessões corrompidas ignoradas}}",
@@ -82,7 +84,7 @@
   "noSavedSessions": "Nenhuma sessão salva",
   "addSession": "Adicionar Sessão",
   "noSessions": "Nenhuma sessão",
-  "nSelectedCount": "{count} selecionado(s)",
+  "nSelectedCount": "{count, plural, =1{1 selecionado} other{{count} selecionados}}",
   "selectAll": "Selecionar Tudo",
   "deselectAll": "Desmarcar Tudo",
   "moveTo": "Mover para...",
@@ -97,15 +99,24 @@
   "deleteFolder": "Excluir Pasta",
   "deleteSelected": "Excluir Selecionados",
   "deleteNSessionsAndFolders": "Excluir {parts}?\n\nEsta ação não pode ser desfeita.",
-  "nSessions": "{count} sessão(ões)",
-  "nFolders": "{count} pasta(s)",
+  "nSessions": "{count, plural, =0{0 sessões} =1{1 sessão} other{{count} sessões}}",
+  "nFolders": "{count, plural, =0{0 pastas} =1{1 pasta} other{{count} pastas}}",
   "deleteFolderConfirm": "Excluir pasta \"{name}\"?",
-  "willDeleteSessionsInside": "Isso também excluirá {count} sessão(ões) dentro dela.",
+  "willDeleteSessionsInside": "{count, plural, =1{Isso também excluirá 1 sessão dentro dela.} other{Isso também excluirá {count} sessões dentro dela.}}",
   "deleteSessionConfirm": "Excluir \"{name}\"?",
   "connection": "Conexão",
   "auth": "Autenticação",
+  "sectionAuthentication": "Autenticação",
+  "sectionAdvanced": "Avançado",
+  "moreOptions": "Mais opções",
+  "forwardRulesSummary": "{count, plural, =0{Sem regras de encaminhamento de porta} one{1 regra de encaminhamento} other{{count} regras de encaminhamento}}",
+  "manageRules": "Gerenciar…",
+  "authMethodAgent": "Usar o ssh-agent do sistema",
   "options": "Opções",
   "sessionName": "Nome da Sessão",
+  "sessionNameAutoFromHost": "Auto a partir do host",
+  "sessionNameAutoFromUrl": "Auto a partir do host da URL",
+  "sessionNameAutoFromBucket": "Auto a partir do bucket padrão",
   "hintMyServer": "Meu Servidor",
   "hostRequired": "Host *",
   "hintHost": "192.168.1.1",
@@ -117,6 +128,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Passphrase da chave",
   "hintOptional": "Opcional",
+  "savedTypeToChange": "Salvo — digite para alterar",
   "hidePemText": "Ocultar texto PEM",
   "pastePemKeyText": "Colar texto da chave PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +164,6 @@
   "confirmPassword": "Confirmar senha",
   "importModeMergeDescription": "Adicionar novas sessões, manter existentes",
   "importModeReplaceDescription": "Substituir todas as sessões pelas importadas",
-  "errorPrefix": "Erro: {error}",
   "folderName": "Nome da pasta",
   "newName": "Novo nome",
   "deleteItems": "Excluir {names}?",
@@ -203,8 +214,11 @@
   "parallelWorkers": "Workers paralelos",
   "maxHistory": "Histórico Máximo",
   "calculateFolderSizes": "Calcular Tamanho das Pastas",
+  "verboseConnectionLog": "Log de conexão detalhado",
+  "verboseConnectionLogSubtitle": "Registrar o trace completo do handshake SSH e da autenticação no arquivo de log (para diagnosticar falhas de conexão)",
   "exportData": "Exportar Dados",
-  "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
+  "exportRecordings": "Gravações de sessão",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts encontrados} =1{1 host encontrado} other{{count} hosts encontrados}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -235,7 +249,7 @@
   "exportQrCodeSubtitle": "Compartilhar sessões e chaves selecionadas via código QR",
   "importArchive": "Importar arquivo",
   "importArchiveSubtitle": "Carregar dados de arquivo .lfs",
-  "importSshKeysFound": "{count} chave(s) encontrada(s) — escolha quais importar",
+  "importSshKeysFound": "{count, plural, =1{1 chave encontrada — escolha se quer importar} other{{count} chaves encontradas — escolha quais importar}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -274,7 +288,6 @@
   "urlCopied": "URL copiada para a área de transferência",
   "aboutSubtitle": "v{version} — Cliente SSH/SFTP",
   "sourceCode": "Código Fonte",
-  "enableLogging": "Ativar logs",
   "logIsEmpty": "O log está vazio",
   "logExportedTo": "Log exportado para: {path}",
   "logExportFailed": "Falha ao exportar log: {error}",
@@ -307,20 +320,56 @@
   "completed": "Concluído",
   "connected": "Conectado",
   "disconnected": "Desconectado",
+  "a11yConnectingTo": "Conectando a {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Conectado a {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Desconectado de {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Falha ao conectar a {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Sair",
   "exitConfirmation": "As sessões ativas serão desconectadas. Sair?",
   "hintFolderExample": "ex.: Production",
   "credentialsNotSet": "Credenciais não definidas",
   "exportSessionsViaQr": "Exportar Sessões via QR",
-  "qrNoCredentialsWarning": "Senhas e chaves SSH NÃO estão incluídas.\nAs sessões importadas precisarão ter as credenciais preenchidas.",
   "qrTooManyForSingleCode": "Sessões demais para um único código QR. Desmarque algumas ou use a exportação .lfs.",
   "qrTooLarge": "Muito grande — desmarque alguns itens ou use a exportação em arquivo .lfs.",
-  "exportAll": "Exportar Tudo",
   "showQr": "Mostrar QR",
   "sort": "Ordenar",
   "resizePanelDivider": "Redimensionar divisor de painel",
   "youreRunningLatest": "Você está usando a versão mais recente",
   "liveLog": "Log ao vivo",
+  "archivedLog": "Log arquivado",
+  "loggingLevel": "Nível de log",
+  "loggingLevelSubtitleInfo": "Entradas rotineiras + avisos + erros",
+  "loggingLevelSubtitleWarn": "Apenas caminhos degradados e erros",
+  "loggingLevelSubtitleError": "Apenas erros",
+  "loggingLevelSubtitleOff": "Logs rotineiros não são gravados",
   "time": "Tempo",
   "failed": "Falhou",
   "transferNItems": "Transferir {count} itens",
@@ -401,20 +450,11 @@
   "errLfsUnsupportedVersion": "O arquivo usa o esquema v{found}, mas esta versão do app só entende até v{supported}. Atualize o aplicativo para importá-lo.",
   "progressReadingArchive": "Lendo arquivo…",
   "progressDecrypting": "Descriptografando…",
-  "progressParsingArchive": "Analisando arquivo…",
-  "progressImportingSessions": "Importando sessões",
-  "progressImportingFolders": "Importando pastas",
-  "progressImportingManagerKeys": "Importando chaves SSH",
-  "progressImportingTags": "Importando tags",
-  "progressImportingSnippets": "Importando snippets",
-  "progressApplyingConfig": "Aplicando configuração…",
-  "progressImportingKnownHosts": "Importando known_hosts…",
   "progressCollectingData": "Coletando dados…",
   "progressEncrypting": "Criptografando…",
   "progressWritingArchive": "Gravando arquivo…",
   "progressWorking": "Processando…",
-  "saveSessionToAssignTags": "Salve a sessão primeiro para atribuir tags",
-  "noTagsAssigned": "Nenhuma tag atribuída",
+  "noTagsAvailable": "Ainda sem tags — crie uma em Ferramentas → Tags.",
   "manageTags": "Gerenciar tags",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
@@ -422,7 +462,7 @@
   "protocol": "Protocolo",
   "typeLabel": "Tipo",
   "folder": "Pasta",
-  "nSubitems": "{count} item(ns)",
+  "nSubitems": "{count, plural, =0{0 itens} =1{1 item} other{{count} itens}}",
   "@nSubitems": {
     "placeholders": {
       "count": {
@@ -447,11 +487,6 @@
   "transferTooltipEnded": "Finalizado: {time}",
   "transferTooltipDuration": "Duração: {duration}",
   "transferStatusQueued": "Na fila",
-  "transferStartingUpload": "Iniciando envio...",
-  "transferStartingDownload": "Iniciando download...",
-  "transferCopying": "Copiando...",
-  "transferDone": "Concluído",
-  "transferFilesProgress": "{done}/{total} arquivos",
   "fileConflictTitle": "O arquivo já existe",
   "fileConflictMessage": "\"{fileName}\" já existe em {targetDir}. O que você deseja fazer?",
   "fileConflictSkip": "Pular",
@@ -489,6 +524,7 @@
   "noKeys": "Sem chaves SSH. Importe ou gere uma.",
   "generateKey": "Gerar chave",
   "addKey": "Adicionar chave",
+  "addKeyMenuPaste": "Colar PEM",
   "filePickerUnavailable": "Seletor de arquivos indisponível neste sistema",
   "importKey": "Importar chave",
   "keyLabel": "Nome da chave",
@@ -502,20 +538,37 @@
   "keyDeleted": "Chave excluída: {label}",
   "publicKey": "Chave pública",
   "publicKeyCopied": "Chave pública copiada para a área de transferência",
+  "sshCertificate": "Certificado",
+  "certImport": "Importar certificado",
+  "certImportTooltip": "Anexar um certificado OpenSSH assinado pela sua CA (o arquivo `-cert.pub` de `ssh-keygen -s …`). Use quando os servidores verificam por assinatura CA em vez de `authorized_keys`. Pule se seus servidores usam plain key auth.",
+  "certImportPickerTitle": "Selecione o arquivo de certificado OpenSSH",
+  "certValidFrom": "Válido a partir de",
+  "certValidTo": "Válido até",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Este certificado expira em breve.",
+  "certExpired": "Expirado",
+  "certRemove": "Remover certificado",
+  "certRemoveConfirmTitle": "Remover certificado?",
+  "certRemoveConfirmBody": "Após remover, a sessão volta a usar apenas a chave pública na conexão.",
+  "errCertParse": "Não foi possível parsear o certificado: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Este certificado não está pareado com a chave selecionada.",
   "pastePrivateKey": "Colar chave privada (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Dados de chave PEM inválidos",
   "selectFromKeyStore": "Selecionar do armazenamento de chaves",
   "keyCount": "{count, plural, =0{Sem chaves} =1{1 chave} other{{count} chaves}}",
   "generated": "Gerada",
-  "passphraseRequired": "Passphrase necessária",
-  "passphrasePrompt": "A chave SSH para {host} está criptografada. Digite a passphrase para desbloqueá-la.",
-  "passphraseWrong": "Passphrase incorreta. Tente novamente.",
   "passphrase": "Passphrase",
-  "rememberPassphrase": "Lembrar nesta sessão",
   "enterMasterPassword": "Digite a senha mestra para acessar suas credenciais salvas.",
   "wrongMasterPassword": "Senha incorreta. Tente novamente.",
-  "newPassword": "Nova senha",
   "currentPassword": "Senha atual",
   "forgotPassword": "Esqueceu a senha?",
   "credentialsReset": "Todas as credenciais salvas foram excluídas",
@@ -556,7 +609,6 @@
   "maxHistorySubtitle": "Máximo de comandos salvos no histórico",
   "calculateFolderSizesSubtitle": "Mostrar tamanho total ao lado das pastas na barra lateral",
   "checkForUpdatesOnStartupSubtitle": "Consultar o GitHub por uma nova versão ao iniciar o app",
-  "enableLoggingSubtitle": "Gravar eventos do app em arquivo de log rotativo",
   "snippets": "Snippets",
   "snippetsSubtitle": "Gerencie snippets de comandos reutilizáveis",
   "noSnippets": "Ainda não há snippets",
@@ -578,6 +630,79 @@
   "pinnedSnippets": "Fixados",
   "allSnippets": "Todos",
   "commandCopied": "Comando copiado",
+  "snippetTokensHint": "Toca para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:",
+  "snippetCustomTokensHint": "Qualquer outro com chavetas duplas pede-te um valor quando o snippet executa.",
+  "snippetFillTitle": "Preencher os parâmetros do snippet",
+  "snippetFillSubmit": "Executar",
+  "broadcastSetDriver": "Transmitir deste painel",
+  "broadcastClearDriver": "Parar de transmitir deste painel",
+  "broadcastAddReceiver": "Receber transmissão aqui",
+  "broadcastRemoveReceiver": "Parar de receber transmissão",
+  "broadcastClearAll": "Parar todas as transmissões",
+  "broadcastPasteTitle": "Enviar colagem a todos os painéis?",
+  "broadcastPasteBody": "Serão enviados {chars} carateres a {count} painéis adicionais.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Enviar",
+  "portForwarding": "Encaminhamento",
+  "portForwardingEmpty": "Sem regras ainda",
+  "addForwardRule": "Adicionar regra",
+  "editForwardRule": "Editar regra",
+  "deleteForwardRule": "Remover regra",
+  "localForward": "Local",
+  "remoteForward": "Remoto",
+  "dynamicForward": "Dinâmico",
+  "forwardKind": "Tipo",
+  "bindAddress": "Endereço de bind",
+  "bindPort": "Porta de bind",
+  "targetHost": "Host destino",
+  "targetPort": "Porta destino",
+  "forwardDescription": "Descrição (opcional)",
+  "forwardEnabled": "Ativada",
+  "forwardBindWildcardWarning": "Bind em 0.0.0.0 publica o encaminhamento em todas as interfaces — normalmente queres 127.0.0.1.",
+  "forwardKindLocalHelp": "Local: abre uma porta neste dispositivo que faz tunnel até um destino alcançável do servidor SSH. Útil para acessar bancos remotos ou UIs admin via localhost:bindPort.",
+  "forwardKindRemoteHelp": "Remoto: pede ao servidor SSH para abrir uma porta que faz tunnel de volta a um destino alcançável deste dispositivo. Útil para partilhar um dev server local com um host remoto (servidor pode precisar GatewayPorts yes para binds não-loopback).",
+  "forwardKindDynamicHelp": "Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponta o teu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.",
+  "proxyJump": "Ligar através de",
+  "proxyJumpNone": "Ligação direta",
+  "proxyJumpSavedSession": "Sessão guardada",
+  "proxyJumpCustom": "Personalizado",
+  "proxyJumpCustomNote": "Hops personalizados usam as credenciais desta sessão. Para auth de bastião diferente, guarda o bastião como sessão própria.",
+  "viaSessionLabel": "via {label}",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "recordSession": "Gravar sessão",
+  "recordSessionHelp": "Guardar saída do terminal em disco para esta sessão. Cifrada em repouso quando uma password mestra ou chave de hardware protege a base de sessões; caso contrário, gravada em texto plano junto da base.",
+  "recordingsBrowserTitle": "Gravações",
+  "recordingsBrowserSubtitle": "Navegar, reproduzir e eliminar sessões gravadas",
+  "recordingsEmpty": "Sem gravações ainda",
+  "playRecording": "Reproduzir",
+  "deleteRecording": "Eliminar",
+  "recordingPlaybackTitle": "Reproduzir gravação",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Tags",
   "tagsSubtitle": "Organize sessões e pastas com tags coloridas",
   "noTags": "Ainda não há tags",
@@ -599,9 +724,6 @@
   "invalidImportLink": "O link não contém um payload válido do LetsFLUTssh",
   "importAction": "Importar",
   "emptyFolder": "Pasta vazia",
-  "exportWithoutPassword": "Exportar sem senha?",
-  "exportWithoutPasswordWarning": "O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.",
-  "continueWithoutPassword": "Continuar sem senha",
   "tierHardwareUnavailable": "Cofre de hardware indisponível nesta instalação.",
   "pinLabel": "Senha",
   "l2UnlockTitle": "Senha necessária",
@@ -627,8 +749,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Armazenamento em hardware indisponível neste dispositivo.",
   "firstLaunchSecurityOpenSettings": "Abrir configurações",
   "wizardReducedBanner": "O keychain do sistema não está acessível nesta instalação. Escolha entre sem criptografia (T0) e uma senha mestra (Paranoid). Instale gnome-keyring, kwallet ou outro provedor libsecret para habilitar o nível Keychain.",
-  "tierBlockProtectsEmpty": "Nada neste nível.",
-  "tierBlockDoesNotProtectEmpty": "Sem ameaças descobertas.",
   "tierBadgeCurrent": "Atual",
   "securitySetupEnable": "Ativar",
   "securitySetupApply": "Aplicar",
@@ -692,7 +812,6 @@
   "colT1": "T1 Chaveiro",
   "colT1Password": "T1 + senha",
   "colT1PasswordBiometric": "T1 + senha + biometria",
-  "colT2": "T2 Hardware",
   "colT2Password": "T2 + senha",
   "colT2PasswordBiometric": "T2 + senha + biometria",
   "colParanoid": "Paranoid",
@@ -703,9 +822,40 @@
   "resetAllDataConfirmTitle": "Redefinir todos os dados?",
   "resetAllDataConfirmBody": "Todas as sessões, chaves SSH, known hosts, snippets, tags, preferências e todos os artefatos de segurança (entradas do keychain, dados do cofre de hardware, sobreposição biométrica) serão excluídos permanentemente. Esta ação não pode ser desfeita.",
   "resetAllDataConfirmAction": "Redefinir tudo",
+  "resetAllDataConfirmTypePrompt": "Digite {phrase} abaixo para confirmar:",
   "resetAllDataInProgress": "Redefinindo…",
   "resetAllDataDone": "Todos os dados redefinidos",
   "resetAllDataFailed": "Falha ao redefinir",
+  "recordingsTitle": "Gravações",
+  "recordingsStorageUsedLabel": "Em uso",
+  "recordingsCapLabel": "Limite",
+  "recordingsCapHint": "Limite rígido para a pasta recordings/. Ao exceder, a gravação mais antiga é apagada primeiro; a gravação em andamento nunca é tocada.",
+  "recordingsClearAllAction": "Apagar todas as gravações",
+  "recordingsClearAllConfirmTitle": "Apagar todas as gravações?",
+  "recordingsClearAllConfirmBody": "Toda sessão gravada em <app>/recordings/ será apagada. A gravação em andamento (se houver) permanece. Esta ação não pode ser desfeita.",
+  "recordingsClearAllResult": "{count} gravações removidas",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Limite atualizado. {bytes} liberados.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Limite atualizado. Nada para remover.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "ATUAL",
   "paranoidAlternativeHeader": "ALTERNATIVA",
   "modifierPasswordLabel": "Senha",
@@ -717,7 +867,24 @@
   "autoLockRequiresActiveTier": "Selecione este nível primeiro para configurar o bloqueio automático",
   "biometricForbiddenParanoid": "O nível Paranoid não permite biometria por design.",
   "fprintdNotAvailable": "fprintd não instalado ou nenhuma impressão digital registrada.",
-  "linuxTpmWithoutPasswordNote": "O TPM sem senha oferece isolamento, não autenticação. Qualquer pessoa que consiga executar este aplicativo pode desbloquear os dados.",
+  "modifierPasswordRequired": "Obrigatório — a camada Hardware é sempre protegida por senha.",
+  "t2RequiresPasswordTitle": "Defina uma senha mestre para a camada Hardware",
+  "t2RequiresPasswordBody": "A camada Hardware precisa de uma senha como modifier. O biométrico é um shortcut opcional por cima.",
+  "t2MigrationPromptTitle": "A camada Hardware precisa de senha",
+  "t2MigrationPromptBody": "Instalações Hardware existentes sem senha precisam definir uma agora para continuar.",
+  "t2MigrationContinue": "Continuar",
+  "t2MigrationSetPasswordTitle": "Defina uma senha para manter a camada Hardware",
+  "t2MigrationSetPasswordBody": "Digite uma nova master password. A DB key já sealed dentro do módulo hardware é re-sealed sob esta senha — sessões e keys ficam intactas.",
+  "t2MigrationWipeAndRestart": "Wipe e começar do zero",
+  "t2MigrationResealFailed": "Re-seal da camada Hardware falhou — escolha outra senha ou wipe para começar do zero.",
+  "biometricOverlayEnable": "Ativar shortcut biométrico na camada Hardware",
+  "biometricOverlayEnableSubtitle": "Libera sua senha a partir de um slot do OS protegido por biométrico.",
+  "biometricOverlayUnavailable": "O overlay biométrico ainda não está disponível nesta plataforma.",
+  "biometricOverlayRequiresPassword": "Defina primeiro a senha da camada Hardware.",
+  "t2UnlockTitle": "Desbloquear com sua senha mestre",
+  "t2UnlockSubtitle": "A chave hardware-bound é protegida pela sua senha.",
+  "t2UnlockUseBiometricButton": "Usar biométrico",
+  "t2PasswordChanged": "Senha da camada Hardware atualizada.",
   "paranoidMasterPasswordNote": "Uma senha longa é fortemente recomendada — o Argon2id apenas torna o ataque por força bruta mais lento, não o impede.",
   "plaintextWarningTitle": "Texto simples: sem criptografia",
   "plaintextWarningBody": "Sessões, chaves e known hosts serão armazenados sem criptografia. Qualquer pessoa com acesso ao sistema de arquivos deste computador poderá lê-los.",
@@ -727,7 +894,468 @@
   "masterPasswordLabel": "Senha mestra",
   "autoLockRequiresPassword": "O bloqueio automático exige uma senha no nível ativo.",
   "recommendedBadge": "RECOMENDADO",
-  "tierHardwareSubtitleHonest": "Avançado: chave vinculada ao hardware. Os dados são irrecuperáveis se o chip deste dispositivo for perdido ou substituído.",
+  "tierHardwareSubtitleHonest": "Avançado: chave vinculada ao hardware, sempre protegida por senha. Os dados são irrecuperáveis se o chip deste dispositivo for perdido ou substituído.",
   "tierParanoidSubtitleHonest": "Alternativa: senha mestra, sem confiança no OS. Protege contra o comprometimento do OS. Não melhora a proteção em tempo de execução em relação a T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Ameaças em runtime (malware do mesmo usuário, dump de memória de processo em execução) aparecem como ✗ em todos os níveis. Elas são tratadas por funcionalidades de mitigação separadas, aplicadas independentemente do nível escolhido."
+  "mitigationsNoteRuntimeThreats": "Ameaças em runtime (malware do mesmo usuário, dump de memória de processo em execução) aparecem como ✗ em todos os níveis. Elas são tratadas por funcionalidades de mitigação separadas, aplicadas independentemente do nível escolhido.",
+  "globalErrorTitle": "Erro inesperado",
+  "globalErrorBody": "Ocorreu um erro inesperado. O app continuará funcionando.",
+  "globalErrorLogSavedNote": "Todos os detalhes foram gravados no arquivo de log.",
+  "globalErrorLogDisabledNote": "Ative o log nas Configurações para salvar os detalhes do erro.",
+  "globalErrorTechnicalLine": "Erro: {detail}",
+  "globalErrorEnableLoggingButton": "Ativar log",
+  "globalErrorLoggingEnabledToast": "Log ativado — os erros serão gravados no arquivo de log",
+  "fatalErrorQuitButton": "Sair",
+  "fatalErrorWipeButton": "Apagar todos os dados",
+  "fatalErrorWipingButton": "Apagando…",
+  "fatalErrorWipeExplanation": "Apagar remove todos os arquivos do app (config, banco de dados, blobs do vault, logs); a próxima inicialização começa de uma instalação limpa. Não pode ser desfeito.",
+  "fatalErrorWipeConfirmTitle": "Apagar todos os dados?",
+  "fatalErrorWipeConfirmBody": "Isto apaga permanentemente todos os arquivos de config, banco de dados e vault. O app reiniciará de uma instalação vazia. Continuar?",
+  "fatalErrorWipeConfirmAction": "Apagar tudo",
+  "unencryptedArchiveWarning": "Este arquivo não é protegido por senha. Qualquer um com o arquivo pode ler o conteúdo.",
+  "clipboardCopyFailed": "Falha ao copiar para a área de transferência.",
+  "nonAsciiHostnameWarning": "O nome de host contém caracteres não ASCII — verifique cada caractere contra o que você digitou. Codepoints visualmente parecidos (cirílico / grego) podem falsificar um domínio latino.",
+  "playbackPause": "Pausar",
+  "recordingPlayLocked": "Desbloqueie o app para reproduzir esta gravação criptografada.",
+  "recordToggleStart": "Iniciar gravação",
+  "recordToggleStop": "Parar gravação",
+  "foregroundServiceTitle": "SSH ativo",
+  "foregroundServiceConnections": "{count, plural, =1{1 conexão ativa} other{{count} conexões ativas}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Tipo de sessão",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Usuário",
+  "webDavAuthMethod": "Método de auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "trustedCert": "Certificado confiável (PEM)",
+  "trustedCertHint": "-----BEGIN CERTIFICATE-----",
+  "trustedCertHelp": "Cola o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixa vazio para usar o trust store do sistema.",
+  "acceptAnyCert": "Aceitar qualquer certificado",
+  "acceptAnyCertHelp": "Ignora todas as verificações de certificado e hostname nos handshakes TLS desta sessão. Saída de emergência quando nem o trust store do sistema nem um certificado fixado servem.",
+  "acceptAnyCertWarn": "Vulnerável a ataques MITM — qualquer pessoa na rede pode se passar pelo servidor. Use apenas em redes privadas de confiança.",
+  "webDavCopyUrl": "Copiar URL WebDAV",
+  "webDavOpenInBrowser": "Abrir no navegador",
+  "errWebDavAuthFailed": "Falha de autenticação WebDAV",
+  "errWebDavNotFound": "Caminho não encontrado",
+  "errWebDavConflict": "Operação conflita com o estado atual",
+  "errWebDavGeneric": "Servidor WebDAV rejeitou a requisição: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Base URL do WebDAV é obrigatória",
+  "errWebDavBaseUrlInvalid": "Base URL precisa ser http:// ou https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Vazio para AWS, ou preenche para MinIO / R2 / Spaces",
+  "s3PathStyle": "Endereçamento path-style",
+  "s3PathStyleHint": "Necessário para MinIO; deixa off para AWS",
+  "s3DefaultBucket": "Bucket padrão",
+  "s3DefaultPrefix": "Prefix padrão",
+  "s3GeneratePresignedUrl": "Gerar presigned URL",
+  "s3PresignedUrlExpiry": "Expira em",
+  "s3CopyUri": "Copiar URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 minutos",
+  "s3PresignedUrlExpiry1hour": "1 hora",
+  "s3PresignedUrlExpiry4hour": "4 horas",
+  "s3PresignedUrlExpiry24hour": "24 horas",
+  "s3PresignedUrlExpiry7day": "7 dias",
+  "errS3AuthFailed": "S3 authentication failed (confere access key + secret)",
+  "errS3NoSuchBucket": "Bucket não existe ou está inacessível",
+  "errS3RegionMismatch": "Bucket está em uma region diferente da configurada",
+  "errS3Generic": "Servidor S3 rejeitou a requisição: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "Ativar sync por WebDAV",
+  "syncPassphrase": "Passphrase de sync",
+  "syncPassphraseHint": "Criptografa o arquivo de sync. Deve ser diferente da master password.",
+  "syncPassphraseSameAsMasterError": "Passphrase de sync não pode ser igual à master password.",
+  "syncRemotePath": "Caminho remoto",
+  "syncRemotePathHint": "Caminho sob a base URL do WebDAV — padrão letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Último push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Último pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Nunca",
+  "syncUpToDate": "Sync em dia",
+  "syncPushedBytes": "Push de {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Aplicadas {count} mudanças do remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync desativado",
+  "errSyncEtagMismatch": "Remote mudou — pull primeiro, depois push",
+  "errSyncUnauthorized": "Autenticação WebDAV falhou",
+  "errSyncNetwork": "Erro de rede: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Arquivo de sync remoto precisa de um build mais recente",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Toque seu hardware key",
+  "hardwareKeyPin": "PIN do hardware key",
+  "hardwareKeyTimeout": "Hardware key não respondeu",
+  "hardwareKeyNotFound": "Nenhum hardware key encontrado",
+  "hardwareKeyUnsupported": "Acesso direto a hardware key não está disponível nesta plataforma",
+  "hardwareKeyAppleEntitlementRequired": "Requer entitlement do Apple Developer Program; use ssh-agent no macOS",
+  "skKeyRequiresDevice": "Esta chave SSH precisa de um hardware key — toque para autenticar",
+  "errSkWrongPin": "PIN incorreto",
+  "hardwareKeyImport": "Importar hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Prompt do hardware key cancelado",
+  "agentEndpointSectionTitle": "Integração com clientes SSH externos",
+  "agentEndpointToggleTitle": "Expor hardware keys aos clientes SSH do sistema",
+  "agentEndpointToggleSubtitle": "Permite que git, ssh e plugins de IDE neste dispositivo usem suas keys FIDO2 / smart-card / TPM.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Copiar comando export",
+  "agentEndpointCopyPipeName": "Copiar nome do pipe",
+  "agentEndpointSignatureRequestTitle": "Solicitação de assinatura",
+  "agentEndpointSignatureRequestBody": "{requester} quer assinar com {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "Um cliente SSH externo",
+  "agentEndpointAuthorizeOnce": "Autorizar uma vez",
+  "agentEndpointAuthorizeAlways": "Autorizar e lembrar",
+  "agentEndpointDeny": "Recusar",
+  "agentEndpointStatusRunning": "Em execução",
+  "agentEndpointStatusStopped": "Parado",
+  "agentEndpointStatusUnsupported": "Indisponível nesta plataforma",
+  "agentEndpointRefusedAddIdentity": "Recusado: clientes externos não podem adicionar keys.",
+  "agentEndpointStartFailed": "Não foi possível iniciar o ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Adicionar chave de smartcard / token",
+  "pkcs11ModuleLabel": "Módulo PKCS#11",
+  "pkcs11ModuleAutoDetected": "Detectado automaticamente",
+  "pkcs11ModuleCustom": "Módulo personalizado...",
+  "pkcs11ModulePickerTitle": "Escolher biblioteca PKCS#11",
+  "pkcs11NoModuleFound": "Nenhum módulo PKCS#11 encontrado. Instale OpenSC ou escolha uma biblioteca do fornecedor.",
+  "pkcs11InitializeFailed": "O módulo PKCS#11 não inicializou.",
+  "pkcs11NoTokenPresent": "Nenhum token em nenhum leitor.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Número de série: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "O token requer login.",
+  "pkcs11PinPrompt": "PIN para {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Confirme no PIN-pad do token.",
+  "pkcs11PinIncorrect": "PIN incorreto. Restam {remaining} tentativas.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN do token bloqueado. Desbloqueie com o PUK.",
+  "pkcs11NoSignableKeys": "O token não tem chaves utilizáveis por SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Chaves GOST não funcionam com SSH.",
+  "pkcs11TokenUnplugged": "O token \"{label}\" não está conectado.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Token salvo não encontrado. Reconecte e tente novamente.",
+  "pkcs11SignFailed": "Falha na assinatura: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smartcards / tokens PKCS#11 não estão disponíveis nesta plataforma.",
+  "pkcs11Badge": "Smartcard / token",
+  "pkcs11InfoModulePath": "Módulo: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Serial do token: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Objeto: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "Selecione o módulo PKCS#11",
+  "pkcs11WizardStepToken": "Selecione o token",
+  "pkcs11WizardStepKey": "Selecione a chave",
+  "pkcs11WizardStepPin": "Digite o PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Importar chave",
+  "pkcs11SaveInProgress": "Lendo chave pública do token...",
+  "pkcs11SaveSuccess": "Chave do smartcard adicionada.",
+  "pkcs11ScanInProgress": "Procurando módulos PKCS#11...",
+  "pkcs11LoadingTokens": "Carregando tokens...",
+  "pkcs11LoadingKeys": "Carregando chaves...",
+  "pkcs11ModuleStatusReady": "Módulo carregado.",
+  "pkcs11ModuleStatusNoToken": "Nenhum token presente.",
+  "pkcs11ModuleStatusFailed": "Falha ao carregar o módulo.",
+  "pkcs11PinPadHint": "(PIN pad no dispositivo)",
+  "pkcs11WizardBack": "Voltar",
+  "pkcs11WizardNext": "Próximo",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Adicionar chave hardware",
+  "sshKeyHardwareBoundExplainer": "A chave privada vive no hardware seguro do dispositivo e não pode ser exportada.",
+  "sshKeyEnclaveDeviceBound": "Esta chave só funciona neste Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Esta chave só funciona neste iPhone.",
+  "sshKeyHelloDeviceBound": "Esta chave só funciona neste PC.",
+  "sshKeyEnclaveTouchIdRequired": "Exigir Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Permitir o passcode do dispositivo como fallback",
+  "sshKeyHelloPinRequired": "Exigir Windows Hello (PIN, digital ou rosto)",
+  "sshKeyHardwareUnavailableTitle": "Chaves hardware indisponíveis",
+  "sshKeyHardwareUnavailableSe": "O app precisa estar assinado para usar o Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello não está configurado neste PC.",
+  "sshKeyHardwareUnavailableTpm": "TPM não detectado — apenas software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Gerar",
+  "sshKeyGenerateInProgress": "Gerando chave no hardware seguro...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing necessário — veja USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Assinando com hardware seguro...",
+  "sshKeyPublicCopy": "Copiar chave pública",
+  "sshKeyAuthorizedKeysHint": "Adicione esta linha em ~/.ssh/authorized_keys no servidor.",
+  "sshKeyEnclaveWizardTitle": "Chave SSH do Secure Enclave",
+  "sshKeyEnclaveWizardLabelHint": "Nome da chave",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Chave SSH do Windows Hello",
+  "helloWizardLabelHint": "Etiqueta da chave",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Autenticar com o Windows Hello",
+  "helloPromptDescription": "PIN, impressão digital ou rosto — o Windows Hello assina este desafio SSH.",
+  "helloSoftwareGatedWarning": "Este dispositivo não tem TPM. A chave fica no armazenamento de usuário; o Windows Hello ainda exige cada assinatura.",
+  "helloP384NotSupported": "O firmware do TPM não suporta P-384. Escolha P-256 ou RSA-2048.",
+  "helloConfigureFirst": "Configure o Windows Hello primeiro em Configurações -> Opções de entrada.",
+  "tpmSshTitle": "Gerar chave SSH adossada ao TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (recomendado)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithm não suportado pelo firmware deste TPM.",
+  "tpmSshPinProtect": "Proteger com PIN",
+  "tpmSshPinLockoutWarning": "TPM trava a chave após várias tentativas de PIN erradas.",
+  "tpmSshPinMismatch": "Os PINs não conferem.",
+  "tpmSshStorageBlob": "Armazenar chave envelopada nos dados do app",
+  "tpmSshStorageHandle": "Persistir em slot de memória do TPM",
+  "tpmSshStorageHandleHelp": "Assinatura mais rápida. Consome um dos slots persistentes do TPM.",
+  "tpmSshLabel": "Rótulo da chave",
+  "tpmSshImportTitle": "Importar chave SSH protegida por TPM",
+  "tpmSshImportFormat": "Arquivo TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "PIN do TPM para {label}",
+  "tpmSshPinIncorrect": "PIN incorreto.",
+  "tpmSshPinLockedCooldown": "TPM em cooldown de lockout. Aguarde {duration} e tente de novo.",
+  "tpmSshGenerating": "Gerando chave no TPM...",
+  "tpmSshSigning": "Assinando com TPM...",
+  "tpmSshUnavailable": "Nenhum TPM detectado neste dispositivo.",
+  "tpmSshUnavailableFwDisabled": "TPM desativado no firmware.",
+  "tpmSshUnavailableNoPermission": "O app não consegue acessar o TPM. Adicione o usuário ao grupo `tss`.",
+  "tpmSshHandleInUse": "O slot persistente {handle} já está em uso.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Esta chave assina SEM prompt de Hello / PIN — qualquer pessoa com acesso ao desktop enquanto você está logado pode usá-la.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Gerando chave hardware-bound...",
+  "keystoreKeyAuthPrompt": "Autentique para usar a chave SSH",
+  "keystoreKeyInvalidatedByEnrollment": "Chave destruída: nova biometria foi registrada. Registre novamente a chave pública nos seus servidores.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM indisponível neste dispositivo",
+  "keystoreKeyUserAuthRequired": "Exigir biometria / desbloqueio do dispositivo a cada assinatura",
+  "keystoreKeyExportDisabled": "Chaves hardware-bound não podem ser exportadas",
+  "keystoreKeyDeleteWarning": "Apagar esta chave remove-a do armazenamento de hardware. Os servidores vão rejeitá-la até você registrar uma nova.",
+  "keystoreKeyBiometricNotEnrolled": "Configure biometria ou PIN do dispositivo primeiro",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, só TEE)",
+  "keystoreAlgRsa2048": "RSA-2048 (compatibilidade máxima)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM indisponível",
+  "keystoreStrongBoxFallbackBody": "Teu device não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "Usar TEE",
+  "keystoreStrongBoxFallbackCancel": "Cancelar",
+  "fido2BrokerSectionTitle": "Chaves de segurança em hardware",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Diálogo do sistema de security key",
+  "fido2BrokerIosLabel": "Security key do sistema (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Security key do sistema (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID direto (CTAP2)",
+  "fido2BrokerTransportNone": "Indisponível nesta plataforma",
+  "fido2BrokerPreferDirectHidTitle": "Preferir USB HID direto ao diálogo do sistema",
+  "fido2BrokerPreferDirectHidSubtitle": "Avançado: ignorar o {brokerLabel} em plataformas onde os dois caminhos funcionam. O HID direto expõe mais features do authenticator mas exige permissão por app.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "Integração SSH",
+  "fido2BrokerNoTransportSubtitle": "O suporte a chaves de hardware não está disponível neste dispositivo.",
+  "fido2BrokerSinglePathSubtitle": "Apenas {transport} está disponível neste dispositivo; o toggle está desativado.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "Stub importado",
+  "hardwareKeyStubSubtitle": "Estava em outro dispositivo — regenere aqui para usar",
+  "hardwareKeyStubRegenerateAction": "Regenerar aqui",
+  "hardwareKeyStubRemoveAction": "Remover stub",
+  "hardwareKeyStubPickerTooltip": "Regenere esta chave neste dispositivo antes de usar",
+  "pkcs11ModuleResolveOnFirstUse": "Localize o módulo PKCS#11 para o token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "arrowLeft": "Seta esquerda",
+  "arrowUp": "Seta cima",
+  "arrowDown": "Seta baixo",
+  "arrowRight": "Seta direita",
+  "copyMode": "Modo de cópia",
+  "exitCopyMode": "Sair do modo de cópia",
+  "importedGeneric": "Importado: {items}"
 }

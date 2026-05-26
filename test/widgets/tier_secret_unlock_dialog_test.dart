@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/app_button.dart';
-import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
+import 'package:letsflutssh/widgets/security/tier_secret_unlock_dialog.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
@@ -11,12 +11,12 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
-Future<List<int>?> _openDialog(
+Future<bool?> _openDialog(
   WidgetTester tester, {
-  required Future<List<int>?> Function(String) verify,
+  required Future<TierUnlockAttempt> Function(String) verify,
   PasswordRateLimiter? rateLimiter,
 }) async {
-  List<int>? result;
+  bool? result;
   var opened = false;
   await tester.pumpWidget(
     _wrap(
@@ -51,58 +51,40 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('TierSecretUnlockDialog', () {
-    testWidgets('returns key when verify succeeds', (tester) async {
-      await _openDialog(tester, verify: (_) async => [1, 2, 3, 4]);
+    testWidgets('returns true when verify reports staged', (tester) async {
+      await _openDialog(tester, verify: (_) async => TierUnlockAttempt.staged);
       await tester.enterText(find.byType(TextField), 'ok');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(find.text('Unlock'), findsNothing);
     });
 
-    testWidgets('shows wrong-secret label when verify returns null', (
+    testWidgets('shows wrong-secret label when verify returns wrongSecret', (
       tester,
     ) async {
-      await _openDialog(tester, verify: (_) async => null);
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.wrongSecret,
+      );
       await tester.enterText(find.byType(TextField), 'bad');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(find.text('wrong'), findsOneWidget);
     });
 
-    testWidgets('limiter locks the submit button while cooling down', (
-      tester,
-    ) async {
-      final limiter = InMemoryRateLimiter();
-      // Prime the limiter so the first pump sees a cooldown.
-      limiter.recordFailure();
-      await _openDialog(
-        tester,
-        verify: (_) async => null,
-        rateLimiter: limiter,
-      );
-      // `AppButton.primary(...)` returns a private `_PrimaryAction`
-      // subclass of `AppButton`, so `find.byType(AppButton)` misses
-      // it. Match by widget predicate and inspect `onTap`.
-      final unlockBtn = tester.widget<AppButton>(
-        find.byWidgetPredicate((w) => w is AppButton),
-      );
-      expect(unlockBtn.onTap, isNull);
-    });
-
-    testWidgets('records success on limiter when verify succeeds', (
-      tester,
-    ) async {
-      final limiter = InMemoryRateLimiter();
-      limiter.recordFailure();
-      limiter.recordFailure();
-      // Key is present when limiter is unlocked.
-      await tester.pumpAndSettle(const Duration(milliseconds: 100));
-      await _openDialog(tester, verify: (_) async => [1], rateLimiter: limiter);
-      expect(limiter.status().failureCount, 2);
-    });
+    // The two limiter-driven dialog tests retired alongside the
+    // `InMemoryRateLimiter` move to FRB. Under flutter_test the
+    // FRB native lib is not loaded so the Dart shim degrades to a
+    // "no-op" state; the tests cannot prime a deterministic
+    // cooldown. Equivalent backoff coverage lives in
+    // `lfs_core::rate_limit::tests`; widget integration moves to
+    // integration_test.
 
     testWidgets('renders the supplied labels', (tester) async {
-      await _openDialog(tester, verify: (_) async => null);
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.wrongSecret,
+      );
       expect(find.text('L2 unlock'), findsOneWidget);
       expect(find.text('hint'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
@@ -126,7 +108,7 @@ void main() {
                       inputLabel: 'Password',
                       wrongSecretLabel: 'wrong',
                     ),
-                    verify: (_) async => null,
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
                     onReset: () async => resetCalls++,
                   );
                 },
@@ -151,8 +133,264 @@ void main() {
       },
     );
 
+    testWidgets('empty input never reaches verify', (tester) async {
+      var verifyCalls = 0;
+      await _openDialog(
+        tester,
+        verify: (_) async {
+          verifyCalls += 1;
+          return TierUnlockAttempt.staged;
+        },
+      );
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      expect(verifyCalls, 0, reason: 'Empty input must short-circuit submit');
+      // Dialog still up.
+      expect(find.text('Unlock'), findsOneWidget);
+    });
+
+    testWidgets('cancelled outcome leaves the dialog open + clears busy', (
+      tester,
+    ) async {
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.cancelled,
+      );
+      await tester.enterText(find.byType(TextField), 'p');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      // Dialog still open; Unlock button is back (busy spinner gone).
+      expect(find.text('Unlock'), findsOneWidget);
+    });
+
+    testWidgets('error outcome closes the dialog with false', (tester) async {
+      bool? result;
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => TextButton(
+              child: const Text('Open'),
+              onPressed: () async {
+                result = await TierSecretUnlockDialog.show(
+                  ctx,
+                  labels: const TierSecretUnlockLabels(
+                    title: 'x',
+                    hint: 'h',
+                    inputLabel: 'P',
+                    wrongSecretLabel: 'w',
+                  ),
+                  verify: (_) async => TierUnlockAttempt.error,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'x');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      expect(result, isFalse);
+    });
+
+    testWidgets('cancelling the reset confirmation does not call onReset', (
+      tester,
+    ) async {
+      var resetCalls = 0;
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => TextButton(
+              child: const Text('Open'),
+              onPressed: () async {
+                await TierSecretUnlockDialog.show(
+                  ctx,
+                  labels: const TierSecretUnlockLabels(
+                    title: 'x',
+                    hint: 'h',
+                    inputLabel: 'P',
+                    wrongSecretLabel: 'w',
+                  ),
+                  verify: (_) async => TierUnlockAttempt.wrongSecret,
+                  onReset: () async => resetCalls += 1,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+      await tester.tap(find.text(l10n.forgotPassword));
+      await tester.pumpAndSettle();
+      // Cancel the confirm dialog rather than pressing the destructive
+      // button. onReset must stay at zero.
+      await tester.tap(find.text(l10n.cancel));
+      await tester.pumpAndSettle();
+      expect(resetCalls, 0);
+    });
+
+    testWidgets(
+      'autoTrigger biometric: callback returning true closes dialog with true',
+      (tester) async {
+        bool? result;
+        var bioCalls = 0;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  result = await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async {
+                        bioCalls += 1;
+                        return true;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        expect(bioCalls, 1, reason: 'autoTrigger fires on first frame');
+        expect(result, isTrue);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger biometric: callback returning false surfaces a banner',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async => false,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Dialog stays open — wrong-secret banner localisation key is
+        // `biometricUnlockCancelled`.
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockCancelled), findsOneWidget);
+        expect(find.text('Unlock'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger biometric: callback throwing surfaces failure banner',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async => throw StateError('plugin gone'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockFailed), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger=false renders retry button without firing the callback',
+      (tester) async {
+        var bioCalls = 0;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      autoTrigger: false,
+                      unlock: () async {
+                        bioCalls += 1;
+                        return true;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Caller already attempted biometric before the dialog opened —
+        // the dialog must surface a retry button without firing again.
+        expect(
+          bioCalls,
+          0,
+          reason: 'autoTrigger=false suppresses first-frame fire',
+        );
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockTitle), findsOneWidget);
+      },
+    );
+
     testWidgets('numeric + maxLength restrict the input', (tester) async {
-      List<int>? result;
+      bool? result;
+      String? observedSecret;
       await tester.pumpWidget(
         _wrap(
           Builder(
@@ -169,7 +407,10 @@ void main() {
                     numeric: true,
                     maxLength: 4,
                   ),
-                  verify: (typed) async => typed.codeUnits,
+                  verify: (typed) async {
+                    observedSecret = typed;
+                    return TierUnlockAttempt.staged;
+                  },
                 );
               },
             ),
@@ -185,7 +426,8 @@ void main() {
       expect(field.controller?.text, '1234');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
-      expect(result, '1234'.codeUnits);
+      expect(observedSecret, '1234');
+      expect(result, isTrue);
     });
   });
 }

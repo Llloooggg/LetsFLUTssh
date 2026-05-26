@@ -1,64 +1,85 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:xterm/xterm.dart';
 
 import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
-import '../../core/connection/progress_tracker.dart';
-import '../../core/connection/progress_writer.dart';
-import '../../core/shortcut_registry.dart';
+import '../../core/session/session_recorder.dart';
+import '../../widgets/core/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
-import '../../core/ssh/shell_helper.dart';
 import '../../core/config/app_config.dart';
+import '../../providers/broadcast_provider.dart';
 import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/session_provider.dart';
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
-import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
-import '../../widgets/context_menu.dart';
+import '../../widgets/terminal/connection_progress.dart';
+import '../../widgets/terminal/terminal_controller.dart';
+import '../../widgets/terminal/terminal_key_input.dart';
+import '../../widgets/terminal/terminal_view.dart';
+import '../../widgets/terminal/terminal_palette_theme.dart';
+import '../../widgets/terminal/terminal_pointer_input.dart';
+import '../../widgets/terminal/terminal_search_bar.dart';
 import '../../l10n/app_localizations.dart';
-import '../../utils/platform.dart' as plat;
 import '../snippets/snippet_picker.dart';
+import 'broadcast_controller.dart';
+import 'pane_recording_registry.dart';
 
-/// A single terminal pane — xterm TerminalView connected to one SSH shell.
+/// A single terminal pane — a Rust-engine-backed [rust_terminal.TerminalSession]
+/// rendered through the unified [TerminalView] (a [LiveTerminalController] over
+/// the session), connected to one SSH shell.
 ///
 /// Multiple panes can share the same [Connection] (each opens its own shell).
-/// Factory for opening SSH shell — injectable for testing.
-typedef ShellOpenFactory =
-    Future<ShellConnection> Function({
-      required Connection connection,
-      required Terminal terminal,
-      VoidCallback? onDone,
-    });
-
+/// During the connect cascade the pane shows [ConnectionProgress]; once the
+/// session opens it swaps to the live grid view. Keyboard input is encoded
+/// Rust-side: [handleKey] normalises each event to a
+/// [rust_terminal.TerminalKey] and forwards it through
+/// [rust_terminal.TerminalSession.sendKey] (Ctrl+Shift+C/V stay reserved for
+/// copy/paste). Selection/copy via mouse and in-terminal search land in a
+/// later task. Scroll-wheel scrollback and font zoom work today.
 class TerminalPane extends ConsumerStatefulWidget {
   final Connection connection;
   final bool isFocused;
 
+  /// Whether this pane's tab is the foreground tab of the focused panel.
+  /// Distinct from [isFocused] (which pane within the tab): a backgrounded
+  /// tab keeps its panes mounted in the `IndexedStack` with `isFocused`
+  /// unchanged, so only this flag flips when tabs switch. Defaults to true
+  /// for single-pane / mobile callers that have no tab switching.
+  final bool isActiveTab;
+
   /// Whether there are multiple panes in the tiling layout.
   /// Focus border is only shown when this is true.
   final bool hasMultiplePanes;
+
+  /// Tiling-tree leaf id — stable across rebuilds. Optional so tests /
+  /// single-pane callers (mobile shell, quick-connect) can omit it.
+  final String? paneId;
+
+  /// Owning tab's stable id. Optional so non-tabbed callers compile.
+  final String? tabId;
+
   final VoidCallback? onFocused;
   final VoidCallback? onClose;
-
-  /// Optional factory for testing — bypasses real SSH shell.
-  final ShellOpenFactory? shellFactory;
 
   const TerminalPane({
     super.key,
     required this.connection,
     this.isFocused = false,
+    this.isActiveTab = true,
     this.hasMultiplePanes = false,
+    this.paneId,
+    this.tabId,
     this.onFocused,
     this.onClose,
-    this.shellFactory,
   });
 
   @override
@@ -66,44 +87,77 @@ class TerminalPane extends ConsumerStatefulWidget {
 }
 
 class TerminalPaneState extends ConsumerState<TerminalPane> {
-  late final Terminal _terminal;
-  late final TerminalController _terminalController;
-  ShellConnection? _shellConn;
+  /// Owned focus node so the pane can `requestFocus()` on its own schedule
+  /// across `isFocused` / `isActiveTab` flips — the grid view's own focus
+  /// surface only autofocuses on initial mount.
+  final FocusNode _terminalFocus = FocusNode(debugLabel: 'TerminalPane');
+  late final void Function() _scrubFn;
+
+  rust_terminal.TerminalSession? _session;
+
+  /// Controller bridging the live session's `events()`/`snapshot()` to the
+  /// [TerminalView]. Recreated on each fresh session open (the prior one is
+  /// disposed first); subscribes to `events()` exactly once, never per rebuild.
+  LiveTerminalController? _controller;
+
+  /// Per-tab broadcast controller this pane is registered with, or null
+  /// when the pane is not part of a tab (single-pane / test callers). Held
+  /// so `dispose` can unregister this pane's sink from the same controller
+  /// it registered against.
+  BroadcastController? _broadcast;
+
+  /// Live recording state for this pane. Drives the connection-bar record
+  /// button via [PaneRecordingRegistry] — the registry handle re-exports
+  /// this [ValueListenable] so a single `ValueListenableBuilder` rebuilds
+  /// the icon when recording starts / stops without churning the grid.
+  final ValueNotifier<bool> _isRecording = ValueNotifier<bool>(false);
+
+  /// The active recorder for this pane, or null when not recording. The
+  /// recorder owns its `.lfsr` / `.cast` file; `set_recorder` Rust-side
+  /// forks the session bytes into it while it is attached.
+  SessionRecorder? _recorder;
+
+  /// Bumped each time a fresh session opens so the [TerminalView] (keyed on
+  /// this) rebinds to the new [LiveTerminalController] rather than reusing the
+  /// stale one.
+  int _sessionEpoch = 0;
+
   StreamSubscription<ConnectionStep>? _progressSub;
   Map<AppShortcut, VoidCallback>? _shortcuts;
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
 
+  /// True when both the pane id and tab id are present — guards every
+  /// broadcast-related path. Single-pane / test callers omit them.
+  bool get _supportsBroadcast => widget.paneId != null && widget.tabId != null;
+
   String? _error;
 
-  // Search visibility — ValueNotifier so toggling doesn't rebuild TerminalView
-  final _showSearch = ValueNotifier<bool>(false);
+  /// Last viewport size reported by the grid view. Held so a font-zoom or
+  /// theme change that rebuilds the view re-pushes the size to the session.
+  int _cols = 80;
+  int _rows = 24;
 
-  /// Cached terminal theme — rebuilt only when app brightness changes.
-  TerminalTheme? _cachedTheme;
-  bool? _cachedIsDark;
+  /// Brightness the live session's palette was last pushed for. A theme
+  /// toggle re-pushes the palette via [rust_terminal.TerminalSession.setPalette].
+  bool? _paletteIsDark;
 
-  TerminalTheme get _terminalTheme {
-    final dark = AppTheme.isDark;
-    if (_cachedTheme == null || _cachedIsDark != dark) {
-      _cachedIsDark = dark;
-      _cachedTheme = AppTheme.terminalTheme;
-    }
-    return _cachedTheme!;
-  }
+  /// Whether the in-terminal search bar is open.
+  bool _searchOpen = false;
 
-  /// Exposed for testing — toggle search bar visibility.
+  /// Matches from the last `TerminalSession.search`, in absolute grid-line
+  /// coordinates. The highlight overlay and next/prev navigation derive
+  /// from this list; empty when the query is empty or has no hit.
+  List<rust_terminal.TerminalMatch> _matches = const [];
+
+  /// Index of the focused match within [_matches], or `-1` when none.
+  int _currentMatch = -1;
+
+  /// Exposed for testing — the active Rust terminal session, or null before
+  /// the shell opens / after an error.
   @visibleForTesting
-  ValueNotifier<bool> get showSearchNotifier => _showSearch;
-
-  /// Exposed for testing — access the xterm Terminal instance.
-  @visibleForTesting
-  Terminal get terminal => _terminal;
-
-  /// Exposed for testing — access the TerminalController.
-  @visibleForTesting
-  TerminalController get terminalController => _terminalController;
+  rust_terminal.TerminalSession? get session => _session;
 
   /// Exposed for testing — zoom in / out / reset.
   @visibleForTesting
@@ -113,299 +167,463 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   @visibleForTesting
   void zoomReset() => _zoomReset();
 
-  /// Send a command string to the SSH shell.
-  ///
-  /// Appends a newline if not already present. No-op if shell is not open.
+  /// Send a command string to the SSH shell. Appends a newline if not already
+  /// present. No-op if the session is not open.
   void sendCommand(String command) {
-    if (_shellConn == null) return;
+    final session = _session;
+    if (session == null) return;
     final cmd = command.endsWith('\n') ? command : '$command\n';
-    _terminal.textInput(cmd);
+    final bytes = Uint8List.fromList(utf8.encode(cmd));
+    unawaited(session.writeInput(bytes: bytes));
+    _broadcastInput(BroadcastBytes(bytes));
   }
 
   @override
   void initState() {
     super.initState();
-    _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
-    _terminalController = TerminalController();
-    // Register with the scrubber so auto-lock wipes this terminal's
-    // scrollback alongside the DB key. Dispose removes us from the
-    // registry so stale pointers do not linger.
-    TerminalScrubber.instance.register(_terminal);
-    HardwareKeyboard.instance.addHandler(_onShiftToggle);
+    // Register a scrub callback so the auto-lock / wipe paths can wipe this
+    // pane's scrollback alongside the DB key. The scrollback lives Rust-side;
+    // `clear()` blanks the visible grid AND purges the scrollback history so
+    // sensitive command output cannot be read back after the key is cleared
+    // (a viewport scroll would leave that content in memory). See
+    // ARCHITECTURE.md §5.1.
+    _scrubFn = () {
+      final session = _session;
+      if (session != null) unawaited(session.clear());
+    };
+    TerminalScrubber.instance.register(_scrubFn);
+    _registerRecordingHandle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.isActiveTab && widget.isFocused) _terminalFocus.requestFocus();
       _connectAndOpenShell();
     });
   }
 
-  Future<void> _connectAndOpenShell() async {
-    final conn = widget.connection;
-    final l10n = S.of(context);
-    final tracker = ProgressTracker(conn);
-    final writer = ProgressWriter(
-      terminal: _terminal,
-      l10n: l10n,
-      config: conn.sshConfig,
-    );
-
-    // Subscribe to progress stream and write steps to terminal
-    _progressSub = writer.subscribe(tracker);
-
-    // Wait for connection if still connecting
-    await conn.waitUntilReady();
+  /// Tear down the per-connect progress plumbing. Idempotent — every
+  /// `!mounted` early-return and the success path route through this so the
+  /// subscription never leaks.
+  void _disposeProgress() {
     _progressSub?.cancel();
     _progressSub = null;
-    tracker.dispose();
+  }
 
-    // Check connection result
+  Future<void> _connectAndOpenShell() async {
+    final conn = widget.connection;
+
+    // Wait for connection if still connecting.
+    await conn.waitUntilReady();
+    if (!mounted) {
+      _disposeProgress();
+      return;
+    }
+    // `state == connected` flips when the Rust actor publishes Connected, but
+    // the russh handle is adopted asynchronously. Wait for the adopt to settle
+    // before reading `conn.transport`.
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+      if (!mounted) {
+        _disposeProgress();
+        return;
+      }
+    }
+    _disposeProgress();
+
     if (!conn.isConnected) {
-      if (!mounted) return;
-      // Mark disconnected so tab dot and connection bar update
-      conn.state = SSHConnectionState.disconnected;
-      final error = conn.connectionError != null
-          ? localizeError(l10n, conn.connectionError!)
-          : l10n.errConnectionFailed;
-      _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
-      setState(() => _error = error);
-      // Notify provider so workspace status dots and connection bar update
-      ref.read(connectionManagerProvider).notifyStateChanged();
+      _onConnectFailed(conn);
       return;
     }
 
+    await _openSessionAndAttach(conn);
+  }
+
+  /// Disconnected branch — surface the failure and notify the workspace so
+  /// status dots / connection bar update.
+  void _onConnectFailed(Connection conn) {
+    conn.state = SSHConnectionState.disconnected;
+    final l10n = S.of(context);
+    final error = conn.connectionError != null
+        ? localizeError(l10n, conn.connectionError!)
+        : l10n.errConnectionFailed;
+    setState(() => _error = error);
+    ref.read(connectionsProvider.notifier).notifyStateChanged();
+  }
+
+  /// Success branch — open the Rust terminal session on the adopted transport.
+  /// Every async hop checks `mounted` so a mid-open dispose closes the freshly
+  /// opened session instead of leaking it.
+  Future<void> _openSessionAndAttach(Connection conn) async {
     try {
-      // Clear progress log before opening shell — openShell wires stdout
-      // to terminal.write(), so any server output must not be erased.
-      writer.clear();
-      _shellConn = await _openShell(conn);
-      // Notify provider so workspace status dots and connection bar update
-      if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();
+      AppLogger.instance.log(
+        'Terminal session open: starting for connection ${conn.id}',
+        name: 'TerminalPane',
+      );
+      final transport = conn.transport;
+      if (transport == null || !transport.isConnected) {
+        throw StateError('Not connected');
+      }
+      final isDark = AppTheme.isDark;
+      final session = await transport.openTerminalSession(
+        cols: _cols,
+        rows: _rows,
+        scrollback: ref.read(configProvider).scrollback,
+        palette: TerminalPaletteFromTheme.fromAppTheme(),
+      );
+      if (!mounted) {
+        // Pane disposed mid-open — drop the session so the Rust pump + shell
+        // channel do not leak past dispose.
+        session.dispose();
+        return;
+      }
+      setState(() {
+        _controller?.dispose();
+        _session = session;
+        _controller = LiveTerminalController(session);
+        _sessionEpoch++;
+        _paletteIsDark = isDark;
+      });
+      AppLogger.instance.log(
+        'Terminal session open: success for ${conn.id}',
+        name: 'TerminalPane',
+      );
+      _attachBroadcast(session);
+      await _maybeAutoStartRecording(session, conn);
+      ref.read(connectionsProvider.notifier).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
-        'Shell open failed: $e',
+        'Terminal session open failed: $e',
         name: 'TerminalPane',
         error: e,
       );
-      if (mounted) {
-        final localized = localizeError(l10n, e);
-        _terminal.write('\x1B[?25h\x1B[31m$localized\x1B[0m\r\n');
-        setState(() => _error = localized);
-      }
+      if (!mounted) return;
+      setState(() => _error = localizeError(S.of(context), e));
     }
   }
 
-  Future<ShellConnection> _openShell(Connection conn) async {
-    void onDone() {
-      if (mounted) {
-        setState(() => _error = S.of(context).errSessionClosed);
-      }
-    }
+  // ── Broadcast ──────────────────────────────────────────────────────────
 
-    if (widget.shellFactory != null) {
-      return widget.shellFactory!(
-        connection: conn,
-        terminal: _terminal,
-        onDone: onDone,
-      );
-    }
-    return ShellHelper.openShell(
-      connection: conn,
-      terminal: _terminal,
-      onDone: onDone,
+  /// Wire this pane into the per-tab broadcast controller. Runs after the
+  /// session opens so the receiver sink has a live session to replay onto.
+  /// The sink re-runs each fanned [BroadcastInput] against THIS pane's
+  /// session — keys through `sendKey` (re-encoded against this pane's mode),
+  /// bytes through `writeInput` — so a broadcast holds across panes whose
+  /// programs differ in terminal mode.
+  void _attachBroadcast(rust_terminal.TerminalSession session) {
+    if (!_supportsBroadcast) return;
+    final controller = ref.read(broadcastControllerProvider(widget.tabId!));
+    _broadcast = controller;
+    controller.registerSink(widget.paneId!, (input) {
+      // Replay on this receiver's own session. A torn-down session
+      // between dispatch and replay drops the input rather than faulting
+      // the driver loop (the controller already isolates throws).
+      switch (input) {
+        case BroadcastKey(:final key):
+          unawaited(session.sendKey(key: key));
+        case BroadcastBytes(:final bytes):
+          unawaited(session.writeInput(bytes: bytes));
+      }
+    });
+  }
+
+  /// Fan a driver-side input action to every receiver pane. No-op unless
+  /// this pane is the active driver (the controller enforces the gate) or
+  /// the pane is not part of a tab.
+  void _broadcastInput(BroadcastInput input) {
+    final controller = _broadcast;
+    if (controller == null) return;
+    final paneId = widget.paneId;
+    if (paneId == null) return;
+    controller.broadcastFrom(paneId, input);
+  }
+
+  // ── Recording ────────────────────────────────────────────────────────
+
+  /// Register this pane's recording handle so the workspace connection
+  /// bar's record button can find it by paneId. Runs once at mount; the
+  /// registry holds a stable [ValueListenable] pointer that survives shell
+  /// reconnects. `canRecord` is false for unsaved quick-connect panes —
+  /// recordings need a session folder to land in, and the button hides
+  /// itself when this is false.
+  void _registerRecordingHandle() {
+    final paneId = widget.paneId;
+    if (paneId == null) return;
+    PaneRecordingRegistry.instance.register(
+      paneId,
+      PaneRecordingHandle(
+        isRecording: _isRecording,
+        canRecord: widget.connection.sessionId != null,
+        toggle: _toggleRecording,
+      ),
     );
+  }
+
+  /// Auto-start recording when the session opted in via
+  /// `Session.extras['record'] == true`. No-op for quick-connect
+  /// (no `sessionId`) or sessions without the opt-in flag.
+  Future<void> _maybeAutoStartRecording(
+    rust_terminal.TerminalSession session,
+    Connection conn,
+  ) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return;
+    final saved = ref.read(sessionMutatorProvider).get(sessionId);
+    if (saved == null || saved.extrasBool('record') != true) return;
+    await _startRecording(session, conn);
+  }
+
+  /// Start or stop recording for the open session. No-op when the session
+  /// has not opened yet (the user mashed the button during the connect
+  /// spinner) — the pane records no pre-session bytes either way.
+  Future<void> _toggleRecording() async {
+    final session = _session;
+    if (session == null) return;
+    if (_isRecording.value) {
+      await _stopRecording(session);
+      return;
+    }
+    await _startRecording(session, widget.connection);
+  }
+
+  /// Open a recorder, attach it to the Rust pump (which then tees output +
+  /// input bytes to it), and flip the recording flag. Recorder open is
+  /// best-effort: a null recorder (unsaved session / open failure) leaves
+  /// recording off rather than blocking the session.
+  Future<void> _startRecording(
+    rust_terminal.TerminalSession session,
+    Connection conn,
+  ) async {
+    final sessionId = conn.sessionId;
+    if (sessionId == null) return;
+    final saved = ref.read(sessionMutatorProvider).get(sessionId);
+    if (saved == null) return;
+    final recorder = await SessionRecorder.open(
+      sessionId: sessionId,
+      shellLabel: saved.label,
+      width: _cols,
+      height: _rows,
+    );
+    if (recorder == null) return;
+    if (!mounted || _session != session) {
+      // Pane disposed or session swapped mid-open — seal the half-open
+      // file rather than leaving it with only a header.
+      await recorder.close();
+      return;
+    }
+    _recorder = recorder;
+    session.setRecorder(id: recorder.handleId);
+    _isRecording.value = true;
+  }
+
+  /// Detach the recorder from the pump and seal the file. Idempotent —
+  /// a no-op when not recording.
+  Future<void> _stopRecording(rust_terminal.TerminalSession session) async {
+    final recorder = _recorder;
+    if (recorder == null) return;
+    // Detach the fork first so no further bytes tee into a closing file,
+    // then seal it.
+    session.setRecorder(id: null);
+    _recorder = null;
+    _isRecording.value = false;
+    await recorder.close();
   }
 
   @override
   void didUpdateWidget(covariant TerminalPane oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isFocused && !widget.isFocused) {
-      _terminalController.clearSelection();
+    // Keyboard ownership = the focused pane of the foreground tab. The tab can
+    // leave the foreground (`isActiveTab` flips) without the in-tab `isFocused`
+    // flag changing, since `IndexedStack` keeps backgrounded tabs mounted.
+    final hadFocus = oldWidget.isActiveTab && oldWidget.isFocused;
+    final hasFocus = widget.isActiveTab && widget.isFocused;
+    if (hadFocus && !hasFocus) {
+      if (_terminalFocus.hasFocus) _terminalFocus.unfocus();
+    }
+    if (!hadFocus && hasFocus) {
+      _terminalFocus.requestFocus();
     }
   }
 
   @override
   void dispose() {
-    TerminalScrubber.instance.unregister(_terminal);
+    TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
-    HardwareKeyboard.instance.removeHandler(_onShiftToggle);
-    _shellConn?.close();
-    _terminalController.dispose();
-    _showSearch.dispose();
-    super.dispose();
-  }
-
-  /// When the terminal app has enabled mouse mode (e.g. htop, vim), holding
-  /// Shift bypasses mouse forwarding so the user can select text locally.
-  /// Standard terminal-emulator behaviour (xterm, GNOME Terminal, etc.).
-  bool _onShiftToggle(KeyEvent event) {
-    final shouldSuspend =
-        HardwareKeyboard.instance.isShiftPressed &&
-        _terminal.mouseMode != MouseMode.none;
-    if (_terminalController.suspendedPointerInputs != shouldSuspend) {
-      _terminalController.setSuspendPointerInput(shouldSuspend);
+    final paneId = widget.paneId;
+    if (paneId != null) {
+      _broadcast?.unregisterSink(paneId);
+      PaneRecordingRegistry.instance.unregister(paneId);
     }
-    return false; // never consume the key event
-  }
-
-  /// Toggle search bar visibility. Exposed for testing — in production
-  /// triggered by Ctrl+Shift+F shortcut.
-  @visibleForTesting
-  void toggleSearch() {
-    _showSearch.value = !_showSearch.value;
-  }
-
-  void _closeSearch() {
-    _showSearch.value = false;
+    // Seal the recording before the session drops so its trailing bytes
+    // land before the shell closes. Best-effort, fire-and-forget.
+    final recorder = _recorder;
+    if (recorder != null) unawaited(recorder.close());
+    _controller?.dispose();
+    _session?.dispose();
+    _terminalFocus.dispose();
+    _isRecording.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final fontSize = ref.watch(configProvider.select((c) => c.fontSize));
 
+    // Re-push the palette to the live session on a brightness change so a
+    // theme toggle re-themes the terminal (the engine re-resolves abstract
+    // cell colors against the new palette on the next snapshot).
+    _maybeRepushPalette();
+
+    // Focus surface owns keyboard focus across the connect → live phases so
+    // the tab-switch focus contract holds and zoom shortcuts dispatch. It
+    // wraps the whole body (not just the live grid) so `_terminalFocus` stays
+    // attached during the pre-session progress phase, when `requestFocus()`
+    // fires from initState / didUpdateWidget. Full key-input encoding lands in
+    // the input task; `handleKey` only consumes the local zoom combos today.
+    final body = Focus(
+      focusNode: _terminalFocus,
+      autofocus: widget.isActiveTab && widget.isFocused,
+      onKeyEvent: (_, event) => handleKey(event),
+      child: _buildBody(fontSize),
+    );
+
     // No border on panes — the 4px divider in TilingView separates them.
-    //
     // Route onFocused through a raw Listener.onPointerDown rather than
-    // GestureDetector.onTap: onTap only fires when the gesture arena
-    // resolves as a clean tap, and any drift during the click (or the
-    // xterm TerminalView's own pan/select gesture claiming the arena)
-    // swallows the event, so the focused pane would stop switching
-    // "every other click" when jumping between split panes.
+    // GestureDetector.onTap: onTap only fires on a clean tap, and any drift
+    // during the click swallows the event, so the focused pane would stop
+    // switching "every other click" when jumping between split panes.
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => widget.onFocused?.call(),
-      child: CallbackShortcuts(
-        bindings: AppShortcutRegistry.instance.buildCallbackMap({
-          AppShortcut.terminalSearch: toggleSearch,
-          AppShortcut.terminalCloseSearch: _closeSearch,
-        }),
-        child: Column(
-          children: [
-            ValueListenableBuilder<bool>(
-              valueListenable: _showSearch,
-              builder: (context, show, _) {
-                if (!show) return const SizedBox.shrink();
-                return TerminalSearchBar(
-                  terminal: _terminal,
-                  terminalController: _terminalController,
-                  onClose: _closeSearch,
-                );
-              },
-            ),
-            // Snap the terminal widget's height to an integer number of
-            // cells so xterm's viewport doesn't leave a dead strip at
-            // the bottom — the same trick MobileTerminalView applies.
-            // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
-            // painter uses internally; mirroring it here gives us a
-            // pre-layout estimate that matches the real measurement
-            // closely enough that xterm settles on `rows * cellHeight`
-            // rendered text with zero trailing gap. The remainder pixels
-            // become a `ColoredBox` painted in the terminal background
-            // so the boundary between the last row and the pane's next
-            // widget (split divider / status) reads as a clean edge.
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
-                  final cellHeight = fontSize * kTerminalLineHeight;
-                  final usable = constraints.maxHeight - verticalPadding;
-                  final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
-                  final snappedHeight = rows > 0
-                      ? rows * cellHeight + verticalPadding
-                      : constraints.maxHeight;
-                  return Column(
-                    children: [
-                      SizedBox(
-                        height: snappedHeight,
-                        child: _buildTerminalStack(fontSize),
-                      ),
-                      if (snappedHeight < constraints.maxHeight)
-                        Expanded(
-                          child: ColoredBox(color: _terminalTheme.background),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: body,
     );
   }
 
-  /// Inner Listener + Stack(TerminalView, CursorTextOverlay). Extracted
-  /// so the LayoutBuilder above can pin the terminal widget to an
-  /// integer-row height via a `SizedBox` parent.
-  Widget _buildTerminalStack(double fontSize) {
-    return Listener(
-      onPointerDown: (event) {
-        if (event.buttons == kSecondaryButton) {
-          _showContextMenu(context, event.position);
-        }
-      },
+  Widget _buildBody(double fontSize) {
+    final error = _error;
+    if (error != null) {
+      return ColoredBox(
+        color: AppTheme.bg2,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            error,
+            style: AppFonts.mono(fontSize: fontSize, color: AppTheme.red),
+          ),
+        ),
+      );
+    }
+
+    final controller = _controller;
+    if (controller == null) {
+      // Pre-session connect phase — reuse the shared progress surface.
+      return ConnectionProgress(
+        connection: widget.connection,
+        fontSize: fontSize,
+      );
+    }
+
+    final grid = TerminalView(
+      // Re-key on the session epoch so a reconnect rebinds the controller.
+      key: ValueKey<int>(_sessionEpoch),
+      controller: controller,
+      config: const TerminalViewConfig.interactive(),
+      fontSize: fontSize,
+      onResize: _onResize,
+      onScroll: _onScroll,
       onPointerSignal: _onPointerSignal,
-      child: Stack(
-        children: [
-          TerminalView(
-            _terminal,
-            controller: _terminalController,
-            autofocus: widget.isFocused,
-            hardwareKeyboardOnly: plat.isDesktopPlatform,
-            onKeyEvent: _handleTerminalKey,
-            backgroundOpacity: 1.0,
-            padding: const EdgeInsets.all(4),
-            theme: _terminalTheme,
-            textStyle: TerminalStyle(
-              fontSize: fontSize,
-              fontFamily: AppFonts.monoFamily,
-              fontFamilyFallback: AppFonts.monoFallback,
-            ),
-          ),
-          Positioned.fill(
-            child: CursorTextOverlay(terminal: _terminal, fontSize: fontSize),
-          ),
-        ],
-      ),
+      onClosed: _onSessionClosed,
+      onCopy: _copySelection,
+      onPaste: _pasteClipboard,
+      searchMatches: _searchOpen ? _matches : const [],
+      activeMatchIndex: _searchOpen ? _currentMatch : -1,
     );
-  }
-
-  void _showContextMenu(BuildContext context, Offset position) {
-    final hasSelection = _terminalController.selection != null;
-
-    showAppContextMenu(
-      context: context,
-      position: position,
-      items: [
-        if (hasSelection)
-          StandardMenuAction.copy.item(
-            context,
-            shortcut: AppShortcut.terminalCopy,
-            onTap: _copySelection,
-          ),
-        StandardMenuAction.paste.item(
-          context,
-          shortcut: AppShortcut.terminalPaste,
-          onTap: _pasteClipboard,
+    if (!_searchOpen) return grid;
+    return Column(
+      children: [
+        TerminalSearchBar(
+          onQueryChanged: _onSearchQueryChanged,
+          onNext: _nextMatch,
+          onPrevious: _prevMatch,
+          onClose: _closeSearch,
+          hasMatches: _matches.isNotEmpty,
+          matchLabel: _matchLabel(),
         ),
-        StandardMenuAction.snippets.item(
-          context,
-          onTap: () => _showSnippetPicker(context),
-        ),
+        Expanded(child: grid),
       ],
     );
   }
 
-  /// Intercept keyboard shortcuts before xterm's built-in handler consumes
-  /// them — xterm sends most key combos to the terminal as raw data, so
-  /// ancestor CallbackShortcuts never see them.
-  KeyEventResult _handleTerminalKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  /// `current/total` for the search bar, or null when there is nothing to
+  /// label (empty query / no matches). Pure number formatting — no l10n.
+  String? _matchLabel() {
+    if (_matches.isEmpty) return null;
+    return '${_currentMatch + 1}/${_matches.length}';
+  }
+
+  void _onScroll(int lineDelta) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.scroll(delta: lineDelta));
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent &&
+        HardwareKeyboard.instance.isControlPressed) {
+      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
+    }
+  }
+
+  /// Forward a viewport-size change to the Rust session and remember it so a
+  /// later session-open / re-layout starts at the right grid size.
+  void _onResize(int cols, int rows) {
+    _cols = cols;
+    _rows = rows;
+    final session = _session;
+    if (session == null) return;
+    unawaited(session.resize(cols: cols, rows: rows));
+  }
+
+  void _onSessionClosed() {
+    if (!mounted) return;
+    setState(() => _error = S.of(context).errSessionClosed);
+    ref.read(connectionsProvider.notifier).notifyStateChanged();
+  }
+
+  void _maybeRepushPalette() {
+    final session = _session;
+    if (session == null) return;
+    final isDark = AppTheme.isDark;
+    if (_paletteIsDark == isDark) return;
+    _paletteIsDark = isDark;
+    unawaited(
+      session.setPalette(palette: TerminalPaletteFromTheme.fromAppTheme()),
+    );
+  }
+
+  /// Keyboard dispatch for the live pane. Order matters: app-level combos
+  /// (zoom, copy, paste) are claimed first so they never reach the shell as
+  /// raw bytes; every other key-down / repeat is normalised to a
+  /// [rust_terminal.TerminalKey] and forwarded through [rust_terminal.TerminalSession.sendKey],
+  /// which reads the live terminal mode Rust-side and encodes the VT bytes.
+  KeyEventResult handleKey(KeyEvent event) {
+    // Only key-down and repeat produce input; key-up never does. Repeats
+    // (auto-repeat held key) must reach the shell, so accept both.
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
+    // Esc closes the search bar only while it is open; otherwise Esc must
+    // reach the shell (vim, less, …), so it is not a blanket shortcut.
+    if (_searchOpen && reg.matches(AppShortcut.terminalCloseSearch, event)) {
+      _closeSearch();
+      return KeyEventResult.handled;
+    }
+
     _shortcuts ??= <AppShortcut, VoidCallback>{
-      AppShortcut.terminalCopy: _copySelection,
-      AppShortcut.terminalPaste: _pasteClipboard,
       AppShortcut.zoomIn: _zoomIn,
       AppShortcut.zoomOut: _zoomOut,
       AppShortcut.zoomReset: _zoomReset,
+      AppShortcut.terminalCopy: _copySelection,
+      AppShortcut.terminalPaste: _pasteClipboard,
+      AppShortcut.terminalSearch: _openSearch,
     };
 
     for (final entry in _shortcuts!.entries) {
@@ -414,18 +632,160 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         return KeyEventResult.handled;
       }
     }
-    return KeyEventResult.ignored;
+
+    return _forwardKey(event);
   }
 
-  void _copySelection() =>
-      TerminalClipboard.copy(_terminal, _terminalController);
+  /// Normalise a key event and send it to the shell. Returns `handled` when
+  /// the event maps to PTY bytes so the framework does not also treat it as
+  /// a text-input / traversal event; `ignored` for bare modifiers and
+  /// unmappable keys so other handlers (and IME) still see them.
+  KeyEventResult _forwardKey(KeyEvent event) {
+    final session = _session;
+    if (session == null) return KeyEventResult.ignored;
+    final key = terminalKeyFromEvent(
+      event,
+      HardwareKeyboard.instance.logicalKeysPressed,
+    );
+    if (key == null) return KeyEventResult.ignored;
+    unawaited(session.sendKey(key: key));
+    // Mirror the logical key to receivers so each re-encodes against its
+    // own terminal mode (arrows under DECCKM, etc.).
+    _broadcastInput(BroadcastKey(key));
+    return KeyEventResult.handled;
+  }
 
-  Future<void> _pasteClipboard() => TerminalClipboard.paste(_terminal);
+  /// Copy the active terminal selection to the clipboard. Selection set-up
+  /// (mouse drag) lands in the selection task; this reads whatever the Rust
+  /// engine currently holds so the Ctrl+Shift+C combo is reserved (never
+  /// sent to the shell as raw bytes) and works once selection is wired.
+  void _copySelection() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_copySelectionAsync(session));
+  }
 
-  Future<void> _showSnippetPicker(BuildContext context) async {
+  Future<void> _copySelectionAsync(
+    rust_terminal.TerminalSession session,
+  ) async {
+    final text = await session.selectionText();
+    if (text == null || text.isEmpty) return;
+    // Sensitive-content routing + 30s auto-wipe live in TerminalClipboard
+    // (SecureClipboard underneath) — reused so the new engine's copy obeys
+    // the same clipboard threat model as the old renderer.
+    TerminalClipboard.copyText(text);
+    // Clear through the controller, not the raw session, so it pulses the
+    // repaint signal and the highlight actually disappears — the engine
+    // raises no Wakeup for a host-driven selection change.
+    _controller?.clearSelection();
+  }
+
+  // ── In-terminal search ─────────────────────────────────────────────────
+
+  void _openSearch() {
+    if (_searchOpen) return;
+    setState(() => _searchOpen = true);
+  }
+
+  void _closeSearch() {
+    if (!_searchOpen) return;
+    _controller?.clearSelection();
+    setState(() {
+      _searchOpen = false;
+      _matches = const [];
+      _currentMatch = -1;
+    });
+    _terminalFocus.requestFocus();
+  }
+
+  void _onSearchQueryChanged(String query) {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_runSearch(session, query));
+  }
+
+  Future<void> _runSearch(
+    rust_terminal.TerminalSession session,
+    String query,
+  ) async {
+    final matches = await session.search(query: query);
+    if (!mounted) return;
+    setState(() {
+      _matches = matches;
+      _currentMatch = matches.isEmpty ? -1 : 0;
+    });
+    if (matches.isNotEmpty) _revealMatch(session, 0);
+  }
+
+  void _nextMatch() {
+    if (_matches.isEmpty) return;
+    _focusMatch((_currentMatch + 1) % _matches.length);
+  }
+
+  void _prevMatch() {
+    if (_matches.isEmpty) return;
+    _focusMatch((_currentMatch - 1 + _matches.length) % _matches.length);
+  }
+
+  void _focusMatch(int index) {
+    final session = _session;
+    if (session == null) return;
+    setState(() => _currentMatch = index);
+    _revealMatch(session, index);
+  }
+
+  /// Scroll the focused match into view so next/prev never lands on an
+  /// off-screen hit. The scroll delta is computed against the live frame's
+  /// offset; `scroll` clamps internally so an over-scroll is harmless.
+  void _revealMatch(rust_terminal.TerminalSession session, int index) {
+    if (index < 0 || index >= _matches.length) return;
+    final frame = session.snapshot();
+    final delta = scrollDeltaToRevealLine(
+      matchLine: _matches[index].line,
+      displayOffset: frame.displayOffset,
+      rows: frame.rows,
+    );
+    if (delta != 0) unawaited(session.scroll(delta: delta));
+  }
+
+  /// Paste clipboard text into the shell via the Rust paste encoder, which
+  /// wraps the body in bracketed-paste framing when the running program
+  /// enabled it (and filters any embedded terminator) — so a multi-line
+  /// paste lands as data, not as a burst of executed commands.
+  void _pasteClipboard() {
+    final session = _session;
+    if (session == null) return;
+    unawaited(_pasteClipboardAsync(session));
+  }
+
+  Future<void> _pasteClipboardAsync(
+    rust_terminal.TerminalSession session,
+  ) async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text;
+    if (text == null || text.isEmpty) return;
+    await session.paste(text: text);
+    // Mirror the paste body to receivers. They write it verbatim — the
+    // driver's session already applied any bracketed-paste framing when it
+    // wrote, but each receiver re-frames on its own `writeInput`/`paste`
+    // path is unnecessary here: the user intent is "the same text reaches
+    // every shell", so the raw text bytes are fanned and each receiver's
+    // shell consumes them directly.
+    _broadcastInput(BroadcastBytes(Uint8List.fromList(utf8.encode(text))));
+  }
+
+  Future<void> showSnippetPicker(BuildContext context) async {
+    final cfg = widget.connection.sshConfig;
     final command = await SnippetPicker.show(
       context,
       sessionId: widget.connection.sessionId,
+      templateContext: {
+        'host': cfg.host,
+        'user': cfg.user,
+        'port': cfg.port.toString(),
+        'label': widget.connection.label,
+        'now': DateTime.now().toIso8601String(),
+      },
     );
     if (command != null) {
       sendCommand(command);
@@ -457,217 +817,5 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         .update(
           (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: updated)),
         );
-  }
-
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (event is PointerScrollEvent &&
-        HardwareKeyboard.instance.isControlPressed) {
-      _adjustFontSize(event.scrollDelta.dy < 0 ? 1 : -1);
-    }
-  }
-}
-
-/// Self-contained search bar widget — manages its own state so that
-/// search interactions (typing, next/prev) don't rebuild the TerminalView.
-class TerminalSearchBar extends StatefulWidget {
-  final Terminal terminal;
-  final TerminalController terminalController;
-  final VoidCallback onClose;
-
-  const TerminalSearchBar({
-    super.key,
-    required this.terminal,
-    required this.terminalController,
-    required this.onClose,
-  });
-
-  @override
-  State<TerminalSearchBar> createState() => TerminalSearchBarState();
-}
-
-class TerminalSearchBarState extends State<TerminalSearchBar> {
-  final _searchController = TextEditingController();
-  final _searchFocusNode = FocusNode();
-  List<TerminalHighlight> _searchHighlights = [];
-  int _currentMatchIndex = -1;
-  int _totalMatches = 0;
-  bool _disposed = false;
-  Timer? _debounce;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchFocusNode.requestFocus();
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _debounce?.cancel();
-    _clearHighlights();
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _debouncedSearch() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), _performSearch);
-  }
-
-  void _performSearch() {
-    _clearHighlights();
-    if (_disposed) return;
-    final query = _searchController.text;
-    if (query.isEmpty) {
-      setState(() {
-        _totalMatches = 0;
-        _currentMatchIndex = -1;
-      });
-      return;
-    }
-
-    final buffer = widget.terminal.buffer;
-    final highlights = <TerminalHighlight>[];
-    const maxMatches = 1000;
-
-    for (var y = 0; y < buffer.height && highlights.length < maxMatches; y++) {
-      _highlightLineMatches(buffer, y, query, highlights, maxMatches);
-    }
-
-    setState(() {
-      _searchHighlights = highlights;
-      _totalMatches = highlights.length;
-      _currentMatchIndex = highlights.isNotEmpty ? 0 : -1;
-    });
-  }
-
-  void _highlightLineMatches(
-    Buffer buffer,
-    int y,
-    String query,
-    List<TerminalHighlight> highlights,
-    int maxMatches,
-  ) {
-    final lineText = buffer.lines[y].toString().toLowerCase();
-    final queryLower = query.toLowerCase();
-    var startIndex = 0;
-    while (startIndex < lineText.length && highlights.length < maxMatches) {
-      final pos = lineText.indexOf(queryLower, startIndex);
-      if (pos < 0) break;
-      try {
-        final p1 = buffer.createAnchor(pos, y);
-        final p2 = buffer.createAnchor(pos + query.length, y);
-        highlights.add(
-          widget.terminalController.highlight(
-            p1: p1,
-            p2: p2,
-            color: AppTheme.searchHighlight,
-          ),
-        );
-      } catch (e) {
-        AppLogger.instance.log(
-          'Highlight failed at ($pos, $y): $e',
-          name: 'TerminalSearch',
-        );
-      }
-      startIndex = pos + 1;
-    }
-  }
-
-  void _nextMatch() {
-    if (_totalMatches == 0) return;
-    setState(
-      () => _currentMatchIndex = (_currentMatchIndex + 1) % _totalMatches,
-    );
-  }
-
-  void _prevMatch() {
-    if (_totalMatches == 0) return;
-    setState(
-      () => _currentMatchIndex =
-          (_currentMatchIndex - 1 + _totalMatches) % _totalMatches,
-    );
-  }
-
-  void _clearHighlights() {
-    for (final h in _searchHighlights) {
-      h.dispose();
-    }
-    _searchHighlights = [];
-  }
-
-  void _close() {
-    _clearHighlights();
-    widget.onClose();
-  }
-
-  @override
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      color: AppTheme.bg1,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              autofocus: true,
-              style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fg),
-              decoration: InputDecoration(
-                isDense: true,
-                filled: true,
-                fillColor: AppTheme.bg3,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 6,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: AppTheme.radiusSm,
-                  borderSide: BorderSide(color: AppTheme.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: AppTheme.radiusSm,
-                  borderSide: BorderSide(color: AppTheme.accent),
-                ),
-                hintText: S.of(context).search,
-                hintStyle: AppFonts.mono(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgFaint,
-                ),
-                suffixText: _totalMatches > 0
-                    ? '${_currentMatchIndex + 1}/$_totalMatches'
-                    : null,
-                suffixStyle: AppFonts.mono(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.fgDim,
-                ),
-              ),
-              onChanged: (_) => _debouncedSearch(),
-              onSubmitted: (_) => _nextMatch(),
-            ),
-          ),
-          const SizedBox(width: 4),
-          AppIconButton(
-            icon: Icons.keyboard_arrow_up,
-            onTap: _totalMatches > 0 ? _prevMatch : null,
-            tooltip: S.of(context).previous,
-          ),
-          AppIconButton(
-            icon: Icons.keyboard_arrow_down,
-            onTap: _totalMatches > 0 ? _nextMatch : null,
-            tooltip: S.of(context).next,
-          ),
-          AppIconButton(
-            icon: Icons.close,
-            onTap: _close,
-            tooltip: S.of(context).closeEsc,
-          ),
-        ],
-      ),
-    );
   }
 }

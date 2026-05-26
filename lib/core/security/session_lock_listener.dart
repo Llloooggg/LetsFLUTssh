@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/services.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
+import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 
 /// Bridge between OS-level "workstation locked" / "session locked"
@@ -15,74 +17,132 @@ import '../../utils/logger.dart';
 /// zero and the user has NOT actually been idle inside our app in
 /// the last idle-minutes.
 ///
-/// Platform-level listeners fire on OS lock:
-/// - **Windows**: `WM_WTSSESSION_CHANGE` + `WTS_SESSION_LOCK`
-///   subscription on the main window. Native side picks it up and
-///   posts "session-lock" to the `com.letsflutssh/session_lock`
-///   channel.
+/// Platform-level routing — every desktop OS goes through the
+/// `lfs_os_security::session_lock_listener` Rust subscriber and
+/// reaches Dart via FRB:
+/// - **Linux**: zbus `org.freedesktop.login1.Session.Lock` signal.
+/// - **Windows**: WTS session-change + `WTS_SESSION_LOCK` posted
+///   from the Rust-side MessageHandler.
 /// - **macOS**: `NSDistributedNotificationCenter` observer for
-///   `com.apple.screenIsLocked`, posted on the same channel.
-/// - **Linux**: D-Bus subscription to `org.freedesktop.login1`
-///   `Lock` signal via the existing `dbus` dependency. Native
-///   side posts to the channel.
-/// - **iOS / Android**: the existing lifecycle-paused hook already
-///   catches lock; this channel is a no-op.
-///
-/// Dart side is a single subscription helper — the widget tree
-/// registers one callback (`onSessionLocked`) from
-/// `AutoLockDetector.initState` and unregisters in `dispose`.
+///   `com.apple.screenIsLocked` on the main run loop.
+/// - **iOS / Android**: Flutter's lifecycle-paused hook already
+///   catches lock; this class is a no-op.
 class SessionLockListener {
-  SessionLockListener({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel(_channelName);
+  SessionLockListener({Stream<void>? lockEvents})
+    : _injectedEvents = lockEvents {
+    _liveInstances.add(this);
+  }
 
-  static const _channelName = 'com.letsflutssh/session_lock';
+  /// Live instances waiting for FRB readiness. The desktop subscribe
+  /// path goes through `lfs_os_security::session_lock_listener` (FRB);
+  /// AutoLockDetector mounts during the first runApp pass, so the
+  /// initial `addListener` lands BEFORE `_initRustCoreOrFatal`. The
+  /// pre-FRB attempt would throw `StateError` and emit a `SessionLockListener
+  /// Rust subscribe failed` line into the log; instead, the deferred
+  /// install is replayed from `_LetsFLUTsshAppState._wireFrbDependent
+  /// BootstrapListeners` via [retryAllPending] once Rust is up.
+  static final List<SessionLockListener> _liveInstances =
+      <SessionLockListener>[];
 
-  final MethodChannel _channel;
-  final List<VoidCallback> _listeners = [];
+  /// Replay the OS subscription on every cached listener whose
+  /// pre-FRB attempt was deferred. Idempotent — a listener already
+  /// installed (`_installed = true`) short-circuits in
+  /// [_ensureInstalled].
+  static void retryAllPending() {
+    for (final l in List<SessionLockListener>.from(_liveInstances)) {
+      l._ensureInstalled();
+    }
+  }
+
+  final Stream<void>? _injectedEvents;
+  final List<void Function()> _listeners = [];
 
   bool _installed = false;
+  StreamSubscription<void>? _streamSub;
 
   /// Register a callback for OS session-lock events. Calling multiple
   /// times with different callbacks fans out to every listener.
-  /// Returns a `VoidCallback` that, when called, removes the
+  /// Returns a `void Function()` that, when called, removes the
   /// listener — use in `dispose`.
-  VoidCallback addListener(VoidCallback callback) {
+  void Function() addListener(void Function() callback) {
     _listeners.add(callback);
     _ensureInstalled();
     return () => _listeners.remove(callback);
   }
 
+  /// Tear down the OS subscription. Idempotent.
+  Future<void> dispose() async {
+    final sub = _streamSub;
+    _streamSub = null;
+    await sub?.cancel();
+    _liveInstances.remove(this);
+  }
+
+  /// Drive a lock event into the fan-out without touching the OS
+  /// — test seam used by the unit suite.
+  @visibleForTesting
+  void debugFire() => _fanOut();
+
   void _ensureInstalled() {
     if (_installed) return;
-    _installed = true;
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == 'sessionLocked') {
-        // Fire listeners synchronously on the channel's isolate.
-        // Callbacks are lightweight (route into `lockNow()`); no
-        // microtask yield needed.
-        for (final cb in List<VoidCallback>.from(_listeners)) {
-          try {
-            cb();
-          } catch (e) {
-            AppLogger.instance.log(
-              'SessionLockListener callback failed: $e',
-              name: 'SessionLockListener',
-            );
-          }
-        }
+
+    if (_injectedEvents != null) {
+      _installed = true;
+      _streamSub = _injectedEvents.listen((_) => _fanOut());
+      return;
+    }
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      // FRB-gated. Pre-`_initRustCoreOrFatal` calls leave
+      // `_installed` false on `StateError` so [retryAllPending]
+      // re-attempts after the bootstrap chain promotes everything
+      // else through `_wireFrbDependentBootstrapListeners`. The
+      // typed-catch shape aligns with the strict cold-start
+      // invariant (no `RustLib.instance` reads on the cold-start
+      // path).
+      try {
+        _ensureRustStream();
+        _installed = true;
+      } on StateError {
+        // Pre-FRB-init — retry on the next `retryAllPending` /
+        // bootstrap promote.
       }
-      return null;
-    });
-    // Ask the native side to start observing if the platform has a
-    // handler. Missing channel (platforms without a native
-    // implementation) is ignored.
-    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      _channel.invokeMethod<void>('start').catchError((e) {
+      return;
+    }
+    // iOS / Android: lifecycle-paused covers it. No subscription
+    // installed.
+  }
+
+  void _ensureRustStream() {
+    try {
+      _streamSub = rust_os.osSecuritySessionLockSubscribe().listen(
+        (_) => _fanOut(),
+        onError: (Object e) {
+          AppLogger.instance.log(
+            'SessionLockListener Rust stream error: $e',
+            name: 'SessionLockListener',
+            level: LogLevel.warn,
+          );
+        },
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionLockListener Rust subscribe failed: $e',
+        name: 'SessionLockListener',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  void _fanOut() {
+    for (final cb in List<void Function()>.from(_listeners)) {
+      try {
+        cb();
+      } catch (e) {
         AppLogger.instance.log(
-          'SessionLockListener start failed: $e',
+          'SessionLockListener callback failed: $e',
           name: 'SessionLockListener',
         );
-      });
+      }
     }
   }
 }

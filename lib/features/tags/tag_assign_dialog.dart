@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
-import '../../core/tags/tag_store.dart';
+import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_divider.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/data_checkboxes.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/app_divider.dart';
+import '../../widgets/core/app_empty_state.dart';
+import '../../widgets/core/data_checkboxes.dart';
+import '../../widgets/core/tag_color.dart';
 import 'tag_manager_dialog.dart';
 
 /// Dialog to assign/remove tags on a session or folder.
@@ -84,14 +85,13 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(tagStoreProvider);
-    final allTags = await store.loadAll();
+    final allTags = await ref.read(tagsProvider.notifier).loadAll();
 
     List<Tag> assigned;
     if (widget.sessionId != null) {
-      assigned = await store.getForSession(widget.sessionId!);
+      assigned = await ref.read(sessionTagsProvider(widget.sessionId!).future);
     } else {
-      assigned = await store.getForFolder(widget.folderId!);
+      assigned = await ref.read(folderTagsProvider(widget.folderId!).future);
     }
 
     if (mounted) {
@@ -103,21 +103,12 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     }
   }
 
-  List<Tag> get _visibleTags {
-    if (_filter.isEmpty) return _allTags;
-    final q = _filter.toLowerCase();
-    return _allTags.where((t) => t.name.toLowerCase().contains(q)).toList();
-  }
+  List<Tag> get _visibleTags => filterTagsByName(_allTags, _filter);
 
   /// Tristate for the "select all" row: all → true, none → false,
   /// partial → null (drawn as the mixed indicator).
-  bool? get _allAssignedTristate {
-    if (_allTags.isEmpty) return false;
-    final n = _assignedIds.length;
-    if (n == 0) return false;
-    if (n == _allTags.length) return true;
-    return null;
-  }
+  bool? get _allAssignedTristate =>
+      allAssignedTristate(allTags: _allTags, assignedIds: _assignedIds);
 
   @override
   Widget build(BuildContext context) {
@@ -152,10 +143,13 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showSearch) ...[_buildSearchField(s), const SizedBox(height: 6)],
+        if (showSearch) ...[
+          _buildSearchField(s),
+          const SizedBox(height: AppSpacing.xxs),
+        ],
         _buildSelectAllRow(s),
         const AppDivider(),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Expanded(child: _buildTagList(s, visible)),
       ],
     );
@@ -172,7 +166,7 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(Icons.local_offer_outlined, size: 32, color: AppTheme.fgFaint),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(
             s.noTags,
             textAlign: TextAlign.center,
@@ -253,21 +247,19 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
   }
 
   Future<void> _toggle(Tag tag, bool currentlyAssigned) async {
-    final store = ref.read(tagStoreProvider);
+    final notifier = ref.read(tagsProvider.notifier);
     if (widget.sessionId != null) {
       if (currentlyAssigned) {
-        await store.untagSession(widget.sessionId!, tag.id);
+        await notifier.untagSession(widget.sessionId!, tag.id);
       } else {
-        await store.tagSession(widget.sessionId!, tag.id);
+        await notifier.tagSession(widget.sessionId!, tag.id);
       }
-      ref.invalidate(sessionTagsProvider(widget.sessionId!));
     } else {
       if (currentlyAssigned) {
-        await store.untagFolder(widget.folderId!, tag.id);
+        await notifier.untagFolder(widget.folderId!, tag.id);
       } else {
-        await store.tagFolder(widget.folderId!, tag.id);
+        await notifier.tagFolder(widget.folderId!, tag.id);
       }
-      ref.invalidate(folderTagsProvider(widget.folderId!));
     }
 
     if (!mounted) return;
@@ -286,42 +278,37 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
   /// follow-up after selecting partially.
   Future<void> _toggleAll() async {
     final next = _allAssignedTristate != true;
-    final store = ref.read(tagStoreProvider);
+    final notifier = ref.read(tagsProvider.notifier);
     for (final tag in _allTags) {
       final isAssigned = _assignedIds.contains(tag.id);
       if (next && !isAssigned) {
-        await _writeAssignment(store, tag, assign: true);
+        await _writeAssignment(notifier, tag, assign: true);
       } else if (!next && isAssigned) {
-        await _writeAssignment(store, tag, assign: false);
+        await _writeAssignment(notifier, tag, assign: false);
       }
     }
     if (!mounted) return;
-    if (widget.sessionId != null) {
-      ref.invalidate(sessionTagsProvider(widget.sessionId!));
-    } else {
-      ref.invalidate(folderTagsProvider(widget.folderId!));
-    }
     setState(() {
       _assignedIds = next ? _allTags.map((t) => t.id).toSet() : <String>{};
     });
   }
 
   Future<void> _writeAssignment(
-    TagStore store,
+    TagsNotifier notifier,
     Tag tag, {
     required bool assign,
   }) async {
     if (widget.sessionId != null) {
       if (assign) {
-        await store.tagSession(widget.sessionId!, tag.id);
+        await notifier.tagSession(widget.sessionId!, tag.id);
       } else {
-        await store.untagSession(widget.sessionId!, tag.id);
+        await notifier.untagSession(widget.sessionId!, tag.id);
       }
     } else {
       if (assign) {
-        await store.tagFolder(widget.folderId!, tag.id);
+        await notifier.tagFolder(widget.folderId!, tag.id);
       } else {
-        await store.untagFolder(widget.folderId!, tag.id);
+        await notifier.untagFolder(widget.folderId!, tag.id);
       }
     }
   }

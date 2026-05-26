@@ -1,51 +1,29 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
+import '../src/rust/api/path.dart' as rust_path;
 import 'logger.dart';
 
-final _rng = Random();
-
-/// Atomic file write: writes to a temporary file, restricts permissions,
-/// then renames to the target path. Prevents data corruption on crash.
+/// Atomic file write — writes to `<path>.tmp`, hardens to owner-
+/// only perms, then renames to the destination. A crash mid-flush
+/// leaves either the previous file content or the tmp file behind,
+/// never a torn destination.
+///
+/// Routes through `lfs_core::path::write_bytes_atomic`. The FRB
+/// shim returns `Result<(), String>`; failures rethrow as the
+/// `AnyhowException` the caller already handles.
 Future<void> writeFileAtomic(String path, String content) async {
-  final file = File(path);
-  await file.parent.create(recursive: true);
-  final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
-  try {
-    await tmp.writeAsString(content);
-    await hardenFilePerms(tmp.path);
-    await tmp.rename(path);
-  } catch (e) {
-    AppLogger.instance.log(
-      'Atomic write failed for $path: $e',
-      name: 'FileUtils',
-    );
-    try {
-      await tmp.delete();
-    } catch (_) {}
-    rethrow;
-  }
+  await writeBytesAtomic(path, utf8.encode(content));
 }
 
-/// Atomic byte write: same pattern as [writeFileAtomic] but for raw bytes.
+/// Atomic byte write — same flow as [writeFileAtomic] but for raw
+/// bytes. Caller is responsible for the parent directory existing
+/// (every production caller already runs `dir.create(recursive:
+/// true)` ahead of this; the helper surfaces ENOENT loudly when
+/// the contract is broken).
 Future<void> writeBytesAtomic(String path, List<int> bytes) async {
-  final file = File(path);
-  await file.parent.create(recursive: true);
-  final tmp = File('$path.tmp${_rng.nextInt(1 << 30)}');
-  try {
-    await tmp.writeAsBytes(bytes);
-    await hardenFilePerms(tmp.path);
-    await tmp.rename(path);
-  } catch (e) {
-    AppLogger.instance.log(
-      'Atomic byte write failed for $path: $e',
-      name: 'FileUtils',
-    );
-    try {
-      await tmp.delete();
-    } catch (_) {}
-    rethrow;
-  }
+  await File(path).parent.create(recursive: true);
+  rust_path.pathWriteBytesAtomic(path: path, bytes: bytes);
 }
 
 /// Single cross-cutting entry point for locking down permissions on a
@@ -55,8 +33,8 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
 /// support directory that could hold encryption keys, authentication
 /// material, rate-limit state, or any other integrity-sensitive blob.
 /// The atomic-write helpers above already call it on the `.tmp` file
-/// before rename; other paths (direct `File.writeAsBytes`, drift's
-/// SQLite WAL/SHM sidecars, keychain marker files) must call this
+/// before rename via the Rust core; other paths (rusqlite/SQLCipher
+/// `letsflutssh.db-wal` / `.db-shm` sidecars) must call this
 /// explicitly.
 ///
 /// Unix: `chmod 600` (owner read/write only) — matches the OpenSSH
@@ -66,33 +44,13 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
 /// Silent no-op on platforms with sandboxed per-app storage (iOS,
 /// Android) — the OS already enforces tighter access than `chmod 600`
 /// would.
+///
+/// Routes through `lfs_core::path::harden_file_perms` — the chmod /
+/// icacls grammar lives in Rust. Best-effort: a chmod failure must
+/// never break a write.
 Future<void> hardenFilePerms(String path) async {
   try {
-    if (Platform.isLinux || Platform.isMacOS) {
-      final result = await Process.run('chmod', ['600', path]);
-      if (result.exitCode != 0) {
-        AppLogger.instance.log(
-          'chmod 600 failed: ${result.stderr}',
-          name: 'FileUtils',
-        );
-      }
-    } else if (Platform.isWindows) {
-      final user = Platform.environment['USERNAME'] ?? '';
-      if (user.isEmpty) return;
-      // Remove inherited permissions, then grant current user full control.
-      final result = await Process.run('icacls', [
-        path,
-        '/inheritance:r',
-        '/grant:r',
-        '$user:(F)',
-      ]);
-      if (result.exitCode != 0) {
-        AppLogger.instance.log(
-          'icacls failed: ${result.stderr}',
-          name: 'FileUtils',
-        );
-      }
-    }
+    await rust_path.pathHardenFilePerms(path: path);
   } catch (e) {
     AppLogger.instance.log(
       'Failed to harden permissions: $e',

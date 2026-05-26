@@ -1,7 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SshDirKeyScanner uses KeyFileHelper.basename / isSuspiciousPath
+  // which now route through `lfs_core::path` — bootstrap FRB.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SshDirKeyScanner', () {
     SshDirKeyScanner scannerWith({
       required List<String> files,
@@ -9,20 +18,20 @@ void main() {
     }) {
       return SshDirKeyScanner(
         listDir: (_) => files,
-        readPem: (path) => pemByPath[path],
+        readPem: (path) async => pemByPath[path],
       );
     }
 
-    test('returns empty list when directory has no files', () {
-      final result = scannerWith(
+    test('returns empty list when directory has no files', () async {
+      final result = await scannerWith(
         files: const [],
         pemByPath: const {},
       ).scan('/home/u/.ssh');
       expect(result, isEmpty);
     });
 
-    test('includes PEM private-key files', () {
-      final result = scannerWith(
+    test('includes PEM private-key files', () async {
+      final result = await scannerWith(
         files: ['/home/u/.ssh/id_ed25519', '/home/u/.ssh/work_rsa'],
         pemByPath: {
           '/home/u/.ssh/id_ed25519': 'PRIVATE KEY ed',
@@ -33,8 +42,8 @@ void main() {
       expect(result.map((k) => k.pem), ['PRIVATE KEY ed', 'PRIVATE KEY rsa']);
     });
 
-    test('skips .pub, known_hosts, authorized_keys, config', () {
-      final result = scannerWith(
+    test('skips .pub, known_hosts, authorized_keys, config', () async {
+      final result = await scannerWith(
         files: [
           '/home/u/.ssh/id_ed25519',
           '/home/u/.ssh/id_ed25519.pub',
@@ -53,8 +62,8 @@ void main() {
       expect(result.map((k) => k.suggestedLabel), ['id_ed25519']);
     });
 
-    test('omits files that fail the PEM check', () {
-      final result = scannerWith(
+    test('omits files that fail the PEM check', () async {
+      final result = await scannerWith(
         files: [
           '/home/u/.ssh/real_key',
           '/home/u/.ssh/garbage',
@@ -69,8 +78,8 @@ void main() {
       expect(result.map((k) => k.suggestedLabel), ['real_key']);
     });
 
-    test('results are sorted by path', () {
-      final result = scannerWith(
+    test('results are sorted by path', () async {
+      final result = await scannerWith(
         files: [
           '/home/u/.ssh/z_last',
           '/home/u/.ssh/a_first',
@@ -89,12 +98,40 @@ void main() {
       ]);
     });
 
-    test('Windows-style paths resolve basename correctly', () {
-      final result = scannerWith(
+    test('Windows-style paths resolve basename correctly', () async {
+      final result = await scannerWith(
         files: [r'C:\Users\u\.ssh\id_rsa'],
         pemByPath: {r'C:\Users\u\.ssh\id_rsa': 'PRIVATE KEY'},
       ).scan(r'C:\Users\u\.ssh');
       expect(result.single.suggestedLabel, 'id_rsa');
+    });
+  });
+
+  group('SshDirKeyScanner (production FRB path, no seams)', () {
+    // Exercises the no-seams branch — production code drops a real
+    // directory path on the scanner and the Rust core walks it. We
+    // stage a tempdir on disk so the assertion mirrors the prod flow.
+    test('reads PEM file from a real temp directory', () async {
+      final dir = await Directory.systemTemp.createTemp('lfs_scanner_test_');
+      try {
+        await File(
+          '${dir.path}/id_test',
+        ).writeAsString('-----BEGIN PRIVATE KEY-----\nbody\n');
+        await File('${dir.path}/id_test.pub').writeAsString('public stuff\n');
+        await File('${dir.path}/known_hosts').writeAsString('ignored\n');
+        final result = await SshDirKeyScanner().scan(dir.path);
+        expect(result.map((k) => k.suggestedLabel), ['id_test']);
+        expect(result.single.pem, contains('PRIVATE KEY'));
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
+    test('returns empty for missing directory', () async {
+      final result = await SshDirKeyScanner().scan(
+        '/path/does/not/exist/lfs_scanner_test',
+      );
+      expect(result, isEmpty);
     });
   });
 }

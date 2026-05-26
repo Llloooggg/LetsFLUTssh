@@ -72,7 +72,16 @@ class SKo extends S {
   String get copyModeExtending => '드래그하여 선택 영역 확장';
 
   @override
+  String get copyModeSetAnchor => '앵커 설정';
+
+  @override
+  String get copyModeCopySelection => '선택 복사';
+
+  @override
   String get required => '필수';
+
+  @override
+  String get errFillRequiredFields => '* 표시된 필수 항목을 입력하세요';
 
   @override
   String get settings => '설정';
@@ -233,11 +242,6 @@ class SKo extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'SSH 키 수신: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count개 세션 가져옴';
   }
@@ -375,10 +379,50 @@ class SKo extends S {
   String get auth => '인증';
 
   @override
+  String get sectionAuthentication => '인증';
+
+  @override
+  String get sectionAdvanced => '고급';
+
+  @override
+  String get moreOptions => '추가 옵션';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '포트 포워딩 규칙 $countString개',
+      zero: '포트 포워딩 규칙 없음',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '관리…';
+
+  @override
+  String get authMethodAgent => '시스템 ssh-agent 사용';
+
+  @override
   String get options => '옵션';
 
   @override
   String get sessionName => '세션 이름';
+
+  @override
+  String get sessionNameAutoFromHost => '호스트에서 자동';
+
+  @override
+  String get sessionNameAutoFromUrl => 'URL 호스트에서 자동';
+
+  @override
+  String get sessionNameAutoFromBucket => '기본 버킷에서 자동';
 
   @override
   String get hintMyServer => '내 서버';
@@ -412,6 +456,9 @@ class SKo extends S {
 
   @override
   String get hintOptional => '선택 사항';
+
+  @override
+  String get savedTypeToChange => '저장됨 — 변경하려면 입력';
 
   @override
   String get hidePemText => 'PEM 텍스트 숨기기';
@@ -522,11 +569,6 @@ class SKo extends S {
 
   @override
   String get importModeReplaceDescription => '모든 세션을 가져온 세션으로 교체';
-
-  @override
-  String errorPrefix(String error) {
-    return '오류: $error';
-  }
 
   @override
   String get folderName => '폴더 이름';
@@ -693,7 +735,17 @@ class SKo extends S {
   String get calculateFolderSizes => '폴더 크기 계산';
 
   @override
+  String get verboseConnectionLog => '상세 연결 로그';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'SSH 핸드셰이크와 인증 전체 트레이스를 로그 파일에 기록 (연결 실패 진단용)';
+
+  @override
   String get exportData => '데이터 내보내기';
+
+  @override
+  String get exportRecordings => '세션 녹화';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -858,9 +910,6 @@ class SKo extends S {
   String get sourceCode => '소스 코드';
 
   @override
-  String get enableLogging => '로그 활성화';
-
-  @override
   String get logIsEmpty => '로그가 비어 있습니다';
 
   @override
@@ -961,6 +1010,26 @@ class SKo extends S {
   String get disconnected => '연결 해제됨';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host 연결 중';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host 연결됨';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host 연결 끊김';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host 연결 실패';
+  }
+
+  @override
   String get exit => '종료';
 
   @override
@@ -976,18 +1045,11 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning =>
-      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
-
-  @override
   String get qrTooManyForSingleCode =>
       '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 항목을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
-
-  @override
-  String get exportAll => '모두 내보내기';
 
   @override
   String get showQr => 'QR 표시';
@@ -1003,6 +1065,24 @@ class SKo extends S {
 
   @override
   String get liveLog => '실시간 로그';
+
+  @override
+  String get archivedLog => '보관된 로그';
+
+  @override
+  String get loggingLevel => '로그 레벨';
+
+  @override
+  String get loggingLevelSubtitleInfo => '일반 항목 + 경고 + 오류';
+
+  @override
+  String get loggingLevelSubtitleWarn => '성능 저하 경로와 오류만';
+
+  @override
+  String get loggingLevelSubtitleError => '오류만';
+
+  @override
+  String get loggingLevelSubtitleOff => '일반 로그가 기록되지 않습니다';
 
   @override
   String transferNItems(int count) {
@@ -1282,30 +1362,6 @@ class SKo extends S {
   String get progressDecrypting => '복호화 중…';
 
   @override
-  String get progressParsingArchive => '아카이브 파싱 중…';
-
-  @override
-  String get progressImportingSessions => '세션 가져오는 중';
-
-  @override
-  String get progressImportingFolders => '폴더 가져오는 중';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH 키 가져오는 중';
-
-  @override
-  String get progressImportingTags => '태그 가져오는 중';
-
-  @override
-  String get progressImportingSnippets => '스니펫 가져오는 중';
-
-  @override
-  String get progressApplyingConfig => '구성 적용 중…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts 가져오는 중…';
-
-  @override
   String get progressCollectingData => '데이터 수집 중…';
 
   @override
@@ -1340,10 +1396,7 @@ class SKo extends S {
   String get importAction => '가져오기';
 
   @override
-  String get saveSessionToAssignTags => '태그를 할당하려면 먼저 세션을 저장하세요';
-
-  @override
-  String get noTagsAssigned => '할당된 태그 없음';
+  String get noTagsAvailable => '아직 태그가 없습니다 — Tools → Tags에서 만드세요.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1440,23 +1493,6 @@ class SKo extends S {
 
   @override
   String get transferStatusQueued => '대기 중';
-
-  @override
-  String get transferStartingUpload => '업로드 시작 중...';
-
-  @override
-  String get transferStartingDownload => '다운로드 시작 중...';
-
-  @override
-  String get transferCopying => '복사 중...';
-
-  @override
-  String get transferDone => '완료';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total 파일';
-  }
 
   @override
   String get fileConflictTitle => '파일이 이미 존재합니다';
@@ -1597,6 +1633,9 @@ class SKo extends S {
   String get addKey => '키 추가';
 
   @override
+  String get addKeyMenuPaste => 'PEM 붙여넣기';
+
+  @override
   String get filePickerUnavailable => '이 시스템에서 파일 선택기를 사용할 수 없습니다';
 
   @override
@@ -1644,6 +1683,54 @@ class SKo extends S {
   String get publicKeyCopied => '공개 키가 클립보드에 복사되었습니다';
 
   @override
+  String get sshCertificate => '인증서';
+
+  @override
+  String get certImport => '인증서 가져오기';
+
+  @override
+  String get certImportTooltip =>
+      'CA가 서명한 OpenSSH 인증서(`ssh-keygen -s …`로 생성한 `-cert.pub` 파일)를 첨부합니다. 서버가 `authorized_keys` 대신 CA 서명으로 검증할 때 사용합니다. 서버가 plain key auth를 쓰면 건너뜁니다.';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH 인증서 파일 선택';
+
+  @override
+  String get certValidFrom => '유효 시작';
+
+  @override
+  String get certValidTo => '유효 만료';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => '이 인증서는 곧 만료됩니다.';
+
+  @override
+  String get certExpired => '만료됨';
+
+  @override
+  String get certRemove => '인증서 제거';
+
+  @override
+  String get certRemoveConfirmTitle => '인증서를 제거하시겠습니까?';
+
+  @override
+  String get certRemoveConfirmBody => '제거 후 재접속 시 일반 공개 키 인증으로 폴백됩니다.';
+
+  @override
+  String errCertParse(String detail) {
+    return '인증서 파싱 실패: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => '이 인증서는 선택한 키와 페어가 아닙니다.';
+
+  @override
   String get pastePrivateKey => '개인 키 붙여넣기 (PEM)';
 
   @override
@@ -1670,30 +1757,13 @@ class SKo extends S {
   String get generated => '생성됨';
 
   @override
-  String get passphraseRequired => '패스프레이즈 필요';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host의 SSH 키가 암호화되어 있습니다. 잠금을 해제하려면 패스프레이즈를 입력하세요.';
-  }
-
-  @override
-  String get passphraseWrong => '패스프레이즈가 올바르지 않습니다. 다시 시도하세요.';
-
-  @override
   String get passphrase => '패스프레이즈';
-
-  @override
-  String get rememberPassphrase => '이 세션 동안 기억';
 
   @override
   String get enterMasterPassword => '저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.';
 
   @override
   String get wrongMasterPassword => '비밀번호가 올바르지 않습니다. 다시 시도하세요.';
-
-  @override
-  String get newPassword => '새 비밀번호';
 
   @override
   String get currentPassword => '현재 비밀번호';
@@ -1784,12 +1854,6 @@ class SKo extends S {
   @override
   String get wizardReducedBanner =>
       '이 설치본에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 비밀번호(Paranoid) 중에서 선택하세요. 키체인 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
-
-  @override
-  String get tierBlockProtectsEmpty => '이 등급에서 보호되는 항목이 없습니다.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '노출된 위협이 없습니다.';
 
   @override
   String get tierBadgeCurrent => '현재';
@@ -2003,6 +2067,156 @@ class SKo extends S {
   String get commandCopied => '명령이 클립보드에 복사되었습니다';
 
   @override
+  String get snippetTokensHint => '탭하여 자리 표시자 삽입. 실행 시 활성 세션의 값으로 대체됩니다:';
+
+  @override
+  String get snippetCustomTokensHint => '이중 중괄호의 다른 것들은 스니펫 실행 시 값을 묻습니다.';
+
+  @override
+  String get snippetFillTitle => '스니펫 매개변수 입력';
+
+  @override
+  String get snippetFillSubmit => '실행';
+
+  @override
+  String get broadcastSetDriver => '이 창에서 브로드캐스트';
+
+  @override
+  String get broadcastClearDriver => '이 창에서 브로드캐스트 중지';
+
+  @override
+  String get broadcastAddReceiver => '여기서 브로드캐스트 수신';
+
+  @override
+  String get broadcastRemoveReceiver => '브로드캐스트 수신 중지';
+
+  @override
+  String get broadcastClearAll => '모든 브로드캐스트 중지';
+
+  @override
+  String get broadcastPasteTitle => '붙여넣기를 모든 창에 보내시겠습니까?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars자가 $count개의 다른 창에 전송됩니다.';
+  }
+
+  @override
+  String get broadcastPasteSend => '보내기';
+
+  @override
+  String get portForwarding => '포워딩';
+
+  @override
+  String get portForwardingEmpty => '아직 규칙이 없습니다';
+
+  @override
+  String get addForwardRule => '규칙 추가';
+
+  @override
+  String get editForwardRule => '규칙 편집';
+
+  @override
+  String get deleteForwardRule => '규칙 삭제';
+
+  @override
+  String get localForward => '로컬';
+
+  @override
+  String get remoteForward => '원격';
+
+  @override
+  String get dynamicForward => '동적';
+
+  @override
+  String get forwardKind => '유형';
+
+  @override
+  String get bindAddress => '바인드 주소';
+
+  @override
+  String get bindPort => '바인드 포트';
+
+  @override
+  String get targetHost => '대상 호스트';
+
+  @override
+  String get targetPort => '대상 포트';
+
+  @override
+  String get forwardDescription => '설명(선택)';
+
+  @override
+  String get forwardEnabled => '사용';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '0.0.0.0에 바인드하면 모든 인터페이스에 노출됩니다 — 보통 127.0.0.1을 사용하세요.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      '로컬: 이 기기에서 포트를 열어 SSH 서버에서 접근 가능한 대상으로 터널링합니다. localhost:bindPort 통해 원격 DB나 관리 UI 접근에 유용.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      '원격: SSH 서버에 포트를 열어달라고 요청하여 이 기기에서 접근 가능한 대상으로 다시 터널링합니다. 로컬 개발 서버를 원격 호스트와 공유하는 데 유용 (서버는 non-loopback 바인드에 GatewayPorts yes가 필요할 수 있음).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      '동적: 이 기기의 SOCKS5 프록시로 모든 연결을 SSH 서버를 통해 라우팅합니다. 브라우저나 curl을 localhost:bindPort로 설정하면 모든 트래픽이 SSH 통해 전송됩니다.';
+
+  @override
+  String get proxyJump => '경유 연결';
+
+  @override
+  String get proxyJumpNone => '직접 연결';
+
+  @override
+  String get proxyJumpSavedSession => '저장된 세션';
+
+  @override
+  String get proxyJumpCustom => '사용자 지정';
+
+  @override
+  String get proxyJumpCustomNote =>
+      '사용자 지정 hop은 이 세션의 인증 정보를 사용합니다. 다른 bastion 인증이 필요하면 bastion을 별도 세션으로 저장하세요.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return '$label 경유';
+  }
+
+  @override
+  String get recordSession => '세션 기록';
+
+  @override
+  String get recordSessionHelp =>
+      '이 세션의 터미널 출력을 디스크에 저장합니다. 마스터 비밀번호 또는 하드웨어 키가 세션 데이터베이스를 보호하는 경우 저장 시 암호화되며, 그렇지 않으면 데이터베이스 옆에 평문으로 저장됩니다.';
+
+  @override
+  String get recordingsBrowserTitle => '녹화';
+
+  @override
+  String get recordingsBrowserSubtitle => '녹화된 세션 찾아보기, 재생, 삭제';
+
+  @override
+  String get recordingsEmpty => '아직 녹화가 없습니다';
+
+  @override
+  String get playRecording => '재생';
+
+  @override
+  String get deleteRecording => '삭제';
+
+  @override
+  String get recordingPlaybackTitle => '녹화 재생';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => '태그';
 
   @override
@@ -2120,19 +2334,6 @@ class SKo extends S {
   String get checkForUpdatesOnStartupSubtitle => '앱 시작 시 GitHub에서 새 버전 확인';
 
   @override
-  String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
-
-  @override
-  String get exportWithoutPassword => '비밀번호 없이 내보내시겠습니까?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      '아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.';
-
-  @override
-  String get continueWithoutPassword => '비밀번호 없이 계속';
-
-  @override
   String get threatColdDiskTheft => '전원 꺼진 디스크 탈취';
 
   @override
@@ -2196,9 +2397,6 @@ class SKo extends S {
   String get colT1PasswordBiometric => 'T1 + 비밀번호 + 생체 인식';
 
   @override
-  String get colT2 => 'T2 하드웨어';
-
-  @override
   String get colT2Password => 'T2 + 비밀번호';
 
   @override
@@ -2231,6 +2429,11 @@ class SKo extends S {
   String get resetAllDataConfirmAction => '모두 재설정';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '확인하려면 아래에 $phrase을(를) 입력하세요:';
+  }
+
+  @override
   String get resetAllDataInProgress => '재설정 중…';
 
   @override
@@ -2240,6 +2443,60 @@ class SKo extends S {
   String get resetAllDataFailed => '재설정 실패';
 
   @override
+  String get recordingsTitle => '녹화';
+
+  @override
+  String get recordingsStorageUsedLabel => '사용 중';
+
+  @override
+  String get recordingsCapLabel => '한도';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ 폴더에 대한 하드 한도. 초과 시 가장 오래된 녹화부터 삭제됩니다. 진행 중인 녹화는 절대 건드리지 않습니다.';
+
+  @override
+  String get recordingsClearAllAction => '모든 녹화 삭제';
+
+  @override
+  String get recordingsClearAllConfirmTitle => '모든 녹화를 삭제하시겠습니까?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 아래의 모든 녹화 세션이 삭제됩니다. 현재 진행 중인 녹화(있는 경우)는 유지됩니다. 이 작업은 취소할 수 없습니다.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count개의 녹화를 삭제했습니다';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '한도가 업데이트되었습니다. $bytes 확보됨.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '한도가 업데이트되었습니다. 삭제할 대상이 없습니다.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다.';
 
   @override
@@ -2247,7 +2504,7 @@ class SKo extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      '고급: 하드웨어에 바인딩된 키. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.';
+      '고급: 하드웨어에 바인딩된 키, 항상 패스워드로 보호됩니다. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2268,6 +2525,9 @@ class SKo extends S {
 
   @override
   String get modifierPasswordSubtitle => '볼트 잠금 해제 전에 입력하는 비밀 관문.';
+
+  @override
+  String get modifierPasswordRequired => '필수 — Hardware 티어는 항상 패스워드로 보호됩니다.';
 
   @override
   String get modifierBiometricLabel => '생체 인증 단축';
@@ -2294,8 +2554,61 @@ class SKo extends S {
   String get fprintdNotAvailable => 'fprintd가 설치되지 않았거나 등록된 지문이 없습니다.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      '비밀번호 없는 TPM은 격리는 제공하지만 인증은 제공하지 않습니다. 이 앱을 실행할 수 있는 사람은 누구나 데이터의 잠금을 해제할 수 있습니다.';
+  String get t2RequiresPasswordTitle => 'Hardware 티어용 마스터 패스워드 설정';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware 티어는 modifier로 패스워드가 필요합니다. 바이오메트릭은 그 위의 선택적 shortcut입니다.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware 티어에 패스워드가 필요합니다';
+
+  @override
+  String get t2MigrationPromptBody =>
+      '기존 패스워드 없는 Hardware 설치는 계속하려면 지금 하나를 설정해야 합니다.';
+
+  @override
+  String get t2MigrationContinue => '계속';
+
+  @override
+  String get t2MigrationSetPasswordTitle => 'Hardware 티어 유지를 위해 패스워드 설정';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '새 master 패스워드를 입력하세요. hardware 모듈에 이미 sealed 된 DB key가 이 패스워드로 re-seal 됩니다 — 세션과 key는 그대로 유지됩니다.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe 후 처음부터 다시 시작';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware 티어 re-seal 실패 — 다른 패스워드를 선택하거나 wipe 하세요.';
+
+  @override
+  String get biometricOverlayEnable => 'Hardware 티어에서 바이오메트릭 shortcut 활성화';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      '바이오메트릭 게이트가 있는 OS 슬롯에서 패스워드를 해제합니다.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      '바이오메트릭 overlay는 이 플랫폼에서 아직 사용할 수 없습니다.';
+
+  @override
+  String get biometricOverlayRequiresPassword => 'Hardware 티어 패스워드를 먼저 설정하세요.';
+
+  @override
+  String get t2UnlockTitle => '마스터 패스워드로 잠금 해제';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 키가 패스워드로 보호되어 있습니다.';
+
+  @override
+  String get t2UnlockUseBiometricButton => '바이오메트릭 사용';
+
+  @override
+  String get t2PasswordChanged => 'Hardware 티어 패스워드가 업데이트되었습니다.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2319,4 +2632,917 @@ class SKo extends S {
 
   @override
   String get masterPasswordLabel => '마스터 비밀번호';
+
+  @override
+  String get globalErrorTitle => '예기치 않은 오류';
+
+  @override
+  String get globalErrorBody => '예기치 않은 오류가 발생했습니다. 앱은 계속 실행됩니다.';
+
+  @override
+  String get globalErrorLogSavedNote => '전체 세부 정보가 로그 파일에 기록되었습니다.';
+
+  @override
+  String get globalErrorLogDisabledNote => '오류 세부 정보를 저장하려면 설정에서 로깅을 활성화하세요.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return '오류: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => '로깅 활성화';
+
+  @override
+  String get globalErrorLoggingEnabledToast => '로깅 활성화됨 — 오류가 로그 파일에 기록됩니다';
+
+  @override
+  String get fatalErrorQuitButton => '종료';
+
+  @override
+  String get fatalErrorWipeButton => '모든 데이터 삭제';
+
+  @override
+  String get fatalErrorWipingButton => '삭제 중…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      '삭제하면 모든 앱 파일(config, 데이터베이스, vault blob, 로그)이 제거되고 다음 실행은 깨끗한 설치 상태에서 시작됩니다. 되돌릴 수 없습니다.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => '모든 데이터를 삭제할까요?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'config, 데이터베이스, vault 파일이 모두 영구적으로 삭제됩니다. 앱은 빈 설치 상태에서 다시 시작됩니다. 계속할까요?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => '전체 삭제';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      '이 아카이브는 비밀번호로 보호되어 있지 않습니다. 파일을 가진 사람은 누구나 내용을 읽을 수 있습니다.';
+
+  @override
+  String get clipboardCopyFailed => '클립보드 복사에 실패했습니다.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      '호스트 이름에 비 ASCII 문자가 있습니다 — 입력한 문자와 한 글자씩 대조하세요. 시각적으로 유사한 코드포인트(키릴 / 그리스 문자)는 Latin 도메인을 위장할 수 있습니다.';
+
+  @override
+  String get playbackPause => '일시정지';
+
+  @override
+  String get recordingPlayLocked => '이 암호화된 녹화를 재생하려면 앱 잠금을 해제하세요.';
+
+  @override
+  String get recordToggleStart => '녹화 시작';
+
+  @override
+  String get recordToggleStop => '녹화 중지';
+
+  @override
+  String get foregroundServiceTitle => 'SSH 활성';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '활성 연결 $count개',
+      one: '활성 연결 1개',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => '세션 종류';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => '사용자명';
+
+  @override
+  String get webDavAuthMethod => 'Auth 방식';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer 토큰';
+
+  @override
+  String get trustedCert => '신뢰할 수 있는 인증서 (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      '서버 인증서를 붙여넣으세요 (하나 이상의 PEM 블록). 이 세션에만 추가 루트 CA로 등록되며 다른 앱에는 영향을 주지 않습니다. 시스템 trust store를 사용하려면 비워두세요.';
+
+  @override
+  String get acceptAnyCert => '모든 인증서 수락';
+
+  @override
+  String get acceptAnyCertHelp =>
+      '이 세션의 TLS 핸드셰이크에서 인증서와 호스트 이름 검사를 모두 건너뜁니다. 시스템 trust store나 고정 인증서가 적합하지 않을 때 최후 수단.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'MITM 공격에 취약 — 네트워크 상의 누구나 서버를 가장할 수 있습니다. 신뢰할 수 있는 사설 네트워크에서만 사용하세요.';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL 복사';
+
+  @override
+  String get webDavOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 인증 실패';
+
+  @override
+  String get errWebDavNotFound => '경로를 찾을 수 없음';
+
+  @override
+  String get errWebDavConflict => '현재 상태와 충돌';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV 서버가 요청을 거부함: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL이 필요합니다';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL은 http:// 또는 https:// 여야 합니다';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS면 비우고, MinIO / R2 / Spaces면 endpoint 지정';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'MinIO에 필요; AWS에서는 off';
+
+  @override
+  String get s3DefaultBucket => '기본 bucket';
+
+  @override
+  String get s3DefaultPrefix => '기본 prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL 생성';
+
+  @override
+  String get s3PresignedUrlExpiry => '만료';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI 복사';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15분';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1시간';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4시간';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24시간';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7일';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret 확인)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket이 없거나 접근할 수 없음';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket이 설정된 region과 다른 region에 있음';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 서버가 요청을 거부함: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync 활성화';
+
+  @override
+  String get syncPassphrase => 'Sync 패스프레이즈';
+
+  @override
+  String get syncPassphraseHint => 'Sync 아카이브를 암호화합니다. 마스터 비밀번호와 달라야 합니다.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync 패스프레이즈는 마스터 비밀번호와 같을 수 없습니다.';
+
+  @override
+  String get syncRemotePath => 'Remote 경로';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV base URL 아래 경로 — 기본값 letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '마지막 push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '마지막 pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => '없음';
+
+  @override
+  String get syncUpToDate => 'Sync 최신 상태';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes push 완료';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote 에서 $count건 적용';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync 비활성화됨';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote 가 변경됨 — 먼저 pull 후 push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 인증 실패';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return '네트워크 오류: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote 의 sync 아카이브에 새 빌드가 필요합니다';
+
+  @override
+  String get hardwareKey => '하드웨어 키';
+
+  @override
+  String get hardwareKeyTapPrompt => '하드웨어 키를 탭하세요';
+
+  @override
+  String get hardwareKeyPin => '하드웨어 키 PIN';
+
+  @override
+  String get hardwareKeyTimeout => '하드웨어 키가 응답하지 않았습니다';
+
+  @override
+  String get hardwareKeyNotFound => '하드웨어 키를 찾을 수 없습니다';
+
+  @override
+  String get hardwareKeyUnsupported => '이 플랫폼에서는 직접 하드웨어 키 접근을 사용할 수 없습니다';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Apple Developer Program entitlement 가 필요합니다. macOS 에서는 ssh-agent 를 사용하세요';
+
+  @override
+  String get skKeyRequiresDevice => '이 SSH 키는 하드웨어 키가 필요합니다 — 인증하려면 탭하세요';
+
+  @override
+  String get errSkWrongPin => 'PIN 이 올바르지 않습니다';
+
+  @override
+  String get hardwareKeyImport => '하드웨어 키 import (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => '하드웨어 키 프롬프트를 취소했습니다';
+
+  @override
+  String get agentEndpointSectionTitle => '외부 SSH 클라이언트 연동';
+
+  @override
+  String get agentEndpointToggleTitle => '하드웨어 키를 시스템 SSH 클라이언트에 노출';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      '이 기기의 git, ssh, IDE 플러그인에서 FIDO2 / smart-card / TPM 키를 사용할 수 있게 합니다.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'export 명령 복사';
+
+  @override
+  String get agentEndpointCopyPipeName => 'pipe 이름 복사';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '서명 요청';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester가 $keyLabel로 서명하려고 합니다';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '외부 SSH 클라이언트';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '한 번 허용';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '허용하고 기억';
+
+  @override
+  String get agentEndpointDeny => '거부';
+
+  @override
+  String get agentEndpointStatusRunning => '실행 중';
+
+  @override
+  String get agentEndpointStatusStopped => '중지됨';
+
+  @override
+  String get agentEndpointStatusUnsupported => '이 플랫폼에서는 사용할 수 없음';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      '거부됨: 외부 클라이언트는 key를 추가할 수 없습니다.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'ssh-agent endpoint를 시작할 수 없습니다: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => '스마트카드 / 토큰 키 추가';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 모듈';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '자동 감지됨';
+
+  @override
+  String get pkcs11ModuleCustom => '사용자 정의 모듈...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'PKCS#11 라이브러리 선택';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'PKCS#11 모듈을 찾을 수 없습니다. OpenSC를 설치하거나 벤더 라이브러리를 선택하세요.';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 모듈이 초기화되지 않았습니다.';
+
+  @override
+  String get pkcs11NoTokenPresent => '리더에 토큰이 없습니다.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return '토큰: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return '시리얼: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => '토큰에 로그인이 필요합니다.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => '토큰 PIN 패드에서 확인하세요.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN 틀림. $remaining회 남음.';
+  }
+
+  @override
+  String get pkcs11PinLocked => '토큰 PIN이 잠겼습니다. PUK로 해제하세요.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      '토큰에 SSH 사용 가능한 키가 없습니다 (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST 키는 SSH에 사용할 수 없습니다.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return '토큰 \"$label\"이(가) 삽입되지 않았습니다.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '저장된 토큰을 찾을 수 없습니다. 다시 연결하세요.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '서명 실패: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      '스마트카드 / PKCS#11 토큰은 이 플랫폼에서 사용할 수 없습니다.';
+
+  @override
+  String get pkcs11Badge => '스마트카드 / 토큰';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return '모듈: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return '토큰 시리얼: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return '객체: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'PKCS#11 모듈 선택';
+
+  @override
+  String get pkcs11WizardStepToken => '토큰 선택';
+
+  @override
+  String get pkcs11WizardStepKey => '키 선택';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN 입력';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '키 가져오기';
+
+  @override
+  String get pkcs11SaveInProgress => '토큰에서 공개 키를 읽는 중...';
+
+  @override
+  String get pkcs11SaveSuccess => '스마트카드 키를 추가했습니다.';
+
+  @override
+  String get pkcs11ScanInProgress => 'PKCS#11 모듈을 스캔하는 중...';
+
+  @override
+  String get pkcs11LoadingTokens => '토큰을 로드하는 중...';
+
+  @override
+  String get pkcs11LoadingKeys => '키를 로드하는 중...';
+
+  @override
+  String get pkcs11ModuleStatusReady => '모듈을 로드했습니다.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => '토큰이 없습니다.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => '모듈 로드 실패.';
+
+  @override
+  String get pkcs11PinPadHint => '(기기 PIN pad)';
+
+  @override
+  String get pkcs11WizardBack => '뒤로';
+
+  @override
+  String get pkcs11WizardNext => '다음';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => '하드웨어 키 추가';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      '프라이빗 키는 디바이스의 시큐어 하드웨어에 있으며 내보낼 수 없습니다.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => '이 키는 이 Mac에서만 작동합니다.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos => '이 키는 이 iPhone에서만 작동합니다.';
+
+  @override
+  String get sshKeyHelloDeviceBound => '이 키는 이 PC에서만 작동합니다.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Touch ID / Face ID 요구';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback => '디바이스 passcode를 fallback으로 허용';
+
+  @override
+  String get sshKeyHelloPinRequired => 'Windows Hello 요구 (PIN, 지문 또는 얼굴)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => '하드웨어 키를 사용할 수 없음';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'Secure Enclave를 사용하려면 앱이 code-signed 되어야 합니다.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      '이 PC에 Windows Hello가 설정되어 있지 않습니다.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM이 감지되지 않음 — software-backed만 가능.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => '생성';
+
+  @override
+  String get sshKeyGenerateInProgress => '시큐어 하드웨어에서 키 생성 중...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing 필요 — USER_GUIDE.md → Hardware-bound keys 참조.';
+
+  @override
+  String get sshKeySignInProgress => '시큐어 하드웨어로 서명 중...';
+
+  @override
+  String get sshKeyPublicCopy => '퍼블릭 키 복사';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      '이 라인을 서버의 ~/.ssh/authorized_keys에 추가하세요.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH 키';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => '키 이름';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH 키';
+
+  @override
+  String get helloWizardLabelHint => '키 라벨';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Windows Hello로 인증';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, 지문, 얼굴 중 하나로 Windows Hello가 SSH 챌린지에 서명합니다.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      '이 기기에는 TPM이 없습니다. 키는 사용자 저장소에 들어가지만 서명마다 Windows Hello가 게이트 역할을 합니다.';
+
+  @override
+  String get helloP384NotSupported =>
+      'TPM 펌웨어가 P-384를 지원하지 않습니다. P-256 또는 RSA-2048을 선택하세요.';
+
+  @override
+  String get helloConfigureFirst => '먼저 설정 -> 로그인 옵션에서 Windows Hello를 구성하세요.';
+
+  @override
+  String get tpmSshTitle => 'TPM 기반 SSH 키 생성';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (권장)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => '이 TPM 펌웨어에서 지원하지 않는 알고리즘.';
+
+  @override
+  String get tpmSshPinProtect => 'PIN으로 보호';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN을 반복해서 틀리면 TPM이 키를 잠급니다.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN이 일치하지 않습니다.';
+
+  @override
+  String get tpmSshStorageBlob => '래핑된 키를 앱 데이터에 저장';
+
+  @override
+  String get tpmSshStorageHandle => 'TPM 메모리 슬롯에 영구 저장';
+
+  @override
+  String get tpmSshStorageHandleHelp => '서명이 더 빨라집니다. TPM의 영구 슬롯 하나를 소비합니다.';
+
+  @override
+  String get tpmSshLabel => '키 레이블';
+
+  @override
+  String get tpmSshImportTitle => 'TPM 보호 SSH 키 가져오기';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 키 파일 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label의 TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN이 올바르지 않습니다.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM이 락아웃 쿨다운 중입니다. $duration 기다린 후 다시 시도하세요.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'TPM에서 키 생성 중...';
+
+  @override
+  String get tpmSshSigning => 'TPM으로 서명 중...';
+
+  @override
+  String get tpmSshUnavailable => '이 장치에서 TPM이 감지되지 않았습니다.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM이 펌웨어에서 비활성화되어 있습니다.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      '앱이 TPM에 접근할 수 없습니다. 사용자를 `tss` 그룹에 추가하세요.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '영구 슬롯 $handle이 이미 사용 중입니다.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      '이 키는 Hello / PIN 프롬프트 없이 서명합니다 — 로그인 중에 데스크톱에 접근할 수 있는 사람은 누구나 사용할 수 있습니다.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (하드웨어 바인드)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (하드웨어 백드)';
+
+  @override
+  String get keystoreKeyGenerating => '하드웨어 바인드 키 생성 중...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'SSH 키를 사용하려면 인증하세요';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      '키가 파기되었습니다: 새 생체 인식이 등록되었습니다. 서버에 공개키를 다시 등록하세요.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      '이 기기에서는 StrongBox HSM을 사용할 수 없습니다';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '서명마다 생체 인식 / 기기 잠금 해제를 요구';
+
+  @override
+  String get keystoreKeyExportDisabled => '하드웨어 바인드 키는 내보낼 수 없습니다';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      '이 키를 삭제하면 하드웨어 저장소에서도 제거됩니다. 새 키를 등록할 때까지 서버는 거부합니다.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '먼저 생체 인식 또는 기기 PIN을 등록하세요';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 가능)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE 전용)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (최대 호환)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM 사용 불가';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      '이 기기는 StrongBox HSM 을 노출하지 않습니다. 대신 TEE 기반 키를 만들까요? 여전히 hardware-backed 이며 StrongBox isolation 만 빠집니다.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'TEE 사용';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => '취소';
+
+  @override
+  String get fido2BrokerSectionTitle => '하드웨어 security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => '시스템 security key 다이얼로그';
+
+  @override
+  String get fido2BrokerIosLabel => '시스템 security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => '시스템 security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '직접 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => '이 플랫폼에서 사용할 수 없음';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => '시스템 다이얼로그보다 직접 USB HID 우선';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '고급: 두 경로가 모두 동작하는 플랫폼에서 $brokerLabel을 우회합니다. 직접 HID는 더 많은 authenticator 기능을 지원하지만 앱별 권한 부여가 필요합니다.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'SSH 통합';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => '이 기기에서는 하드웨어 키를 지원하지 않습니다.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return '이 기기에서는 $transport만 사용할 수 있습니다. 토글이 비활성화되어 있습니다.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => '임포트 스텁';
+
+  @override
+  String get hardwareKeyStubSubtitle => '다른 기기에 있었음 — 사용하려면 여기서 재생성하세요';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => '여기서 재생성';
+
+  @override
+  String get hardwareKeyStubRemoveAction => '스텁 제거';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '사용하기 전에 이 기기에서 키를 재생성하세요';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '토큰 \"$token\"의 PKCS#11 모듈을 지정하세요';
+  }
+
+  @override
+  String get arrowLeft => '왼쪽 화살표';
+
+  @override
+  String get arrowUp => '위 화살표';
+
+  @override
+  String get arrowDown => '아래 화살표';
+
+  @override
+  String get arrowRight => '오른쪽 화살표';
+
+  @override
+  String get copyMode => '복사 모드';
+
+  @override
+  String get exitCopyMode => '복사 모드 종료';
+
+  @override
+  String importedGeneric(String items) {
+    return '가져옴: $items';
+  }
 }

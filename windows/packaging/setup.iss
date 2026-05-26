@@ -13,6 +13,15 @@
 #if BuildDir == ""
   #define BuildDir "..\..\build\windows\x64\runner\Release"
 #endif
+; Output arch slug that lands in the installer filename and the
+; ArchitecturesAllowed gate. CI release matrix passes `x64` for the
+; AMD64 build and `arm64` for the windows-11-arm runner; local
+; `iscc setup.iss` invocations without the env var fall back to x64
+; so contributor builds keep working.
+#define OutputArch GetEnv('OUTPUT_ARCH')
+#if OutputArch == ""
+  #define OutputArch "x64"
+#endif
 
 [Setup]
 AppId={{7A2E3B4C-1D5F-4E6A-8B9C-0D1E2F3A4B5C}
@@ -25,10 +34,14 @@ AppSupportURL={#MyAppURL}/issues
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputBaseFilename=letsflutssh-{#MyAppVersion}-windows-x64-setup
+OutputBaseFilename=letsflutssh-{#MyAppVersion}-windows-{#OutputArch}-setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+; `x64compatible` matches both AMD64 and ARM64 hosts in Inno Setup
+; 6.3+. The CI release matrix ships choco's latest Inno Setup (>6.4
+; at time of writing), so a single arch directive covers both
+; runner shapes — no per-arch `#if` required.
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -43,7 +56,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 ; Uninstall-time tasks (shown in the uninstaller wizard)
 [UninstallDelete]
-; Optional removal handled by Code section below.
+; Inno removes only the files it installed, so anything the running
+; app or a plugin drops into the install tree (Flutter engine
+; sidecars, crash dumps, a locked DLL re-created on next launch)
+; leaves the directory behind — the user sees an empty
+; `…\Programs\LetsFLUTssh` folder after uninstall. Force-remove the
+; whole tree so nothing lingers. User data lives in `{userappdata}`
+; and is untouched here (handled opt-in by the Code section below).
+Type: filesandordirs; Name: "{app}"
 
 [Files]
 Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -57,9 +77,16 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
+; URL scheme letsflutssh:// — opens deep links from browser/Mail/etc.
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: ""; ValueData: "URL:LetsFLUTssh Protocol"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\letsflutssh\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; No file-extension associations. The app does not claim .lfs / .pem /
+; .key / .pub — generic SSH formats belong to the user's editor, and
+; .lfs archives import via drag-drop or the in-app picker, not an OS
+; double-click hand-off. Only the letsflutssh:// URL scheme above is
+; registered.
 
 ; ─────────────────────────────────────────────────────────────────
 ; Uninstaller: optional removal of user data

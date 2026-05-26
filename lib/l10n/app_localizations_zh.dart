@@ -72,7 +72,16 @@ class SZh extends S {
   String get copyModeExtending => '拖动以扩展选择';
 
   @override
+  String get copyModeSetAnchor => '设置锚点';
+
+  @override
+  String get copyModeCopySelection => '复制选择';
+
+  @override
   String get required => '必填';
+
+  @override
+  String get errFillRequiredFields => '请填写带 * 的必填项';
 
   @override
   String get settings => '设置';
@@ -232,11 +241,6 @@ class SZh extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return '已接收 SSH 密钥：$filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '已导入 $count 个会话';
   }
@@ -374,10 +378,50 @@ class SZh extends S {
   String get auth => '认证';
 
   @override
+  String get sectionAuthentication => '认证';
+
+  @override
+  String get sectionAdvanced => '高级';
+
+  @override
+  String get moreOptions => '更多选项';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString 条端口转发规则',
+      zero: '无端口转发规则',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => '管理…';
+
+  @override
+  String get authMethodAgent => '使用系统 ssh-agent';
+
+  @override
   String get options => '选项';
 
   @override
   String get sessionName => '会话名称';
+
+  @override
+  String get sessionNameAutoFromHost => '自动取自 host';
+
+  @override
+  String get sessionNameAutoFromUrl => '自动取自 URL host';
+
+  @override
+  String get sessionNameAutoFromBucket => '自动取自默认 bucket';
 
   @override
   String get hintMyServer => '我的服务器';
@@ -411,6 +455,9 @@ class SZh extends S {
 
   @override
   String get hintOptional => '可选';
+
+  @override
+  String get savedTypeToChange => '已保存 — 输入以修改';
 
   @override
   String get hidePemText => '隐藏 PEM 文本';
@@ -520,11 +567,6 @@ class SZh extends S {
 
   @override
   String get importModeReplaceDescription => '用导入的会话替换所有会话';
-
-  @override
-  String errorPrefix(String error) {
-    return '错误：$error';
-  }
 
   @override
   String get folderName => '文件夹名称';
@@ -691,7 +733,17 @@ class SZh extends S {
   String get calculateFolderSizes => '计算文件夹大小';
 
   @override
+  String get verboseConnectionLog => '详细连接日志';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      '将完整的 SSH 握手和认证跟踪记录到日志文件（用于诊断连接失败）';
+
+  @override
   String get exportData => '导出数据';
+
+  @override
+  String get exportRecordings => '会话录制';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -856,9 +908,6 @@ class SZh extends S {
   String get sourceCode => '源代码';
 
   @override
-  String get enableLogging => '启用日志';
-
-  @override
   String get logIsEmpty => '日志为空';
 
   @override
@@ -959,6 +1008,26 @@ class SZh extends S {
   String get disconnected => '已断开';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '正在连接 $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '已连接到 $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '已从 $host 断开';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '连接 $host 失败';
+  }
+
+  @override
   String get exit => '退出';
 
   @override
@@ -974,16 +1043,10 @@ class SZh extends S {
   String get exportSessionsViaQr => '通过 QR 导出会话';
 
   @override
-  String get qrNoCredentialsWarning => '密码和 SSH 密钥不会包含在内。\n导入的会话需要重新填写凭据。';
-
-  @override
   String get qrTooManyForSingleCode => '会话过多，无法生成单个 QR 码。请取消部分选择或使用 .lfs 导出。';
 
   @override
   String get qrTooLarge => '数据过大——请取消部分选择或使用 .lfs 文件导出。';
-
-  @override
-  String get exportAll => '全部导出';
 
   @override
   String get showQr => '显示 QR';
@@ -999,6 +1062,24 @@ class SZh extends S {
 
   @override
   String get liveLog => '实时日志';
+
+  @override
+  String get archivedLog => '归档日志';
+
+  @override
+  String get loggingLevel => '日志级别';
+
+  @override
+  String get loggingLevelSubtitleInfo => '常规条目 + 警告 + 错误';
+
+  @override
+  String get loggingLevelSubtitleWarn => '仅降级路径和错误';
+
+  @override
+  String get loggingLevelSubtitleError => '仅错误';
+
+  @override
+  String get loggingLevelSubtitleOff => '不写入常规日志';
 
   @override
   String transferNItems(int count) {
@@ -1276,30 +1357,6 @@ class SZh extends S {
   String get progressDecrypting => '正在解密…';
 
   @override
-  String get progressParsingArchive => '正在解析归档…';
-
-  @override
-  String get progressImportingSessions => '正在导入会话';
-
-  @override
-  String get progressImportingFolders => '正在导入文件夹';
-
-  @override
-  String get progressImportingManagerKeys => '正在导入 SSH 密钥';
-
-  @override
-  String get progressImportingTags => '正在导入标签';
-
-  @override
-  String get progressImportingSnippets => '正在导入代码片段';
-
-  @override
-  String get progressApplyingConfig => '正在应用配置…';
-
-  @override
-  String get progressImportingKnownHosts => '正在导入 known_hosts…';
-
-  @override
   String get progressCollectingData => '正在收集数据…';
 
   @override
@@ -1334,10 +1391,7 @@ class SZh extends S {
   String get importAction => '导入';
 
   @override
-  String get saveSessionToAssignTags => '先保存会话才能分配标签';
-
-  @override
-  String get noTagsAssigned => '未分配标签';
+  String get noTagsAvailable => '还没有标签 — 在工具 → 标签中创建一个。';
 
   @override
   String errWithPath(String error, String path) {
@@ -1434,23 +1488,6 @@ class SZh extends S {
 
   @override
   String get transferStatusQueued => '排队中';
-
-  @override
-  String get transferStartingUpload => '正在开始上传...';
-
-  @override
-  String get transferStartingDownload => '正在开始下载...';
-
-  @override
-  String get transferCopying => '正在复制...';
-
-  @override
-  String get transferDone => '完成';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total 个文件';
-  }
 
   @override
   String get fileConflictTitle => '文件已存在';
@@ -1590,6 +1627,9 @@ class SZh extends S {
   String get addKey => '添加密钥';
 
   @override
+  String get addKeyMenuPaste => '粘贴 PEM';
+
+  @override
   String get filePickerUnavailable => '此系统上无法使用文件选择器';
 
   @override
@@ -1637,6 +1677,54 @@ class SZh extends S {
   String get publicKeyCopied => '公钥已复制到剪贴板';
 
   @override
+  String get sshCertificate => '证书';
+
+  @override
+  String get certImport => '导入证书';
+
+  @override
+  String get certImportTooltip =>
+      '附加一个由您的 CA 签名的 OpenSSH 证书（`ssh-keygen -s …` 生成的 `-cert.pub` 文件）。当服务器通过 CA 签名而非 `authorized_keys` 验证时使用。如果服务器使用 plain key auth 则跳过。';
+
+  @override
+  String get certImportPickerTitle => '选择 OpenSSH 证书文件';
+
+  @override
+  String get certValidFrom => '生效时间';
+
+  @override
+  String get certValidTo => '过期时间';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => '证书即将过期。';
+
+  @override
+  String get certExpired => '已过期';
+
+  @override
+  String get certRemove => '移除证书';
+
+  @override
+  String get certRemoveConfirmTitle => '移除证书？';
+
+  @override
+  String get certRemoveConfirmBody => '移除后，会话将回退到纯公钥认证。';
+
+  @override
+  String errCertParse(String detail) {
+    return '无法解析证书：$detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => '此证书未与所选密钥配对。';
+
+  @override
   String get pastePrivateKey => '粘贴私钥 (PEM)';
 
   @override
@@ -1663,30 +1751,13 @@ class SZh extends S {
   String get generated => '已生成';
 
   @override
-  String get passphraseRequired => '需要密码短语';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host 的 SSH 密钥已加密。请输入密码短语以解锁。';
-  }
-
-  @override
-  String get passphraseWrong => '密码短语错误。请重试。';
-
-  @override
   String get passphrase => '密码短语';
-
-  @override
-  String get rememberPassphrase => '在此会话中记住';
 
   @override
   String get enterMasterPassword => '输入主密码以访问已保存的凭据。';
 
   @override
-  String get wrongMasterPassword => '密码错误。请重试。';
-
-  @override
-  String get newPassword => '新密码';
+  String get wrongMasterPassword => '密码错误。重试。';
 
   @override
   String get currentPassword => '当前密码';
@@ -1772,12 +1843,6 @@ class SZh extends S {
   @override
   String get wizardReducedBanner =>
       '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
-
-  @override
-  String get tierBlockProtectsEmpty => '该等级无可抵御项。';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '无未覆盖威胁。';
 
   @override
   String get tierBadgeCurrent => '当前';
@@ -1989,6 +2054,155 @@ class SZh extends S {
   String get commandCopied => '命令已复制到剪贴板';
 
   @override
+  String get snippetTokensHint => '点击插入占位符。运行时将以当前会话的值替换:';
+
+  @override
+  String get snippetCustomTokensHint => '其他双花括号项会在 snippet 执行时询问值。';
+
+  @override
+  String get snippetFillTitle => '填写代码片段参数';
+
+  @override
+  String get snippetFillSubmit => '运行';
+
+  @override
+  String get broadcastSetDriver => '从此窗格广播';
+
+  @override
+  String get broadcastClearDriver => '停止从此窗格广播';
+
+  @override
+  String get broadcastAddReceiver => '在此接收广播';
+
+  @override
+  String get broadcastRemoveReceiver => '停止接收广播';
+
+  @override
+  String get broadcastClearAll => '停止所有广播';
+
+  @override
+  String get broadcastPasteTitle => '将粘贴发送到所有窗格?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '将向其他 $count 个窗格发送 $chars 个字符。';
+  }
+
+  @override
+  String get broadcastPasteSend => '发送';
+
+  @override
+  String get portForwarding => '转发';
+
+  @override
+  String get portForwardingEmpty => '还没有规则';
+
+  @override
+  String get addForwardRule => '添加规则';
+
+  @override
+  String get editForwardRule => '编辑规则';
+
+  @override
+  String get deleteForwardRule => '删除规则';
+
+  @override
+  String get localForward => '本地';
+
+  @override
+  String get remoteForward => '远程';
+
+  @override
+  String get dynamicForward => '动态';
+
+  @override
+  String get forwardKind => '类型';
+
+  @override
+  String get bindAddress => '绑定地址';
+
+  @override
+  String get bindPort => '绑定端口';
+
+  @override
+  String get targetHost => '目标主机';
+
+  @override
+  String get targetPort => '目标端口';
+
+  @override
+  String get forwardDescription => '描述（可选）';
+
+  @override
+  String get forwardEnabled => '启用';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      '绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。';
+
+  @override
+  String get forwardKindLocalHelp =>
+      '本地：在此设备上打开一个端口，隧道到 SSH 服务器可访问的目标。便于通过 localhost:bindPort 访问远程数据库或管理界面。';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      '远程：请 SSH 服务器打开一个端口，隧道回此设备可访问的目标。便于将本地开发服务器分享给远程主机 (服务器可能需要 GatewayPorts yes 才能绑定非 loopback)。';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      '动态：此设备上的 SOCKS5 代理，将每个连接通过 SSH 服务器路由。把浏览器或 curl 指向 localhost:bindPort，所有流量经 SSH 发送。';
+
+  @override
+  String get proxyJump => '通过连接';
+
+  @override
+  String get proxyJumpNone => '直连';
+
+  @override
+  String get proxyJumpSavedSession => '已保存会话';
+
+  @override
+  String get proxyJumpCustom => '自定义';
+
+  @override
+  String get proxyJumpCustomNote => '自定义跳转使用此会话的凭据。如需不同的堡垒机认证，请将堡垒机保存为独立会话。';
+
+  @override
+  String viaSessionLabel(String label) {
+    return '通过 $label';
+  }
+
+  @override
+  String get recordSession => '录制会话';
+
+  @override
+  String get recordSessionHelp =>
+      '将此会话的终端输出保存到磁盘。当主密码或硬件密钥保护会话数据库时静态加密;否则与数据库一同以明文存储。';
+
+  @override
+  String get recordingsBrowserTitle => '录制';
+
+  @override
+  String get recordingsBrowserSubtitle => '浏览、回放和删除已录制的会话';
+
+  @override
+  String get recordingsEmpty => '还没有录制';
+
+  @override
+  String get playRecording => '播放';
+
+  @override
+  String get deleteRecording => '删除';
+
+  @override
+  String get recordingPlaybackTitle => '回放录制';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => '标签';
 
   @override
@@ -2106,19 +2320,6 @@ class SZh extends S {
   String get checkForUpdatesOnStartupSubtitle => '应用启动时从 GitHub 检查新版本';
 
   @override
-  String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
-
-  @override
-  String get exportWithoutPassword => '不设密码导出？';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      '归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。';
-
-  @override
-  String get continueWithoutPassword => '不设密码继续';
-
-  @override
   String get threatColdDiskTheft => '冷盘窃取';
 
   @override
@@ -2182,9 +2383,6 @@ class SZh extends S {
   String get colT1PasswordBiometric => 'T1 + 密码 + 生物识别';
 
   @override
-  String get colT2 => 'T2 硬件';
-
-  @override
   String get colT2Password => 'T2 + 密码';
 
   @override
@@ -2216,6 +2414,11 @@ class SZh extends S {
   String get resetAllDataConfirmAction => '全部重置';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '请在下方输入 $phrase 以确认:';
+  }
+
+  @override
   String get resetAllDataInProgress => '正在重置…';
 
   @override
@@ -2225,13 +2428,68 @@ class SZh extends S {
   String get resetAllDataFailed => '重置失败';
 
   @override
+  String get recordingsTitle => '录制';
+
+  @override
+  String get recordingsStorageUsedLabel => '已用';
+
+  @override
+  String get recordingsCapLabel => '上限';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ 目录的硬上限。超出时优先删除最旧的录制；当前正在写入的录制不会被删除。';
+
+  @override
+  String get recordingsClearAllAction => '清除所有录制';
+
+  @override
+  String get recordingsClearAllConfirmTitle => '清除所有录制？';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 下的每个录制会话都将被删除。当前正在录制（如果有）会保留。此操作无法撤销。';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '已删除 $count 个录制';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '上限已更新。已释放 $bytes。';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '上限已更新。无需清理。';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
 
   @override
   String get recommendedBadge => '推荐';
 
   @override
-  String get tierHardwareSubtitleHonest => '进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。';
+  String get tierHardwareSubtitleHonest =>
+      '进阶：密钥与硬件绑定，始终需要密码保护。若此设备的芯片丢失或更换，数据将无法恢复。';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2252,6 +2510,9 @@ class SZh extends S {
 
   @override
   String get modifierPasswordSubtitle => '解锁保险库前需要输入的密钥门槛。';
+
+  @override
+  String get modifierPasswordRequired => '必需 — Hardware 层级始终受密码保护。';
 
   @override
   String get modifierBiometricLabel => '生物识别快捷方式';
@@ -2275,8 +2536,58 @@ class SZh extends S {
   String get fprintdNotAvailable => '未安装 fprintd 或未登记指纹。';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      '没有密码的 TPM 仅提供隔离，而非身份验证。任何能运行此应用的人都可以解锁数据。';
+  String get t2RequiresPasswordTitle => '为 Hardware 层级设置主密码';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Hardware 层级需要密码作为 modifier。生物识别是其上的可选 shortcut。';
+
+  @override
+  String get t2MigrationPromptTitle => 'Hardware 层级需要密码';
+
+  @override
+  String get t2MigrationPromptBody => '现有无密码的 Hardware 安装必须立即设置一个才能继续。';
+
+  @override
+  String get t2MigrationContinue => '继续';
+
+  @override
+  String get t2MigrationSetPasswordTitle => '设置密码以保留 Hardware 层级';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      '输入新的 master 密码。hardware 模块中已经 sealed 的 DB key 会在此密码下 re-seal — 会话和 key 保持不变。';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe 后重新开始';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Hardware 层级 re-seal 失败 — 换一个密码或 wipe 后重新开始。';
+
+  @override
+  String get biometricOverlayEnable => '在 Hardware 层级启用生物识别 shortcut';
+
+  @override
+  String get biometricOverlayEnableSubtitle => '从受生物识别保护的 OS 槽中释放你的密码。';
+
+  @override
+  String get biometricOverlayUnavailable => '生物识别 overlay 在此平台上暂不可用。';
+
+  @override
+  String get biometricOverlayRequiresPassword => '请先设置 Hardware 层级的密码。';
+
+  @override
+  String get t2UnlockTitle => '用主密码解锁';
+
+  @override
+  String get t2UnlockSubtitle => 'hardware-bound 密钥由你的密码保护。';
+
+  @override
+  String get t2UnlockUseBiometricButton => '使用生物识别';
+
+  @override
+  String get t2PasswordChanged => 'Hardware 层级密码已更新。';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2300,4 +2611,902 @@ class SZh extends S {
 
   @override
   String get masterPasswordLabel => '主密码';
+
+  @override
+  String get globalErrorTitle => '意外错误';
+
+  @override
+  String get globalErrorBody => '发生了意外错误。应用将继续运行。';
+
+  @override
+  String get globalErrorLogSavedNote => '完整详情已写入日志文件。';
+
+  @override
+  String get globalErrorLogDisabledNote => '在设置中启用日志以保存错误详情。';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return '错误：$detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => '启用日志';
+
+  @override
+  String get globalErrorLoggingEnabledToast => '已启用日志 — 错误将写入日志文件';
+
+  @override
+  String get fatalErrorQuitButton => '退出';
+
+  @override
+  String get fatalErrorWipeButton => '清除所有数据';
+
+  @override
+  String get fatalErrorWipingButton => '正在清除…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      '清除会删除所有应用文件（config、数据库、vault blob、日志）；下次启动将从全新安装开始。无法撤销。';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => '清除所有数据？';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      '这将永久删除所有 config、数据库和 vault 文件。应用将从空白安装重新启动。是否继续？';
+
+  @override
+  String get fatalErrorWipeConfirmAction => '全部清除';
+
+  @override
+  String get unencryptedArchiveWarning => '此存档未设置密码保护。任何拿到该文件的人都能读取其内容。';
+
+  @override
+  String get clipboardCopyFailed => '复制到剪贴板失败。';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      '主机名包含非 ASCII 字符 — 请逐个核对你输入的字符。视觉相近的码位（西里尔 / 希腊字母）可能假冒拉丁域名。';
+
+  @override
+  String get playbackPause => '暂停';
+
+  @override
+  String get recordingPlayLocked => '解锁应用以播放此加密录制。';
+
+  @override
+  String get recordToggleStart => '开始录制';
+
+  @override
+  String get recordToggleStop => '停止录制';
+
+  @override
+  String get foregroundServiceTitle => 'SSH 已连接';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个活动连接',
+      one: '1 个活动连接',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => '会话类型';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => '用户名';
+
+  @override
+  String get webDavAuthMethod => 'Auth 方式';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => '信任的证书 (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      '粘贴服务器证书(一个或多个 PEM 块)。仅作为此会话的附加根 CA 添加,不影响其他应用。留空以使用系统 trust store。';
+
+  @override
+  String get acceptAnyCert => '接受任意证书';
+
+  @override
+  String get acceptAnyCertHelp =>
+      '跳过此会话 TLS 握手中所有证书和主机名检查。当系统 trust store 和固定证书都不合适时的最后手段。';
+
+  @override
+  String get acceptAnyCertWarn => '易受 MITM 攻击 — 网络上任何人都能冒充服务器。仅在可信的私有网络中使用。';
+
+  @override
+  String get webDavCopyUrl => '复制 WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 认证失败';
+
+  @override
+  String get errWebDavNotFound => '路径未找到';
+
+  @override
+  String get errWebDavConflict => '操作与当前状态冲突';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV 服务器拒绝请求:$detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => '需要 WebDAV base URL';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL 必须为 http:// 或 https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS 留空，MinIO / R2 / Spaces 请填写';
+
+  @override
+  String get s3PathStyle => 'Path-style 寻址';
+
+  @override
+  String get s3PathStyleHint => 'MinIO 需要；AWS 关闭';
+
+  @override
+  String get s3DefaultBucket => '默认 bucket';
+
+  @override
+  String get s3DefaultPrefix => '默认 prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => '生成 presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => '过期时间';
+
+  @override
+  String get s3CopyUri => '复制 s3://bucket/key URI';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 分钟';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 小时';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 小时';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 小时';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 天';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (检查 access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket 不存在或无权访问';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket 在与配置不同的 region';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 服务器拒绝了请求: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => '启用 WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint => '加密 sync 归档。必须与主密码不同。';
+
+  @override
+  String get syncPassphraseSameAsMasterError => 'Sync passphrase 不能与主密码相同。';
+
+  @override
+  String get syncRemotePath => '远程路径';
+
+  @override
+  String get syncRemotePathHint => 'WebDAV base URL 下的路径 — 默认 letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '上次 push:$when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '上次 pull:$when';
+  }
+
+  @override
+  String get syncNeverRun => '从未';
+
+  @override
+  String get syncUpToDate => 'Sync 已是最新';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push 完成 $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '从 remote 应用 $count 项变更';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync 已关闭';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote 已变 — 请先 pull 再 push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 认证失败';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return '网络错误:$detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote 的 sync 归档需要更新版本';
+
+  @override
+  String get hardwareKey => '硬件密钥';
+
+  @override
+  String get hardwareKeyTapPrompt => '请触碰硬件密钥';
+
+  @override
+  String get hardwareKeyPin => '硬件密钥 PIN';
+
+  @override
+  String get hardwareKeyTimeout => '硬件密钥未响应';
+
+  @override
+  String get hardwareKeyNotFound => '未找到硬件密钥';
+
+  @override
+  String get hardwareKeyUnsupported => '此平台不支持直接访问硬件密钥';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      '需要 Apple Developer Program entitlement;在 macOS 上请使用 ssh-agent';
+
+  @override
+  String get skKeyRequiresDevice => '此 SSH 密钥需要硬件密钥 — 触碰以认证';
+
+  @override
+  String get errSkWrongPin => 'PIN 错误';
+
+  @override
+  String get hardwareKeyImport => '导入硬件密钥 (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => '已取消硬件密钥提示';
+
+  @override
+  String get agentEndpointSectionTitle => '外部 SSH 客户端集成';
+
+  @override
+  String get agentEndpointToggleTitle => '向系统 SSH 客户端公开硬件绑定密钥';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      '允许此设备上的 git、ssh、IDE 插件使用您的 FIDO2 / smart-card / TPM 密钥。';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => '复制 export 命令';
+
+  @override
+  String get agentEndpointCopyPipeName => '复制 pipe 名称';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => '签名请求';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester 想要使用 $keyLabel 签名';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => '外部 SSH 客户端';
+
+  @override
+  String get agentEndpointAuthorizeOnce => '仅本次授权';
+
+  @override
+  String get agentEndpointAuthorizeAlways => '授权并记住';
+
+  @override
+  String get agentEndpointDeny => '拒绝';
+
+  @override
+  String get agentEndpointStatusRunning => '运行中';
+
+  @override
+  String get agentEndpointStatusStopped => '已停止';
+
+  @override
+  String get agentEndpointStatusUnsupported => '此平台不支持';
+
+  @override
+  String get agentEndpointRefusedAddIdentity => '拒绝：外部客户端不能添加 key。';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return '无法启动 ssh-agent endpoint：$detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => '添加智能卡 / 令牌密钥';
+
+  @override
+  String get pkcs11ModuleLabel => 'PKCS#11 模块';
+
+  @override
+  String get pkcs11ModuleAutoDetected => '自动检测';
+
+  @override
+  String get pkcs11ModuleCustom => '自定义模块...';
+
+  @override
+  String get pkcs11ModulePickerTitle => '选择 PKCS#11 库';
+
+  @override
+  String get pkcs11NoModuleFound => '未找到 PKCS#11 模块。请安装 OpenSC 或选择供应商库。';
+
+  @override
+  String get pkcs11InitializeFailed => 'PKCS#11 模块初始化失败。';
+
+  @override
+  String get pkcs11NoTokenPresent => '读卡器中没有令牌。';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return '令牌: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return '序列号: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => '令牌需要登录。';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return '$token 的 PIN';
+  }
+
+  @override
+  String get pkcs11PinPad => '在令牌的 PIN 板上确认。';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN 错误。剩 $remaining 次。';
+  }
+
+  @override
+  String get pkcs11PinLocked => '令牌 PIN 已锁定。使用 PUK 解锁。';
+
+  @override
+  String get pkcs11NoSignableKeys => '令牌上没有 SSH 可用的密钥 (RSA、ECDSA、Ed25519)。';
+
+  @override
+  String get pkcs11GostUnsupported => 'GOST 密钥无法用于 SSH。';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return '令牌 \"$label\" 未插入。';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed => '未找到已保存的令牌。请重新插入后重试。';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return '签名失败: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile => '此平台不支持智能卡 / PKCS#11 令牌。';
+
+  @override
+  String get pkcs11Badge => '智能卡 / 令牌';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return '模块：$path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return '令牌序列号：$serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return '对象：$label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => '选择 PKCS#11 模块';
+
+  @override
+  String get pkcs11WizardStepToken => '选择令牌';
+
+  @override
+  String get pkcs11WizardStepKey => '选择密钥';
+
+  @override
+  String get pkcs11WizardStepPin => '输入 PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => '导入密钥';
+
+  @override
+  String get pkcs11SaveInProgress => '正在从令牌读取公钥...';
+
+  @override
+  String get pkcs11SaveSuccess => '已添加智能卡密钥。';
+
+  @override
+  String get pkcs11ScanInProgress => '正在扫描 PKCS#11 模块...';
+
+  @override
+  String get pkcs11LoadingTokens => '正在加载令牌...';
+
+  @override
+  String get pkcs11LoadingKeys => '正在加载密钥...';
+
+  @override
+  String get pkcs11ModuleStatusReady => '模块已加载。';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => '未插入令牌。';
+
+  @override
+  String get pkcs11ModuleStatusFailed => '模块加载失败。';
+
+  @override
+  String get pkcs11PinPadHint => '（设备 PIN pad）';
+
+  @override
+  String get pkcs11WizardBack => '上一步';
+
+  @override
+  String get pkcs11WizardNext => '下一步';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => '添加 hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key 存储在设备的 secure hardware 中，无法导出。';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => '此 key 只在这台 Mac 上有效。';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos => '此 key 只在这台 iPhone 上有效。';
+
+  @override
+  String get sshKeyHelloDeviceBound => '此 key 只在这台 PC 上有效。';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => '要求 Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback => '允许设备 passcode 作为 fallback';
+
+  @override
+  String get sshKeyHelloPinRequired => '要求 Windows Hello（PIN、指纹或人脸）';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key 不可用';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      '应用必须 code-signed 才能使用 Secure Enclave。';
+
+  @override
+  String get sshKeyHardwareUnavailableHello => '此 PC 未配置 Windows Hello。';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm => '未检测到 TPM — 仅 software-backed。';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => '生成';
+
+  @override
+  String get sshKeyGenerateInProgress => '正在 secure hardware 中生成 key...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      '需要 code-signing — 参见 USER_GUIDE.md → Hardware-bound keys。';
+
+  @override
+  String get sshKeySignInProgress => '正在使用 secure hardware 签名...';
+
+  @override
+  String get sshKeyPublicCopy => '复制 public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint => '将此行添加到服务器的 ~/.ssh/authorized_keys。';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Key 名称';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Windows Hello SSH 密钥';
+
+  @override
+  String get helloWizardLabelHint => '密钥标签';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => '通过 Windows Hello 验证';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN、指纹或人脸 — Windows Hello 会为此 SSH challenge 签名。';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      '此设备没有 TPM。密钥会落在用户存储中,但每次签名仍由 Windows Hello 守门。';
+
+  @override
+  String get helloP384NotSupported => 'TPM 固件不支持 P-384。请选择 P-256 或 RSA-2048。';
+
+  @override
+  String get helloConfigureFirst => '请先在 设置 -> 登录选项 中配置 Windows Hello。';
+
+  @override
+  String get tpmSshTitle => '生成 TPM 绑定 SSH key';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256（推荐）';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => '本 TPM 固件不支持此算法。';
+
+  @override
+  String get tpmSshPinProtect => '使用 PIN 保护';
+
+  @override
+  String get tpmSshPinLockoutWarning => 'PIN 多次错误后 TPM 会锁定此 key。';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN 不一致。';
+
+  @override
+  String get tpmSshStorageBlob => '在应用数据中保存 wrapped key';
+
+  @override
+  String get tpmSshStorageHandle => '保留在 TPM 内存槽中';
+
+  @override
+  String get tpmSshStorageHandleHelp => '签名更快。占用 TPM 的一个持久 slot。';
+
+  @override
+  String get tpmSshLabel => 'Key 标签';
+
+  @override
+  String get tpmSshImportTitle => '导入 TPM 保护的 SSH key';
+
+  @override
+  String get tpmSshImportFormat => 'TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return '$label 的 TPM PIN';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN 错误。';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM 处于 lockout 冷却。等 $duration 后重试。';
+  }
+
+  @override
+  String get tpmSshGenerating => '正在 TPM 中生成 key...';
+
+  @override
+  String get tpmSshSigning => '正在用 TPM 签名...';
+
+  @override
+  String get tpmSshUnavailable => '本设备未检测到 TPM。';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM 在固件中已禁用。';
+
+  @override
+  String get tpmSshUnavailableNoPermission => '应用无法访问 TPM。把用户加入 `tss` 组。';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return '持久 slot $handle 已被占用。';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      '此 key 签名时不会弹 Hello / PIN — 你登录时任何能访问桌面的人都能使用它。';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (硬件绑定)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (硬件支持)';
+
+  @override
+  String get keystoreKeyGenerating => '正在生成硬件绑定密钥...';
+
+  @override
+  String get keystoreKeyAuthPrompt => '验证身份以使用 SSH 密钥';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      '密钥已销毁：注册了新的生物识别。请在服务器上重新注册公钥。';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable => '此设备不支持 StrongBox HSM';
+
+  @override
+  String get keystoreKeyUserAuthRequired => '每次签名都要求生物识别 / 设备解锁';
+
+  @override
+  String get keystoreKeyExportDisabled => '硬件绑定密钥不能导出';
+
+  @override
+  String get keystoreKeyDeleteWarning => '删除此密钥会从硬件存储中移除。在你注册新密钥之前，服务器都会拒绝它。';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled => '请先注册生物识别或设备 PIN';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox 兼容)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, 仅 TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (最广兼容)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM 不可用';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      '你的设备没有暴露 StrongBox HSM。改为创建一个 TEE 后端的密钥？仍然是 hardware-backed，只是没有 StrongBox 隔离。';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => '使用 TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => '取消';
+
+  @override
+  String get fido2BrokerSectionTitle => '硬件安全密钥';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => '系统 security key 对话框';
+
+  @override
+  String get fido2BrokerIosLabel => '系统 security key (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => '系统 security key (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => '直接 USB HID (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => '此平台不可用';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle => '优先使用直接 USB HID 而非系统对话框';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return '高级：在两种路径都可用的平台上绕过 $brokerLabel。直接 HID 支持更多 authenticator 特性，但需要按应用授予权限。';
+  }
+
+  @override
+  String get sshIntegrationSection => 'SSH 集成';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle => '此设备不支持硬件密钥。';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return '此设备仅支持 $transport；开关已禁用。';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => '已导入存根';
+
+  @override
+  String get hardwareKeyStubSubtitle => '在另一台设备上 — 在此重新生成以便使用';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => '在此重新生成';
+
+  @override
+  String get hardwareKeyStubRemoveAction => '移除存根';
+
+  @override
+  String get hardwareKeyStubPickerTooltip => '使用前请在此设备上重新生成此密钥';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return '为令牌 \"$token\" 选择 PKCS#11 模块';
+  }
+
+  @override
+  String get arrowLeft => '左箭头';
+
+  @override
+  String get arrowUp => '上箭头';
+
+  @override
+  String get arrowDown => '下箭头';
+
+  @override
+  String get arrowRight => '右箭头';
+
+  @override
+  String get copyMode => '复制模式';
+
+  @override
+  String get exitCopyMode => '退出复制模式';
+
+  @override
+  String importedGeneric(String items) {
+    return '已导入：$items';
+  }
 }

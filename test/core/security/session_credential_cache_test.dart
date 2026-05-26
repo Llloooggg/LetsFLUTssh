@@ -1,116 +1,138 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:letsflutssh/core/security/session_credential_cache.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
+
+import '../../helpers/frb_bootstrap.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  // Each test starts from an empty SecretStore so writes are
+  // observable without cross-test leakage.
+  setUp(() async {
+    await rust_app.secretsClear();
+  });
+
   group('SessionCredentialCache', () {
-    late SessionCredentialCache cache;
+    final cache = SessionCredentialCache();
 
-    setUp(() => cache = SessionCredentialCache());
-    tearDown(() => cache.evictAll());
-
-    test('store + read round-trip preserves every slot', () {
-      cache.store(
-        sessionId: 'alpha',
-        password: 'hunter2',
-        keyData:
-            '-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----\n',
-        keyPassphrase: 'phrase',
+    test('store stages each non-empty slot under sess.<slot>.<id>', () async {
+      await cache.store(
+        sessionId: 's1',
+        password: 'pw',
+        keyData: 'PEM',
+        keyPassphrase: 'pp',
       );
-      final got = cache.read('alpha');
-      expect(got, isNotNull);
-      expect(got!.passwordString, 'hunter2');
-      expect(got.keyDataString, contains('BEGIN PRIVATE KEY'));
-      expect(got.keyPassphraseString, 'phrase');
+
+      expect(rust_app.secretsHas(id: 'sess.password.s1'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.key.s1'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s1'), isTrue);
+
+      // Bytes round-trip via UTF-8.
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s1')!), 'pw');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.key.s1')!), 'PEM');
+      expect(
+        utf8.decode(rust_app.secretsTake(id: 'sess.passphrase.s1')!),
+        'pp',
+      );
     });
 
-    test('empty slots are not allocated', () {
-      cache.store(sessionId: 'beta', password: 'pw', keyData: '');
-      final got = cache.read('beta');
-      expect(got!.password, isNotNull);
-      expect(got.keyData, isNull);
-      expect(got.keyPassphrase, isNull);
-    });
+    test('store with null slots drops instead of staging', () async {
+      // Pre-seed every slot so we can observe drops.
+      await rust_app.secretsPut(
+        id: 'sess.password.s2',
+        bytes: utf8.encode('old'),
+      );
+      await rust_app.secretsPut(id: 'sess.key.s2', bytes: utf8.encode('old'));
+      await rust_app.secretsPut(
+        id: 'sess.passphrase.s2',
+        bytes: utf8.encode('old'),
+      );
 
-    test('empty envelope does not insert an entry', () {
-      cache.store(sessionId: 'gamma', password: null, keyData: '');
-      expect(cache.read('gamma'), isNull);
-      expect(cache.size, 0);
-    });
-
-    test('explicitly-empty keyPassphrase is the final empty-guard branch', () {
-      // Store() short-circuits on the first non-empty field. The
-      // third branch (keyPassphrase null-or-empty) only runs when
-      // password AND keyData are both empty too — pin it explicitly
-      // so a refactor that flipped the branch order would get caught.
-      cache.store(
-        sessionId: 'all-empty',
-        password: '',
+      await cache.store(
+        sessionId: 's2',
+        password: null,
         keyData: null,
-        keyPassphrase: '',
+        keyPassphrase: null,
       );
-      expect(cache.read('all-empty'), isNull);
-      expect(cache.size, 0);
+
+      expect(rust_app.secretsHas(id: 'sess.password.s2'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s2'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s2'), isFalse);
     });
 
-    test('store with existing id disposes the old entry first', () {
-      cache.store(sessionId: 'delta', password: 'first');
-      final first = cache.read('delta')!;
-      final firstPasswordBuffer = first.password!;
-      cache.store(sessionId: 'delta', password: 'second');
-      // Old buffer is disposed — reading its bytes must throw.
-      expect(() => firstPasswordBuffer.bytes, throwsStateError);
-      expect(cache.read('delta')!.passwordString, 'second');
-      expect(cache.size, 1);
+    test('store with empty strings is a drop, not a put', () async {
+      await rust_app.secretsPut(
+        id: 'sess.password.s3',
+        bytes: utf8.encode('seeded'),
+      );
+
+      await cache.store(sessionId: 's3', password: '');
+
+      expect(rust_app.secretsHas(id: 'sess.password.s3'), isFalse);
     });
 
-    test('evict wipes one entry and leaves others intact', () {
-      cache.store(sessionId: 'a', password: 'pa');
-      cache.store(sessionId: 'b', password: 'pb');
-      final aBuffer = cache.read('a')!.password!;
-      cache.evict('a');
-      expect(cache.read('a'), isNull);
-      expect(() => aBuffer.bytes, throwsStateError);
-      expect(cache.read('b'), isNotNull);
-      expect(cache.read('b')!.passwordString, 'pb');
+    test('store overwrites a previous value for the same slot', () async {
+      await cache.store(sessionId: 's4', password: 'first');
+      await cache.store(sessionId: 's4', password: 'second');
+
+      expect(
+        utf8.decode(rust_app.secretsTake(id: 'sess.password.s4')!),
+        'second',
+      );
     });
 
-    test('evict with unknown id is a no-op', () {
-      cache.store(sessionId: 'only', password: 'x');
-      cache.evict('other');
-      expect(cache.read('only'), isNotNull);
-      expect(cache.size, 1);
+    test('store namespaces session ids — s5 password ≠ s6 password', () async {
+      await cache.store(sessionId: 's5', password: 'pw5');
+      await cache.store(sessionId: 's6', password: 'pw6');
+
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s5')!), 'pw5');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s6')!), 'pw6');
     });
 
-    test('evictAll disposes every entry and clears the map', () {
-      cache.store(sessionId: 'a', password: 'pa');
-      cache.store(sessionId: 'b', keyData: 'kb');
-      final aPw = cache.read('a')!.password!;
-      final bKey = cache.read('b')!.keyData!;
-      cache.evictAll();
-      expect(cache.size, 0);
-      expect(cache.read('a'), isNull);
-      expect(cache.read('b'), isNull);
-      expect(() => aPw.bytes, throwsStateError);
-      expect(() => bKey.bytes, throwsStateError);
+    test('evict drops every slot for one sessionId only', () async {
+      await cache.store(
+        sessionId: 's7',
+        password: 'pw',
+        keyData: 'PEM',
+        keyPassphrase: 'pp',
+      );
+      await cache.store(sessionId: 's8', password: 'keep');
+
+      await cache.evict('s7');
+
+      expect(rust_app.secretsHas(id: 'sess.password.s7'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s7'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s7'), isFalse);
+      // The neighbouring sessionId stays intact.
+      expect(rust_app.secretsHas(id: 'sess.password.s8'), isTrue);
     });
 
-    test('decoded slot value survives buffer lifetime (copy on decode)', () {
-      cache.store(sessionId: 'x', password: 'persist');
-      final s1 = cache.read('x')!.passwordString;
-      cache.evict('x');
-      // The decoded String is a managed Dart value independent of the
-      // now-disposed SecretBuffer — still valid.
-      expect(s1, 'persist');
+    test('evict on a session that has nothing staged is a no-op', () async {
+      await cache.evict('never-existed');
+      // No throw; SecretStore stays empty (no other slots seeded).
+      expect(rust_app.secretsHas(id: 'sess.password.never-existed'), isFalse);
     });
 
-    test('UTF-8 payloads round-trip (non-ASCII passwords)', () {
-      cache.store(sessionId: 'intl', password: 'пароль😀');
-      expect(cache.read('intl')!.passwordString, 'пароль😀');
-      // Direct byte-level check too.
-      final bytes = cache.read('intl')!.password!.bytes;
-      expect(utf8.decode(bytes), 'пароль😀');
+    test('evictAll wipes every staged secret', () async {
+      await cache.store(sessionId: 's9', password: 'pw', keyData: 'PEM');
+      await cache.store(sessionId: 's10', password: 'pw');
+      // Plus a non-session entry — evictAll must scrub it too.
+      await rust_app.secretsPut(
+        id: 'conn.something.uuid',
+        bytes: utf8.encode('transient'),
+      );
+
+      await cache.evictAll();
+
+      expect(rust_app.secretsHas(id: 'sess.password.s9'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s9'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s10'), isFalse);
+      expect(rust_app.secretsHas(id: 'conn.something.uuid'), isFalse);
     });
   });
 }

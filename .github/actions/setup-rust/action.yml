@@ -1,0 +1,175 @@
+# Composite action that activates the Rust toolchain pinned in
+# `rust/rust-toolchain.toml`, optionally installs cross-compile
+# targets, and primes `Swatinem/rust-cache` for the workspace.
+#
+# Why a composite (rather than per-job duplication):
+#   - 7 release-matrix jobs all need the same setup. Extracting
+#     the duplication is the third-time-DRY moment.
+#   - Single source of truth for the pinned cache action SHA, so
+#     bumping `Swatinem/rust-cache` is one edit, not seven.
+#   - Cache key uniformity — every job feeds the same `workspaces:
+#     rust` to the cache action, so `Cargo.lock` hash + rust
+#     version are the only key differentiators (per OS + arch).
+#
+# Why `cargo --version` instead of `rustup toolchain install
+# stable`: `rust-toolchain.toml` pins channel `1.95.0` (specific
+# patch release for reproducibility — see the file's preamble).
+# `rustup toolchain install stable` would install whatever the
+# runner image's current `stable` is (e.g. 1.96), but the actual
+# build then triggers a SECOND install of 1.95.0 the first time
+# `cargo` runs in the `rust/` dir. Two toolchains on disk, the
+# first one unused, two cache entries fighting. `cargo --version`
+# inside `rust/` triggers exactly the install the toml pins, no
+# divergence.
+
+name: Setup Rust toolchain (with cache)
+description: |
+  Activate the rust-toolchain.toml-pinned channel + add optional
+  cross-compile targets + prime Swatinem/rust-cache.
+
+inputs:
+  targets:
+    description: "Space-separated cross-compile targets to install (e.g. 'aarch64-apple-darwin x86_64-apple-darwin')."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Activate Rust toolchain (rust-toolchain.toml)
+      working-directory: rust
+      shell: bash
+      run: |
+        # `cargo --version` inside the workspace dir triggers
+        # rustup to read rust-toolchain.toml + install the pinned
+        # channel if missing. Reporting `rustup show` gives the
+        # GHA log a clean toolchain summary for cross-checking
+        # the cache action's key.
+        cargo --version
+        rustc --version
+        rustup show
+        # Cross-compile targets are toolchain-scoped, so install
+        # them after the channel is active. Empty input → no-op.
+        if [ -n "${{ inputs.targets }}" ]; then
+          for t in ${{ inputs.targets }}; do
+            rustup target add "$t"
+          done
+        fi
+
+    # Swatinem/rust-cache caches `~/.cargo/registry`, `~/.cargo/git`,
+    # and the workspace `target/` dir keyed on Cargo.lock hash + the
+    # active rustc version. After the first run on a given (OS, arch,
+    # Cargo.lock) tuple, subsequent runs skip recompiling every
+    # unchanged dep — the slow vendored-OpenSSL + ring builds land
+    # in cache, and the build wall-clock drops back toward
+    # pre-rust-port shape.
+    #
+    # `save-if: true` overrides the action's default
+    # (`save-if: ${{ github.ref == default_branch }}`), which would
+    # otherwise refuse to write the cache on any branch other than
+    # `main`. Without the override, every push to a feature branch
+    # rebuilds from scratch because there's nothing to restore from
+    # — main's cache only populates on its own pushes (rare during
+    # active feature work). Saving on every branch is the right
+    # tradeoff: cache space is generous (10 GB per repo, GitHub
+    # auto-evicts old entries) and the speedup applies to the
+    # branches that actually iterate.
+    #
+    # `add-rust-environment-hash-key: false` + `key: ${{ hashFiles(
+    # 'rust/rust-toolchain.toml') }}` replace the action's default
+    # auto-derived "rust environment hash" with a deterministic key
+    # based on the in-repo toolchain pin. Without this override,
+    # the cache key changed per-run because the action calls
+    # `rustup toolchain list` and hashes EVERY installed toolchain
+    # into the key. The runner image ships a preinstalled stable
+    # (e.g. 1.94.1); our composite then triggers a second install
+    # of the toolchain.toml pin (1.95.0). On run A only `{1.94.1}`
+    # is present at cache-step time → hash X. On run B both
+    # `{1.94.1, 1.95.0}` are present → hash Y. Same source code,
+    # different cache key, every run builds from scratch — the
+    # user-reported "android/windows/macos still 15-22 min" symptom.
+    # Replacement: hash `rust-toolchain.toml` itself. The file is
+    # in version control, the only thing that changes when we
+    # deliberately bump the pin, and bumping the pin *should*
+    # invalidate the cache (different rustc may emit different
+    # artefacts). One stable hash component, no flap.
+    # `Cargo.lock` is still auto-included in the key by the action
+    # (separate lockfile-hash component, independent of env-hash),
+    # so dep changes still invalidate.
+    - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
+      with:
+        workspaces: rust
+        save-if: 'true'
+        add-rust-environment-hash-key: 'false'
+        key: ${{ hashFiles('rust/rust-toolchain.toml') }}
+
+    # Cargokit's target dir lives OUTSIDE the workspace `rust/target/`
+    # the Swatinem cache covers — `rust_builder/cargokit/cmake/`
+    # +`rust_builder/cargokit/gradle/plugin.gradle` hardcode it under
+    # the per-platform Flutter build dir (`build/windows/x64/plugins/
+    # rust_builder/cargokit_build/`, gradle's per-module `buildDir`,
+    # etc.). Without a separate cache the platform builds re-compile
+    # ring / openssl / russh / lfs_core from scratch on every run —
+    # the user-reported "android/windows still 20 min" symptom that
+    # the rust-cache key fix did NOT resolve, because that fix only
+    # stabilised the workspace cache, not the cargokit one.
+    #
+    # Cache key includes Cargo.lock + rust-toolchain.toml (same
+    # invalidation triggers as the workspace cache) AND the cargokit
+    # shim sources themselves — cmake/gradle plugin upgrades change
+    # build-script outputs and must not silently reuse stale
+    # artefacts. Restore-keys lets a partial-hash hit (only Cargo.lock
+    # changed, not toolchain) skip the dep recompile and only rebuild
+    # the touched crates.
+    - name: Cache cargokit target dir
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      with:
+        # cargokit puts its `cargo --target-dir` in four different
+        # places depending on the build pipeline:
+        # - cmake (Windows / Linux desktop): `build/<platform>/.../
+        #   plugins/rust_builder/cargokit_build/`.
+        # - gradle (Android): per-module `buildDir`, which under the
+        #   Flutter plugin loader for `lfs_frb` lands at
+        #   `<repo>/build/lfs_frb/` (cargo writes its standard
+        #   `<triple>/release/` tree directly inside).
+        # - Xcode / macOS Flutter: Flutter's macOS pod build script
+        #   overrides `OBJROOT` so `TARGET_TEMP_DIR` resolves under
+        #   `build/macos/Build/Intermediates.noindex/Pods.build/
+        #   <config>/lfs_frb-<hash>.build/Objects-normal/<arch>/`.
+        # - Xcode / iOS Flutter: Flutter iOS does NOT override
+        #   `OBJROOT` (open issue flutter/flutter#156136 — Flutter
+        #   only sets `BUILD_DIR=build/ios` for products, leaves
+        #   intermediates at xcodebuild default), so `TARGET_TEMP_DIR`
+        #   lands in the runner's default Xcode DerivedData under
+        #   `~/Library/Developer/Xcode/DerivedData/Runner-<hash>/
+        #   Build/Intermediates.noindex/Pods.build/<config>-iphoneos/
+        #   lfs_frb-<hash>.build/Objects-normal/<arch>/`. Caching the
+        #   whole `DerivedData` is coarse but works without modifying
+        #   the vendored cargokit `build_pod.sh` (which would create
+        #   merge conflicts on subtree updates). For macOS jobs the
+        #   `DerivedData` glob captures very little extra because
+        #   Flutter macOS funnels everything into `build/macos/`.
+        path: |
+          build/**/cargokit_build
+          build/lfs_frb
+          build/rust_builder
+          build/macos/Build/Intermediates.noindex
+          build/ios/Build/Intermediates.noindex
+          android/**/cargokit_build
+          ~/Library/Developer/Xcode/DerivedData
+        # Cache key MUST include `github.job` — without it, Android
+        # builds collide with `build-linux-x64` (both run on Linux
+        # runners → `runner.os=Linux runner.arch=X64`) and iOS
+        # collides with macOS (both on macos-latest →
+        # `runner.os=macOS runner.arch=ARM64`). The collision
+        # produces a cache hit on the WRONG target's compiled
+        # artefacts (Android tries to use x86_64-unknown-linux-gnu
+        # `.rlib` files, iOS tries to use aarch64-apple-darwin
+        # `.rlib` files), cargo recompiles the actual targets from
+        # scratch, then save sees the existing key and skips ("Cache
+        # up-to-date, not saving cache") — eternal miss for the
+        # cross-compile jobs no matter how many times they run. Per-
+        # job key namespaces each matrix slot separately.
+        key: cargokit-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml', 'rust_builder/cargokit/**') }}
+        restore-keys: |
+          cargokit-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-

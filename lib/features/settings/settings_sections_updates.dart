@@ -42,14 +42,11 @@ class _UpdateSection extends ConsumerWidget {
       icon: Icons.refresh,
       label: S.of(context).checkForUpdates,
       subtitle: S.of(context).currentVersion(version),
-      // The row's trailing action used to be a raw `OutlinedButton.icon`
-      // with ad-hoc `minimumSize` + `padding` overrides; it clashed
-      // visually with the `_Toggle` rows above (different radius, no
-      // `bg4` fill, larger font weight). `AppButton.secondary` keeps the
-      // row in the same visual language, `dense: true` pins the compact
-      // desktop height on every platform, and `loading: isChecking`
-      // swaps the leading icon for a matched-size spinner in place of
-      // the previous inline `CircularProgressIndicator`.
+      // `AppButton.secondary` keeps the row in the same visual
+      // language as the `_Toggle` rows above (matched radius, `bg4`
+      // fill, font weight); `dense: true` pins the compact desktop
+      // height on every platform; `loading: isChecking` swaps the
+      // leading icon for a matched-size spinner.
       child: AppButton.secondary(
         label: isChecking ? S.of(context).checking : S.of(context).checkNow,
         icon: Icons.refresh,
@@ -181,7 +178,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Wrap(
             spacing: 8,
             children: [
@@ -262,7 +259,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Wrap(
             spacing: 8,
             children: [
@@ -294,7 +291,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: AppButton.secondary(
@@ -394,32 +391,44 @@ class _AboutSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final version = ref.watch(appVersionProvider);
+    final l10n = S.of(context);
+    // Both rows use `_ActionTile` so About reads visually identical
+    // to the surrounding settings sections (icon + title + subtitle
+    // with the same padding rhythm) — the previous `ListTile` shape
+    // imported a different vertical stride + leading offset that
+    // made the section feel grafted-in. Each row's `onTap` mirrors
+    // the established Data-section "tap to copy" pattern
+    // (`_DataPathTile`).
     return Column(
       children: [
-        ListTile(
-          leading: const Icon(Icons.info_outline, size: 20),
-          title: Text(S.of(context).appTitle),
-          subtitle: Text(S.of(context).aboutSubtitle(version)),
-          contentPadding: EdgeInsets.zero,
+        _ActionTile(
+          icon: Icons.info_outline,
+          title: l10n.appTitle,
+          subtitle: l10n.aboutSubtitle(version),
+          emphasizeSubtitle: true,
+          showChevron: false,
+          onTap: () {
+            final payload = '${l10n.appTitle} v$version';
+            Clipboard.setData(ClipboardData(text: payload));
+            Toast.show(
+              context,
+              message: l10n.pathCopied,
+              level: ToastLevel.info,
+            );
+          },
         ),
-        ListTile(
-          leading: const Icon(Icons.code, size: 20),
-          title: Text(S.of(context).sourceCode),
-          subtitle: Text(
-            _githubUrl,
-            style: TextStyle(
-              color: theme.colorScheme.primary,
-              fontSize: AppFonts.xs,
-            ),
-          ),
-          contentPadding: EdgeInsets.zero,
+        _ActionTile(
+          icon: Icons.code,
+          title: l10n.sourceCode,
+          subtitle: _githubUrl,
+          emphasizeSubtitle: true,
+          showChevron: false,
           onTap: () {
             Clipboard.setData(const ClipboardData(text: _githubUrl));
             Toast.show(
               context,
-              message: S.of(context).urlCopied,
+              message: l10n.urlCopied,
               level: ToastLevel.info,
             );
           },

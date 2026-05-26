@@ -1,54 +1,45 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
+    show AnyhowException;
 
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/keychain_marker.dart' as rust_marker;
 import '../../utils/logger.dart';
 
 /// Cross-class gate that stops libsecret probes from firing on Linux
 /// installs where the keyring daemon is not reachable.
 ///
-/// Background: `flutter_secure_storage` on Linux uses libsecret, which
-/// emits a non-recoverable `g_warning` to stderr the moment it cannot
-/// talk to a running / unlocked keyring daemon. That makes a cold
-/// `containsKey` / `read` on a system where the keyring was never
-/// touched (WSL, containers, minimal desktops without
-/// `gnome-keyring-daemon` / `kwalletd`) spam stderr on every launch.
+/// Background: `lfs_os_security::secure_key_storage::linux` reaches
+/// libsecret through the `secret-service` zbus binding, and libsecret
+/// itself emits a non-recoverable `g_warning` to stderr the moment it
+/// cannot talk to a running / unlocked keyring daemon. That makes a
+/// cold probe on a system where the keyring was never touched (WSL,
+/// containers, minimal desktops without `gnome-keyring-daemon` /
+/// `kwalletd`) spam stderr on every launch.
 ///
-/// Every class that reads the OS keychain behind
-/// `flutter_secure_storage` (`SecureKeyStorage` for L1 DB key,
-/// `BiometricKeyVault` for the biometric-gated fallback) refuses to
-/// talk to libsecret until this marker file says the user has already
-/// completed a successful keychain write — i.e. the keyring was
-/// reachable at least once, so subsequent calls are safe to attempt.
+/// Every class that reads the OS keychain through
+/// `lfs_os_security::secure_key_storage` (`SecureKeyStorage` for T1
+/// DB key, `BiometricKeyVault` for the biometric-gated fallback)
+/// refuses to talk to libsecret until this marker file says the user
+/// has already completed a successful keychain write — i.e. the
+/// keyring was reachable at least once, so subsequent calls are safe
+/// to attempt.
 ///
 /// The marker itself holds nothing sensitive (`'1'`), but sits next
 /// to `credentials.*` in the app-support dir at 0600 so the whole
 /// directory keeps a single perm contract.
 ///
-/// Instance-based so tests can inject a temp-dir [pathFactory] without
-/// binding `path_provider` channels. Production callers use
-/// [LinuxKeychainMarker.defaultInstance].
+/// File-format ownership and the app-support directory both live
+/// Rust-side: the marker ops resolve the directory pinned at
+/// `config_store_init` (`master_password::try_pinned_support_dir`),
+/// so this Dart class is a thin façade that delegates across the FRB
+/// boundary. Tests pin a temp dir via `configStoreInit`.
 class LinuxKeychainMarker {
-  static const _fileName = 'keychain_enabled';
-
-  /// Shared production instance — wraps the real
-  /// `getApplicationSupportDirectory()` path. Used by
-  /// [SecureKeyStorage] and the default [BiometricKeyVault]
-  /// construction path. Tests build their own instance against a
-  /// temp dir.
+  /// Shared production instance. Used by [SecureKeyStorage] and the
+  /// default [BiometricKeyVault] construction path.
   static final LinuxKeychainMarker defaultInstance = LinuxKeychainMarker();
 
-  final Future<String> Function() _pathFactory;
-
-  LinuxKeychainMarker({Future<String> Function()? pathFactory})
-    : _pathFactory = pathFactory ?? _defaultPath;
-
-  static Future<String> _defaultPath() async {
-    final dir = await getApplicationSupportDirectory();
-    return p.join(dir.path, _fileName);
-  }
+  LinuxKeychainMarker();
 
   /// True when the marker file is on disk, meaning at least one
   /// prior session wrote a secret into the keychain successfully.
@@ -61,7 +52,7 @@ class LinuxKeychainMarker {
   Future<bool> exists({bool skipOnNonLinux = true}) async {
     if (skipOnNonLinux && !Platform.isLinux) return true;
     try {
-      return File(await _pathFactory()).exists();
+      return rust_marker.keychainMarkerExists();
     } catch (_) {
       return false;
     }
@@ -72,10 +63,12 @@ class LinuxKeychainMarker {
   /// not a counter.
   Future<void> set() async {
     try {
-      final file = File(await _pathFactory());
-      await file.parent.create(recursive: true);
-      await file.writeAsString('1');
-      await hardenFilePerms(file.path);
+      rust_marker.keychainMarkerSet();
+    } on AnyhowException catch (e) {
+      AppLogger.instance.log(
+        'Failed to write keychain marker: ${e.message}',
+        name: 'LinuxKeychainMarker',
+      );
     } catch (e) {
       AppLogger.instance.log(
         'Failed to write keychain marker: $e',
@@ -91,8 +84,12 @@ class LinuxKeychainMarker {
   /// disk.
   Future<void> clear() async {
     try {
-      final file = File(await _pathFactory());
-      if (await file.exists()) await file.delete();
+      rust_marker.keychainMarkerClear();
+    } on AnyhowException catch (e) {
+      AppLogger.instance.log(
+        'Failed to clear keychain marker: ${e.message}',
+        name: 'LinuxKeychainMarker',
+      );
     } catch (e) {
       AppLogger.instance.log(
         'Failed to clear keychain marker: $e',

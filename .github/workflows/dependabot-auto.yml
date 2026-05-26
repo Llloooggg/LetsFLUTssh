@@ -1,5 +1,13 @@
 name: Dependabot
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: dependabot-auto-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -28,7 +36,7 @@ jobs:
 
       - name: Bump patch version
         run: |
-          # `scripts/bump-version.sh` runs `git commit`, which needs an
+          # `dev/scripts/bump-version.sh` runs `git commit`, which needs an
           # identity on the runner. Set the dependabot bot's identity
           # so the bump commit is attributed to the same author as the
           # dependency update it rides on top of.
@@ -42,7 +50,7 @@ jobs:
             exit 0
           fi
 
-          scripts/bump-version.sh
+          dev/scripts/bump-version.sh
           git push
 
   automerge:

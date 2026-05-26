@@ -24,20 +24,20 @@ class WelcomeScreen extends StatelessWidget {
             decoration: BoxDecoration(color: scheme.surfaceContainerHigh),
             child: Icon(Icons.terminal, size: 22, color: faintColor),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             S.of(context).noActiveSession,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.lg,
               color: dimColor,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             S.of(context).createConnectionHint,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.sm,
               color: faintColor,
             ),

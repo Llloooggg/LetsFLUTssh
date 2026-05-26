@@ -6,12 +6,14 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
-#include "session_lock_plugin.h"
+
+// Linux session-lock listener now runs Rust-side under
+// `lfs_os_security::session_lock_listener` (zbus subscription to
+// `org.freedesktop.login1.Session.Lock`). No GTK plugin needed.
 
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
-  SessionLockPlugin* session_lock_plugin;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -23,6 +25,25 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
+  // Single-instance focus path: if a previous launch already
+  // owns the primary D-Bus name + has a window, bring it to the
+  // front instead of creating a second one. GtkApplication's
+  // default uniqueness machinery (the absence of
+  // G_APPLICATION_NON_UNIQUE on the flags below) already
+  // routed the second-launch's `activate` signal here on the
+  // existing instance — we just have to honour it. Without
+  // this branch the existing window stays where it is and a
+  // brand-new empty window opens on top, which is the same UX
+  // bug the previous Dart-side `SingleInstance.acquire` flow
+  // tried to paper over with an `AlreadyRunningApp` blocker
+  // dialog.
+  GtkWindow* existing =
+      gtk_application_get_active_window(GTK_APPLICATION(application));
+  if (existing != nullptr) {
+    gtk_window_present(existing);
+    return;
+  }
+
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
@@ -83,12 +104,6 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
-  // Route systemd-logind session-lock signals into the Dart-side
-  // auto-lock path. Ownership mirrors the rest of the application:
-  // the plugin is created here and freed in dispose.
-  self->session_lock_plugin =
-      session_lock_plugin_new(FL_PLUGIN_REGISTRY(view));
-
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -104,6 +119,23 @@ static gboolean my_application_local_command_line(GApplication* application,
   if (!g_application_register(application, nullptr, &error)) {
     g_warning("Failed to register: %s", error->message);
     *exit_status = 1;
+    return TRUE;
+  }
+
+  // Single-instance gate. After register, `g_application_get_is_remote`
+  // returns TRUE if a primary instance already owns the application
+  // ID's D-Bus name — that means we're the duplicate and should exit
+  // without spinning up a second Flutter engine. Forward `activate`
+  // to the primary first: GApplication relays it over D-Bus, the
+  // primary's `my_application_activate` runs, and its
+  // `gtk_window_present(existing)` branch raises and focuses the
+  // already-open window. Just showing a native "already running"
+  // dialog (the prior behaviour) left that window buried wherever it
+  // was — raising it is the expected desktop UX and what the activate
+  // handler above was written for.
+  if (g_application_get_is_remote(application)) {
+    g_application_activate(application);
+    *exit_status = 0;
     return TRUE;
   }
 
@@ -134,10 +166,6 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
-  if (self->session_lock_plugin != nullptr) {
-    session_lock_plugin_free(self->session_lock_plugin);
-    self->session_lock_plugin = nullptr;
-  }
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
@@ -160,7 +188,17 @@ MyApplication* my_application_new() {
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
+  // `G_APPLICATION_DEFAULT_FLAGS` (no `G_APPLICATION_NON_UNIQUE`)
+  // turns on GApplication's built-in single-instance behaviour:
+  // the primary instance registers `APPLICATION_ID` on the user's
+  // session D-Bus, every subsequent launch detects the existing
+  // owner, forwards its `activate` (and `open` if files were
+  // passed) request to it, and exits without spinning up the
+  // Flutter engine. The previous Dart-side `SingleInstance.acquire`
+  // gate did the same thing one process-lifetime layer too late
+  // — Flutter engine + RustLib + Dart bootstrap + first-frame
+  // paint had all already happened before the lock check ran.
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_DEFAULT_FLAGS, nullptr));
 }

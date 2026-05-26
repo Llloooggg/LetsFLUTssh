@@ -1,0 +1,174 @@
+[package]
+name = "lfs_core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+# Pure-Rust headless library — consumed by frontend adapters
+# (`lfs_frb`, future `lfs_tauri`, `lfs_cli`). No cdylib here: only the
+# adapter crate produces the native blob loaded by the host runtime.
+crate-type = ["rlib"]
+
+[dependencies]
+# OS-bound abstractions — keychain (libsecret/SecItem/CredMan/AndroidKeyStore),
+# biometric backends (LAContext/UserConsentVerifier/BiometricPrompt/fprintd),
+# clipboard, session lock. lfs_core orchestrators call these directly so the
+# Rust security stack composes end-to-end without bouncing through Dart bus
+# subscribers. Stays a one-way edge: lfs_os_security never depends on lfs_core
+# (its `unsafe_code = "forbid"` boundary lives downstream).
+lfs_os_security = { path = "../lfs_os_security" }
+russh = { workspace = true }
+# Direct dep solely to enable the `ppk` feature on the forked
+# ssh-key crate that russh pulls transitively. See workspace
+# Cargo.toml note for the version-pin rationale. Cargo-machete
+# flags this as unused because there is no `use` statement; the
+# feature-flag activation is the real reason it's here, hence the
+# entry in `[package.metadata.cargo-machete] ignored = ...` below.
+internal-russh-forked-ssh-key = { workspace = true }
+russh-sftp = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+async-channel = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+# Used by `keys::generate_*` for keypair RNG. russh-keys 0.6.18
+# (pulled by russh 0.60) consumes a `rand_core 0.10` CryptoRng;
+# rand 0.10 brings rand_core 0.10, so `rand::rng()` (ThreadRng)
+# satisfies the bound.
+rand = "0.10"
+# Crypto envelopes — HKDF-SHA-256 + Ed25519 verify in
+# `lfs_core::crypto`. Replaces pointycastle / pinenacl on the Dart
+# side once the call sites flip.
+hkdf = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+aes-gcm = { workspace = true }
+argon2 = { workspace = true }
+rusqlite = { workspace = true }
+# Headless terminal-emulation engine for `lfs_core::terminal`. The
+# maintained grammar + grid + scrollback + scroll-region engine
+# behind Alacritty, which handles scroll-region ops correctly. A plain
+# crate (not flutter_rust_bridge / tauri / a frontend) so it stays
+# inside the lfs_core dependency ban. The ANSI parser is re-exported
+# from `vte` (`alacritty_terminal::vte::ansi`).
+alacritty_terminal = "0.26"
+serde_json = { workspace = true }
+zip = { workspace = true }
+flate2 = { workspace = true }
+base64 = { workspace = true }
+regex = { workspace = true }
+# HTTP fetch for `lfs_core::update_http` — the auto-update
+# channel's manifest + asset download path. Kept on rustls-tls
+# so the dep tree stays pure-Rust (no openssl system link).
+reqwest = { workspace = true }
+futures-util = { workspace = true }
+uuid = { workspace = true }
+# Zero-copy byte buffer for the storage provider abstraction's
+# streaming surface (`Provider::get_stream` / `put_stream` in
+# `lfs_core::storage`). `bytes::Bytes` is the de-facto exchange type
+# for byte streams in the async Rust ecosystem (hyper / tokio /
+# reqwest), so backends that wrap an HTTP client (S3, WebDAV) can
+# forward chunks without an extra copy.
+bytes = { workspace = true }
+# WebDAV transport (`lfs_core::webdav`) dependency set. `url`
+# percent-encodes resource paths joined onto the base URL;
+# `quick-xml` parses the PROPFIND multistatus response stream;
+# `md-5` implements the MD5 hash RFC 7616 Digest auth requires;
+# `httpdate` parses `<getlastmodified>` RFC 1123 timestamps.
+url = { workspace = true }
+quick-xml = { workspace = true }
+md-5 = { workspace = true }
+httpdate = { workspace = true }
+# FIDO2 direct CTAP2 HID transport. Optional — gated behind the
+# `fido2` Cargo feature so platforms with no HID surface
+# (iOS / Android prior to the future USB-host plumbing) compile
+# `lfs_core` without the HID dep and the matching `fido2` module
+# stubs `is_available() = false`. Desktop builds (Linux / Windows /
+# macOS) enable the feature in their respective build profiles.
+ctap-hid-fido2 = { workspace = true, optional = true }
+
+# Linux-only D-Bus client for the fprintd shim under
+# `platform::linux::fprintd`. The TSS2 ESAPI binding (`tss-esapi`)
+# moved into `lfs_os_security::linux::tpm` so the OS-FFI
+# perimeter stays single-edge — `lfs_core` reaches the TPM
+# orchestrator through that crate.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { workspace = true }
+serde = { workspace = true }
+
+# Unix-only syscall constants (`O_NOFOLLOW`, `O_EXCL`) for the
+# symlink-defended read / write helpers in `lfs_core::path`.
+# Pulled cfg(unix) so Windows builds skip the dep entirely.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# In-process SSH agent endpoint (`lfs_core::ssh_agent`). Cfg-gated
+# to the three desktop targets where a host-local agent socket
+# makes sense; mobile builds skip these deps entirely so the
+# `ssh_agent` module compiles to its no-op stub there. `ssh-agent-lib`
+# pulls the wire codec + listener primitives; `ssh-key` is its
+# `KeyData`/`Signature` surface (separate crate identity from the
+# russh fork — both resolve side by side). `async-trait` macro the
+# `impl Session for Endpoint` block needs.
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+ssh-agent-lib = { workspace = true }
+ssh-key = { workspace = true }
+async-trait = { workspace = true }
+
+
+[features]
+# Direct CTAP2 over USB HID for hardware-bound SSH keys.
+# Opt-in via `--features fido2` because the underlying `hidapi`
+# crate needs a system `libudev-dev` on Linux / `hidapi.lib` on
+# Windows to link, and a local dev host without those headers
+# shouldn't fail the workspace `cargo check`. Production Linux +
+# Windows release pipelines flip the feature on; iOS / Android /
+# macOS-without-driverkit stay off because the HID stack isn't
+# reachable there. When disabled, `lfs_core::fido2::is_available()`
+# returns `false` and `get_assertion` returns
+# `Error::Fido2("feature disabled at build time")` — the runtime
+# probe is the single source of truth, the cfg-gate just removes
+# the dep.
+default = []
+fido2 = ["dep:ctap-hid-fido2"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tempfile = "3"
+# HTTP mocking server for the WebDAV client tests. `wiremock`
+# stands up a real `hyper`-backed server on a loopback port,
+# matches requests against declarative builders, and returns
+# canned responses. Picks an ephemeral port per test so
+# parallel runs don't collide.
+wiremock = "0.6"
+# In-test self-signed cert generation for the TLS-handshake
+# integration tests around the trusted-cert-pin / accept-any-cert
+# surfaces. `rcgen` produces a fresh cert + key per test so the
+# corpus does not carry on-disk PEM fixtures with hard-coded
+# Subject Alternative Names.
+rcgen = "0.13"
+# Loopback TLS listener for the same integration tests. Wraps a
+# raw `tokio::net::TcpStream` with a rustls server-side handshake
+# so a `reqwest::Client` under test exercises a real TLS connect
+# path (not just the builder's success-without-handshake check).
+tokio-rustls = "0.26"
+
+# Hardening: deny `unsafe` blocks at the lfs_core level. Transitive
+# crates (russh, tokio, ring, ...) still use `unsafe` internally —
+# that's their audit perimeter, not ours. This pins the rule on
+# anything WE write here.
+[lints.rust]
+unsafe_code = "forbid"
+
+[package.metadata.cargo-machete]
+# `internal-russh-forked-ssh-key` is feature-only — we depend on it
+# to flip the `ppk` feature flag on the forked ssh-key russh pulls
+# transitively, with no `use` statement of our own. Cargo-machete
+# would otherwise flag it as unused on every run.
+ignored = ["internal-russh-forked-ssh-key"]

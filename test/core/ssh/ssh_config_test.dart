@@ -35,7 +35,7 @@ void main() {
       expect(addr.displayName, 'admin@srv:8022');
     });
 
-    test('copyWith replaces fields', () {
+    test('ServerAddress.copyWith replaces fields', () {
       const original = ServerAddress(host: 'a', user: 'b', port: 22);
       final copy = original.copyWith(host: 'x', port: 3333);
       expect(copy.host, 'x');
@@ -43,19 +43,19 @@ void main() {
       expect(copy.user, 'b');
     });
 
-    test('copyWith with no args returns equivalent object', () {
+    test('ServerAddress.copyWith with no args returns equivalent object', () {
       const original = ServerAddress(host: 'a', user: 'b', port: 22);
       final copy = original.copyWith();
       expect(copy, original);
     });
 
-    test('equality — same fields are equal', () {
+    test('ServerAddress equality — same fields are equal', () {
       const a = ServerAddress(host: 'h', user: 'u', port: 22);
       const b = ServerAddress(host: 'h', user: 'u', port: 22);
       expect(a, b);
     });
 
-    test('equality — identical returns true', () {
+    test('ServerAddress equality — identical returns true', () {
       const a = ServerAddress(host: 'h', user: 'u');
       expect(a == a, isTrue);
     });
@@ -134,7 +134,7 @@ void main() {
       expect(auth.hasAuth, isFalse);
     });
 
-    test('copyWith replaces fields', () {
+    test('SshAuth.copyWith replaces fields', () {
       const original = SshAuth(password: 'p', keyPath: 'k');
       final copy = original.copyWith(password: 'new', passphrase: 'pp');
       expect(copy.password, 'new');
@@ -143,19 +143,19 @@ void main() {
       expect(copy.passphrase, 'pp');
     });
 
-    test('copyWith with no args returns equivalent object', () {
+    test('SshAuth.copyWith with no args returns equivalent object', () {
       const original = SshAuth(password: 'p');
       final copy = original.copyWith();
       expect(copy, original);
     });
 
-    test('equality — same fields are equal', () {
+    test('SshAuth equality — same fields are equal', () {
       const a = SshAuth(password: 'p', keyPath: 'k');
       const b = SshAuth(password: 'p', keyPath: 'k');
       expect(a, b);
     });
 
-    test('equality — identical returns true', () {
+    test('SshAuth equality — identical returns true', () {
       const a = SshAuth(password: 'p');
       expect(a == a, isTrue);
     });
@@ -268,115 +268,6 @@ void main() {
       test('default timeoutSec is 10', () {
         const config = SSHConfig(server: server);
         expect(config.timeoutSec, 10);
-      });
-    });
-
-    group('validate', () {
-      test('returns null for valid config', () {
-        const config = SSHConfig(server: server, auth: auth);
-        expect(config.validate(), isNull);
-      });
-
-      test('rejects empty host', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: '', user: 'root'),
-        );
-        expect(config.validate(), 'Host is required');
-      });
-
-      test('rejects whitespace-only host', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: '   ', user: 'root'),
-        );
-        expect(config.validate(), 'Host is required');
-      });
-
-      test('rejects port 0', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u', port: 0),
-        );
-        expect(config.validate(), 'Port must be 1-65535');
-      });
-
-      test('rejects negative port', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u', port: -1),
-        );
-        expect(config.validate(), 'Port must be 1-65535');
-      });
-
-      test('rejects port above 65535', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u', port: 65536),
-        );
-        expect(config.validate(), 'Port must be 1-65535');
-      });
-
-      test('accepts port 1', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u', port: 1),
-          auth: auth,
-        );
-        expect(config.validate(), isNull);
-      });
-
-      test('accepts port 65535', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u', port: 65535),
-          auth: auth,
-        );
-        expect(config.validate(), isNull);
-      });
-
-      test('rejects empty user', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: ''),
-        );
-        expect(config.validate(), 'Username is required');
-      });
-
-      test('rejects whitespace-only user', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: 'h', user: '   '),
-        );
-        expect(config.validate(), 'Username is required');
-      });
-
-      test('rejects missing auth', () {
-        const config = SSHConfig(server: server);
-        expect(config.validate(), 'Password or SSH key is required');
-      });
-
-      test('rejects negative keepAliveSec', () {
-        const config = SSHConfig(server: server, auth: auth, keepAliveSec: -1);
-        expect(config.validate(), 'Keep-alive must be non-negative');
-      });
-
-      test('accepts keepAliveSec 0', () {
-        const config = SSHConfig(server: server, auth: auth, keepAliveSec: 0);
-        expect(config.validate(), isNull);
-      });
-
-      test('rejects timeoutSec 0', () {
-        const config = SSHConfig(server: server, auth: auth, timeoutSec: 0);
-        expect(config.validate(), 'Timeout must be at least 1 second');
-      });
-
-      test('rejects negative timeoutSec', () {
-        const config = SSHConfig(server: server, auth: auth, timeoutSec: -5);
-        expect(config.validate(), 'Timeout must be at least 1 second');
-      });
-
-      test('accepts timeoutSec 1', () {
-        const config = SSHConfig(server: server, auth: auth, timeoutSec: 1);
-        expect(config.validate(), isNull);
-      });
-
-      test('validates in order — host checked before port', () {
-        const config = SSHConfig(
-          server: ServerAddress(host: '', user: 'u', port: 0),
-        );
-        expect(config.validate(), 'Host is required');
       });
     });
 

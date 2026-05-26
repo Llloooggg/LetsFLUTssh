@@ -72,7 +72,16 @@ class SVi extends S {
   String get copyModeExtending => 'Kéo để mở rộng vùng chọn';
 
   @override
+  String get copyModeSetAnchor => 'Đặt mỏ neo';
+
+  @override
+  String get copyModeCopySelection => 'Sao chép vùng chọn';
+
+  @override
   String get required => 'Bắt buộc';
+
+  @override
+  String get errFillRequiredFields => 'Điền các trường bắt buộc đánh dấu *';
 
   @override
   String get settings => 'Cài đặt';
@@ -235,11 +244,6 @@ class SVi extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'Đã nhận khóa SSH: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'Đã nhập $count phiên';
   }
@@ -377,10 +381,50 @@ class SVi extends S {
   String get auth => 'Xác thực';
 
   @override
+  String get sectionAuthentication => 'Xác thực';
+
+  @override
+  String get sectionAdvanced => 'Nâng cao';
+
+  @override
+  String get moreOptions => 'Tùy chọn khác';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString quy tắc port forwarding',
+      zero: 'Không có quy tắc port forwarding',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'Quản lý…';
+
+  @override
+  String get authMethodAgent => 'Dùng ssh-agent hệ thống';
+
+  @override
   String get options => 'Tùy chọn';
 
   @override
   String get sessionName => 'Tên phiên';
+
+  @override
+  String get sessionNameAutoFromHost => 'Tự động từ host';
+
+  @override
+  String get sessionNameAutoFromUrl => 'Tự động từ host của URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'Tự động từ bucket mặc định';
 
   @override
   String get hintMyServer => 'Máy chủ của tôi';
@@ -414,6 +458,9 @@ class SVi extends S {
 
   @override
   String get hintOptional => 'Tùy chọn';
+
+  @override
+  String get savedTypeToChange => 'Đã lưu — nhập để thay đổi';
 
   @override
   String get hidePemText => 'Ẩn văn bản PEM';
@@ -527,11 +574,6 @@ class SVi extends S {
   @override
   String get importModeReplaceDescription =>
       'Thay thế tất cả phiên bằng phiên nhập vào';
-
-  @override
-  String errorPrefix(String error) {
-    return 'Lỗi: $error';
-  }
 
   @override
   String get folderName => 'Tên thư mục';
@@ -699,7 +741,17 @@ class SVi extends S {
   String get calculateFolderSizes => 'Tính kích thước thư mục';
 
   @override
+  String get verboseConnectionLog => 'Nhật ký kết nối chi tiết';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'Ghi toàn bộ trace handshake SSH và xác thực vào tệp log (để chẩn đoán lỗi kết nối)';
+
+  @override
   String get exportData => 'Xuất dữ liệu';
+
+  @override
+  String get exportRecordings => 'Bản ghi phiên';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -872,9 +924,6 @@ class SVi extends S {
   String get sourceCode => 'Mã nguồn';
 
   @override
-  String get enableLogging => 'Bật log';
-
-  @override
   String get logIsEmpty => 'Log trống';
 
   @override
@@ -975,6 +1024,26 @@ class SVi extends S {
   String get disconnected => 'Đã ngắt kết nối';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Đang kết nối đến $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Đã kết nối đến $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Đã ngắt kết nối khỏi $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Kết nối đến $host thất bại';
+  }
+
+  @override
   String get exit => 'Thoát';
 
   @override
@@ -991,19 +1060,12 @@ class SVi extends S {
   String get exportSessionsViaQr => 'Xuất phiên qua QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.';
 
   @override
   String get qrTooLarge =>
       'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
-
-  @override
-  String get exportAll => 'Xuất tất cả';
 
   @override
   String get showQr => 'Hiện QR';
@@ -1019,6 +1081,24 @@ class SVi extends S {
 
   @override
   String get liveLog => 'Live log';
+
+  @override
+  String get archivedLog => 'Log lưu trữ';
+
+  @override
+  String get loggingLevel => 'Mức log';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'Mục thường + cảnh báo + lỗi';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'Chỉ đường dẫn suy giảm và lỗi';
+
+  @override
+  String get loggingLevelSubtitleError => 'Chỉ lỗi';
+
+  @override
+  String get loggingLevelSubtitleOff => 'Không ghi log thường';
 
   @override
   String transferNItems(int count) {
@@ -1306,30 +1386,6 @@ class SVi extends S {
   String get progressDecrypting => 'Đang giải mã…';
 
   @override
-  String get progressParsingArchive => 'Đang phân tích kho lưu trữ…';
-
-  @override
-  String get progressImportingSessions => 'Đang nhập phiên';
-
-  @override
-  String get progressImportingFolders => 'Đang nhập thư mục';
-
-  @override
-  String get progressImportingManagerKeys => 'Đang nhập khóa SSH';
-
-  @override
-  String get progressImportingTags => 'Đang nhập thẻ';
-
-  @override
-  String get progressImportingSnippets => 'Đang nhập snippet';
-
-  @override
-  String get progressApplyingConfig => 'Đang áp dụng cấu hình…';
-
-  @override
-  String get progressImportingKnownHosts => 'Đang nhập known_hosts…';
-
-  @override
   String get progressCollectingData => 'Đang thu thập dữ liệu…';
 
   @override
@@ -1366,10 +1422,8 @@ class SVi extends S {
   String get importAction => 'Nhập';
 
   @override
-  String get saveSessionToAssignTags => 'Lưu phiên trước để gán thẻ';
-
-  @override
-  String get noTagsAssigned => 'Chưa gán thẻ';
+  String get noTagsAvailable =>
+      'Chưa có thẻ nào — tạo một thẻ trong Tools → Tags.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1467,23 +1521,6 @@ class SVi extends S {
 
   @override
   String get transferStatusQueued => 'Đang chờ';
-
-  @override
-  String get transferStartingUpload => 'Bắt đầu tải lên...';
-
-  @override
-  String get transferStartingDownload => 'Bắt đầu tải xuống...';
-
-  @override
-  String get transferCopying => 'Đang sao chép...';
-
-  @override
-  String get transferDone => 'Hoàn tất';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total tệp';
-  }
 
   @override
   String get fileConflictTitle => 'Tệp đã tồn tại';
@@ -1626,6 +1663,9 @@ class SVi extends S {
   String get addKey => 'Thêm khóa';
 
   @override
+  String get addKeyMenuPaste => 'Dán PEM';
+
+  @override
   String get filePickerUnavailable =>
       'Trình chọn tệp không khả dụng trên hệ thống này';
 
@@ -1674,6 +1714,56 @@ class SVi extends S {
   String get publicKeyCopied => 'Đã sao chép khóa công khai vào clipboard';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Import certificate';
+
+  @override
+  String get certImportTooltip =>
+      'Đính kèm OpenSSH certificate đã được CA của bạn ký (file `-cert.pub` từ `ssh-keygen -s …`). Dùng khi server verify bằng CA signature thay vì `authorized_keys`. Bỏ qua nếu server dùng plain key auth.';
+
+  @override
+  String get certImportPickerTitle => 'Chọn file certificate OpenSSH';
+
+  @override
+  String get certValidFrom => 'Hiệu lực từ';
+
+  @override
+  String get certValidTo => 'Hết hạn';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Certificate này sắp hết hạn.';
+
+  @override
+  String get certExpired => 'Hết hạn';
+
+  @override
+  String get certRemove => 'Xoá certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'Xoá certificate?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Sau khi xoá, lần connect tiếp theo sẽ fallback về public key thường.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Không parse được certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Certificate này không được pair với key đang chọn.';
+
+  @override
   String get pastePrivateKey => 'Dán khóa riêng tư (PEM)';
 
   @override
@@ -1700,31 +1790,14 @@ class SVi extends S {
   String get generated => 'Đã tạo';
 
   @override
-  String get passphraseRequired => 'Cần passphrase';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'SSH key cho $host được mã hóa. Nhập passphrase để mở khóa.';
-  }
-
-  @override
-  String get passphraseWrong => 'Passphrase sai. Thử lại.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Nhớ passphrase cho phiên này';
 
   @override
   String get enterMasterPassword =>
       'Nhập mật khẩu chính để truy cập thông tin đăng nhập đã lưu.';
 
   @override
-  String get wrongMasterPassword => 'Sai mật khẩu. Vui lòng thử lại.';
-
-  @override
-  String get newPassword => 'Mật khẩu mới';
+  String get wrongMasterPassword => 'Sai mật khẩu. Thử lại.';
 
   @override
   String get currentPassword => 'Mật khẩu hiện tại';
@@ -1815,13 +1888,6 @@ class SVi extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Không có gì ở cấp này.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty =>
-      'Không còn mối đe doạ nào chưa được phủ.';
 
   @override
   String get tierBadgeCurrent => 'Hiện tại';
@@ -2040,6 +2106,159 @@ class SVi extends S {
   String get commandCopied => 'Đã sao chép lệnh';
 
   @override
+  String get snippetTokensHint =>
+      'Chạm để chèn placeholder. Chúng được thay thế khi chạy bằng giá trị từ phiên hoạt động:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'Bất kỳ thứ gì khác với dấu ngoặc nhọn kép sẽ hỏi bạn giá trị khi chạy snippet.';
+
+  @override
+  String get snippetFillTitle => 'Điền tham số snippet';
+
+  @override
+  String get snippetFillSubmit => 'Chạy';
+
+  @override
+  String get broadcastSetDriver => 'Phát từ ngăn này';
+
+  @override
+  String get broadcastClearDriver => 'Dừng phát từ ngăn này';
+
+  @override
+  String get broadcastAddReceiver => 'Nhận phát ở đây';
+
+  @override
+  String get broadcastRemoveReceiver => 'Ngừng nhận phát';
+
+  @override
+  String get broadcastClearAll => 'Dừng tất cả phát';
+
+  @override
+  String get broadcastPasteTitle => 'Gửi dán đến tất cả các ngăn?';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars ký tự sẽ được gửi đến $count ngăn khác.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'Gửi';
+
+  @override
+  String get portForwarding => 'Chuyển tiếp';
+
+  @override
+  String get portForwardingEmpty => 'Chưa có quy tắc nào';
+
+  @override
+  String get addForwardRule => 'Thêm quy tắc';
+
+  @override
+  String get editForwardRule => 'Sửa quy tắc';
+
+  @override
+  String get deleteForwardRule => 'Xoá quy tắc';
+
+  @override
+  String get localForward => 'Cục bộ';
+
+  @override
+  String get remoteForward => 'Từ xa';
+
+  @override
+  String get dynamicForward => 'Động';
+
+  @override
+  String get forwardKind => 'Loại';
+
+  @override
+  String get bindAddress => 'Địa chỉ bind';
+
+  @override
+  String get bindPort => 'Cổng bind';
+
+  @override
+  String get targetHost => 'Máy đích';
+
+  @override
+  String get targetPort => 'Cổng đích';
+
+  @override
+  String get forwardDescription => 'Mô tả (tuỳ chọn)';
+
+  @override
+  String get forwardEnabled => 'Bật';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'Bind tới 0.0.0.0 phát chuyển tiếp trên mọi giao diện — thường bạn muốn 127.0.0.1.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'Cục bộ: mở một cổng trên thiết bị này, tạo đường hầm đến mục tiêu mà máy chủ SSH có thể tới. Hữu ích để truy cập cơ sở dữ liệu hoặc giao diện admin từ xa qua localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'Từ xa: yêu cầu máy chủ SSH mở một cổng, tạo đường hầm trở về mục tiêu mà thiết bị này có thể tới. Hữu ích để chia sẻ máy chủ dev cục bộ với host từ xa (máy chủ có thể cần GatewayPorts yes cho bind không phải loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'Động: một proxy SOCKS5 trên thiết bị này định tuyến mọi kết nối qua máy chủ SSH. Trỏ trình duyệt hoặc curl đến localhost:bindPort để gửi mọi lưu lượng qua SSH.';
+
+  @override
+  String get proxyJump => 'Kết nối qua';
+
+  @override
+  String get proxyJumpNone => 'Kết nối trực tiếp';
+
+  @override
+  String get proxyJumpSavedSession => 'Phiên đã lưu';
+
+  @override
+  String get proxyJumpCustom => 'Tuỳ chỉnh';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'Hop tuỳ chỉnh dùng thông tin xác thực của phiên này. Để xác thực bastion khác, hãy lưu bastion như một phiên riêng.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'qua $label';
+  }
+
+  @override
+  String get recordSession => 'Ghi phiên';
+
+  @override
+  String get recordSessionHelp =>
+      'Lưu đầu ra terminal vào đĩa cho phiên này. Mã hóa khi nghỉ khi master password hoặc khóa phần cứng bảo vệ cơ sở dữ liệu phiên; nếu không, lưu dưới dạng plaintext bên cạnh cơ sở dữ liệu.';
+
+  @override
+  String get recordingsBrowserTitle => 'Bản ghi';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'Duyệt, phát lại và xóa các phiên đã ghi';
+
+  @override
+  String get recordingsEmpty => 'Chưa có bản ghi nào';
+
+  @override
+  String get playRecording => 'Phát';
+
+  @override
+  String get deleteRecording => 'Xóa';
+
+  @override
+  String get recordingPlaybackTitle => 'Phát lại bản ghi';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Thẻ';
 
   @override
@@ -2161,20 +2380,6 @@ class SVi extends S {
       'Kiểm tra phiên bản mới trên GitHub khi khởi chạy ứng dụng';
 
   @override
-  String get enableLoggingSubtitle =>
-      'Ghi sự kiện ứng dụng vào file log xoay vòng';
-
-  @override
-  String get exportWithoutPassword => 'Xuất không có mật khẩu?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.';
-
-  @override
-  String get continueWithoutPassword => 'Tiếp tục không dùng mật khẩu';
-
-  @override
   String get threatColdDiskTheft => 'Trộm ổ đĩa khi máy đã tắt';
 
   @override
@@ -2239,9 +2444,6 @@ class SVi extends S {
   String get colT1PasswordBiometric => 'T1 + mật khẩu + biometric';
 
   @override
-  String get colT2 => 'T2 Phần cứng';
-
-  @override
   String get colT2Password => 'T2 + mật khẩu';
 
   @override
@@ -2274,6 +2476,11 @@ class SVi extends S {
   String get resetAllDataConfirmAction => 'Đặt lại tất cả';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Nhập $phrase bên dưới để xác nhận:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Đang đặt lại…';
 
   @override
@@ -2281,6 +2488,61 @@ class SVi extends S {
 
   @override
   String get resetAllDataFailed => 'Đặt lại thất bại';
+
+  @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Đã dùng';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'Hard cap cho thư mục recordings/. Khi vượt, recording cũ nhất bị xoá trước; recording đang chạy không bao giờ bị động đến.';
+
+  @override
+  String get recordingsClearAllAction => 'Xoá toàn bộ recordings';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Xoá toàn bộ recordings?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Mọi session đã ghi dưới <app>/recordings/ sẽ bị xoá. Recording đang chạy (nếu có) vẫn còn. Hành động này không thể hoàn tác.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'Đã xoá $count recordings';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap đã cập nhật. Giải phóng $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap đã cập nhật. Không có gì để xoá.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2291,7 +2553,7 @@ class SVi extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'Nâng cao: khóa gắn với phần cứng. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
+      'Nâng cao: khóa gắn với phần cứng, luôn được bảo vệ bằng password. Dữ liệu không thể khôi phục nếu chip của thiết bị này bị mất hoặc bị thay thế.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2313,6 +2575,10 @@ class SVi extends S {
   @override
   String get modifierPasswordSubtitle =>
       'Mật khẩu cần nhập trước khi mở vault dữ liệu.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'Bắt buộc — tier Hardware luôn được bảo vệ bằng password.';
 
   @override
   String get modifierBiometricLabel => 'Shortcut biometric';
@@ -2342,8 +2608,64 @@ class SVi extends S {
       'fprintd chưa được cài đặt hoặc chưa đăng ký vân tay.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM không có mật khẩu chỉ cung cấp sự cô lập, không phải xác thực. Bất kỳ ai có thể chạy ứng dụng này đều có thể mở khóa dữ liệu.';
+  String get t2RequiresPasswordTitle => 'Đặt master password cho tier Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'Tier Hardware cần password làm modifier. Biometric là shortcut tùy chọn ở trên.';
+
+  @override
+  String get t2MigrationPromptTitle => 'Tier Hardware cần password';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'Các install Hardware hiện có không có password phải đặt một cái ngay bây giờ để tiếp tục.';
+
+  @override
+  String get t2MigrationContinue => 'Tiếp tục';
+
+  @override
+  String get t2MigrationSetPasswordTitle => 'Đặt password để giữ tier Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'Nhập master password mới. DB key đã sealed trong hardware module sẽ được re-seal dưới password này — session và key của bạn vẫn còn nguyên.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'Wipe và bắt đầu lại';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'Re-seal tier Hardware thất bại — chọn password khác hoặc wipe để bắt đầu lại.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'Kích hoạt shortcut biometric trên tier Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'Giải phóng password của bạn từ một OS slot được bảo vệ bằng biometric.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'Overlay biometric chưa khả dụng trên platform này.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'Đặt password tier Hardware trước đã.';
+
+  @override
+  String get t2UnlockTitle => 'Mở khóa bằng master password';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'Khóa hardware-bound được bảo vệ bằng password của bạn.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'Dùng biometric';
+
+  @override
+  String get t2PasswordChanged => 'Password tier Hardware đã được cập nhật.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2369,4 +2691,946 @@ class SVi extends S {
 
   @override
   String get masterPasswordLabel => 'Mật khẩu chính';
+
+  @override
+  String get globalErrorTitle => 'Lỗi không mong đợi';
+
+  @override
+  String get globalErrorBody =>
+      'Đã xảy ra lỗi không mong đợi. Ứng dụng sẽ tiếp tục chạy.';
+
+  @override
+  String get globalErrorLogSavedNote =>
+      'Toàn bộ chi tiết đã được ghi vào file log.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Bật ghi log trong Cài đặt để lưu chi tiết lỗi.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Lỗi: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Bật ghi log';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Đã bật ghi log — lỗi sẽ được ghi vào file log';
+
+  @override
+  String get fatalErrorQuitButton => 'Thoát';
+
+  @override
+  String get fatalErrorWipeButton => 'Xóa toàn bộ dữ liệu';
+
+  @override
+  String get fatalErrorWipingButton => 'Đang xóa…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Xóa sẽ loại bỏ mọi file của ứng dụng (config, database, blob vault, log); lần khởi động sau bắt đầu từ bản cài đặt sạch. Không thể hoàn tác.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Xóa toàn bộ dữ liệu?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'Thao tác này xóa vĩnh viễn mọi file config, database và vault. Ứng dụng sẽ khởi động lại từ bản cài đặt trống. Tiếp tục?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Xóa tất cả';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'Kho lưu trữ này không được bảo vệ bằng mật khẩu. Bất kỳ ai có file đều đọc được nội dung.';
+
+  @override
+  String get clipboardCopyFailed => 'Không sao chép được vào clipboard.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Tên host chứa ký tự không phải ASCII — đối chiếu từng ký tự với những gì bạn đã nhập. Các codepoint trông giống nhau (Kirin / Hy Lạp) có thể giả mạo một tên miền Latin.';
+
+  @override
+  String get playbackPause => 'Tạm dừng';
+
+  @override
+  String get recordingPlayLocked =>
+      'Mở khóa ứng dụng để phát bản ghi đã mã hóa này.';
+
+  @override
+  String get recordToggleStart => 'Bắt đầu ghi';
+
+  @override
+  String get recordToggleStop => 'Dừng ghi';
+
+  @override
+  String get foregroundServiceTitle => 'SSH đang hoạt động';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kết nối đang hoạt động',
+      one: '1 kết nối đang hoạt động',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Loại session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Phương thức auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => 'Chứng chỉ tin cậy (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'Dán chứng chỉ máy chủ (một hoặc nhiều khối PEM). Được thêm như một CA gốc bổ sung chỉ cho phiên này — không ảnh hưởng đến ứng dụng khác. Để trống để dùng trust store hệ thống.';
+
+  @override
+  String get acceptAnyCert => 'Chấp nhận mọi chứng chỉ';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'Bỏ qua mọi kiểm tra chứng chỉ và hostname trong các TLS handshake của phiên này. Lối thoát cuối cùng khi cả trust store hệ thống lẫn chứng chỉ được pin đều không phù hợp.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'Dễ bị tấn công MITM — bất kỳ ai trên mạng có thể giả mạo máy chủ. Chỉ dùng trên mạng riêng tin cậy.';
+
+  @override
+  String get webDavCopyUrl => 'Sao chép WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'Mở trong trình duyệt';
+
+  @override
+  String get errWebDavAuthFailed => 'Auth WebDAV thất bại';
+
+  @override
+  String get errWebDavNotFound => 'Không tìm thấy path';
+
+  @override
+  String get errWebDavConflict => 'Thao tác xung đột với state hiện tại';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Server WebDAV từ chối request: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Cần base URL của WebDAV';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL phải là http:// hoặc https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Bỏ trống cho AWS, hoặc đặt cho MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'Cần cho MinIO; tắt cho AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket mặc định';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix mặc định';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Tạo presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Hết hạn sau';
+
+  @override
+  String get s3CopyUri => 'Copy URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 phút';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 ngày';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (kiểm tra access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket =>
+      'Bucket không tồn tại hoặc không truy cập được';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket ở region khác với cấu hình';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server từ chối request: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Bật WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Mã hóa archive sync. Phải khác master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase không được trùng master password.';
+
+  @override
+  String get syncRemotePath => 'Đường dẫn remote';
+
+  @override
+  String get syncRemotePathHint =>
+      'Path dưới WebDAV base URL — mặc định letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Push gần nhất: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Pull gần nhất: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Chưa từng';
+
+  @override
+  String get syncUpToDate => 'Sync đã cập nhật';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Áp dụng $count thay đổi từ remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync đã tắt';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote đã đổi — pull trước rồi push';
+
+  @override
+  String get errSyncUnauthorized => 'Xác thực WebDAV thất bại';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Lỗi mạng: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Archive sync từ remote cần build mới hơn';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'Chạm vào hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN của hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key không phản hồi';
+
+  @override
+  String get hardwareKeyNotFound => 'Không tìm thấy hardware key';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'Truy cập trực tiếp hardware key không khả dụng trên platform này';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'Cần Apple Developer Program entitlement; dùng ssh-agent trên macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'SSH key này cần hardware key — chạm để auth';
+
+  @override
+  String get errSkWrongPin => 'PIN không đúng';
+
+  @override
+  String get hardwareKeyImport => 'Import hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'Đã hủy prompt hardware key';
+
+  @override
+  String get agentEndpointSectionTitle => 'Tích hợp với SSH client bên ngoài';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'Cho phép SSH client hệ thống dùng hardware-bound keys';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'Cho phép git, ssh và IDE plugin trên thiết bị này dùng key FIDO2 / smart-card / TPM của bạn.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'Sao chép lệnh export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'Sao chép tên pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'Yêu cầu ký';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester muốn ký bằng $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'Một SSH client bên ngoài';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'Cho phép một lần';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'Cho phép và ghi nhớ';
+
+  @override
+  String get agentEndpointDeny => 'Từ chối';
+
+  @override
+  String get agentEndpointStatusRunning => 'Đang chạy';
+
+  @override
+  String get agentEndpointStatusStopped => 'Đã dừng';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'Không hỗ trợ trên nền tảng này';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'Đã từ chối: client bên ngoài không thể thêm key.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'Không khởi động được ssh-agent endpoint: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'Thêm key smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'Module PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'Tự động phát hiện';
+
+  @override
+  String get pkcs11ModuleCustom => 'Module tuỳ chỉnh...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'Chọn library PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'Không tìm thấy module PKCS#11. Cài OpenSC hoặc chọn library của vendor.';
+
+  @override
+  String get pkcs11InitializeFailed => 'Module PKCS#11 không initialise được.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'Không có token nào trong reader.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token yêu cầu login.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN cho $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'Xác nhận trên PIN-pad của token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN sai. Còn $remaining lần thử.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN của token đã khoá. Mở khoá bằng PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token không có key dùng được với SSH (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'Key GOST không dùng được với SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" không được cắm.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Không tìm thấy token đã lưu. Cắm lại và thử lại.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Signing thất bại: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 không khả dụng trên nền tảng này.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Chọn module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'Chọn token';
+
+  @override
+  String get pkcs11WizardStepKey => 'Chọn key';
+
+  @override
+  String get pkcs11WizardStepPin => 'Nhập PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'Đang đọc public key từ token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'Đã thêm key smart card.';
+
+  @override
+  String get pkcs11ScanInProgress => 'Đang quét module PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'Đang tải token...';
+
+  @override
+  String get pkcs11LoadingKeys => 'Đang tải key...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module đã được tải.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Không có token.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'Không tải được module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad trên thiết bị)';
+
+  @override
+  String get pkcs11WizardBack => 'Quay lại';
+
+  @override
+  String get pkcs11WizardNext => 'Tiếp';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'Thêm hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key nằm trong secure hardware của thiết bị và không thể export.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'Key này chỉ hoạt động trên Mac này.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'Key này chỉ hoạt động trên iPhone này.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'Key này chỉ hoạt động trên PC này.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'Yêu cầu Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'Cho phép passcode thiết bị làm fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'Yêu cầu Windows Hello (PIN, vân tay hoặc khuôn mặt)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware key không khả dụng';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'App phải được code-signed mới dùng được Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello chưa được cấu hình trên PC này.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'Không phát hiện TPM — chỉ software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'Tạo';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'Đang tạo key trong secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Cần code-signing — xem USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'Đang ký với secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'Sao chép public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'Thêm dòng này vào ~/.ssh/authorized_keys trên server.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'Tên key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'Khóa SSH Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'Nhãn khóa';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'Xác thực bằng Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN, vân tay hoặc khuôn mặt — Windows Hello ký challenge SSH này.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'Thiết bị này không có TPM. Khóa nằm trong user storage; Windows Hello vẫn gate mọi chữ ký.';
+
+  @override
+  String get helloP384NotSupported =>
+      'Firmware TPM không hỗ trợ P-384. Chọn P-256 hoặc RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'Cấu hình Windows Hello trước tại Settings -> Sign-in options.';
+
+  @override
+  String get tpmSshTitle => 'Tạo SSH key gắn TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (khuyến nghị)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported => 'Firmware TPM không hỗ trợ algorithm này.';
+
+  @override
+  String get tpmSshPinProtect => 'Bảo vệ bằng PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'Nhiều lần nhập sai PIN sẽ khiến TPM khóa key.';
+
+  @override
+  String get tpmSshPinMismatch => 'PIN không khớp.';
+
+  @override
+  String get tpmSshStorageBlob => 'Lưu wrapped key trong app data';
+
+  @override
+  String get tpmSshStorageHandle => 'Lưu trong slot memory TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'Signing nhanh hơn. Dùng một trong các persistent slot của TPM.';
+
+  @override
+  String get tpmSshLabel => 'Nhãn key';
+
+  @override
+  String get tpmSshImportTitle => 'Nhập SSH key được bảo vệ TPM';
+
+  @override
+  String get tpmSshImportFormat => 'File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'TPM PIN cho $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN không đúng.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM đang trong lockout cooldown. Chờ $duration rồi thử lại.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'Đang tạo key trong TPM...';
+
+  @override
+  String get tpmSshSigning => 'Signing bằng TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'Không phát hiện TPM trên thiết bị này.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM bị tắt trong firmware.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'App không thể truy cập TPM. Thêm user vào group `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'Persistent slot $handle đã được dùng.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'Key này sign mà KHÔNG có prompt Hello / PIN — bất kỳ ai có quyền truy cập desktop khi bạn logged in đều có thể dùng.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (hardware-bound)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (hardware-backed)';
+
+  @override
+  String get keystoreKeyGenerating => 'Đang generate hardware-bound key...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'Authenticate để dùng SSH key';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'Key đã bị huỷ: enroll biometric mới. Đăng ký lại public key trên server.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM không có trên device này';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'Yêu cầu biometric / device unlock cho mọi signature';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'Không export được hardware-bound keys';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'Xoá key này sẽ gỡ khỏi hardware store. Server sẽ reject key cho đến khi bạn register key mới.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'Enroll biometric hoặc device PIN trước';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+, TEE only)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (widest compatibility)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM không khả dụng';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'Device của bạn không expose StrongBox HSM. Tạo key TEE-backed thay thế? Vẫn là hardware-backed, chỉ không có isolation của StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'Dùng TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'Huỷ';
+
+  @override
+  String get fido2BrokerSectionTitle => 'Hardware security key';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'Dialog security key của hệ thống';
+
+  @override
+  String get fido2BrokerIosLabel => 'Security key hệ thống (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel =>
+      'Security key hệ thống (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID trực tiếp (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'Không khả dụng trên platform này';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'Ưu tiên USB HID trực tiếp thay vì dialog hệ thống';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'Nâng cao: bỏ qua $brokerLabel trên các platform mà cả hai đường đều chạy. HID trực tiếp hỗ trợ nhiều tính năng authenticator hơn nhưng cần permission grant theo từng app.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'Tích hợp SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'Hỗ trợ hardware key không khả dụng trên thiết bị này.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'Thiết bị này chỉ có $transport; toggle bị vô hiệu.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'Stub đã nhập';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'Ở thiết bị khác — tạo lại tại đây để dùng';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'Tạo lại tại đây';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'Xoá stub';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'Tạo lại key này trên thiết bị này trước khi dùng';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'Chọn module PKCS#11 cho token \"$token\"';
+  }
+
+  @override
+  String get arrowLeft => 'Mũi tên trái';
+
+  @override
+  String get arrowUp => 'Mũi tên lên';
+
+  @override
+  String get arrowDown => 'Mũi tên xuống';
+
+  @override
+  String get arrowRight => 'Mũi tên phải';
+
+  @override
+  String get copyMode => 'Chế độ sao chép';
+
+  @override
+  String get exitCopyMode => 'Thoát chế độ sao chép';
+
+  @override
+  String importedGeneric(String items) {
+    return 'Đã nhập: $items';
+  }
 }

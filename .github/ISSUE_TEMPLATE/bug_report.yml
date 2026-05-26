@@ -1,0 +1,109 @@
+name: Bug Report
+description: Report a bug to help us improve
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! The fields below
+        let us reproduce + triage faster than free-form prose. The
+        log file (last block) is the most important attachment —
+        it never contains passwords or SSH keys, only connection
+        metadata and operation statuses.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: |
+        SFTP upload fails partway through with "broken pipe" on a
+        2 GB file but small files transfer cleanly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list — what you did, in order.
+      placeholder: |
+        1. Open a session to my-host
+        2. Drag a 2 GB ISO into the SFTP pane
+        3. Watch the transfer abort at ~700 MB
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: e.g. Ubuntu 24.04, Windows 11 22H2, macOS 15.1, iOS 17, Android 14
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+      description: From Settings → About, e.g. 7.3.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation method
+      options:
+        - AppImage
+        - deb (Linux)
+        - rpm (Linux)
+        - flatpak (Linux)
+        - snap (Linux)
+        - exe (Windows installer)
+        - portable zip (Windows)
+        - dmg (macOS)
+        - Homebrew Cask (macOS)
+        - APK (Android)
+        - Play Store (Android)
+        - App Store (iOS / iPadOS)
+        - Built from source
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log file
+      description: |
+        How to grab the log file:
+        1. Open **Settings → Logging → Enable Logging**
+        2. Reproduce the bug
+        3. Open **Settings → Logging → Open Log Directory**
+        4. Attach `letsflutssh.log` to this issue (drag-and-drop into this textarea works)
+
+        Logs are sanitised — passwords + SSH keys never appear in them. Connection metadata + operation statuses only.
+      placeholder: |
+        Drop letsflutssh.log here, or paste the relevant tail below.
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Optional. Drag-and-drop into this textarea works.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help — recent changes, custom configs, network shape (VPN, ProxyJump, etc.)

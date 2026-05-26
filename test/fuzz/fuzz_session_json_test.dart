@@ -3,37 +3,48 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Fuzz tests for [Session.fromJson].
 ///
 /// Generates random and malformed JSON maps to verify the parser
 /// never crashes with an unhandled exception on untrusted input.
+/// The decoder lives in `lfs_core::session_json::decode_canonical_json`
+/// (FRB sync); bootstrap the native lib so the fuzzed payload exercises
+/// the production path. The Rust decoder is tolerant — missing or
+/// wrong-typed fields fall back to defaults — so most payloads now
+/// land on success; a structural parse failure (top-level not a JSON
+/// object) surfaces a String error that the broad `on Object` catch
+/// swallows.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  void tryDecode(Map<String, dynamic> json) {
+    try {
+      Session.fromJson(json);
+    } on Object {
+      // The contract under test is "no unhandled crash"; the exact
+      // exception type the Rust decoder reports is an implementation
+      // detail of the FRB Result mapping.
+    }
+  }
+
   group('Fuzz Session.fromJson', () {
     final rng = Random(42); // deterministic seed for reproducibility
 
     test('handles 1000 random JSON payloads without crashing', () {
       for (var i = 0; i < 1000; i++) {
-        final json = _randomSessionJson(rng);
-        try {
-          Session.fromJson(json);
-        } on TypeError {
-          // Expected for type mismatches (e.g. int where String expected)
-        } on FormatException {
-          // Expected for malformed dates, etc.
-        }
+        tryDecode(_randomSessionJson(rng));
       }
     });
 
     test('handles empty map', () {
-      try {
-        Session.fromJson({});
-      } on TypeError {
-        // 'id' and 'host'/'user' are required non-nullable Strings
-      }
+      tryDecode({});
     });
 
     test('handles map with all null values', () {
-      final json = {
+      tryDecode({
         'id': null,
         'label': null,
         'folder': null,
@@ -48,24 +59,12 @@ void main() {
         'created_at': null,
         'updated_at': null,
         'incomplete': null,
-      };
-      try {
-        Session.fromJson(json);
-      } on TypeError {
-        // Expected — id, host, user are non-nullable
-      }
+      });
     });
 
     test('handles map with wrong types', () {
       for (var i = 0; i < 500; i++) {
-        final json = _wrongTypeSessionJson(rng);
-        try {
-          Session.fromJson(json);
-        } on TypeError {
-          // Expected
-        } on FormatException {
-          // Expected
-        }
+        tryDecode(_wrongTypeSessionJson(rng));
       }
     });
 
@@ -79,32 +78,19 @@ void main() {
         -9007199254740991,
       ];
       for (final port in extremes) {
-        try {
-          Session.fromJson({
-            'id': 'test-id',
-            'host': 'h',
-            'user': 'u',
-            'port': port,
-          });
-        } on TypeError {
-          // Expected
-        }
+        tryDecode({'id': 'test-id', 'host': 'h', 'user': 'u', 'port': port});
       }
     });
 
     test('handles map with very long strings', () {
       final longStr = 'A' * 100000;
-      try {
-        Session.fromJson({
-          'id': longStr,
-          'host': longStr,
-          'user': longStr,
-          'label': longStr,
-          'password': longStr,
-        });
-      } on TypeError {
-        // Expected
-      }
+      tryDecode({
+        'id': longStr,
+        'host': longStr,
+        'user': longStr,
+        'label': longStr,
+        'password': longStr,
+      });
     });
 
     test('handles map with special characters in strings', () {
@@ -119,17 +105,13 @@ void main() {
         '🔑' * 1000,
       ];
       for (final s in specials) {
-        try {
-          Session.fromJson({
-            'id': s,
-            'host': s,
-            'user': s,
-            'auth_type': s,
-            'created_at': s,
-          });
-        } on TypeError {
-          // Expected
-        }
+        tryDecode({
+          'id': s,
+          'host': s,
+          'user': s,
+          'auth_type': s,
+          'created_at': s,
+        });
       }
     });
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/focused_pane_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
 import 'split_node.dart';
@@ -19,6 +20,10 @@ typedef ReconnectFactory = Future<void> Function(Connection connection);
 class TerminalTab extends ConsumerStatefulWidget {
   final String tabId;
   final Connection connection;
+
+  /// Whether this tab is the foreground tab of the focused panel. Drives
+  /// keyboard-focus re-grab on tab switch — see [TerminalPane.isActiveTab].
+  final bool isActive;
   final VoidCallback? onDisconnected;
 
   /// Optional factory for testing — bypasses real SSH reconnect.
@@ -28,6 +33,7 @@ class TerminalTab extends ConsumerStatefulWidget {
     super.key,
     required this.tabId,
     required this.connection,
+    this.isActive = true,
     this.onDisconnected,
     this.reconnectFactory,
   });
@@ -49,6 +55,14 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
     _focusedPaneId = leaf.id;
     _paneConnections[leaf.id] = widget.connection;
     // Always ready — TerminalPane handles waiting for connection internally
+    // Publish the initial focused-pane id post-frame so cross-subtree
+    // consumers (workspace connection bar's record button) can find
+    // the right pane right after mount. Provider write deferred until
+    // after build to avoid mutating provider state during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(focusedPaneProvider(widget.tabId).notifier).set(leaf.id);
+    });
   }
 
   void _closePane(String paneId) {
@@ -62,6 +76,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
         _focusedPaneId = leafIds.first;
       }
     });
+    ref.read(focusedPaneProvider(widget.tabId).notifier).set(_focusedPaneId);
   }
 
   void _onTreeChanged(SplitNode newRoot) {
@@ -91,7 +106,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
 
   /// Reconnect SSH and reset to a single terminal pane.
   ///
-  /// Delegates the actual SSH reconnect to [ConnectionManager.reconnect()].
+  /// Delegates the actual SSH reconnect to [ConnectionsNotifier.reconnect()].
   /// Immediately resets the pane tree so the new TerminalPane subscribes
   /// to the fresh progressStream and shows the connection log.
   void reconnect() {
@@ -103,8 +118,8 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       widget.connection.state = SSHConnectionState.connecting;
       _runReconnectFactory(widget.connection);
     } else {
-      // Delegate to ConnectionManager — handles reset, progress, notify
-      final manager = ref.read(connectionManagerProvider);
+      // Delegate to ConnectionsNotifier — handles reset, progress, notify
+      final manager = ref.read(connectionsProvider.notifier);
       manager.reconnect(widget.connection.id, updatedConfig: freshConfig);
     }
 
@@ -116,10 +131,11 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       _root = leaf;
       _focusedPaneId = leaf.id;
     });
+    ref.read(focusedPaneProvider(widget.tabId).notifier).set(leaf.id);
   }
 
   /// Run the test-injected reconnect factory with the same lifecycle
-  /// guarantees as [ConnectionManager._doConnect]: set state, error,
+  /// guarantees as [ConnectionsNotifier._doConnect]: set state, error,
   /// and complete ready on success or failure.
   Future<void> _runReconnectFactory(Connection conn) async {
     try {
@@ -140,7 +156,11 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       root: _root,
       paneConnections: _paneConnections,
       focusedPaneId: _focusedPaneId,
-      onPaneFocused: (id) => setState(() => _focusedPaneId = id),
+      isActiveTab: widget.isActive,
+      onPaneFocused: (id) {
+        setState(() => _focusedPaneId = id);
+        ref.read(focusedPaneProvider(widget.tabId).notifier).set(id);
+      },
       onClosePane: _closePane,
       onTreeChanged: _onTreeChanged,
     );

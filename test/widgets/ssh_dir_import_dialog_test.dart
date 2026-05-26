@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/openssh_config_importer.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/features/settings/export_import.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/ssh_dir_import_dialog.dart';
+import 'package:letsflutssh/widgets/import_export/ssh_dir_import_dialog.dart';
+
+import '../helpers/frb_bootstrap.dart';
 
 void main() {
+  // privateKeyFingerprint routes through `lfs_core::keys` —
+  // bootstrap FRB so the canonical Rust normalize+sha256 grammar
+  // is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   OpenSshConfigImportPreview makeHostsPreview({
     int hosts = 2,
     List<String> missingKeys = const [],
@@ -150,7 +158,7 @@ void main() {
       );
       await tester.pump();
 
-      final selectAll = tester.getRect(find.text('2 host(s) found'));
+      final selectAll = tester.getRect(find.text('2 hosts found'));
       final firstHost = tester.getRect(find.text('h0'));
       // First host row label sits to the right of the select-all label.
       expect(firstHost.left, greaterThan(selectAll.left));
@@ -215,7 +223,7 @@ void main() {
         );
         await tester.pump();
 
-        // 1 initial host + select-all = "1 host(s) found" trailing.
+        // 1 initial host + select-all = "1 host found" trailing.
         expect(find.text('h0'), findsOneWidget);
         expect(find.text('extra'), findsNothing);
 
@@ -304,9 +312,7 @@ void main() {
                 hostsPreview: null,
                 keys: [key],
                 folderLabel: '.ssh 2026-04-15',
-                existingKeyFingerprints: {
-                  KeyStore.privateKeyFingerprint(key.pem),
-                },
+                existingKeyFingerprints: {privateKeyFingerprint(key.pem)},
               ),
             ),
           ),
@@ -445,8 +451,8 @@ void main() {
 
       expect(hostValues(), [true, true, true]);
 
-      // Tap "N host(s) found" — the select-all row label.
-      await tester.tap(find.text('3 host(s) found'));
+      // Tap "N hosts found" — the select-all row label.
+      await tester.tap(find.text('3 hosts found'));
       await tester.pump();
 
       expect(hostValues(), [
@@ -455,7 +461,7 @@ void main() {
         false,
       ], reason: 'fully-on → tap clears all');
 
-      await tester.tap(find.text('3 host(s) found'));
+      await tester.tap(find.text('3 hosts found'));
       await tester.pump();
       expect(hostValues(), [
         true,
@@ -538,16 +544,26 @@ void main() {
         await tester.tap(find.text('h1'));
         await tester.pump();
 
-        await tester.tap(find.text('Import Data'));
-        await tester.pumpAndSettle();
+        // Import Data triggers async `importSshKey` which awaits a
+        // Rust spawn_blocking via FRB. Real-time scheduling is needed
+        // for the Tokio worker future to wake the Dart side — fakeAsync
+        // never advances real wall-clock, so wrap the tap + drain in
+        // `runAsync`.
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Import Data'));
+          await tester.pump();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pump();
+        });
 
         expect(result, isNotNull);
         expect(result!.mode, ImportMode.merge);
         expect(result!.sessions.map((s) => s.label), ['h0']);
         expect(result!.emptyFolders, {'imported-folder'});
-        // The key's PEM is "bogus…" so KeyStore.importKey may reject it as
-        // unparseable (caught and skipped per L296-299). Assert the length
-        // reflects only successfully-imported keys — not a crash.
+        // The key's PEM is "bogus…" so KeyStore.importKey rejects it
+        // as unparseable (caught and skipped per L296-299). Assert
+        // the length reflects only successfully-imported keys — not
+        // a crash.
         expect(result!.managerKeys.length, lessThanOrEqualTo(1));
       },
     );

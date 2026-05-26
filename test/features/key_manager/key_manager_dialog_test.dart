@@ -2,466 +2,205 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/features/key_manager/key_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
-/// In-memory fake for [KeyStore] — no filesystem or encryption.
-class FakeKeyStore extends KeyStore {
-  final Map<String, SshKeyEntry> _keys;
+import '../../helpers/frb_bootstrap.dart';
 
-  /// When true, [importKey] throws [FormatException].
-  bool importThrows = false;
+/// Minimal [SshKeysMutator] test double — returns the seeded
+/// metadata on every `loadAllMetadata` so the dialog can hydrate
+/// its row list without booting FRB / the rusqlite DB.
+class _StubKeysMutator extends SshKeysMutator {
+  _StubKeysMutator(this._rows);
 
-  FakeKeyStore([List<SshKeyEntry>? initial])
-    : _keys = {for (final e in initial ?? []) e.id: e};
-
-  @override
-  Future<Map<String, SshKeyEntry>> loadAll() async => Map.of(_keys);
+  final List<SshKeyMetadata> _rows;
 
   @override
-  Future<Map<String, SshKeyEntry>> loadAllSafe() async => Map.of(_keys);
-
-  @override
-  Future<void> save(SshKeyEntry entry) async => _keys[entry.id] = entry;
-
-  @override
-  Future<SshKeyEntry?> get(String id) async => _keys[id];
-
-  @override
-  Future<void> delete(String id) async => _keys.remove(id);
-
-  @override
-  SshKeyEntry importKey(String pem, String label) {
-    if (importThrows) throw const FormatException('Invalid PEM');
-    return SshKeyEntry(
-      id: 'imported-${_keys.length}',
-      label: label,
-      privateKey: pem,
-      publicKey: 'ssh-ed25519 AAAA...',
-      keyType: 'ed25519',
-      createdAt: DateTime.now(),
-    );
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    return {for (final r in _rows) r.id: r};
   }
 }
 
+SshKeyMetadata _meta({
+  required String id,
+  required String label,
+  String keyType = 'ssh-ed25519',
+  String backend = 'software',
+  bool importedAsStub = false,
+}) => SshKeyMetadata(
+  id: id,
+  label: label,
+  publicKey: 'pub-$id',
+  keyType: keyType,
+  createdAt: DateTime(2024, 1, 1),
+  isGenerated: false,
+  privateFingerprint: 'priv-$id',
+  publicFingerprint: 'pub-$id',
+  backend: backend,
+  importedAsStub: importedAsStub,
+);
+
 void main() {
-  late FakeKeyStore fakeStore;
+  // Key row rendering routes the created_at timestamp through
+  // `format.dart::formatDate`, which calls Rust over FRB. The widget
+  // tests need the Rust library bootstrapped before pumping.
+  setUpAll(() async {
+    await requireFrbLoaded();
+  });
 
-  final testKey = SshKeyEntry(
-    id: 'k1',
-    label: 'My Test Key',
-    privateKey: 'private',
-    publicKey: 'ssh-ed25519 AAAA',
-    keyType: 'ed25519',
-    createdAt: DateTime(2024, 1, 15),
-  );
+  // The dialog's toolbar opens a Scaffold + MaterialApp surface
+  // whose system-overlay-style writes touch `flutter/platform`;
+  // flutter_test does not stub that channel by default. Stub it so
+  // any platform-method call drains cleanly in pumpAndSettle.
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async => null,
+        );
+  });
 
-  final generatedKey = SshKeyEntry(
-    id: 'k2',
-    label: 'Generated Key',
-    privateKey: 'gen-private',
-    publicKey: 'ssh-ed25519 BBBB',
-    keyType: 'ed25519',
-    createdAt: DateTime(2024, 2, 20),
-    isGenerated: true,
-  );
+  tearDown(() {
+    Toast.clearAllForTest();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
 
-  Widget buildApp() {
+  Widget buildApp({required List<SshKeyMetadata> seed}) {
     return ProviderScope(
-      overrides: [keyStoreProvider.overrideWithValue(fakeStore)],
+      overrides: [
+        sshKeysMutatorProvider.overrideWithValue(_StubKeysMutator(seed)),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
         theme: AppTheme.dark(),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => KeyManagerDialog.show(context),
-              child: const Text('Open'),
-            ),
-          ),
+        home: const Scaffold(
+          body: SizedBox(height: 600, width: 800, child: KeyManagerPanel()),
         ),
       ),
     );
   }
 
-  Future<void> openDialog(WidgetTester tester) async {
-    await tester.pumpWidget(buildApp());
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-  }
-
-  tearDown(() => Toast.clearAllForTest());
-
-  group('KeyManagerDialog', () {
-    testWidgets('shows loading then transitions to content', (tester) async {
-      fakeStore = FakeKeyStore();
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      // After one frame the dialog is visible with the spinner.
-      await tester.pump();
+  group('KeyManagerPanel row rendering', () {
+    testWidgets('shows spinner before metadata resolves, then transitions to '
+        'the row list', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: '1', label: 'Production')],
+        ),
+      );
+      // The `_loadKeys` future has not resolved on the first frame.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      // Let async load complete.
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
-    });
-
-    testWidgets('shows empty state when no keys', (tester) async {
-      fakeStore = FakeKeyStore();
-      await openDialog(tester);
-
-      expect(find.text('No SSH keys. Import or generate one.'), findsOneWidget);
-    });
-
-    testWidgets('shows dialog title SSH Keys', (tester) async {
-      fakeStore = FakeKeyStore();
-      await openDialog(tester);
-
-      expect(find.text('SSH Keys'), findsOneWidget);
-    });
-
-    testWidgets('renders key entries with label and type', (tester) async {
-      fakeStore = FakeKeyStore([testKey]);
-      await openDialog(tester);
-
-      expect(find.text('My Test Key'), findsOneWidget);
-      // Key type + date line
-      expect(find.textContaining('ed25519'), findsOneWidget);
-    });
-
-    testWidgets('shows Generated badge for generated keys', (tester) async {
-      fakeStore = FakeKeyStore([generatedKey]);
-      await openDialog(tester);
-
-      expect(find.text('Generated Key'), findsOneWidget);
-      // The key row's subtitle has the "  •  Generated" suffix.
-      expect(find.textContaining(RegExp(r'•\s*Generated')), findsOneWidget);
-    });
-
-    testWidgets('cancel button closes dialog', (tester) async {
-      fakeStore = FakeKeyStore();
-      await openDialog(tester);
-
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      // Dialog title should be gone.
-      expect(find.text('SSH Keys'), findsNothing);
-    });
-
-    testWidgets('delete button shows confirmation dialog', (tester) async {
-      fakeStore = FakeKeyStore([testKey]);
-      await openDialog(tester);
-
-      // Tap the delete icon button.
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Delete Key'), findsOneWidget);
-    });
-
-    testWidgets('delete confirmation removes key', (tester) async {
-      fakeStore = FakeKeyStore([testKey]);
-      await openDialog(tester);
-
-      // Open delete confirmation.
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
-
-      // Confirm deletion.
-      await tester.tap(find.text('Delete'));
-      await tester.pumpAndSettle();
-
-      // Key should be gone from the list and store.
-      expect(find.text('My Test Key'), findsNothing);
-      expect(fakeStore._keys, isEmpty);
-
-      // Dismiss the success toast and let the overlay dispose cleanly.
-      Toast.clearAllForTest();
-      await tester.pump();
-    });
-
-    testWidgets('delete cancel keeps key', (tester) async {
-      fakeStore = FakeKeyStore([testKey]);
-      await openDialog(tester);
-
-      // Open delete confirmation.
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
-
-      // Cancel deletion — there are two Cancel buttons (main dialog + confirm
-      // dialog). The confirmation dialog's Cancel is on top, so tap the last.
-      await tester.tap(find.text('Cancel').last);
-      await tester.pumpAndSettle();
-
-      // Key should still be visible.
-      expect(find.text('My Test Key'), findsOneWidget);
-      expect(fakeStore._keys, hasLength(1));
-    });
-
-    testWidgets('generate key button opens generate dialog', (tester) async {
-      fakeStore = FakeKeyStore();
-      await openDialog(tester);
-
-      await tester.tap(find.text('Generate Key'));
-      await tester.pumpAndSettle();
-
-      // Generate dialog contains a Key Label text field.
-      expect(find.text('Key Label'), findsOneWidget);
-      // Key type chips should be visible.
-      expect(find.text('Ed25519'), findsOneWidget);
-    });
-
-    testWidgets('add key button opens paste dialog', (tester) async {
-      // Import + Add split per feat(keys) — Import now goes straight
-      // to the file picker, Add opens the label + paste dialog.
-      fakeStore = FakeKeyStore();
-      await openDialog(tester);
-
-      await tester.tap(find.text('Add Key'));
-      await tester.pumpAndSettle();
-
-      // Paste dialog contains label and PEM fields.
-      expect(find.text('Key Label'), findsOneWidget);
-      expect(find.text('Paste Private Key (PEM)'), findsOneWidget);
+      expect(find.text('Production'), findsOneWidget);
     });
 
     testWidgets(
-      'copy public key button writes the entry publicKey to the clipboard',
-      // Spec (L161-167): the copy icon on each row is the user's way of
-      // picking up the public key to paste into an authorized_keys file.
-      // It must put the exact `SshKeyEntry.publicKey` string on the
-      // system clipboard — nothing prefixed, nothing truncated.
+      'FIDO2 sk-* row renders the HardwareKeyBadge from _KeyRowBadges',
       (tester) async {
-        fakeStore = FakeKeyStore([testKey]);
-
-        String? clipboardText;
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-              if (call.method == 'Clipboard.setData') {
-                final args = call.arguments as Map<Object?, Object?>?;
-                clipboardText = args?['text'] as String?;
-              }
-              return null;
-            });
-        addTearDown(() {
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-              .setMockMethodCallHandler(SystemChannels.platform, null);
-        });
-
-        await openDialog(tester);
-        await tester.tap(find.byIcon(Icons.content_copy));
-        await tester.pump();
-
-        expect(clipboardText, 'ssh-ed25519 AAAA');
-
-        // Toast's 3s timer is still pending; let it expire so the tree
-        // disposes cleanly.
-        Toast.clearAllForTest();
-        await tester.pump();
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'sk1',
+                label: 'YubiKey 5',
+                keyType: 'sk-ssh-ed25519@openssh.com',
+                backend: 'fido2',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(HardwareKeyBadge), findsOneWidget);
       },
     );
+
+    testWidgets('non-stub row exposes copy / delete actions; cert-add slot is '
+        'present when no cert is attached', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: '1', label: 'Production')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The action cluster lives inside `_KeyRowActions`; tooltip
+      // strings (`S.of(context).publicKey` etc.) are the public
+      // surface to assert against. The import-certificate slot
+      // now uses an extended tooltip that explains the SSH CA
+      // use case — match the first sentence so a future copy
+      // tweak does not invalidate the test.
+      expect(find.byTooltip('Public Key'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Tooltip &&
+              (w.message?.startsWith(
+                    'Attach an OpenSSH certificate signed by your CA',
+                  ) ??
+                  false),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Delete Key'), findsOneWidget);
+      // Stub-only actions must not appear on a non-stub row.
+      expect(find.byTooltip('Re-generate here'), findsNothing);
+    });
 
     testWidgets(
-      'successful paste saves the entry and shows the keyImported toast',
-      // Spec (L222-233): the paste happy path runs store.save +
-      // `keyImported(label)` toast. The underlying handler is
-      // `_persistImportedKey`, shared between the Add (paste) and
-      // Import (file picker) entry points — asserting against the
-      // Add path exercises the same save + toast chain.
+      'stub row swaps the action set to [Re-generate, Remove] and hides the '
+      'copy / cert affordances',
       (tester) async {
-        fakeStore = FakeKeyStore(); // default: importThrows=false
-        await openDialog(tester);
-
-        await tester.tap(find.text('Add Key'));
-        await tester.pumpAndSettle();
-
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Key Label'),
-          'New Key',
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'stub1',
+                label: 'Old laptop key',
+                backend: 'enclave',
+                importedAsStub: true,
+              ),
+            ],
+          ),
         );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Paste Private Key (PEM)'),
-          '-----BEGIN OPENSSH PRIVATE KEY-----\nAAA\n-----END OPENSSH PRIVATE KEY-----',
-        );
-
-        // Paste dialog footer's primary action is also labelled
-        // "Add Key"; `.last` picks it from the toolbar + footer pair.
-        await tester.tap(find.text('Add Key').last);
         await tester.pumpAndSettle();
-
-        // FakeKeyStore.importKey returns a synthesized SshKeyEntry with the
-        // user's label; store.save in FakeKeyStore is an in-memory put.
-        expect(fakeStore._keys, hasLength(1));
-        expect(fakeStore._keys.values.first.label, 'New Key');
-
-        // Success toast carries the entry label per keyImported(label).
-        expect(find.text('Key imported: New Key'), findsOneWidget);
-
-        Toast.clearAllForTest();
-        await tester.pump();
+        // Stub action cluster — `_KeyRowActions` branches on
+        // `entry.importedAsStub` and renders the regenerate + remove
+        // affordances instead of the copy / cert / delete trio.
+        expect(find.byTooltip('Re-generate here'), findsOneWidget);
+        expect(find.byTooltip('Remove stub'), findsOneWidget);
+        expect(find.byTooltip('Public Key'), findsNothing);
+        expect(find.byTooltip('Import certificate'), findsNothing);
       },
     );
+  });
 
-    testWidgets('paste with invalid PEM shows error toast', (tester) async {
-      fakeStore = FakeKeyStore();
-      fakeStore.importThrows = true;
-      await openDialog(tester);
-
-      // Open paste dialog.
-      await tester.tap(find.text('Add Key'));
-      await tester.pumpAndSettle();
-
-      // Fill in label and PEM fields.
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Key Label'),
-        'Bad',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Paste Private Key (PEM)'),
-        'not-a-pem',
-      );
-
-      // The paste dialog footer has its own "Add Key" action — tap
-      // the trailing one (the first is the toolbar button that
-      // opened the dialog).
-      await tester.tap(find.text('Add Key').last);
-      await tester.pumpAndSettle();
-
-      // Error toast should appear with the invalid PEM message.
-      expect(find.text('Invalid PEM key data'), findsOneWidget);
-
-      // Dismiss the toast and let the overlay dispose cleanly.
-      Toast.clearAllForTest();
-      await tester.pump();
-    });
-
-    testWidgets('search filters the key list by label (case-insensitive)', (
-      tester,
-    ) async {
-      fakeStore = FakeKeyStore([
-        SshKeyEntry(
-          id: 'p',
-          label: 'Production',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024, 1, 1),
-        ),
-        SshKeyEntry(
-          id: 's',
-          label: 'Staging',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'rsa',
-          createdAt: DateTime(2024, 1, 2),
-        ),
-      ]);
-      await openDialog(tester);
-
-      expect(find.text('Production'), findsOneWidget);
-      expect(find.text('Staging'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField), 'prod');
-      await tester.pumpAndSettle();
-
-      expect(find.text('Production'), findsOneWidget);
-      expect(find.text('Staging'), findsNothing);
-    });
-
-    testWidgets('search by key type surfaces only matching entries', (
-      tester,
-    ) async {
-      // The `_filtered` predicate checks both label and keyType, so a
-      // user searching "rsa" gets only RSA keys even when labels
-      // don't mention the algo.
-      fakeStore = FakeKeyStore([
-        SshKeyEntry(
-          id: 'a',
-          label: 'Alpha',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024, 1, 1),
-        ),
-        SshKeyEntry(
-          id: 'b',
-          label: 'Beta',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'rsa',
-          createdAt: DateTime(2024, 1, 2),
-        ),
-      ]);
-      await openDialog(tester);
-
-      await tester.enterText(find.byType(TextField), 'rsa');
-      await tester.pumpAndSettle();
-
-      expect(find.text('Alpha'), findsNothing);
-      expect(find.text('Beta'), findsOneWidget);
-    });
-
-    testWidgets('empty search query restores the full list of keys', (
-      tester,
-    ) async {
-      fakeStore = FakeKeyStore([
-        SshKeyEntry(
-          id: 'a',
-          label: 'Alpha',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024, 1, 1),
-        ),
-        SshKeyEntry(
-          id: 'b',
-          label: 'Beta',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'rsa',
-          createdAt: DateTime(2024, 1, 2),
-        ),
-      ]);
-      await openDialog(tester);
-
-      await tester.enterText(find.byType(TextField), 'alpha');
-      await tester.pumpAndSettle();
-      expect(find.text('Beta'), findsNothing);
-
-      await tester.enterText(find.byType(TextField), '');
-      await tester.pumpAndSettle();
-      expect(find.text('Alpha'), findsOneWidget);
-      expect(find.text('Beta'), findsOneWidget);
-    });
-
-    testWidgets('search with no matches surfaces the empty-results state', (
-      tester,
-    ) async {
-      fakeStore = FakeKeyStore([
-        SshKeyEntry(
-          id: 'a',
-          label: 'Alpha',
-          privateKey: '',
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024, 1, 1),
-        ),
-      ]);
-      await openDialog(tester);
-
-      await tester.enterText(find.byType(TextField), 'nothing-matches');
-      await tester.pumpAndSettle();
-
-      // Generic empty-results copy from l10n — shared with snippet /
-      // tag managers. Any change to the shared wording surfaces here
-      // first because the key manager has the richer fixture.
-      expect(find.text('No results'), findsOneWidget);
-    });
+  group('KeyManagerPanel + Add menu', () {
+    testWidgets(
+      'toolbar renders a single + Add trigger; tapping it opens a popup '
+      'that lists the always-on paste / import / generate paths',
+      (tester) async {
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        // Trigger label is `S.of(context).addKey` — exactly one
+        // instance in the toolbar (the toolbar's only action).
+        final trigger = find.text('Add Key');
+        expect(trigger, findsOneWidget);
+        await tester.tap(trigger);
+        await tester.pumpAndSettle();
+        // Common paths always appear regardless of hardware tier
+        // probes — the host platform's available rungs may add more
+        // entries below the divider but these three are unconditional.
+        expect(find.text('Paste PEM'), findsOneWidget);
+        expect(find.text('Import Key'), findsOneWidget);
+        expect(find.text('Generate Key'), findsOneWidget);
+      },
+    );
   });
 }

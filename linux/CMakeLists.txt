@@ -130,3 +130,14 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+# FIDO2 HID udev rules. Ship the file alongside the bundle so the
+# packaging step (`.deb` / `.rpm` post-install scripts) can drop it
+# into `/etc/udev/rules.d/` and reload udev. Without these rules the
+# `lfs_core::fido2` direct CTAP2 path cannot open `/dev/hidraw*` on
+# most distros — they default to `root:root 0600`. The bundle copy
+# is informational only; the installer is responsible for the real
+# system-wide install + `udevadm control --reload-rules`.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/70-letsflutssh-fido.rules"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}/udev"
+  COMPONENT Runtime)

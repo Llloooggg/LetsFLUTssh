@@ -2,34 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_connect.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
-import 'package:letsflutssh/providers/key_provider.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
+import '../../helpers/frb_bootstrap.dart';
+import '../../helpers/frb_pump.dart';
 
-/// A fake ConnectionManager that returns a disconnected connection with error.
-class _FailingConnectionManager extends ConnectionManager {
+/// A fake ConnectionsNotifier that returns a disconnected
+/// connection with error. `build()` skips the real init (no FRB
+/// bus subscription, no ref.watches that would fail under
+/// flutter_test).
+class _FailingConnectionManager extends ConnectionsNotifier {
+  _FailingConnectionManager(this.error);
+
   final Object error;
 
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     return Connection(
       id: 'conn-fail',
@@ -42,20 +49,25 @@ class _FailingConnectionManager extends ConnectionManager {
   }
 }
 
-/// A fake ConnectionManager that simulates connect success
+/// A fake ConnectionsNotifier that simulates connect success
 /// without real network calls.
-class _FakeConnectionManager extends ConnectionManager {
+class _FakeConnectionManager extends ConnectionsNotifier {
   String? lastLabel;
   String? lastSessionId;
   SSHConfig? lastConfig;
+  Session? lastWebDavSession;
+  Session? lastS3Session;
 
-  _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
     SSHConfig config, {
     String? label,
     String? sessionId,
+    Connection? bastion,
+    bool internal = false,
   }) {
     lastLabel = label;
     lastSessionId = sessionId;
@@ -68,18 +80,45 @@ class _FakeConnectionManager extends ConnectionManager {
       state: SSHConnectionState.connected,
     );
   }
-}
-
-/// In-memory KeyStore stand-in — [SessionConnect] only reads via `get()`.
-class _FakeKeyStore extends KeyStore {
-  _FakeKeyStore(this._entries);
-  final Map<String, SshKeyEntry> _entries;
 
   @override
-  Future<SshKeyEntry?> get(String id) async => _entries[id];
+  Connection connectWebDavAsync(Session session) {
+    lastWebDavSession = session;
+    final conn = Connection(
+      id: 'fake-conn-webdav',
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connected,
+    )..kind = SessionKind.webdav;
+    return conn;
+  }
+
+  @override
+  Connection connectS3Async(Session session) {
+    lastS3Session = session;
+    final conn = Connection(
+      id: 'fake-conn-s3',
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connected,
+    )..kind = SessionKind.s3;
+    return conn;
+  }
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await requireFrbLoaded();
+    // `Session.toSSHConfig` calls `path_expand_tilde` Rust-side and
+    // the connect path then awaits `db_port_forwards_list_for_session`
+    // — both need the AppState + DB live before any test runs.
+    await rust_app.dbInit(path: ':memory:', key: const []);
+  });
+
   group('SessionConnect error message formatting', () {
     test('HostKeyError produces userMessage', () {
       const error = HostKeyError('Host key changed');
@@ -119,10 +158,11 @@ void main() {
   group('SessionConnect.connectTerminal', () {
     testWidgets('adds terminal tab on successful connection', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -142,7 +182,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -155,19 +199,18 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(find.byType(Scaffold), findsOneWidget);
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses session label when non-empty', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -187,7 +230,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -200,20 +247,19 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // The label should be passed to connect()
       expect(fakeManager.lastLabel, 'My Server');
-
-      fakeManager.dispose();
     });
 
     testWidgets('passes session ID to connection manager', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -232,7 +278,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -245,19 +295,18 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(fakeManager.lastSessionId, 'sess-42');
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses displayName when session label is empty', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -277,7 +326,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -290,21 +343,20 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // Empty label => displayName used
       expect(fakeManager.lastLabel, 'root@10.0.0.1:22');
-
-      fakeManager.dispose();
     });
 
     testWidgets('creates tab in tab provider on success', (tester) async {
       final fakeManager = _FakeConnectionManager();
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -324,7 +376,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -337,14 +393,12 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      fakeManager.dispose();
     });
   });
 
@@ -352,10 +406,11 @@ void main() {
     testWidgets('adds SFTP tab on successful connection', (tester) async {
       final fakeManager = _FakeConnectionManager();
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -375,7 +430,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -388,24 +447,23 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.sftp);
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses displayName when label is empty for SFTP', (
       tester,
     ) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -424,7 +482,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -437,11 +499,9 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(fakeManager.lastLabel, 'admin@10.0.0.1:22');
-
-      fakeManager.dispose();
     });
   });
 
@@ -453,10 +513,11 @@ void main() {
         Exception('Wrong password'),
       );
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -476,7 +537,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Connect'),
                   ),
@@ -489,15 +554,13 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       // Tab should still be added (connection status shown inside tab)
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      failManager.dispose();
     });
 
     testWidgets('connectSftp adds tab even when connection fails', (
@@ -505,10 +568,11 @@ void main() {
     ) async {
       final failManager = _FailingConnectionManager(Exception('Auth failed'));
       late WidgetRef capturedRef;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -528,7 +592,11 @@ void main() {
                         ),
                         auth: const SessionAuth(password: 'secret'),
                       );
-                      SessionConnect.connectSftp(context, ref, session);
+                      pending = SessionConnect.connectSftp(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('SFTP'),
                   ),
@@ -541,14 +609,12 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('SFTP'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       final ws = capturedRef.read(workspaceProvider);
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.sftp);
-
-      failManager.dispose();
     });
 
     testWidgets('connectConfig adds tab even when connection fails', (
@@ -559,7 +625,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -592,8 +658,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      failManager.dispose();
     });
   });
 
@@ -606,7 +670,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -643,8 +707,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      fakeManager.dispose();
     });
 
     testWidgets('connectConfig does not pass label to connect', (tester) async {
@@ -652,7 +714,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -686,8 +748,6 @@ void main() {
 
       // connectConfig doesn't pass a label
       expect(fakeManager.lastLabel, isNull);
-
-      fakeManager.dispose();
     });
   });
 
@@ -700,7 +760,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -736,7 +796,6 @@ void main() {
 
       expect(result, isFalse);
       Toast.clearAllForTest();
-      fakeManager.dispose();
     });
 
     testWidgets('connectSftp returns false for incomplete session', (
@@ -747,7 +806,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -783,18 +842,17 @@ void main() {
 
       expect(result, isFalse);
       Toast.clearAllForTest();
-      fakeManager.dispose();
     });
 
     testWidgets('connectTerminal returns true for complete session', (
       tester,
     ) async {
       final fakeManager = _FakeConnectionManager();
-      bool? result;
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -803,13 +861,13 @@ void main() {
               builder: (context, ref, _) {
                 return Scaffold(
                   body: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: () {
                       final session = Session(
                         label: 'ok',
                         server: const ServerAddress(host: 'h', user: 'u'),
                         auth: const SessionAuth(password: 'pass'),
                       );
-                      result = await SessionConnect.connectTerminal(
+                      pending = SessionConnect.connectTerminal(
                         context,
                         ref,
                         session,
@@ -826,40 +884,27 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Go'));
-      await tester.pumpAndSettle();
+      final result = await pumpUntilFrbSettles(tester, pending);
 
       expect(result, isTrue);
-      fakeManager.dispose();
     });
 
     testWidgets(
-      'keyId on the session resolves against the key store and injects keyData',
+      'keyId on the session is forwarded verbatim — the manager stages '
+      'private bytes Rust-side without touching the Dart heap',
       (tester) async {
-        // The `_resolveConfig` helper looks up `session.keyId` in the
-        // key store and copies the entry's `privateKey` into the
-        // SSHConfig's `keyData` slot — the only way a session with a
-        // key reference reaches the connection manager with actual
-        // PEM material. A regression that dropped the lookup would
-        // quietly fall back to password auth and surface as "server
-        // disconnected" only during the handshake.
+        // The connect path no longer reads the key store from Dart.
+        // `session.keyId` rides on `SshAuth.keyId` straight to the
+        // connection manager, which calls `db_ssh_keys_stage_secret`
+        // to push the bytes into the SecretStore. The Dart heap never
+        // sees the PEM. This test pins the contract: `keyData` stays
+        // empty, `keyId` survives the round-trip.
         final fakeManager = _FakeConnectionManager();
-        final fakeKeyStore = _FakeKeyStore({
-          'k-1': SshKeyEntry(
-            id: 'k-1',
-            label: 'staging',
-            privateKey: '-----BEGIN KEY-----',
-            publicKey: 'ssh-ed25519 AAAA',
-            keyType: 'ed25519',
-            createdAt: DateTime(2024),
-          ),
-        });
+        late Future<bool> pending;
 
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [
-              connectionManagerProvider.overrideWithValue(fakeManager),
-              keyStoreProvider.overrideWithValue(fakeKeyStore),
-            ],
+            overrides: [connectionsProvider.overrideWith(() => fakeManager)],
             child: MaterialApp(
               localizationsDelegates: S.localizationsDelegates,
               supportedLocales: S.supportedLocales,
@@ -878,7 +923,11 @@ void main() {
                           ),
                           auth: const SessionAuth(keyId: 'k-1'),
                         );
-                        SessionConnect.connectTerminal(context, ref, session);
+                        pending = SessionConnect.connectTerminal(
+                          context,
+                          ref,
+                          session,
+                        );
                       },
                       child: const Text('Connect'),
                     ),
@@ -890,76 +939,28 @@ void main() {
         );
         await tester.pump();
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await pumpUntilFrbSettles(tester, pending);
 
         expect(
-          fakeManager.lastConfig?.keyData,
-          '-----BEGIN KEY-----',
-          reason: 'keyId must be resolved into inline keyData before connect',
+          fakeManager.lastConfig?.auth.keyId,
+          'k-1',
+          reason: 'keyId must reach the manager unchanged',
         );
-        fakeManager.dispose();
-      },
-    );
-
-    testWidgets(
-      'missing keyId entry surfaces a no-crash fallback without keyData',
-      (tester) async {
-        final fakeManager = _FakeConnectionManager();
-        final fakeKeyStore = _FakeKeyStore({}); // no entries
-
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              connectionManagerProvider.overrideWithValue(fakeManager),
-              keyStoreProvider.overrideWithValue(fakeKeyStore),
-            ],
-            child: MaterialApp(
-              localizationsDelegates: S.localizationsDelegates,
-              supportedLocales: S.supportedLocales,
-              theme: AppTheme.dark(),
-              home: Consumer(
-                builder: (context, ref, _) {
-                  return Scaffold(
-                    body: ElevatedButton(
-                      onPressed: () {
-                        final session = Session(
-                          id: 's1',
-                          label: 'Orphan',
-                          server: const ServerAddress(
-                            host: '10.0.0.1',
-                            user: 'root',
-                          ),
-                          auth: const SessionAuth(keyId: 'ghost'),
-                        );
-                        SessionConnect.connectTerminal(context, ref, session);
-                      },
-                      child: const Text('Connect'),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-        await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
-
         expect(
           fakeManager.lastConfig?.keyData,
           isEmpty,
-          reason: 'Missing key entry must not invent keyData',
+          reason: 'PEM bytes must not be materialised on the Dart heap',
         );
-        fakeManager.dispose();
       },
     );
 
     testWidgets('incomplete session shows warning toast', (tester) async {
       final fakeManager = _FakeConnectionManager();
+      late Future<bool> pending;
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -974,7 +975,11 @@ void main() {
                         label: 'inc',
                         server: const ServerAddress(host: 'h', user: 'u'),
                       );
-                      SessionConnect.connectTerminal(context, ref, session);
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
                     },
                     child: const Text('Go'),
                   ),
@@ -987,13 +992,229 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Go'));
-      await tester.pumpAndSettle();
+      await pumpUntilFrbSettles(tester, pending);
 
       expect(find.textContaining('no credentials'), findsOneWidget);
 
       // Clean up toast overlay
       Toast.clearAllForTest();
-      fakeManager.dispose();
+    });
+  });
+
+  group('SessionConnect.connectTerminal — kind dispatch', () {
+    // Background: until the routing fix, `connectTerminal` blindly
+    // called `addTerminalTab` even when `_createConnection` had
+    // returned a WebDAV / S3 connection. The terminal pane then
+    // tried to read `conn.transport` (null for non-SSH) and crashed
+    // with `Bad state`. The fix dispatches by `session.kind` at the
+    // top of `connectTerminal`; these tests pin that dispatch so a
+    // future refactor can't silently re-introduce the regression.
+
+    testWidgets('WebDAV session tapped via connectTerminal opens an SFTP tab, '
+        'not a terminal tab, and routes through connectWebDavAsync', (
+      tester,
+    ) async {
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 'webdav-route-1',
+                        label: 'webdav-row',
+                        kind: SessionKind.webdav,
+                        server: const ServerAddress(
+                          host: 'dav.example.com',
+                          port: 443,
+                          user: 'alice',
+                        ),
+                        // After the v17 schema bump a WebDAV session
+                        // without a saved password fails `isValid` and
+                        // `connectTerminal` refuses to dispatch. This
+                        // test exercises the kind dispatch, not the
+                        // validity gate — supply credentials so the
+                        // gate passes and the dispatch fires.
+                        auth: const SessionAuth(password: 'dav-pw'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      // The fake's WebDAV connect hook was reached — a SSH-shaped
+      // `connectAsync` would have left this null and would have
+      // crashed the terminal pane downstream.
+      expect(fakeManager.lastWebDavSession?.id, 'webdav-route-1');
+      expect(fakeManager.lastConfig, isNull);
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(
+        allTabs.first.kind,
+        TabKind.sftp,
+        reason:
+            'connectTerminal MUST open an SFTP-kind tab for a '
+            'WebDAV session — opening a terminal tab there feeds '
+            'a null `transport` into the terminal pane and crashes '
+            'with `Bad state` (the original user-reported bug).',
+      );
+    });
+
+    testWidgets('S3 session tapped via connectTerminal opens an SFTP tab, '
+        'not a terminal tab, and routes through connectS3Async', (
+      tester,
+    ) async {
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 's3-route-1',
+                        label: 's3-row',
+                        kind: SessionKind.s3,
+                        server: const ServerAddress(
+                          host: 's3.example.com',
+                          port: 443,
+                          user: 'AKIATEST',
+                        ),
+                        // Supply a "stored secret access key" so the
+                        // v17 `isValid` check passes — this test
+                        // exercises the kind dispatch, not the
+                        // validity gate.
+                        auth: const SessionAuth(password: 's3-secret'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      expect(fakeManager.lastS3Session?.id, 's3-route-1');
+      expect(fakeManager.lastConfig, isNull);
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(
+        allTabs.first.kind,
+        TabKind.sftp,
+        reason:
+            'connectTerminal MUST open an SFTP-kind tab for an '
+            'S3 session — same root cause as the WebDAV case '
+            '(no PTY exists for the kind).',
+      );
+    });
+
+    testWidgets('SSH session via connectTerminal still opens a terminal tab '
+        '(no regression in the canonical path)', (tester) async {
+      // Belt-and-braces: the kind dispatch must NOT spill onto SSH.
+      // Without this guard, a future tweak to the if-condition
+      // (say, inverting the kind check) would silently turn every
+      // SSH connect into an SFTP tab.
+      final fakeManager = _FakeConnectionManager();
+      late WidgetRef capturedRef;
+      late Future<bool> pending;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () {
+                      final session = Session(
+                        id: 'ssh-route-1',
+                        label: 'ssh-row',
+                        server: const ServerAddress(
+                          host: '10.0.0.1',
+                          port: 22,
+                          user: 'root',
+                        ),
+                        auth: const SessionAuth(password: 'secret'),
+                      );
+                      pending = SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await pumpUntilFrbSettles(tester, pending);
+
+      expect(fakeManager.lastWebDavSession, isNull);
+      expect(fakeManager.lastS3Session, isNull);
+      expect(fakeManager.lastSessionId, 'ssh-route-1');
+
+      final ws = capturedRef.read(workspaceProvider);
+      final allTabs = collectAllTabs(ws.root);
+      expect(allTabs.length, 1);
+      expect(allTabs.first.kind, TabKind.terminal);
     });
   });
 }

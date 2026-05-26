@@ -21,7 +21,10 @@
   "select": "Seç",
   "copyModeTapToStart": "Seçim başlangıcını işaretlemek için dokun",
   "copyModeExtending": "Seçimi genişletmek için sürükle",
+  "copyModeSetAnchor": "Bağlantı noktası ayarla",
+  "copyModeCopySelection": "Seçimi kopyala",
   "required": "Gerekli",
+  "errFillRequiredFields": "* ile işaretli zorunlu alanları doldur",
   "settings": "Ayarlar",
   "appSettings": "Uygulama Ayarları",
   "includePasswords": "Oturum parolaları",
@@ -69,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Yükleyici başlatılamadı; tarayıcıda yayın sayfası açıldı",
   "versionAvailable": "Sürüm {version} mevcut",
   "currentVersion": "Güncel: v{version}",
-  "sshKeyReceived": "SSH anahtarı alındı: {filename}",
   "importedSessions": "{count} oturum içe aktarıldı",
   "importFailed": "İçe aktarma başarısız: {error}",
   "importSkippedLinks": "{count, plural, other{{count} ilişki düşürüldü (hedef eksik)}}",
@@ -104,8 +106,17 @@
   "deleteSessionConfirm": "\"{name}\" silinsin mi?",
   "connection": "Bağlantı",
   "auth": "Kimlik Doğrulama",
+  "sectionAuthentication": "Kimlik doğrulama",
+  "sectionAdvanced": "Gelişmiş",
+  "moreOptions": "Diğer seçenekler",
+  "forwardRulesSummary": "{count, plural, =0{Port yönlendirme kuralı yok} other{{count} port yönlendirme kuralı}}",
+  "manageRules": "Yönet…",
+  "authMethodAgent": "Sistem ssh-agent kullan",
   "options": "Seçenekler",
   "sessionName": "Oturum Adı",
+  "sessionNameAutoFromHost": "Host'tan otomatik",
+  "sessionNameAutoFromUrl": "URL host'undan otomatik",
+  "sessionNameAutoFromBucket": "Varsayılan bucket'tan otomatik",
   "hintMyServer": "Sunucum",
   "hostRequired": "Host *",
   "hintHost": "192.168.1.1",
@@ -117,6 +128,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Anahtar Parolası",
   "hintOptional": "İsteğe bağlı",
+  "savedTypeToChange": "Kaydedildi — değiştirmek için yazın",
   "hidePemText": "PEM metnini gizle",
   "pastePemKeyText": "PEM anahtar metni yapıştır",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +164,6 @@
   "confirmPassword": "Şifreyi Onayla",
   "importModeMergeDescription": "Yeni oturumları ekle, mevcut olanları koru",
   "importModeReplaceDescription": "Tüm oturumları içe aktarılanlarla değiştir",
-  "errorPrefix": "Hata: {error}",
   "folderName": "Klasör adı",
   "newName": "Yeni ad",
   "deleteItems": "{names} silinsin mi?",
@@ -203,7 +214,10 @@
   "parallelWorkers": "Paralel Worker Sayısı",
   "maxHistory": "Maks Geçmiş",
   "calculateFolderSizes": "Klasör Boyutlarını Hesapla",
+  "verboseConnectionLog": "Ayrıntılı bağlantı günlüğü",
+  "verboseConnectionLogSubtitle": "SSH handshake ve kimlik doğrulama izinin tamamını log dosyasına kaydet (bağlantı hatalarını teşhis etmek için)",
   "exportData": "Veriyi Dışa Aktar",
+  "exportRecordings": "Oturum Kayıtları",
   "sshConfigPreviewHostsFound": "{count} host bulundu",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -274,7 +288,6 @@
   "urlCopied": "URL panoya kopyalandı",
   "aboutSubtitle": "v{version} — SSH/SFTP istemcisi",
   "sourceCode": "Kaynak Kod",
-  "enableLogging": "Günlükleri Etkinleştir",
   "logIsEmpty": "Günlük boş",
   "logExportedTo": "Günlük dışa aktarıldı: {path}",
   "logExportFailed": "Günlük dışa aktarma başarısız: {error}",
@@ -307,20 +320,56 @@
   "completed": "Tamamlandı",
   "connected": "Bağlandı",
   "disconnected": "Bağlantı kesildi",
+  "a11yConnectingTo": "{host} bağlanılıyor",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "{host} bağlanıldı",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "{host} bağlantısı kesildi",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "{host} bağlantısı başarısız oldu",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Çıkış",
   "exitConfirmation": "Aktif oturumların bağlantısı kesilecek. Çıkılsın mı?",
   "hintFolderExample": "örn. Production",
   "credentialsNotSet": "Kimlik bilgileri ayarlanmadı",
   "exportSessionsViaQr": "Oturumları QR ile Dışa Aktar",
-  "qrNoCredentialsWarning": "Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.",
   "qrTooManyForSingleCode": "Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.",
   "qrTooLarge": "Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.",
-  "exportAll": "Tümünü Dışa Aktar",
   "showQr": "QR Göster",
   "sort": "Sırala",
   "resizePanelDivider": "Panel ayırıcısını yeniden boyutlandır",
   "youreRunningLatest": "En son sürümü kullanıyorsunuz",
   "liveLog": "Canlı Günlük",
+  "archivedLog": "Arşivlenmiş günlük",
+  "loggingLevel": "Log seviyesi",
+  "loggingLevelSubtitleInfo": "Rutin kayıtlar + uyarılar + hatalar",
+  "loggingLevelSubtitleWarn": "Sadece sorunlu yollar ve hatalar",
+  "loggingLevelSubtitleError": "Sadece hatalar",
+  "loggingLevelSubtitleOff": "Rutin log yazılmıyor",
   "transferNItems": "{count} öğeyi transfer et",
   "time": "Zaman",
   "failed": "Başarısız",
@@ -401,20 +450,11 @@
   "errLfsUnsupportedVersion": "Arşiv v{found} şemasını kullanıyor, ancak bu sürüm yalnızca v{supported} sürümüne kadar destekliyor. İçe aktarmak için uygulamayı güncelleyin.",
   "progressReadingArchive": "Arşiv okunuyor…",
   "progressDecrypting": "Şifre çözülüyor…",
-  "progressParsingArchive": "Arşiv ayrıştırılıyor…",
-  "progressImportingSessions": "Oturumlar içe aktarılıyor",
-  "progressImportingFolders": "Klasörler içe aktarılıyor",
-  "progressImportingManagerKeys": "SSH anahtarları içe aktarılıyor",
-  "progressImportingTags": "Etiketler içe aktarılıyor",
-  "progressImportingSnippets": "Snippet'ler içe aktarılıyor",
-  "progressApplyingConfig": "Yapılandırma uygulanıyor…",
-  "progressImportingKnownHosts": "known_hosts içe aktarılıyor…",
   "progressCollectingData": "Veriler toplanıyor…",
   "progressEncrypting": "Şifreleniyor…",
   "progressWritingArchive": "Arşiv yazılıyor…",
   "progressWorking": "İşleniyor…",
-  "saveSessionToAssignTags": "Etiket atamak için önce oturumu kaydedin",
-  "noTagsAssigned": "Atanmış etiket yok",
+  "noTagsAvailable": "Henüz etiket yok — Tools → Tags üzerinden oluşturun.",
   "manageTags": "Etiketleri yönet",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
@@ -447,11 +487,6 @@
   "transferTooltipEnded": "Bitiş: {time}",
   "transferTooltipDuration": "Süre: {duration}",
   "transferStatusQueued": "Sırada",
-  "transferStartingUpload": "Yükleme başlıyor...",
-  "transferStartingDownload": "İndirme başlıyor...",
-  "transferCopying": "Kopyalanıyor...",
-  "transferDone": "Tamamlandı",
-  "transferFilesProgress": "{done}/{total} dosya",
   "fileConflictTitle": "Dosya zaten mevcut",
   "fileConflictMessage": "\"{fileName}\" zaten {targetDir} içinde var. Ne yapmak istersiniz?",
   "fileConflictSkip": "Atla",
@@ -489,6 +524,7 @@
   "noKeys": "SSH anahtarı yok. İçe aktarın veya oluşturun.",
   "generateKey": "Anahtar oluştur",
   "addKey": "Anahtar ekle",
+  "addKeyMenuPaste": "PEM yapıştır",
   "filePickerUnavailable": "Dosya seçici bu sistemde kullanılamıyor",
   "importKey": "Anahtar içe aktar",
   "keyLabel": "Anahtar adı",
@@ -502,20 +538,37 @@
   "keyDeleted": "Anahtar silindi: {label}",
   "publicKey": "Public key",
   "publicKeyCopied": "Public key panoya kopyalandı",
+  "sshCertificate": "Sertifika",
+  "certImport": "Sertifika içe aktar",
+  "certImportTooltip": "CA'nızın imzaladığı bir OpenSSH sertifikası ekleyin (`ssh-keygen -s …` ile üretilen `-cert.pub` dosyası). Sunucular `authorized_keys` yerine CA imzasıyla doğruluyorsa kullanın. Sunucularınız plain key auth kullanıyorsa atlayın.",
+  "certImportPickerTitle": "OpenSSH sertifika dosyasını seç",
+  "certValidFrom": "Geçerlilik başlangıcı",
+  "certValidTo": "Geçerlilik bitişi",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Bu sertifikanın süresi yakında dolacak.",
+  "certExpired": "Süresi doldu",
+  "certRemove": "Sertifikayı kaldır",
+  "certRemoveConfirmTitle": "Sertifika kaldırılsın mı?",
+  "certRemoveConfirmBody": "Sertifika kaldırıldığında oturum düz public key kimlik doğrulamasına geri döner.",
+  "errCertParse": "Sertifika parse edilemedi: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Bu sertifika seçili anahtarla eşleşmiyor.",
   "pastePrivateKey": "Özel anahtarı yapıştır (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Geçersiz PEM anahtar verisi",
   "selectFromKeyStore": "Anahtar deposundan seç",
   "keyCount": "{count, plural, =0{Anahtar yok} =1{1 anahtar} other{{count} anahtar}}",
   "generated": "Oluşturuldu",
-  "passphraseRequired": "Passphrase gerekli",
-  "passphrasePrompt": "{host} için SSH anahtarı şifrelenmiş. Kilidini açmak için passphrase girin.",
-  "passphraseWrong": "Yanlış passphrase. Tekrar deneyin.",
   "passphrase": "Passphrase",
-  "rememberPassphrase": "Bu oturumluk hatırla",
   "enterMasterPassword": "Kayıtlı kimlik bilgilerinize erişmek için ana şifreyi girin.",
-  "wrongMasterPassword": "Yanlış şifre. Lütfen tekrar deneyin.",
-  "newPassword": "Yeni şifre",
+  "wrongMasterPassword": "Yanlış şifre. Tekrar deneyin.",
   "currentPassword": "Mevcut şifre",
   "forgotPassword": "Şifrenizi mi unuttunuz?",
   "credentialsReset": "Tüm kayıtlı kimlik bilgileri silindi",
@@ -556,7 +609,6 @@
   "maxHistorySubtitle": "Geçmişte saklanan maksimum komut sayısı",
   "calculateFolderSizesSubtitle": "Kenar çubuğunda klasörlerin yanında toplam boyutu göster",
   "checkForUpdatesOnStartupSubtitle": "Uygulama başlatıldığında GitHub'da yeni sürümü denetle",
-  "enableLoggingSubtitle": "Uygulama olaylarını döngüsel bir günlük dosyasına yaz",
   "snippets": "Snippet'ler",
   "snippetsSubtitle": "Yeniden kullanılabilir komut snippet'lerini yönetin",
   "noSnippets": "Henüz snippet yok",
@@ -578,6 +630,79 @@
   "pinnedSnippets": "Sabitlenmiş",
   "allSnippets": "Tümü",
   "commandCopied": "Komut panoya kopyalandı",
+  "snippetTokensHint": "Yer tutucu eklemek için dokunun. Çalışma zamanında aktif oturumun değerleriyle değiştirilir:",
+  "snippetCustomTokensHint": "Çift süslü parantezli başka herhangi bir şey snippet çalıştırıldığında size bir değer sorar.",
+  "snippetFillTitle": "Snippet parametrelerini doldur",
+  "snippetFillSubmit": "Çalıştır",
+  "broadcastSetDriver": "Bu panelden yayınla",
+  "broadcastClearDriver": "Bu panelden yayını durdur",
+  "broadcastAddReceiver": "Yayını burada al",
+  "broadcastRemoveReceiver": "Yayını almayı durdur",
+  "broadcastClearAll": "Tüm yayınları durdur",
+  "broadcastPasteTitle": "Yapıştırmayı tüm panellere gönder?",
+  "broadcastPasteBody": "{chars} karakter diğer {count} panele gönderilecek.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Gönder",
+  "portForwarding": "Yönlendirme",
+  "portForwardingEmpty": "Henüz kural yok",
+  "addForwardRule": "Kural ekle",
+  "editForwardRule": "Kuralı düzenle",
+  "deleteForwardRule": "Kuralı sil",
+  "localForward": "Yerel",
+  "remoteForward": "Uzak",
+  "dynamicForward": "Dinamik",
+  "forwardKind": "Tür",
+  "bindAddress": "Bağlama adresi",
+  "bindPort": "Bağlama portu",
+  "targetHost": "Hedef sunucu",
+  "targetPort": "Hedef port",
+  "forwardDescription": "Açıklama (isteğe bağlı)",
+  "forwardEnabled": "Etkin",
+  "forwardBindWildcardWarning": "0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.",
+  "forwardKindLocalHelp": "Yerel: bu cihazda bir port açar ve SSH sunucusundan erişilebilir hedefe tünel kurar. localhost:bindPort üzerinden uzak veritabanlarına veya yönetim arayüzlerine erişmek için kullanışlı.",
+  "forwardKindRemoteHelp": "Uzak: SSH sunucusundan bir port açmasını ister; port bu cihazdan erişilebilir hedefe tünel kurar. Yerel dev sunucuyu uzak bir host ile paylaşmak için kullanışlı (sunucu non-loopback bağlamalar için GatewayPorts yes gerektirebilir).",
+  "forwardKindDynamicHelp": "Dinamik: bu cihazda her bağlantıyı SSH sunucusu üzerinden yönlendiren bir SOCKS5 proxy. Tüm trafiği SSH üzerinden göndermek için tarayıcıyı veya curl'u localhost:bindPort'a yönlendirin.",
+  "proxyJump": "Üzerinden bağlan",
+  "proxyJumpNone": "Doğrudan bağlantı",
+  "proxyJumpSavedSession": "Kaydedilmiş oturum",
+  "proxyJumpCustom": "Özel",
+  "proxyJumpCustomNote": "Özel hoplar bu oturumun kimlik bilgilerini kullanır. Farklı bastion auth için bastion'u ayrı bir oturum olarak kaydet.",
+  "viaSessionLabel": "{label} üzerinden",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "recordSession": "Oturumu kaydet",
+  "recordSessionHelp": "Bu oturumun terminal çıktısını diske kaydet. Master parola veya donanım anahtarı oturum veritabanını koruyorsa diskte şifrelidir; aksi takdirde veritabanının yanına plaintext olarak yazılır.",
+  "recordingsBrowserTitle": "Kayıtlar",
+  "recordingsBrowserSubtitle": "Kaydedilmiş oturumlara göz atın, oynatın ve silin",
+  "recordingsEmpty": "Henüz kayıt yok",
+  "playRecording": "Oynat",
+  "deleteRecording": "Sil",
+  "recordingPlaybackTitle": "Kaydı oynat",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Etiketler",
   "tagsSubtitle": "Oturumları ve klasörleri renkli etiketlerle düzenleyin",
   "noTags": "Henüz etiket yok",
@@ -599,9 +724,6 @@
   "invalidImportLink": "Bağlantı geçerli bir LetsFLUTssh yükü içermiyor",
   "importAction": "İçe aktar",
   "emptyFolder": "Boş klasör",
-  "exportWithoutPassword": "Parolasız dışa aktarılsın mı?",
-  "exportWithoutPasswordWarning": "Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.",
-  "continueWithoutPassword": "Parolasız devam et",
   "tierHardwareUnavailable": "Bu kurulumda donanım kasası kullanılamıyor.",
   "pinLabel": "Parola",
   "l2UnlockTitle": "Şifre gerekli",
@@ -627,8 +749,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Bu cihazda donanım destekli depolama kullanılamıyor.",
   "firstLaunchSecurityOpenSettings": "Ayarları Aç",
   "wizardReducedBanner": "İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.",
-  "tierBlockProtectsEmpty": "Bu katmanda hiçbir şey.",
-  "tierBlockDoesNotProtectEmpty": "Kapsanmayan tehdit yok.",
   "tierBadgeCurrent": "Geçerli",
   "securitySetupEnable": "Etkinleştir",
   "securitySetupApply": "Uygula",
@@ -692,7 +812,6 @@
   "colT1": "T1 Anahtar zinciri",
   "colT1Password": "T1 + parola",
   "colT1PasswordBiometric": "T1 + parola + biyometrik",
-  "colT2": "T2 Donanım",
   "colT2Password": "T2 + parola",
   "colT2PasswordBiometric": "T2 + parola + biyometrik",
   "colParanoid": "Paranoyak",
@@ -703,9 +822,40 @@
   "resetAllDataConfirmTitle": "Tüm veriler sıfırlansın mı?",
   "resetAllDataConfirmBody": "Tüm oturumlar, SSH anahtarları, known hosts, parçacıklar, etiketler, tercihler ve tüm güvenlik bileşenleri (anahtar zinciri kayıtları, donanım kasası verileri, biyometrik katman) kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
   "resetAllDataConfirmAction": "Her şeyi sıfırla",
+  "resetAllDataConfirmTypePrompt": "Onaylamak için aşağıya {phrase} yazın:",
   "resetAllDataInProgress": "Sıfırlanıyor…",
   "resetAllDataDone": "Tüm veriler sıfırlandı",
   "resetAllDataFailed": "Sıfırlama başarısız",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Kullanılan",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "recordings/ klasörüne uygulanan sert cap. Aşıldığında en eski recording önce silinir; sürmekte olan recording asla dokunulmaz.",
+  "recordingsClearAllAction": "Tüm recordings'i sil",
+  "recordingsClearAllConfirmTitle": "Tüm recordings silinsin mi?",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ altındaki her kayıtlı oturum silinecek. Sürmekte olan recording (varsa) kalır. Bu işlem geri alınamaz.",
+  "recordingsClearAllResult": "{count} recording silindi",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap güncellendi. {bytes} geri kazanıldı.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap güncellendi. Silinecek bir şey yok.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "GEÇERLİ",
   "paranoidAlternativeHeader": "ALTERNATİF",
   "modifierPasswordLabel": "Parola",
@@ -717,7 +867,24 @@
   "autoLockRequiresActiveTier": "Otomatik kilidi yapılandırmak için önce bu katmanı seçin",
   "biometricForbiddenParanoid": "Paranoid seviyesi tasarım gereği biyometriye izin vermez.",
   "fprintdNotAvailable": "fprintd kurulu değil veya kayıtlı parmak izi yok.",
-  "linuxTpmWithoutPasswordNote": "Parolasız TPM izolasyon sağlar, kimlik doğrulama sağlamaz. Bu uygulamayı çalıştırabilen herkes veriyi açabilir.",
+  "modifierPasswordRequired": "Zorunlu — Hardware tier her zaman parola ile korunur.",
+  "t2RequiresPasswordTitle": "Hardware tier için master password belirle",
+  "t2RequiresPasswordBody": "Hardware tier modifier olarak password gerektirir. Biometric bunun üzerinde opsiyonel bir shortcut'tır.",
+  "t2MigrationPromptTitle": "Hardware tier password gerektiriyor",
+  "t2MigrationPromptBody": "Password'siz mevcut Hardware install'lar devam etmek için şimdi bir tane belirlemeli.",
+  "t2MigrationContinue": "Devam",
+  "t2MigrationSetPasswordTitle": "Hardware tier'ı korumak için bir password belirle",
+  "t2MigrationSetPasswordBody": "Yeni bir master password gir. Hardware module içinde zaten sealed olan DB key bu password altında re-seal edilir — session'ların ve key'lerin sağlam kalır.",
+  "t2MigrationWipeAndRestart": "Wipe edip sıfırdan başla",
+  "t2MigrationResealFailed": "Hardware tier re-seal başarısız — farklı bir password seç ya da wipe et.",
+  "biometricOverlayEnable": "Hardware tier üzerinde biometric shortcut'ı etkinleştir",
+  "biometricOverlayEnableSubtitle": "Password'ünü biometric-gated bir OS slot'undan serbest bırakır.",
+  "biometricOverlayUnavailable": "Biometric overlay bu platformda henüz mevcut değil.",
+  "biometricOverlayRequiresPassword": "Önce Hardware tier password'ünü belirle.",
+  "t2UnlockTitle": "Master password ile aç",
+  "t2UnlockSubtitle": "Hardware-bound anahtar password'ün ile korunur.",
+  "t2UnlockUseBiometricButton": "Biometric kullan",
+  "t2PasswordChanged": "Hardware tier password'ü güncellendi.",
   "paranoidMasterPasswordNote": "Uzun bir passphrase kesinlikle önerilir — Argon2id brute-force'u yalnızca yavaşlatır, engellemez.",
   "plaintextWarningTitle": "Düz metin: şifreleme yok",
   "plaintextWarningBody": "Oturumlar, anahtarlar ve known hosts şifrelenmeden saklanacak. Bu bilgisayarın dosya sistemine erişebilen herkes bunları okuyabilir.",
@@ -727,7 +894,468 @@
   "masterPasswordLabel": "Ana parola",
   "autoLockRequiresPassword": "Otomatik kilit, aktif katmanda bir parola gerektirir.",
   "recommendedBadge": "ÖNERİLEN",
-  "tierHardwareSubtitleHonest": "Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.",
+  "tierHardwareSubtitleHonest": "Gelişmiş: donanıma bağlı anahtar, her zaman parola ile korunur. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.",
   "tierParanoidSubtitleHonest": "Alternatif: ana parola, OS'e güven yok. OS'in ele geçirilmesine karşı korur. Çalışma zamanı korumasını T1/T2'ye göre iyileştirmez.",
-  "mitigationsNoteRuntimeThreats": "Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır."
+  "mitigationsNoteRuntimeThreats": "Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır.",
+  "globalErrorTitle": "Beklenmeyen hata",
+  "globalErrorBody": "Beklenmeyen bir hata oluştu. Uygulama çalışmaya devam edecek.",
+  "globalErrorLogSavedNote": "Tüm ayrıntılar log dosyasına yazıldı.",
+  "globalErrorLogDisabledNote": "Hata ayrıntılarını kaydetmek için Ayarlar'dan log'u etkinleştir.",
+  "globalErrorTechnicalLine": "Hata: {detail}",
+  "globalErrorEnableLoggingButton": "Log'u etkinleştir",
+  "globalErrorLoggingEnabledToast": "Log etkin — hatalar log dosyasına yazılacak",
+  "fatalErrorQuitButton": "Çık",
+  "fatalErrorWipeButton": "Tüm verileri sil",
+  "fatalErrorWipingButton": "Siliniyor…",
+  "fatalErrorWipeExplanation": "Silme, tüm uygulama dosyalarını (config, veritabanı, vault blob'ları, log'lar) kaldırır; sonraki açılış temiz bir kurulumdan başlar. Geri alınamaz.",
+  "fatalErrorWipeConfirmTitle": "Tüm veriler silinsin mi?",
+  "fatalErrorWipeConfirmBody": "Bu, tüm config, veritabanı ve vault dosyalarını kalıcı olarak siler. Uygulama boş bir kurulumdan yeniden başlar. Devam edilsin mi?",
+  "fatalErrorWipeConfirmAction": "Her şeyi sil",
+  "unencryptedArchiveWarning": "Bu arşiv parola korumalı değil. Dosyaya sahip olan herkes içeriğini okuyabilir.",
+  "clipboardCopyFailed": "Panoya kopyalanamadı.",
+  "nonAsciiHostnameWarning": "Host adı ASCII olmayan karakterler içeriyor — her karakteri yazdığınla karşılaştır. Görsel olarak benzer kod noktaları (Kiril / Yunan) bir Latin alan adını taklit edebilir.",
+  "playbackPause": "Duraklat",
+  "recordingPlayLocked": "Bu şifreli kaydı oynatmak için uygulamanın kilidini aç.",
+  "recordToggleStart": "Kaydı başlat",
+  "recordToggleStop": "Kaydı durdur",
+  "foregroundServiceTitle": "SSH aktif",
+  "foregroundServiceConnections": "{count, plural, =1{1 etkin bağlantı} other{{count} etkin bağlantı}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Session türü",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Kullanıcı adı",
+  "webDavAuthMethod": "Auth yöntemi",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "trustedCert": "Güvenilen sertifika (PEM)",
+  "trustedCertHint": "-----BEGIN CERTIFICATE-----",
+  "trustedCertHelp": "Sunucu sertifikasını yapıştırın (bir veya birden çok PEM bloğu). Sadece bu oturum için ek bir root CA olarak eklenir — diğer uygulamaları etkilemez. Sistem trust store'unu kullanmak için boş bırakın.",
+  "acceptAnyCert": "Her sertifikayı kabul et",
+  "acceptAnyCertHelp": "Bu oturumun TLS handshake'lerinde tüm sertifika ve hostname kontrollerini atla. Sistem trust store da pinned cert de uygun değilse son çare.",
+  "acceptAnyCertWarn": "MITM saldırılarına karşı savunmasız — ağdaki herkes sunucu kimliğine bürünebilir. Yalnızca güvenilir özel ağlarda kullanın.",
+  "webDavCopyUrl": "WebDAV URL kopyala",
+  "webDavOpenInBrowser": "Tarayıcıda aç",
+  "errWebDavAuthFailed": "WebDAV auth başarısız",
+  "errWebDavNotFound": "Path bulunamadı",
+  "errWebDavConflict": "Operasyon mevcut state ile çakışıyor",
+  "errWebDavGeneric": "WebDAV server isteği reddetti: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV base URL gerekli",
+  "errWebDavBaseUrlInvalid": "Base URL http:// veya https:// olmalı",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS için boş bırak, MinIO / R2 / Spaces için endpoint gir",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "MinIO için gerekli; AWS için off bırak",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Presigned URL üret",
+  "s3PresignedUrlExpiry": "Süre sonu",
+  "s3CopyUri": "s3://bucket/key URI kopyala",
+  "s3PresignedUrlExpiry15min": "15 dakika",
+  "s3PresignedUrlExpiry1hour": "1 saat",
+  "s3PresignedUrlExpiry4hour": "4 saat",
+  "s3PresignedUrlExpiry24hour": "24 saat",
+  "s3PresignedUrlExpiry7day": "7 gün",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret kontrol et)",
+  "errS3NoSuchBucket": "Bucket yok veya erişilemiyor",
+  "errS3RegionMismatch": "Bucket başka bir region'da",
+  "errS3Generic": "S3 sunucusu request'i reddetti: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync etkinleştir",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Sync arşivini şifreler. Master password'dan farklı olmalı.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase, master password ile aynı olamaz.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "WebDAV base URL altındaki path — varsayılan letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Son push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Son pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Hiç",
+  "syncUpToDate": "Sync güncel",
+  "syncPushedBytes": "{bytes} push edildi",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote'dan {count} değişiklik uygulandı",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync devre dışı",
+  "errSyncEtagMismatch": "Remote değişti — önce pull, sonra push",
+  "errSyncUnauthorized": "WebDAV kimlik doğrulama başarısız",
+  "errSyncNetwork": "Ağ hatası: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync arşivi daha yeni bir build gerektiriyor",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Hardware key'e dokun",
+  "hardwareKeyPin": "Hardware key PIN",
+  "hardwareKeyTimeout": "Hardware key yanıt vermedi",
+  "hardwareKeyNotFound": "Hardware key bulunamadı",
+  "hardwareKeyUnsupported": "Bu platformda doğrudan hardware key erişimi yok",
+  "hardwareKeyAppleEntitlementRequired": "Apple Developer Program entitlement gerekli; macOS'ta ssh-agent kullan",
+  "skKeyRequiresDevice": "Bu SSH key bir hardware key gerektiriyor — auth için dokun",
+  "errSkWrongPin": "PIN hatalı",
+  "hardwareKeyImport": "Hardware key import et (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Hardware key prompt iptal edildi",
+  "agentEndpointSectionTitle": "Harici SSH client entegrasyonu",
+  "agentEndpointToggleTitle": "Hardware-bound keys'i sistem SSH client'larına aç",
+  "agentEndpointToggleSubtitle": "Bu cihazdaki git, ssh ve IDE plugin'lerinin FIDO2 / smart-card / TPM keys'lerinizi kullanmasına izin verir.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "export komutunu kopyala",
+  "agentEndpointCopyPipeName": "pipe adını kopyala",
+  "agentEndpointSignatureRequestTitle": "İmza isteği",
+  "agentEndpointSignatureRequestBody": "{requester}, {keyLabel} ile imzalamak istiyor",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "Harici bir SSH client",
+  "agentEndpointAuthorizeOnce": "Bir kez yetkilendir",
+  "agentEndpointAuthorizeAlways": "Yetkilendir ve hatırla",
+  "agentEndpointDeny": "Reddet",
+  "agentEndpointStatusRunning": "Çalışıyor",
+  "agentEndpointStatusStopped": "Durdu",
+  "agentEndpointStatusUnsupported": "Bu platformda desteklenmiyor",
+  "agentEndpointRefusedAddIdentity": "Reddedildi: harici client'lar key ekleyemez.",
+  "agentEndpointStartFailed": "ssh-agent endpoint başlatılamadı: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Smart card / token anahtarı ekle",
+  "pkcs11ModuleLabel": "PKCS#11 modülü",
+  "pkcs11ModuleAutoDetected": "Otomatik algılandı",
+  "pkcs11ModuleCustom": "Özel modül...",
+  "pkcs11ModulePickerTitle": "PKCS#11 kütüphanesi seç",
+  "pkcs11NoModuleFound": "PKCS#11 modülü bulunamadı. OpenSC yükle veya vendor kütüphanesi seç.",
+  "pkcs11InitializeFailed": "PKCS#11 modülü initialise olmadı.",
+  "pkcs11NoTokenPresent": "Hiçbir okuyucuda token yok.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Seri: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Token login gerektiriyor.",
+  "pkcs11PinPrompt": "{token} için PIN",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Token'ın PIN-pad'inde onayla.",
+  "pkcs11PinIncorrect": "PIN yanlış. {remaining} deneme kaldı.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "Token PIN kilitli. PUK ile aç.",
+  "pkcs11NoSignableKeys": "Token'da SSH için kullanılabilir key yok (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "GOST key'leri SSH ile kullanılamaz.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" takılı değil.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Kaydedilmiş token bulunamadı. Yeniden tak ve dene.",
+  "pkcs11SignFailed": "Signing başarısız: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart card / PKCS#11 token'lar bu platformda yok.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "PKCS#11 module seç",
+  "pkcs11WizardStepToken": "Token seç",
+  "pkcs11WizardStepKey": "Key seç",
+  "pkcs11WizardStepPin": "PIN gir",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Key'i import et",
+  "pkcs11SaveInProgress": "Token'dan public key okunuyor...",
+  "pkcs11SaveSuccess": "Smart card key eklendi.",
+  "pkcs11ScanInProgress": "PKCS#11 module'leri taranıyor...",
+  "pkcs11LoadingTokens": "Token'lar yükleniyor...",
+  "pkcs11LoadingKeys": "Key'ler yükleniyor...",
+  "pkcs11ModuleStatusReady": "Module yüklendi.",
+  "pkcs11ModuleStatusNoToken": "Token yok.",
+  "pkcs11ModuleStatusFailed": "Module yüklenemedi.",
+  "pkcs11PinPadHint": "(Cihaz üzerinde PIN pad)",
+  "pkcs11WizardBack": "Geri",
+  "pkcs11WizardNext": "İleri",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Hardware anahtarı ekle",
+  "sshKeyHardwareBoundExplainer": "Private key cihazın secure hardware bileşeninde yaşıyor ve dışa aktarılamaz.",
+  "sshKeyEnclaveDeviceBound": "Bu key yalnızca bu Mac üzerinde çalışır.",
+  "sshKeyEnclaveDeviceBoundIos": "Bu key yalnızca bu iPhone üzerinde çalışır.",
+  "sshKeyHelloDeviceBound": "Bu key yalnızca bu PC üzerinde çalışır.",
+  "sshKeyEnclaveTouchIdRequired": "Touch ID / Face ID zorunlu olsun",
+  "sshKeyEnclavePasscodeFallback": "Cihaz passcode'unu fallback olarak kabul et",
+  "sshKeyHelloPinRequired": "Windows Hello zorunlu olsun (PIN, parmak izi veya yüz)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key kullanılamıyor",
+  "sshKeyHardwareUnavailableSe": "Secure Enclave için uygulamanın code-signed olması gerekir.",
+  "sshKeyHardwareUnavailableHello": "Bu PC'de Windows Hello yapılandırılmamış.",
+  "sshKeyHardwareUnavailableTpm": "TPM algılanmadı — yalnızca software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Oluştur",
+  "sshKeyGenerateInProgress": "Key secure hardware içinde oluşturuluyor...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing gerekli — USER_GUIDE.md → Hardware-bound keys bölümüne bakın.",
+  "sshKeySignInProgress": "Secure hardware ile imzalanıyor...",
+  "sshKeyPublicCopy": "Public key'i kopyala",
+  "sshKeyAuthorizedKeysHint": "Bu satırı sunucudaki ~/.ssh/authorized_keys dosyasına ekleyin.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Key adı",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Windows Hello SSH anahtarı",
+  "helloWizardLabelHint": "Anahtar etiketi",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Windows Hello ile doğrula",
+  "helloPromptDescription": "PIN, parmak izi veya yüz — Windows Hello bu SSH challenge'ını imzalar.",
+  "helloSoftwareGatedWarning": "Bu cihazda TPM yok. Anahtar kullanıcı alanına düşer; Windows Hello yine her imzayı gate eder.",
+  "helloP384NotSupported": "TPM firmware P-384 desteklemiyor. P-256 veya RSA-2048 seç.",
+  "helloConfigureFirst": "Önce Windows Hello'yu Ayarlar -> Oturum açma seçeneklerinde kur.",
+  "tpmSshTitle": "TPM-backed SSH key oluştur",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (önerilen)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Bu TPM firmware bu algorithm'i desteklemiyor.",
+  "tpmSshPinProtect": "PIN ile koru",
+  "tpmSshPinLockoutWarning": "Yanlış PIN denemeleri sonrası TPM key'i kilitler.",
+  "tpmSshPinMismatch": "PIN'ler eşleşmiyor.",
+  "tpmSshStorageBlob": "Wrapped key'i app data'da sakla",
+  "tpmSshStorageHandle": "TPM memory slot'unda tut",
+  "tpmSshStorageHandleHelp": "Daha hızlı signing. TPM'in persistent slot'larından birini tüketir.",
+  "tpmSshLabel": "Key etiketi",
+  "tpmSshImportTitle": "TPM korumalı SSH key import et",
+  "tpmSshImportFormat": "TPM 2.0 Key File (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "{label} için TPM PIN",
+  "tpmSshPinIncorrect": "PIN hatalı.",
+  "tpmSshPinLockedCooldown": "TPM lockout cooldown'da. {duration} bekle ve tekrar dene.",
+  "tpmSshGenerating": "Key TPM'de oluşturuluyor...",
+  "tpmSshSigning": "TPM ile signing...",
+  "tpmSshUnavailable": "Bu cihazda TPM bulunamadı.",
+  "tpmSshUnavailableFwDisabled": "TPM firmware'de devre dışı.",
+  "tpmSshUnavailableNoPermission": "Uygulama TPM'e erişemiyor. Kullanıcıyı `tss` grubuna ekle.",
+  "tpmSshHandleInUse": "Persistent slot {handle} zaten kullanımda.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Bu key Hello / PIN prompt'u OLMADAN imzalar — sen logged in iken desktop'a erişen herkes kullanabilir.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Hardware-bound key generate ediliyor...",
+  "keystoreKeyAuthPrompt": "SSH key kullanmak için authenticate ol",
+  "keystoreKeyInvalidatedByEnrollment": "Key destroy edildi: yeni biometric enroll edildi. Public key'i sunucularda yeniden register et.",
+  "keystoreKeyStrongBoxUnavailable": "Bu cihazda StrongBox HSM yok",
+  "keystoreKeyUserAuthRequired": "Her signature için biometric / device unlock iste",
+  "keystoreKeyExportDisabled": "Hardware-bound keys export edilemez",
+  "keystoreKeyDeleteWarning": "Bu key'i silmek hardware store'dan da çıkarır. Yeni bir tane register edene kadar sunucular reject eder.",
+  "keystoreKeyBiometricNotEnrolled": "Önce biometric ya da device PIN enroll et",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE only)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM kullanılamıyor",
+  "keystoreStrongBoxFallbackBody": "Cihazın StrongBox HSM 'i expose etmiyor. Onun yerine TEE destekli bir key oluşturulsun mu? Hâlâ hardware-backed, sadece StrongBox isolation yok.",
+  "keystoreStrongBoxFallbackConfirm": "TEE kullan",
+  "keystoreStrongBoxFallbackCancel": "İptal",
+  "fido2BrokerSectionTitle": "Donanım security key",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Sistem security key diyaloğu",
+  "fido2BrokerIosLabel": "Sistem security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Sistem security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "Doğrudan USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "Bu platformda kullanılamıyor",
+  "fido2BrokerPreferDirectHidTitle": "Sistem diyaloğu yerine doğrudan USB HID tercih edilsin",
+  "fido2BrokerPreferDirectHidSubtitle": "İleri seviye: her iki yolun da çalıştığı platformlarda {brokerLabel} bypass edilir. Doğrudan HID daha fazla authenticator özelliği sunar ama app bazında permission grant gerektirir.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "SSH entegrasyonu",
+  "fido2BrokerNoTransportSubtitle": "Bu cihazda donanım anahtarı desteği mevcut değil.",
+  "fido2BrokerSinglePathSubtitle": "Bu cihazda yalnızca {transport} mevcut; toggle devre dışı.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "İçe aktarılmış stub",
+  "hardwareKeyStubSubtitle": "Başka bir cihazdaydı — kullanmak için burada yeniden üret",
+  "hardwareKeyStubRegenerateAction": "Burada yeniden üret",
+  "hardwareKeyStubRemoveAction": "Stub'ı kaldır",
+  "hardwareKeyStubPickerTooltip": "Kullanmadan önce bu key'i bu cihazda yeniden üret",
+  "pkcs11ModuleResolveOnFirstUse": "\"{token}\" token'ı için PKCS#11 modülünü bul",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "arrowLeft": "Sol ok",
+  "arrowUp": "Yukarı ok",
+  "arrowDown": "Aşağı ok",
+  "arrowRight": "Sağ ok",
+  "copyMode": "Kopyalama modu",
+  "exitCopyMode": "Kopyalama modundan çık",
+  "importedGeneric": "İçe aktarıldı: {items}"
 }

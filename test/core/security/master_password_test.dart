@@ -1,331 +1,238 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/db/database_opener.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+
+import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
+import 'package:letsflutssh/core/security/password_rate_limiter.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
+
+import '../../helpers/frb_bootstrap.dart';
+
+/// Test helper — UTF-8-encode a String into the `Uint8List` shape
+/// every `MasterPasswordManager` method now takes after the
+/// password-marshalling SecretRef arc.
+Uint8List _b(String s) => Uint8List.fromList(utf8.encode(s));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
-  late MasterPasswordManager manager;
+
+  // Single tmp for the whole file — `configStoreInit` pins the
+  // support dir in a Rust OnceLock (via the master_password
+  // singleton it forwards into), so the first test binary wins.
+  // Per-test tmp would silently route every later test through the
+  // first tmp's state.
+  late Directory tmp;
+  late MasterPasswordManager mp;
+
+  setUpAll(() async {
+    await requireFrbLoaded();
+    tmp = await Directory.systemTemp.createTemp('lfs_mp_');
+    // `configStoreInit` is the canonical pin point — it forwards
+    // into `master_password::pin_support_dir` so every downstream
+    // FRB endpoint that reads `app::instance().support_dir()`
+    // resolves to the same temp directory for the test binary.
+    // Idempotent; subsequent test files share the first pin.
+    rust_config.configStoreInit(supportDir: tmp.path);
+  });
+
+  tearDownAll(() async {
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+  });
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('master_pw_test_');
-    manager = MasterPasswordManager(basePath: tempDir.path);
-    // Mock path_provider so CredentialStore/KeyStore resolve to tempDir.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => tempDir.path,
-        );
+    // Production Argon2id (`KdfParams.productionDefaults`, mirrored
+    // from `lfs_core::security::master_password::KdfParams::defaults`)
+    // spends hundreds of milliseconds per derive. Drop to the
+    // Argon2id minimum here so the verify / enable / change cycles
+    // run in milliseconds.
+    mp = MasterPasswordManager(
+      kdfParams: const KdfParams.argon2id(
+        memoryKiB: 8,
+        iterations: 1,
+        parallelism: 1,
+      ),
+    );
+    // Wipe any state from the previous test so isEnabled / verify
+    // observations are isolated.
+    if (await mp.isEnabled()) {
+      await mp.reset();
+    }
   });
 
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
-          null,
-        );
-    await tempDir.delete(recursive: true);
+    if (await mp.isEnabled()) {
+      await mp.reset();
+    }
   });
 
-  group('MasterPasswordManager', () {
-    test('isEnabled returns false when no kdf file', () async {
-      expect(await manager.isEnabled(), isFalse);
+  group('isEnabled', () {
+    test('returns false on a fresh support dir', () async {
+      expect(await mp.isEnabled(), isFalse);
     });
 
-    test('enable creates credentials.kdf and verifier files', () async {
-      await manager.enable('testpassword');
-
-      final kdfFile = File('${tempDir.path}/credentials.kdf');
-      final verifierFile = File('${tempDir.path}/credentials.verify');
-      expect(await kdfFile.exists(), isTrue);
-      expect(await verifierFile.exists(), isTrue);
-      expect(await manager.isEnabled(), isTrue);
+    test('flips to true after enable', () async {
+      await mp.enable(_b('correcthorse'));
+      expect(await mp.isEnabled(), isTrue);
     });
 
-    test('credentials.kdf starts with the LFKD magic + version 0x01', () async {
-      await manager.enable('testpassword');
-      final bytes = await File('${tempDir.path}/credentials.kdf').readAsBytes();
-      expect(bytes[0], 0x4C); // 'L'
-      expect(bytes[1], 0x46); // 'F'
-      expect(bytes[2], 0x4B); // 'K'
-      expect(bytes[3], 0x44); // 'D'
-      expect(bytes[4], 0x01, reason: 'file version');
-      expect(bytes[5], 0x01, reason: 'KDF algorithm id (Argon2id)');
+    test('flips back to false after disable', () async {
+      await mp.enable(_b('correcthorse'));
+      await mp.disable();
+      expect(await mp.isEnabled(), isFalse);
     });
+  });
 
-    test('enable returns 32-byte key', () async {
-      final key = await manager.enable('testpassword');
+  group('enable', () {
+    test('returns a 32-byte derived DB key', () async {
+      final key = await mp.enable(_b('correcthorse'));
       expect(key.length, 32);
     });
 
-    test('verify returns true for correct password', () async {
-      await manager.enable('correctpassword');
-      expect(await manager.verify('correctpassword'), isTrue);
+    test('writes credentials.kdf so isEnabled reports true', () async {
+      await mp.enable(_b('correcthorse'));
+      expect(File('${tmp.path}/credentials.kdf').existsSync(), isTrue);
     });
 
-    test('verify returns false for wrong password', () async {
-      await manager.enable('correctpassword');
-      expect(await manager.verify('wrongpassword'), isFalse);
+    test('re-enable overwrites the verifier with a new password', () async {
+      final firstKey = await mp.enable(_b('correcthorse'));
+      // Rust shim allows enable to re-run — useful for the "user
+      // changed their mind during first-launch wizard" path.
+      final secondKey = await mp.enable(_b('different-password'));
+      expect(secondKey.length, 32);
+      // New salt → new key bytes (overwhelmingly likely).
+      expect(secondKey, isNot(equals(firstKey)));
+      // The original password stops working.
+      expect(await mp.verify(_b('correcthorse')), isFalse);
+      expect(await mp.verify(_b('different-password')), isTrue);
     });
+  });
 
-    test('verify works with fresh instance (app restart)', () async {
-      await manager.enable('mypassword');
-
-      // Simulate app restart — new instance, same basePath.
-      final fresh = MasterPasswordManager(basePath: tempDir.path);
-      expect(await fresh.verify('mypassword'), isTrue);
-      expect(await fresh.verify('wrongpassword'), isFalse);
-    });
-
-    test('deriveKey from fresh instance matches original', () async {
-      final originalKey = await manager.enable('mypassword');
-
-      final fresh = MasterPasswordManager(basePath: tempDir.path);
-      final freshKey = await fresh.deriveKey('mypassword');
-      expect(freshKey, equals(originalKey));
-    });
-
-    test('verify throws when not enabled', () async {
-      expect(
-        () => manager.verify('anything'),
-        throwsA(isA<MasterPasswordException>()),
-      );
-    });
-
-    test('deriveKey returns same key for same password', () async {
-      await manager.enable('mypassword');
-      final key1 = await manager.deriveKey('mypassword');
-      final key2 = await manager.deriveKey('mypassword');
-      expect(key1, equals(key2));
-    });
-
-    test('deriveKey throws when not enabled', () async {
-      expect(
-        () => manager.deriveKey('anything'),
-        throwsA(isA<MasterPasswordException>()),
-      );
-    });
-
-    test('verifyAndDerive returns the same key as deriveKey on success, null '
-        'on wrong password — one PBKDF2 run instead of two', () async {
-      final originalKey = await manager.enable('secretpass');
-
-      final fresh = MasterPasswordManager(basePath: tempDir.path);
-      final derivedOk = await fresh.verifyAndDerive('secretpass');
-      expect(derivedOk, isNotNull);
-      expect(derivedOk, equals(originalKey));
-
-      expect(await fresh.verifyAndDerive('wrongpass'), isNull);
-    });
-
+  group('verify / verifyAndDerive', () {
     test(
-      'verifyAndDerive throws when master password is not enabled',
+      'returns true / non-null derived key for the right password',
       () async {
-        expect(
-          () => manager.verifyAndDerive('anything'),
-          throwsA(isA<MasterPasswordException>()),
-        );
+        final enableKey = await mp.enable(_b('correcthorse'));
+        expect(await mp.verify(_b('correcthorse')), isTrue);
+        final derived = await mp.verifyAndDerive(_b('correcthorse'));
+        expect(derived, isNotNull);
+        expect(derived!.length, 32);
+        // Same password → same derived key (Argon2id is deterministic
+        // for fixed salt + params).
+        expect(derived, enableKey);
       },
     );
 
-    test('changePassword verifies old password', () async {
-      await manager.enable('oldpass12');
-      expect(
-        () => manager.changePassword('wrongold1', 'newpass12'),
-        throwsA(
-          isA<MasterPasswordException>().having(
-            (e) => e.message,
-            'message',
-            contains('incorrect'),
-          ),
-        ),
-      );
+    test('returns false / null for the wrong password', () async {
+      await mp.enable(_b('correcthorse'));
+      expect(await mp.verify(_b('wrongpass')), isFalse);
+      expect(await mp.verifyAndDerive(_b('wrongpass')), isNull);
     });
 
-    test('changePassword generates new key', () async {
-      final oldKey = await manager.enable('oldpass12');
-      final newKey = await manager.changePassword('oldpass12', 'newpass12');
+    test('verifyAndDerive on a never-enabled vault throws', () async {
+      // Rust raises "Master password is not enabled" when no KDF
+      // file is present. The unlock UI keys off `isEnabled` first
+      // and never reaches `verifyAndDerive` in that state.
+      expect(() => mp.verifyAndDerive(_b('anything')), throwsA(anything));
+    });
+  });
+
+  group('changePassword', () {
+    test('returns a fresh 32-byte key + verifies new password', () async {
+      final originalKey = await mp.enable(_b('old'));
+      final newKey = await mp.changePassword(_b('old'), _b('new'));
+
       expect(newKey.length, 32);
-      expect(newKey, isNot(equals(oldKey)));
+      // Salt rotates on changePassword → new key bytes differ from
+      // the original (overwhelmingly likely; salt is OsRng-fresh).
+      expect(newKey, isNot(equals(originalKey)));
+      expect(await mp.verify(_b('new')), isTrue);
     });
 
-    test('after changePassword old password fails and new succeeds', () async {
-      await manager.enable('oldpass12');
-      await manager.changePassword('oldpass12', 'newpass12');
-      expect(await manager.verify('oldpass12'), isFalse);
-      expect(await manager.verify('newpass12'), isTrue);
-    });
-
-    test('disable removes kdf and verifier files', () async {
-      await manager.enable('password');
-      expect(await manager.isEnabled(), isTrue);
-
-      await manager.disable();
-      expect(await manager.isEnabled(), isFalse);
-
-      expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
+    test('throws on wrong old password', () async {
+      await mp.enable(_b('old'));
+      // Rust surfaces the wrong-old failure as a typed FRB error
+      // (not the AnyhowException the Dart wrapper rebrands), so the
+      // assertion accepts any throw — the contract callers care
+      // about is "operation fails", not the specific type.
       expect(
-        await File('${tempDir.path}/credentials.verify').exists(),
-        isFalse,
+        () => mp.changePassword(_b('wrong-old'), _b('new')),
+        throwsA(anything),
       );
-    });
-
-    test('disable is safe when not enabled', () async {
-      await manager.disable(); // should not throw
-      expect(await manager.isEnabled(), isFalse);
-    });
-
-    test('reset deletes all credential files', () async {
-      await File('${tempDir.path}/credentials.kdf').writeAsBytes([1, 2, 3]);
-      await File('${tempDir.path}/credentials.verify').writeAsBytes([4, 5, 6]);
-      await File('${tempDir.path}/credentials.key').writeAsBytes([7, 8, 9]);
-
-      await manager.reset();
-
-      expect(await File('${tempDir.path}/credentials.kdf').exists(), isFalse);
-      expect(
-        await File('${tempDir.path}/credentials.verify').exists(),
-        isFalse,
-      );
-      expect(await File('${tempDir.path}/credentials.key').exists(), isFalse);
-    });
-
-    test('enable then re-enable with different password works', () async {
-      await manager.enable('first123');
-      expect(await manager.verify('first123'), isTrue);
-
-      // Disable and re-enable with different password.
-      await manager.disable();
-      await manager.enable('second12');
-      expect(await manager.verify('first123'), isFalse);
-      expect(await manager.verify('second12'), isTrue);
     });
   });
 
-  group('MasterPasswordManager — corruption & failure modes', () {
-    // Invariant: a broken credentials.kdf must never silently pass unlock.
-    // Every branch of _decodeKdfRecord has to surface a FormatException so
-    // the UI routes the user into wipe/restore instead of trusting the blob.
-    test('verify throws when kdf file has wrong magic', () async {
-      await File(
-        '${tempDir.path}/credentials.kdf',
-      ).writeAsBytes(List.filled(80, 0x00));
-      await File(
-        '${tempDir.path}/credentials.verify',
-      ).writeAsBytes(List.filled(32, 0x00));
-      expect(await manager.isEnabled(), isTrue); // file presence says "yes"
-      expect(() => manager.verify('anything'), throwsA(isA<FormatException>()));
+  group('disable', () {
+    test('flips isEnabled back to false', () async {
+      await mp.enable(_b('old'));
+      expect(await mp.isEnabled(), isTrue);
+      await mp.disable();
+      expect(await mp.isEnabled(), isFalse);
+      // The unlock UI keys off isEnabled first; verify-after-disable
+      // is implementation-defined (raises on this build) and not part
+      // of the contract callers depend on.
     });
+  });
 
-    test('verify throws when kdf file is truncated below header', () async {
-      // Valid magic + version + algo, but nothing after — params + salt miss.
-      await File('${tempDir.path}/credentials.kdf').writeAsBytes([
-        0x4C, 0x46, 0x4B, 0x44, // 'LFKD'
-        0x01, // version
-        0x01, // algo (Argon2id)
-        // Missing params (9) + salt (32)
-      ]);
-      await File(
-        '${tempDir.path}/credentials.verify',
-      ).writeAsBytes(List.filled(32, 0x00));
-      expect(() => manager.verify('anything'), throwsA(isA<FormatException>()));
+  group('reset', () {
+    test('flips isEnabled back to false', () async {
+      await mp.enable(_b('correcthorse'));
+      await mp.reset();
+      expect(await mp.isEnabled(), isFalse);
     });
+  });
 
-    test('verify throws on unsupported version byte', () async {
-      // Magic OK, version = 0x02 (not supported yet).
-      final bytes = <int>[
-        0x4C, 0x46, 0x4B, 0x44, // 'LFKD'
-        0x02, // version — unsupported
-        0x01, // algo
-        ...List.filled(9, 0x00), // params placeholder
-        ...List.filled(32, 0x00), // salt
-      ];
-      await File('${tempDir.path}/credentials.kdf').writeAsBytes(bytes);
-      await File(
-        '${tempDir.path}/credentials.verify',
-      ).writeAsBytes(List.filled(32, 0x00));
-      expect(
-        () => manager.verify('anything'),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            contains('unsupported version'),
-          ),
+  group('unlockAttempt + rate limiter', () {
+    test('returns wrongSecret immediately when limiter is locked', () async {
+      // Use a limiter pre-locked so we never reach the actual
+      // orchestrator. Verifies the gate fires before FRB is touched.
+      final limiter = _LockedRateLimiter();
+      final mp2 = MasterPasswordManager(
+        rateLimiter: limiter,
+        kdfParams: const KdfParams.argon2id(
+          memoryKiB: 8,
+          iterations: 1,
+          parallelism: 1,
         ),
       );
-    });
-
-    test('verify throws when verifier file is missing after enable', () async {
-      await manager.enable('pw123456');
-      await File('${tempDir.path}/credentials.verify').delete();
-
-      expect(
-        () => manager.verify('pw123456'),
-        throwsA(isA<MasterPasswordException>()),
-      );
-    });
-
-    test('fresh instance with corrupt kdf — isEnabled returns true but '
-        'deriveKey surfaces the decode error', () async {
-      // A shard left on disk after a crash. The file is *present*, so a
-      // naive isEnabled() probe returns true — but any attempt to actually
-      // use the key fails loudly instead of deriving garbage.
-      await File(
-        '${tempDir.path}/credentials.kdf',
-      ).writeAsBytes([0xFF, 0xFF, 0xFF, 0xFF]);
-      await File(
-        '${tempDir.path}/credentials.verify',
-      ).writeAsBytes(List.filled(32, 0x00));
-
-      final fresh = MasterPasswordManager(basePath: tempDir.path);
-      expect(await fresh.isEnabled(), isTrue);
-      expect(
-        () => fresh.deriveKey('anything'),
-        throwsA(isA<FormatException>()),
-      );
-    });
-
-    test('verifier with wrong key returns false, never throws', () async {
-      // Regression: a bad verifier file (GCM tag mismatch) must return
-      // `verify=false`, not propagate a pointycastle InvalidCipherTextException
-      // through the async gap.
-      await manager.enable('correct1');
-      // Corrupt the last byte of the verifier (GCM tag).
-      final vf = File('${tempDir.path}/credentials.verify');
-      final bytes = await vf.readAsBytes();
-      final corrupted = Uint8List.fromList(bytes);
-      corrupted[corrupted.length - 1] ^= 0xFF;
-      await vf.writeAsBytes(corrupted);
-
-      // Must return false (decrypt fails), not throw.
-      expect(await manager.verify('correct1'), isFalse);
+      await mp2.enable(_b('p'));
+      // Limiter is "locked" → unlockAttempt short-circuits.
+      final outcome = await mp2.unlockAttempt(_b('p'));
+      expect(outcome, TierUnlockAttempt.wrongSecret);
+      // The orchestrator wasn't called — recordSuccess / recordFailure
+      // weren't invoked.
+      expect(limiter.successCalls, 0);
+      expect(limiter.failureCalls, 0);
     });
   });
 
-  group('KeyStore with DB', () {
-    test('setDatabase allows save and loadAll', () async {
-      final db = openTestDatabase();
-      final store = KeyStore()..setDatabase(db);
-
-      await store.save(
-        SshKeyEntry(
-          id: 'k1',
-          label: 'test',
-          privateKey: 'pk',
-          publicKey: 'pub',
-          keyType: 'ed25519',
-          createdAt: DateTime(2024),
-        ),
-      );
-
-      final all = await store.loadAll();
-      expect(all['k1']?.label, 'test');
-      await db.close();
+  group('MasterPasswordException', () {
+    test('toString exposes the underlying message', () {
+      const e = MasterPasswordException('something specific');
+      expect(e.toString(), contains('something specific'));
     });
   });
+}
+
+/// Always reports locked. Never spends a real Argon2id pass —
+/// `MasterPasswordManager.unlockAttempt` short-circuits on
+/// `status().isLocked` before invoking the orchestrator.
+class _LockedRateLimiter extends PasswordRateLimiter {
+  int successCalls = 0;
+  int failureCalls = 0;
+
+  @override
+  RateLimitStatus status() => const RateLimitStatus(
+    failureCount: 3,
+    cooldownRemaining: Duration(minutes: 1),
+  );
+
+  @override
+  void recordSuccess() => successCalls++;
+
+  @override
+  void recordFailure() => failureCalls++;
 }

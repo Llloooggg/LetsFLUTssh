@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_data_row.dart';
+import 'package:letsflutssh/widgets/core/app_data_row.dart';
 
 void main() {
   group('AppDataRow', () {
@@ -82,6 +82,37 @@ void main() {
       );
       await tester.tap(find.text('tappable'));
       expect(taps, 1);
+    });
+
+    // A tappable row wraps its content in `Semantics(button: true)` so
+    // every list built on this shared primitive (tag / snippet /
+    // recordings / key manager) inherits an accessible button target.
+    final buttonSemantics = find.byWidgetPredicate(
+      (w) => w is Semantics && (w.properties.button ?? false),
+    );
+
+    testWidgets('a tappable row wraps its content in button semantics', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AppDataRow(icon: Icons.tag, title: 'prod-box', onTap: () {}),
+          ),
+        ),
+      );
+      expect(buttonSemantics, findsOneWidget);
+    });
+
+    testWidgets('a non-tappable row has no button semantics', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AppDataRow(icon: Icons.tag, title: 'static'),
+          ),
+        ),
+      );
+      expect(buttonSemantics, findsNothing);
     });
   });
 }

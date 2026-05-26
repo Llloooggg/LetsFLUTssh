@@ -72,7 +72,17 @@ class SFa extends S {
   String get copyModeExtending => 'برای گسترش انتخاب بکشید';
 
   @override
+  String get copyModeSetAnchor => 'تنظیم لنگر';
+
+  @override
+  String get copyModeCopySelection => 'کپی انتخاب';
+
+  @override
   String get required => 'الزامی';
+
+  @override
+  String get errFillRequiredFields =>
+      'فیلدهای الزامی نشان‌گذاری‌شده با * را پر کنید';
 
   @override
   String get settings => 'تنظیمات';
@@ -235,11 +245,6 @@ class SFa extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'کلید SSH دریافت شد: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return '$count جلسه وارد شد';
   }
@@ -377,10 +382,50 @@ class SFa extends S {
   String get auth => 'احراز هویت';
 
   @override
+  String get sectionAuthentication => 'احراز هویت';
+
+  @override
+  String get sectionAdvanced => 'پیشرفته';
+
+  @override
+  String get moreOptions => 'گزینه‌های بیشتر';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString قاعده تغییر مسیر پورت',
+      zero: 'بدون قاعده تغییر مسیر پورت',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'مدیریت…';
+
+  @override
+  String get authMethodAgent => 'استفاده از ssh-agent سیستم';
+
+  @override
   String get options => 'گزینه‌ها';
 
   @override
   String get sessionName => 'نام جلسه';
+
+  @override
+  String get sessionNameAutoFromHost => 'خودکار از میزبان';
+
+  @override
+  String get sessionNameAutoFromUrl => 'خودکار از میزبان URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'خودکار از سطل پیش‌فرض';
 
   @override
   String get hintMyServer => 'سرور من';
@@ -414,6 +459,9 @@ class SFa extends S {
 
   @override
   String get hintOptional => 'اختیاری';
+
+  @override
+  String get savedTypeToChange => 'ذخیره شد — برای تغییر بنویسید';
 
   @override
   String get hidePemText => 'پنهان کردن متن PEM';
@@ -527,11 +575,6 @@ class SFa extends S {
   @override
   String get importModeReplaceDescription =>
       'جایگزینی همه جلسات با موارد وارد شده';
-
-  @override
-  String errorPrefix(String error) {
-    return 'خطا: $error';
-  }
 
   @override
   String get folderName => 'نام پوشه';
@@ -699,7 +742,17 @@ class SFa extends S {
   String get calculateFolderSizes => 'محاسبه اندازه پوشه‌ها';
 
   @override
+  String get verboseConnectionLog => 'گزارش اتصال مفصل';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'ثبت کامل ردِ هندشیک SSH و احراز هویت در فایل لاگ (برای عیب‌یابی خطاهای اتصال)';
+
+  @override
   String get exportData => 'خروجی گرفتن از داده';
+
+  @override
+  String get exportRecordings => 'ضبط‌های نشست';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -872,9 +925,6 @@ class SFa extends S {
   String get sourceCode => 'کد منبع';
 
   @override
-  String get enableLogging => 'فعال‌سازی ثبت رویداد';
-
-  @override
   String get logIsEmpty => 'گزارش خالی است';
 
   @override
@@ -976,6 +1026,26 @@ class SFa extends S {
   String get disconnected => 'قطع شد';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'در حال اتصال به $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'متصل به $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'اتصال به $host قطع شد';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'اتصال به $host ناموفق بود';
+  }
+
+  @override
   String get exit => 'خروج';
 
   @override
@@ -991,19 +1061,12 @@ class SFa extends S {
   String get exportSessionsViaQr => 'خروجی جلسات از طریق QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
 
   @override
   String get qrTooLarge =>
       'حجم بیش از حد است — برخی موارد را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
-
-  @override
-  String get exportAll => 'خروجی همه';
 
   @override
   String get showQr => 'نمایش QR';
@@ -1019,6 +1082,24 @@ class SFa extends S {
 
   @override
   String get liveLog => 'گزارش زنده';
+
+  @override
+  String get archivedLog => 'گزارش بایگانی‌شده';
+
+  @override
+  String get loggingLevel => 'سطح گزارش';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'ورودی‌های معمول + هشدارها + خطاها';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'فقط مسیرهای تنزل‌یافته و خطاها';
+
+  @override
+  String get loggingLevelSubtitleError => 'فقط خطاها';
+
+  @override
+  String get loggingLevelSubtitleOff => 'گزارش‌های معمول نوشته نمی‌شوند';
 
   @override
   String transferNItems(int count) {
@@ -1304,30 +1385,6 @@ class SFa extends S {
   String get progressDecrypting => 'در حال رمزگشایی…';
 
   @override
-  String get progressParsingArchive => 'تحلیل بایگانی…';
-
-  @override
-  String get progressImportingSessions => 'در حال وارد کردن نشست‌ها';
-
-  @override
-  String get progressImportingFolders => 'در حال وارد کردن پوشه‌ها';
-
-  @override
-  String get progressImportingManagerKeys => 'در حال وارد کردن کلیدهای SSH';
-
-  @override
-  String get progressImportingTags => 'در حال وارد کردن برچسب‌ها';
-
-  @override
-  String get progressImportingSnippets => 'در حال وارد کردن قطعه‌ها';
-
-  @override
-  String get progressApplyingConfig => 'در حال اعمال پیکربندی…';
-
-  @override
-  String get progressImportingKnownHosts => 'در حال وارد کردن known_hosts…';
-
-  @override
   String get progressCollectingData => 'در حال جمع‌آوری داده‌ها…';
 
   @override
@@ -1363,11 +1420,8 @@ class SFa extends S {
   String get importAction => 'وارد کردن';
 
   @override
-  String get saveSessionToAssignTags =>
-      'برای اختصاص برچسب، ابتدا نشست را ذخیره کنید';
-
-  @override
-  String get noTagsAssigned => 'برچسبی اختصاص داده نشده';
+  String get noTagsAvailable =>
+      'هنوز برچسبی نیست — یکی در ابزارها → برچسب‌ها بسازید.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1465,23 +1519,6 @@ class SFa extends S {
 
   @override
   String get transferStatusQueued => 'در صف انتظار';
-
-  @override
-  String get transferStartingUpload => 'شروع آپلود...';
-
-  @override
-  String get transferStartingDownload => 'شروع دانلود...';
-
-  @override
-  String get transferCopying => 'در حال کپی...';
-
-  @override
-  String get transferDone => 'انجام شد';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total فایل';
-  }
 
   @override
   String get fileConflictTitle => 'فایل از قبل وجود دارد';
@@ -1624,6 +1661,9 @@ class SFa extends S {
   String get addKey => 'افزودن کلید';
 
   @override
+  String get addKeyMenuPaste => 'جای‌گذاری PEM';
+
+  @override
   String get filePickerUnavailable =>
       'انتخابگر فایل در این سیستم در دسترس نیست';
 
@@ -1672,6 +1712,57 @@ class SFa extends S {
   String get publicKeyCopied => 'کلید عمومی در کلیپ‌بورد کپی شد';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'ایمپورت certificate';
+
+  @override
+  String get certImportTooltip =>
+      'یک گواهی OpenSSH امضاشده توسط CA خود را پیوست کنید (فایل `-cert.pub` از `ssh-keygen -s …`). زمانی استفاده کنید که سرورها به‌جای `authorized_keys` با امضای CA تأیید می‌کنند. اگر سرورهای شما از plain key auth استفاده می‌کنند، صرف نظر کنید.';
+
+  @override
+  String get certImportPickerTitle =>
+      'فایل certificate از نوع OpenSSH را انتخاب کن';
+
+  @override
+  String get certValidFrom => 'معتبر از';
+
+  @override
+  String get certValidTo => 'معتبر تا';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'این certificate به‌زودی منقضی می‌شود.';
+
+  @override
+  String get certExpired => 'منقضی';
+
+  @override
+  String get certRemove => 'حذف certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'certificate حذف شود؟';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'بعد از حذف، در اتصال بعدی به مسیر public key معمولی برمی‌گردد.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Certificate پارس نشد: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'این certificate با کلید انتخاب‌شده جفت نیست.';
+
+  @override
   String get pastePrivateKey => 'چسباندن کلید خصوصی (PEM)';
 
   @override
@@ -1698,21 +1789,7 @@ class SFa extends S {
   String get generated => 'ساخته شده';
 
   @override
-  String get passphraseRequired => 'passphrase لازم است';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'کلید SSH برای $host رمزنگاری شده است. عبارت عبور را برای باز کردن وارد کنید.';
-  }
-
-  @override
-  String get passphraseWrong => 'عبارت عبور اشتباه است. دوباره تلاش کنید.';
-
-  @override
   String get passphrase => 'عبارت عبور';
-
-  @override
-  String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
 
   @override
   String get enterMasterPassword =>
@@ -1720,9 +1797,6 @@ class SFa extends S {
 
   @override
   String get wrongMasterPassword => 'رمز عبور اشتباه. دوباره تلاش کنید.';
-
-  @override
-  String get newPassword => 'رمز عبور جدید';
 
   @override
   String get currentPassword => 'رمز عبور فعلی';
@@ -1813,12 +1887,6 @@ class SFa extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا ارائه‌دهندهٔ libsecret دیگری را نصب کنید.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'در این سطح چیزی نیست.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'تهدید پوشش‌نیافته‌ای نیست.';
 
   @override
   String get tierBadgeCurrent => 'فعلی';
@@ -2039,6 +2107,159 @@ class SFa extends S {
   String get commandCopied => 'دستور کپی شد';
 
   @override
+  String get snippetTokensHint =>
+      'برای درج یک مکان‌نما ضربه بزنید. این‌ها در زمان اجرا با مقادیر نشست فعال جایگزین می‌شوند:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'هر چیز دیگری با دو آکولاد هنگام اجرای قطعه از شما مقدار می‌خواهد.';
+
+  @override
+  String get snippetFillTitle => 'پارامترهای قطعه را پر کنید';
+
+  @override
+  String get snippetFillSubmit => 'اجرا';
+
+  @override
+  String get broadcastSetDriver => 'پخش از این پنل';
+
+  @override
+  String get broadcastClearDriver => 'توقف پخش از این پنل';
+
+  @override
+  String get broadcastAddReceiver => 'دریافت پخش در اینجا';
+
+  @override
+  String get broadcastRemoveReceiver => 'توقف دریافت پخش';
+
+  @override
+  String get broadcastClearAll => 'توقف تمام پخش‌ها';
+
+  @override
+  String get broadcastPasteTitle => 'ارسال چسباندن به همه پنل‌ها؟';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return '$chars نویسه به $count پنل دیگر ارسال می‌شود.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'ارسال';
+
+  @override
+  String get portForwarding => 'فوروارد';
+
+  @override
+  String get portForwardingEmpty => 'هنوز قاعده‌ای نیست';
+
+  @override
+  String get addForwardRule => 'افزودن قاعده';
+
+  @override
+  String get editForwardRule => 'ویرایش قاعده';
+
+  @override
+  String get deleteForwardRule => 'حذف قاعده';
+
+  @override
+  String get localForward => 'محلی';
+
+  @override
+  String get remoteForward => 'راه دور';
+
+  @override
+  String get dynamicForward => 'پویا';
+
+  @override
+  String get forwardKind => 'نوع';
+
+  @override
+  String get bindAddress => 'آدرس باند';
+
+  @override
+  String get bindPort => 'پورت باند';
+
+  @override
+  String get targetHost => 'میزبان هدف';
+
+  @override
+  String get targetPort => 'پورت هدف';
+
+  @override
+  String get forwardDescription => 'توضیح (اختیاری)';
+
+  @override
+  String get forwardEnabled => 'فعال';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'باند به 0.0.0.0 فوروارد را روی همه واسط‌ها منتشر می‌کند — معمولاً 127.0.0.1 می‌خواهید.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'محلی: یک پورت روی این دستگاه باز می‌کند که به هدف قابل دسترسی از سرور SSH تونل می‌زند. مفید برای دسترسی به پایگاه‌های داده دور یا UI ادمین در localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'راه دور: از سرور SSH می‌خواهد پورتی باز کند که به هدف قابل دسترسی از این دستگاه برمی‌گردد. مفید برای اشتراک سرور توسعه محلی با میزبان راه دور (ممکن است سرور به GatewayPorts yes برای bind غیر loopback نیاز داشته باشد).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'پویا: پروکسی SOCKS5 روی این دستگاه که هر اتصال را از طریق سرور SSH هدایت می‌کند. مرورگر یا curl را به localhost:bindPort اشاره دهید تا تمام ترافیک از طریق SSH ارسال شود.';
+
+  @override
+  String get proxyJump => 'اتصال از طریق';
+
+  @override
+  String get proxyJumpNone => 'اتصال مستقیم';
+
+  @override
+  String get proxyJumpSavedSession => 'نشست ذخیره‌شده';
+
+  @override
+  String get proxyJumpCustom => 'سفارشی';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'پرش‌های سفارشی از اعتبارنامه‌های همین نشست استفاده می‌کنند. برای احراز هویت متفاوت بستیون، آن را به‌عنوان نشست جداگانه ذخیره کنید.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'از طریق $label';
+  }
+
+  @override
+  String get recordSession => 'ضبط نشست';
+
+  @override
+  String get recordSessionHelp =>
+      'ذخیره خروجی پایانه روی دیسک برای این نشست. در حالت ساکن رمزگذاری می‌شود وقتی گذرواژه اصلی یا کلید سخت‌افزاری از پایگاه‌داده نشست‌ها محافظت می‌کند؛ در غیر این صورت در کنار پایگاه‌داده به‌صورت متن ساده ذخیره می‌شود.';
+
+  @override
+  String get recordingsBrowserTitle => 'ضبط‌ها';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'مرور، پخش مجدد و حذف نشست‌های ضبط شده';
+
+  @override
+  String get recordingsEmpty => 'هنوز ضبطی وجود ندارد';
+
+  @override
+  String get playRecording => 'پخش';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'پخش مجدد ضبط';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'برچسب‌ها';
 
   @override
@@ -2147,7 +2368,7 @@ class SFa extends S {
   String get defaultPortSubtitle => 'درگاه پیش‌فرض برای جلسات جدید';
 
   @override
-  String get parallelWorkersSubtitle => 'کارگران انتقال SFTP هم‌زمان';
+  String get parallelWorkersSubtitle => 'Workerهای انتقال SFTP هم‌زمان';
 
   @override
   String get maxHistorySubtitle => 'حداکثر فرمان‌های ذخیره‌شده در تاریخچه';
@@ -2159,20 +2380,6 @@ class SFa extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
-
-  @override
-  String get exportWithoutPassword => 'بدون رمز عبور خروجی گرفته شود؟';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.';
-
-  @override
-  String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
 
   @override
   String get threatColdDiskTheft => 'سرقت دیسک آفلاین';
@@ -2239,9 +2446,6 @@ class SFa extends S {
   String get colT1PasswordBiometric => 'T1 + رمز + زیست‌سنجی';
 
   @override
-  String get colT2 => 'T2 سخت‌افزار';
-
-  @override
   String get colT2Password => 'T2 + رمز';
 
   @override
@@ -2274,6 +2478,11 @@ class SFa extends S {
   String get resetAllDataConfirmAction => 'بازنشانی همه';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'برای تأیید، $phrase را در زیر تایپ کنید:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'در حال بازنشانی…';
 
   @override
@@ -2281,6 +2490,61 @@ class SFa extends S {
 
   @override
   String get resetAllDataFailed => 'بازنشانی ناموفق بود';
+
+  @override
+  String get recordingsTitle => 'ضبط‌ها';
+
+  @override
+  String get recordingsStorageUsedLabel => 'استفاده‌شده';
+
+  @override
+  String get recordingsCapLabel => 'سقف';
+
+  @override
+  String get recordingsCapHint =>
+      'سقف سخت برای پوشهٔ recordings/. هنگام عبور، قدیمی‌ترین ضبط ابتدا حذف می‌شود؛ ضبط جاری هرگز دست‌کاری نمی‌شود.';
+
+  @override
+  String get recordingsClearAllAction => 'پاک کردن همهٔ ضبط‌ها';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'همهٔ ضبط‌ها پاک شود؟';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'هر سشن ضبط‌شده در <app>/recordings/ حذف خواهد شد. ضبط در حال انجام (در صورت وجود) باقی می‌ماند. این عمل قابل بازگشت نیست.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count ضبط حذف شد';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'سقف به‌روزرسانی شد. $bytes آزاد شد.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'سقف به‌روزرسانی شد. چیزی برای حذف نیست.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2291,7 +2555,7 @@ class SFa extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
+      'پیشرفته: کلید به سخت‌افزار گره خورده، همیشه با رمز عبور محافظت می‌شود. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2313,6 +2577,10 @@ class SFa extends S {
   @override
   String get modifierPasswordSubtitle =>
       'دروازهٔ مخفیِ تایپ‌شده پیش از باز شدن گاوصندوق.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'الزامی — لایه Hardware همیشه با رمز محافظت می‌شود.';
 
   @override
   String get modifierBiometricLabel => 'میان‌برِ بیومتریک';
@@ -2342,8 +2610,66 @@ class SFa extends S {
       'fprintd نصب نشده یا هیچ اثر انگشتی ثبت نشده است.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'TPM بدون رمز عبور فقط جداسازی فراهم می‌کند، نه احراز هویت. هر کسی که بتواند این برنامه را اجرا کند می‌تواند داده‌ها را باز کند.';
+  String get t2RequiresPasswordTitle =>
+      'یک رمز master برای لایه Hardware تعیین کنید';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'لایه Hardware به یک رمز به عنوان modifier نیاز دارد. بیومتریک یک shortcut اختیاری روی آن است.';
+
+  @override
+  String get t2MigrationPromptTitle => 'لایه Hardware به رمز نیاز دارد';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'نصب‌های موجود Hardware بدون رمز باید اکنون یکی تعیین کنند تا ادامه دهند.';
+
+  @override
+  String get t2MigrationContinue => 'ادامه';
+
+  @override
+  String get t2MigrationSetPasswordTitle =>
+      'برای حفظ لایه Hardware یک رمز تعیین کنید';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'یک passphrase اصلی جدید وارد کنید. کلید DB که قبلاً در ماژول hardware مهر شده، تحت این رمز re-seal می‌شود — sessionها و کلیدها دست‌نخورده می‌مانند.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'پاک‌سازی و شروع دوباره';
+
+  @override
+  String get t2MigrationResealFailed =>
+      're-seal لایه Hardware ناموفق بود — رمز دیگری انتخاب کنید یا پاک‌سازی کنید.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'فعال‌سازی shortcut بیومتریک روی لایه Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'رمز شما را از یک slot سیستم با گیت بیومتریک آزاد می‌کند.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'overlay بیومتریک هنوز روی این پلتفرم در دسترس نیست.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'ابتدا رمز لایه Hardware را تعیین کنید.';
+
+  @override
+  String get t2UnlockTitle => 'با رمز master باز کنید';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'کلید hardware-bound با رمز شما محافظت می‌شود.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'از بیومتریک استفاده کنید';
+
+  @override
+  String get t2PasswordChanged => 'رمز لایه Hardware به‌روز شد.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2369,4 +2695,945 @@ class SFa extends S {
 
   @override
   String get masterPasswordLabel => 'رمز عبور اصلی';
+
+  @override
+  String get globalErrorTitle => 'خطای غیرمنتظره';
+
+  @override
+  String get globalErrorBody =>
+      'یک خطای غیرمنتظره رخ داد. برنامه به کار ادامه می‌دهد.';
+
+  @override
+  String get globalErrorLogSavedNote => 'همهٔ جزئیات در فایل log نوشته شد.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'برای ذخیرهٔ جزئیات خطا، log را در تنظیمات فعال کن.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'خطا: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'فعال‌سازی log';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'log فعال شد — خطاها در فایل log نوشته می‌شوند';
+
+  @override
+  String get fatalErrorQuitButton => 'خروج';
+
+  @override
+  String get fatalErrorWipeButton => 'پاک‌کردن همهٔ داده‌ها';
+
+  @override
+  String get fatalErrorWipingButton => 'در حال پاک‌کردن…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'پاک‌کردن همهٔ فایل‌های برنامه (config، دیتابیس، blobهای vault، logها) را حذف می‌کند و اجرای بعدی از نصب تمیز شروع می‌شود. قابل بازگشت نیست.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'همهٔ داده‌ها پاک شوند؟';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'این کار همهٔ فایل‌های config، دیتابیس و vault را برای همیشه حذف می‌کند. برنامه از نصب خالی دوباره اجرا می‌شود. ادامه می‌دهید؟';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'پاک‌کردن همه‌چیز';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'این آرشیو با رمز محافظت نشده است. هر کسی که فایل را داشته باشد می‌تواند محتوای آن را بخواند.';
+
+  @override
+  String get clipboardCopyFailed => 'کپی به clipboard ناموفق بود.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'نام host شامل نویسه‌های غیر ASCII است — هر نویسه را با چیزی که تایپ کردی مقایسه کن. کدپوینت‌های از نظر ظاهری مشابه (سیریلیک / یونانی) می‌توانند یک دامنهٔ لاتین را جعل کنند.';
+
+  @override
+  String get playbackPause => 'توقف موقت';
+
+  @override
+  String get recordingPlayLocked =>
+      'برای پخش این ضبط رمزگذاری‌شده، قفل برنامه را باز کن.';
+
+  @override
+  String get recordToggleStart => 'شروع ضبط';
+
+  @override
+  String get recordToggleStop => 'توقف ضبط';
+
+  @override
+  String get foregroundServiceTitle => 'SSH فعال';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count اتصال فعال',
+      one: '۱ اتصال فعال',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'نوع session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'نام کاربری';
+
+  @override
+  String get webDavAuthMethod => 'روش auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => 'گواهی مورد اعتماد (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'گواهی سرور را الصاق کنید (یک یا چند بلوک PEM). به‌عنوان CA ریشه اضافی فقط برای این نشست افزوده می‌شود — سایر برنامه‌ها تحت تأثیر قرار نمی‌گیرند. خالی بگذارید تا از مخزن اعتماد سیستم استفاده شود.';
+
+  @override
+  String get acceptAnyCert => 'پذیرش هر گواهی';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'همه بررسی‌های گواهی و نام میزبان را برای دست‌دادن‌های TLS این نشست رد کند. درب اضطراری وقتی نه مخزن اعتماد سیستم و نه گواهی پین‌شده کار می‌کند.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'آسیب‌پذیر در برابر حملات MITM — هر کسی در شبکه می‌تواند هویت سرور را جعل کند. فقط در شبکه‌های خصوصی مورد اعتماد استفاده کنید.';
+
+  @override
+  String get webDavCopyUrl => 'کپی WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'باز کردن در مرورگر';
+
+  @override
+  String get errWebDavAuthFailed => 'auth WebDAV ناموفق';
+
+  @override
+  String get errWebDavNotFound => 'Path یافت نشد';
+
+  @override
+  String get errWebDavConflict => 'عملیات با وضعیت فعلی در تعارض است';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'سرور WebDAV درخواست را رد کرد: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL برای WebDAV لازم است';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL باید با http:// یا https:// شروع شود';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'برای AWS خالی بگذار، یا برای MinIO / R2 / Spaces مقدار بده';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'برای MinIO لازم است؛ برای AWS off بگذار';
+
+  @override
+  String get s3DefaultBucket => 'Bucket پیش‌فرض';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix پیش‌فرض';
+
+  @override
+  String get s3GeneratePresignedUrl => 'ساختن presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'منقضی می‌شود در';
+
+  @override
+  String get s3CopyUri => 'کپی URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '۱۵ دقیقه';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '۱ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '۴ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '۲۴ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '۷ روز';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret را بررسی کن)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket وجود ندارد یا قابل دسترسی نیست';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket در region متفاوتی است';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'سرور S3 درخواست را رد کرد: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'فعال‌سازی WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'بایگانی sync را رمزگذاری می‌کند. باید با master password متفاوت باشد.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase نباید با master password یکسان باشد.';
+
+  @override
+  String get syncRemotePath => 'مسیر remote';
+
+  @override
+  String get syncRemotePathHint =>
+      'مسیر زیر WebDAV base URL — پیش‌فرض letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'آخرین push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'آخرین pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'هرگز';
+
+  @override
+  String get syncUpToDate => 'Sync به‌روز است';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'اعمال $count تغییر از remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync غیرفعال است';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote تغییر کرده — اول pull سپس push';
+
+  @override
+  String get errSyncUnauthorized => 'احراز هویت WebDAV ناموفق بود';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'خطای شبکه: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'بایگانی sync از remote نیاز به build جدیدتر دارد';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'hardware key را لمس کن';
+
+  @override
+  String get hardwareKeyPin => 'PIN ـ hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'hardware key پاسخ نداد';
+
+  @override
+  String get hardwareKeyNotFound => 'hardware key یافت نشد';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'دسترسی مستقیم به hardware key در این پلتفرم در دسترس نیست';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'نیاز به Apple Developer Program entitlement؛ روی macOS از ssh-agent استفاده کن';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'این کلید SSH به hardware key نیاز دارد — برای auth لمس کن';
+
+  @override
+  String get errSkWrongPin => 'PIN اشتباه است';
+
+  @override
+  String get hardwareKeyImport => 'import کردن hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'درخواست hardware key لغو شد';
+
+  @override
+  String get agentEndpointSectionTitle => 'ادغام با کلاینت‌های SSH خارجی';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'ارائه hardware-bound keys به کلاینت‌های SSH سیستم';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'به git و ssh و افزونه‌های IDE روی این دستگاه اجازه می‌دهد از key های FIDO2 / smart-card / TPM شما استفاده کنند.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'کپی دستور export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'کپی نام pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'درخواست امضا';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester می‌خواهد با $keyLabel امضا کند';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'یک کلاینت SSH خارجی';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'یک‌بار اجازه بده';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'اجازه بده و به خاطر بسپار';
+
+  @override
+  String get agentEndpointDeny => 'رد کن';
+
+  @override
+  String get agentEndpointStatusRunning => 'در حال اجرا';
+
+  @override
+  String get agentEndpointStatusStopped => 'متوقف';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'در این پلتفرم پشتیبانی نمی‌شود';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'رد شد: کلاینت‌های خارجی نمی‌توانند key اضافه کنند.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'راه‌اندازی ssh-agent endpoint ممکن نشد: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'افزودن کلید smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'ماژول PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'به‌طور خودکار پیدا شد';
+
+  @override
+  String get pkcs11ModuleCustom => 'ماژول دلخواه...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'انتخاب کتابخانه PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'ماژول PKCS#11 پیدا نشد. OpenSC را نصب کنید یا کتابخانه vendor را انتخاب کنید.';
+
+  @override
+  String get pkcs11InitializeFailed => 'ماژول PKCS#11 initialise نشد.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'هیچ token در reader وجود ندارد.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'Serial: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'Token نیاز به ورود دارد.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN برای $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'روی PIN-pad token تأیید کنید.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN اشتباه. $remaining تلاش باقی‌مانده.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN قفل شده. با PUK باز کنید.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'Token کلید SSH-قابل‌استفاده ندارد (RSA, ECDSA, Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'کلیدهای GOST با SSH کار نمی‌کنند.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'Token \"$label\" متصل نیست.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token ذخیره‌شده پیدا نشد. دوباره وصل کنید.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'Sign ناموفق: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-card / token PKCS#11 در این پلتفرم در دسترس نیست.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'Module PKCS#11 را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepToken => 'Token را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepKey => 'کلید را انتخاب کنید';
+
+  @override
+  String get pkcs11WizardStepPin => 'PIN را وارد کنید';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'خواندن کلید عمومی از token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'کلید smart card اضافه شد.';
+
+  @override
+  String get pkcs11ScanInProgress => 'جستجوی module های PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'بارگذاری token ها...';
+
+  @override
+  String get pkcs11LoadingKeys => 'بارگذاری کلیدها...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'Module بارگذاری شد.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'Token موجود نیست.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'بارگذاری module ناموفق بود.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad روی دستگاه)';
+
+  @override
+  String get pkcs11WizardBack => 'بازگشت';
+
+  @override
+  String get pkcs11WizardNext => 'بعدی';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'افزودن hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'Private key داخل secure hardware دستگاه قرار دارد و export نمی‌شود.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound => 'این key فقط روی همین Mac کار می‌کند.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'این key فقط روی همین iPhone کار می‌کند.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'این key فقط روی همین PC کار می‌کند.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'الزام Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'اجازه استفاده از passcode دستگاه به‌عنوان fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'الزام Windows Hello (PIN، اثر انگشت یا چهره)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'Hardware keys در دسترس نیست';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'برای استفاده از Secure Enclave اپ باید code-signed باشد.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello روی این PC تنظیم نشده.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'TPM شناسایی نشد — فقط software-backed.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'ساختن';
+
+  @override
+  String get sshKeyGenerateInProgress =>
+      'در حال ساخت key در secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing لازم است — به USER_GUIDE.md → Hardware-bound keys مراجعه کنید.';
+
+  @override
+  String get sshKeySignInProgress => 'امضا با secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'کپی public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'این خط را به ~/.ssh/authorized_keys روی سرور اضافه کنید.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'نام key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'کلید SSH از Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'برچسب کلید';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'احراز هویت با Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN، اثر انگشت یا چهره — Windows Hello این چالش SSH را امضا می‌کند.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'این دستگاه TPM ندارد. کلید در فضای کاربر می‌ماند؛ هر امضا را همچنان Windows Hello کنترل می‌کند.';
+
+  @override
+  String get helloP384NotSupported =>
+      'فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.';
+
+  @override
+  String get helloConfigureFirst =>
+      'ابتدا Windows Hello را در Settings -> Sign-in options تنظیم کن.';
+
+  @override
+  String get tpmSshTitle => 'ساخت کلید SSH متصل به TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (پیشنهادی)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'این الگوریتم در فریمور TPM پشتیبانی نمی‌شود.';
+
+  @override
+  String get tpmSshPinProtect => 'محافظت با PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'TPM پس از چند PIN اشتباه کلید را قفل می‌کند.';
+
+  @override
+  String get tpmSshPinMismatch => 'PINها یکسان نیستند.';
+
+  @override
+  String get tpmSshStorageBlob => 'ذخیره کلید بسته‌بندی‌شده در داده‌های برنامه';
+
+  @override
+  String get tpmSshStorageHandle => 'نگهداری در اسلات حافظهٔ TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'امضای سریع‌تر. یکی از اسلات‌های دائمی TPM را اشغال می‌کند.';
+
+  @override
+  String get tpmSshLabel => 'برچسب کلید';
+
+  @override
+  String get tpmSshImportTitle => 'وارد کردن کلید SSH محافظت‌شده با TPM';
+
+  @override
+  String get tpmSshImportFormat => 'فایل TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'PIN مربوط به TPM برای $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'PIN نادرست است.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM در دورهٔ خنک‌کاری قفل است. $duration صبر کنید و دوباره امتحان کنید.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'در حال ساخت کلید در TPM...';
+
+  @override
+  String get tpmSshSigning => 'در حال امضا با TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'TPM روی این دستگاه یافت نشد.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM در فریمور غیرفعال است.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'برنامه به TPM دسترسی ندارد. کاربر را به گروه `tss` اضافه کنید.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'اسلات دائمی $handle قبلاً در حال استفاده است.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'این کلید بدون درخواست Hello / PIN امضا می‌کند — هر کسی که در زمان ورود شما به دسکتاپ دسترسی دارد می‌تواند از آن استفاده کند.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (سخت‌افزاری)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (پشتیبانی سخت‌افزاری)';
+
+  @override
+  String get keystoreKeyGenerating => 'در حال ساخت کلید سخت‌افزاری...';
+
+  @override
+  String get keystoreKeyAuthPrompt =>
+      'برای استفاده از کلید SSH احراز هویت کنید';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'کلید نابود شد: بیومتریک جدیدی ثبت شده است. کلید عمومی را روی سرورها دوباره ثبت کنید.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM روی این دستگاه در دسترس نیست';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'برای هر امضا بیومتریک / باز کردن قفل دستگاه را الزامی کن';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'کلیدهای سخت‌افزاری قابل خروجی گرفتن نیستند';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'حذف این کلید آن را از مخزن سخت‌افزاری پاک می‌کند. سرورها این کلید را رد می‌کنند تا یک کلید جدید ثبت کنید.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'ابتدا بیومتریک یا PIN دستگاه را تنظیم کنید';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (سازگار با StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+، فقط TEE)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (بیشترین سازگاری)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM در دسترس نیست';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'دستگاه شما StrongBox HSM را در دسترس نمی‌گذارد. به‌جای آن یک کلید مبتنی بر TEE ساخته شود؟ همچنان hardware-backed است، فقط بدون ایزولاسیون StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'استفاده از TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'لغو';
+
+  @override
+  String get fido2BrokerSectionTitle => 'کلیدهای امنیتی سخت‌افزاری';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'دیالوگ سیستمی security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'security key سیستم (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'security key سیستم (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID مستقیم (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'در این پلتفرم در دسترس نیست';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'USB HID مستقیم به دیالوگ سیستم ترجیح داده شود';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'پیشرفته: عبور از $brokerLabel روی پلتفرم‌هایی که هر دو مسیر کار می‌کنند. HID مستقیم ویژگی‌های بیشتری از authenticator را در دسترس می‌گذارد ولی برای هر اپ نیاز به مجوز دارد.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'ادغام SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'پشتیبانی از کلید سخت‌افزاری روی این دستگاه در دسترس نیست.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'فقط $transport روی این دستگاه در دسترس است؛ کلید غیرفعال است.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'استاب وارد شده';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'روی دستگاه دیگری بود — اینجا مجدداً تولید کنید تا قابل استفاده شود';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'اینجا مجدداً تولید کن';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'حذف استاب';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'این کلید را روی این دستگاه قبل از استفاده مجدداً تولید کنید';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'ماژول PKCS#11 برای توکن «$token» را پیدا کنید';
+  }
+
+  @override
+  String get arrowLeft => 'فلش چپ';
+
+  @override
+  String get arrowUp => 'فلش بالا';
+
+  @override
+  String get arrowDown => 'فلش پایین';
+
+  @override
+  String get arrowRight => 'فلش راست';
+
+  @override
+  String get copyMode => 'حالت کپی';
+
+  @override
+  String get exitCopyMode => 'خروج از حالت کپی';
+
+  @override
+  String importedGeneric(String items) {
+    return 'وارد شد: $items';
+  }
 }

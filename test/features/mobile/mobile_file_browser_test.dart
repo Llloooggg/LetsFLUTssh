@@ -1,25 +1,76 @@
-import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
 import 'package:letsflutssh/features/mobile/mobile_file_browser.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/connection_progress.dart';
+import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
-@GenerateNiceMocks([MockSpec<SftpClient>()])
-import 'mobile_file_browser_test.mocks.dart';
+
+import '../../helpers/fake_transfers_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
+
+/// Stub `RemoteSftpFs` for the mobile-browser tests — every method
+/// is a no-op. The browser code never reaches into the SFTP layer
+/// directly in these tests; it works through the injected file-pane
+/// controllers.
+class _NoopSftpFs implements RemoteSftpFs {
+  @override
+  Future<String> getwd() async => '/remote';
+  @override
+  Future<List<FileEntry>> list(String path) async => [];
+  @override
+  Future<int> dirSizeRecursive(String path, int maxDepth) async => 0;
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth) async =>
+      const [];
+  @override
+  Future<bool> exists(String path) async => false;
+  @override
+  Future<void> mkdir(String path) async {}
+  @override
+  Future<void> remove(String path) async {}
+  @override
+  Future<void> removeEmptyDir(String path) async {}
+  @override
+  Future<void> removeDir(String path) async {}
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+  @override
+  Future<void> upload(
+    String localPath,
+    String remotePath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> download(
+    String remotePath,
+    String localPath,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {}
+  @override
+  void close() {}
+}
 
 /// Fake file system for testing.
 class FakeFileSystem implements FileSystem {
@@ -54,6 +105,15 @@ class FakeFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+  @override
+  Future<bool> exists(String path) async => false;
+
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// Error-throwing file system for testing error states.
@@ -79,6 +139,15 @@ class ErrorFileSystem implements FileSystem {
   Future<void> rename(String oldPath, String newPath) async {}
   @override
   Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+  @override
+  Future<bool> exists(String path) async => false;
+
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
 /// Standard test entries used across tests.
@@ -110,6 +179,12 @@ List<FileEntry> testEntries() => [
 ];
 
 void main() {
+  // formatSize routes through `lfs_core::format::format_size` —
+  // bootstrap FRB so the file-list rendering tests can format byte
+  // sizes via the canonical Rust path.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('MobileFileBrowser — widget rendering', () {
     testWidgets('shows loading state while connection is connecting', (
       tester,
@@ -784,8 +859,10 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // readme.txt subtitle: "1.0 KB · 2024-01-02 00:00 · -rw-r--r--"
-      expect(find.textContaining('2024-01-02'), findsWidgets);
+      // readme.txt subtitle: "1.0 KB · <locale-formatted date> · -rw-r--r--"
+      // Date format depends on the test locale (US English in
+      // flutter_test); pin the year + permission cell.
+      expect(find.textContaining('2024'), findsWidgets);
       expect(find.textContaining('-rw-r--r--'), findsWidgets);
     });
 
@@ -851,22 +928,13 @@ void main() {
   // MobileFileBrowser — success path (injectable factory)
   // ===========================================================================
   group('MobileFileBrowser — success path', () {
-    late TransferManager manager;
+    late FakeTransfersNotifier manager;
 
     setUp(() {
-      manager = TransferManager(taskTimeout: Duration.zero);
-    });
-
-    tearDown(() {
-      manager.dispose();
+      manager = FakeTransfersNotifier();
     });
 
     Future<SFTPInitResult> fakeInitFactory(Connection conn) async {
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-
-      final sftpService = SFTPService(mockSftp);
       final localCtrl = FilePaneController(
         fs: FakeFileSystem(fakeEntries: testEntries()),
         label: 'Local',
@@ -884,13 +952,13 @@ void main() {
       return SFTPInitResult(
         localCtrl: localCtrl,
         remoteCtrl: remoteCtrl,
-        sftpService: sftpService,
+        filesystem: _NoopSftpFs(),
       );
     }
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [transferManagerProvider.overrideWithValue(manager)],
+        overrides: [transfersProvider.overrideWith(() => manager)],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
@@ -905,67 +973,10 @@ void main() {
       );
     }
 
-    testWidgets('storagePermissionDenied flag is passed from init result', (
-      tester,
-    ) async {
-      final conn = Connection(
-        id: 'perm-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u'),
-        ),
-        state: SSHConnectionState.connected,
-      );
-
-      Future<SFTPInitResult> permDeniedFactory(Connection c) async {
-        final mockSftp = MockSftpClient();
-        when(mockSftp.absolute('.')).thenAnswer((_) async => '/remote');
-        when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-        final sftpService = SFTPService(mockSftp);
-        final localCtrl = FilePaneController(
-          fs: FakeFileSystem(fakeEntries: testEntries()),
-          label: 'Local',
-        );
-        final remoteCtrl = FilePaneController(
-          fs: FakeFileSystem(
-            fakeEntries: testEntries(),
-            fakeInitialDir: '/remote',
-          ),
-          label: 'Remote',
-        );
-        await Future.wait([localCtrl.init(), remoteCtrl.init()]);
-        return SFTPInitResult(
-          localCtrl: localCtrl,
-          remoteCtrl: remoteCtrl,
-          sftpService: sftpService,
-          storagePermissionDenied: true,
-        );
-      }
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [transferManagerProvider.overrideWithValue(manager)],
-          child: MaterialApp(
-            localizationsDelegates: S.localizationsDelegates,
-            supportedLocales: S.supportedLocales,
-            theme: AppTheme.dark(),
-            home: Scaffold(
-              body: MobileFileBrowser(
-                connection: conn,
-                sftpInitFactory: permDeniedFactory,
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Browser should still render (fallback dir used, not crash)
-      expect(find.text('Local'), findsOneWidget);
-      expect(find.text('Remote'), findsOneWidget);
-      // Note: permission banner requires Platform.isAndroid which is false
-      // in tests — the banner is platform-gated intentionally
-    });
+    // Test removed: Android MANAGE_EXTERNAL_STORAGE permission gate
+    // retired (the SAF picker covers the SSH-key file flow). The
+    // `storagePermissionDenied` field on SFTPInitResult is now a
+    // compatibility getter that always returns false.
 
     testWidgets('renders toolbar and file list on success', (tester) async {
       final conn = Connection(
@@ -975,7 +986,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1004,7 +1015,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1034,7 +1045,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1068,7 +1079,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1091,7 +1102,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1107,11 +1118,11 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [transferManagerProvider.overrideWithValue(manager)],
+          overrides: [transfersProvider.overrideWith(() => manager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -1140,7 +1151,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1160,7 +1171,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1181,7 +1192,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1202,7 +1213,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1215,21 +1226,13 @@ void main() {
   // MobileFileBrowser — breadcrumb navigation
   // ===========================================================================
   group('MobileFileBrowser — breadcrumb navigation', () {
-    late TransferManager manager;
+    late FakeTransfersNotifier manager;
 
     setUp(() {
-      manager = TransferManager(taskTimeout: Duration.zero);
-    });
-
-    tearDown(() {
-      manager.dispose();
+      manager = FakeTransfersNotifier();
     });
 
     Future<SFTPInitResult> deepPathFactory(Connection conn) async {
-      final mockSftp = MockSftpClient();
-      when(mockSftp.absolute('.')).thenAnswer((_) async => '/srv/data/files');
-      when(mockSftp.listdir(any)).thenAnswer((_) async => []);
-      final sftpService = SFTPService(mockSftp);
       final localCtrl = FilePaneController(
         fs: FakeFileSystem(fakeEntries: testEntries()),
         label: 'Local',
@@ -1245,13 +1248,13 @@ void main() {
       return SFTPInitResult(
         localCtrl: localCtrl,
         remoteCtrl: remoteCtrl,
-        sftpService: sftpService,
+        filesystem: _NoopSftpFs(),
       );
     }
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [transferManagerProvider.overrideWithValue(manager)],
+        overrides: [transfersProvider.overrideWith(() => manager)],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
@@ -1274,7 +1277,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1298,7 +1301,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1322,7 +1325,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1347,7 +1350,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1376,7 +1379,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1403,7 +1406,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1428,7 +1431,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1454,7 +1457,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1485,7 +1488,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1507,7 +1510,7 @@ void main() {
           server: ServerAddress(host: 'h', user: 'u'),
         ),
         state: SSHConnectionState.connected,
-      );
+      )..markTransportAdopted();
 
       await tester.pumpWidget(buildBrowser(conn));
       await tester.pumpAndSettle();
@@ -1596,26 +1599,6 @@ void main() {
 
       // Should now show descending
       expect(find.textContaining('Name ↓'), findsOneWidget);
-    });
-
-    testWidgets('loading state shows CircularProgressIndicator', (
-      tester,
-    ) async {
-      // Create controller but don't init — set loading state
-      final loadingFs = FakeFileSystem(fakeEntries: testEntries());
-      final loadingCtrl = FilePaneController(fs: loadingFs, label: 'Loading');
-      // Simulate loading by refreshing (the controller sets loading = true)
-      // Instead, directly test with a controller that is loading
-      // We need to trigger refresh without completing it
-
-      // Simple approach: create widget with a controller that has loading=true
-      // FilePaneController starts with loading=false and empty entries
-      // We'll use the empty state test pattern instead
-
-      // Actually testing loading: start init but don't await
-      // The FakeFileSystem resolves immediately, so we can't easily catch
-      // the loading state. Let's verify the branch by testing the empty entries case.
-      loadingCtrl.dispose();
     });
   });
 

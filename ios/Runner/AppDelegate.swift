@@ -12,37 +12,17 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  private let hardwareVault = HardwareVaultPlugin()
-  private let backupExclusion = BackupExclusionPlugin()
-  private let clipboardSecure = ClipboardSecurePlugin()
+  // Every previously-registered native plugin
+  // (HardwareVaultPlugin / BackupExclusionPlugin /
+  // ClipboardSecurePlugin) now lives Rust-side under
+  // `lfs_os_security` (Apple cfg-arms via objc2-foundation /
+  // objc2-ui-kit). The Dart wrappers route through FRB instead
+  // of MethodChannel, so AppDelegate only owns the iOS-specific
+  // QR-scan presenter that genuinely needs UIKit access.
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerQrScanner(with: engineBridge)
-    registerHardwareVault(with: engineBridge)
-    registerBackupExclusion(with: engineBridge)
-    registerClipboardSecure(with: engineBridge)
-  }
-
-  private func registerHardwareVault(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let messenger = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.hardware_vault",
-    )?.messenger() else { return }
-    hardwareVault.register(with: messenger)
-  }
-
-  private func registerBackupExclusion(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let messenger = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.backup_exclusion",
-    )?.messenger() else { return }
-    backupExclusion.register(with: messenger)
-  }
-
-  private func registerClipboardSecure(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let messenger = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.clipboard_secure",
-    )?.messenger() else { return }
-    clipboardSecure.register(with: messenger)
   }
 
   private func registerQrScanner(with engineBridge: FlutterImplicitEngineBridge) {

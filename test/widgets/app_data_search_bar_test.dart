@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/widgets/app_data_search_bar.dart';
+import 'package:letsflutssh/widgets/core/app_data_search_bar.dart';
 
 void main() {
   group('AppDataSearchBar', () {

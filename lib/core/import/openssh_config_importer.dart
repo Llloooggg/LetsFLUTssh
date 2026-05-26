@@ -1,24 +1,23 @@
-import 'dart:io';
+import 'package:meta/meta.dart' show visibleForTesting;
 
-import '../../features/settings/export_import.dart';
-import '../../utils/logger.dart';
+import 'export_import.dart';
+import '../../src/rust/api/openssh_config_import.dart' as rust_import;
+import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
 import '../../utils/platform.dart';
-import '../security/key_store.dart';
+import '../security/ssh_key.dart';
 import '../session/session.dart';
-import '../ssh/openssh_config_parser.dart';
 import '../ssh/ssh_config.dart';
 import 'key_file_helper.dart';
 
-/// Reader that returns PEM contents for a path, or null if unreadable /
-/// not a private key. Injected for testability (file system isolation).
-typedef PemKeyReader = String? Function(String path);
+/// Reader that returns PEM contents for a path, or null if
+/// unreadable / not a private key. Used as a test seam by the
+/// `ssh_dir_key_scanner` suite to inject canned files; production
+/// callsites pass `_defaultPemKeyReader` which routes through
+/// `lfs_core::keys` over FRB.
+typedef PemKeyReader = Future<String?> Function(String path);
 
-/// Classifier for PEM encryption state. Matches [KeyFileHelper.isEncryptedPem]
-/// in production; stubbed out in tests so they don't have to craft real
-/// bcrypt-wrapped key material.
-typedef EncryptedPemDetector = bool Function(String pem);
-
-/// Result of preparing a config-file import — ready to pass to ImportService.
+/// Result of preparing a config-file import — ready to pass to
+/// [applyResultViaRust].
 class OpenSshConfigImportPreview {
   final ImportResult result;
 
@@ -50,29 +49,28 @@ class OpenSshConfigImportPreview {
 ///
 /// Pure: performs no storage writes, no UI. Wiring into the settings
 /// screen (file picker, preview dialog, apply) happens elsewhere.
+///
+/// Production path is a single FRB call into
+/// `lfs_core::import::openssh_config::build_preview`. The Rust
+/// orchestrator owns: config parse + Include resolution + filesystem
+/// reads + PEM import + fingerprint dedup + auth-type decision +
+/// suspicious-path filter + UUID minting. The Dart side only wraps
+/// the returned wire records into the existing `Session` /
+/// `SshKeyEntry` / `ImportResult` Flutter-side models.
 class OpenSshConfigImporter {
-  final PemKeyReader readPem;
-  final EncryptedPemDetector isEncryptedPem;
+  /// Default `~/.ssh` base for relative `Include` directives. Mirrors
+  /// the parser's default — overridable per call from tests that
+  /// want to anchor against a tempdir instead of the real home.
+  final String? baseDirOverride;
 
-  /// Instance used only for its stateless [KeyStore.importKey] — avoids
-  /// duplicating the PEM→SshKeyEntry parsing logic already there.
-  final KeyStore _keyParser;
-
-  OpenSshConfigImporter({
-    PemKeyReader? readPem,
-    EncryptedPemDetector? isEncryptedPem,
-    KeyStore? keyParser,
-  }) : readPem = readPem ?? KeyFileHelper.tryReadPemKey,
-       isEncryptedPem = isEncryptedPem ?? KeyFileHelper.isEncryptedPem,
-       _keyParser = keyParser ?? KeyStore();
+  OpenSshConfigImporter({this.baseDirOverride});
 
   /// Expand a leading `~` in [path] to the user's home directory.
-  /// Paths without `~` pass through untouched.
-  static String expandHome(String path) {
-    if (path == '~') return homeDirectory;
-    if (path.startsWith('~/')) return '$homeDirectory${path.substring(1)}';
-    return path;
-  }
+  /// Paths without `~` pass through untouched. Routes through the
+  /// Rust `openssh_config::expand_home` helper so future
+  /// `lfs_cli` / `lfs_tauri` consumers see the same expansion.
+  static String expandHome(String path) =>
+      rust_import.opensshConfigExpandHome(path: path);
 
   /// Delegates to [KeyFileHelper.isSuspiciousPath]. Kept as a thin wrapper so
   /// existing callers / tests that reach for
@@ -85,37 +83,54 @@ class OpenSshConfigImporter {
   ///
   /// [folderLabel] is where imported sessions land — recommended to include
   /// the date so users can tell where hosts came from after the fact.
-  OpenSshConfigImportPreview buildPreview({
+  Future<OpenSshConfigImportPreview> buildPreview({
     required String configContent,
     required String folderLabel,
     String keyLabelSuffix = '',
     ImportMode mode = ImportMode.merge,
+  }) async {
+    final baseDir = baseDirOverride ?? '$homeDirectory/.ssh';
+    final raw = rust_import.opensshConfigBuildPreview(
+      configContent: configContent,
+      folderLabel: folderLabel,
+      keyLabelSuffix: keyLabelSuffix,
+      baseDir: baseDir,
+      maxIncludeDepth: 8,
+    );
+    return _wrapPreview(raw, folderLabel: folderLabel, mode: mode);
+  }
+
+  /// Build an import preview by reading the OpenSSH config straight
+  /// from disk. The file read happens Rust-side (no `dart:io` File
+  /// in the caller), and `Include` directives resolve relative to
+  /// the picked file's parent directory unless `baseDirOverride` is
+  /// set. Returns `null` for missing files / I/O errors / non-UTF-8
+  /// content — every "nothing to show" outcome the caller would
+  /// surface as the silent fallthrough.
+  Future<OpenSshConfigImportPreview?> buildPreviewFromPath({
+    required String path,
+    required String folderLabel,
+    String keyLabelSuffix = '',
+    ImportMode mode = ImportMode.merge,
+  }) async {
+    final raw = await rust_import.opensshConfigBuildPreviewFromPath(
+      path: path,
+      folderLabel: folderLabel,
+      keyLabelSuffix: keyLabelSuffix,
+      baseDir: baseDirOverride ?? '',
+      maxIncludeDepth: 8,
+    );
+    if (raw == null) return null;
+    return _wrapPreview(raw, folderLabel: folderLabel, mode: mode);
+  }
+
+  OpenSshConfigImportPreview _wrapPreview(
+    rust_import.DbOpenSshImportPreview raw, {
+    required String folderLabel,
+    required ImportMode mode,
   }) {
-    final entries = parseOpenSshConfig(configContent);
-    final sessions = <Session>[];
-    final keys = <SshKeyEntry>[];
-    final keyIdByFingerprint = <String, String>{};
-    final missingKeys = <String>[];
-    final encryptedKeys = <String>[];
-
-    for (final entry in entries) {
-      final resolution = _resolveIdentityKey(
-        entry,
-        keys,
-        keyIdByFingerprint,
-        keyLabelSuffix,
-      );
-      // Both missing and encrypted outcomes leave the host without a usable
-      // key, so both feed [missingKeys] — keeps the existing UI warning
-      // accurate regardless of which failure mode we hit.
-      if (resolution.missing || resolution.encrypted) {
-        missingKeys.add(entry.host);
-      }
-      if (resolution.encrypted) encryptedKeys.add(entry.host);
-
-      sessions.add(_buildSessionForEntry(entry, resolution.keyId, folderLabel));
-    }
-
+    final sessions = raw.sessions.map(_toSession).toList(growable: false);
+    final keys = raw.keys.map(_toSshKeyEntry).toList(growable: false);
     return OpenSshConfigImportPreview(
       result: ImportResult(
         sessions: sessions,
@@ -123,126 +138,50 @@ class OpenSshConfigImporter {
         mode: mode,
         emptyFolders: sessions.isEmpty ? const {} : {folderLabel},
       ),
-      parsedHosts: entries.length,
-      hostsWithMissingKeys: missingKeys,
-      hostsWithEncryptedKeys: encryptedKeys,
+      parsedHosts: raw.parsedHosts,
+      hostsWithMissingKeys: List.unmodifiable(raw.hostsWithMissingKeys),
+      hostsWithEncryptedKeys: List.unmodifiable(raw.hostsWithEncryptedKeys),
     );
   }
 
-  /// Build a [Session] for [entry] honouring the user-declared
-  /// `PreferredAuthentications` ordering — the importer must not default to
-  /// [AuthType.key] when the user explicitly asked for password auth, even if
-  /// an IdentityFile is also set (OpenSSH itself picks password first in that
-  /// case). See [OpenSshConfigEntry.preferredAuthTypes].
-  Session _buildSessionForEntry(
-    OpenSshConfigEntry entry,
-    String keyId,
-    String folderLabel,
-  ) {
-    final preferred = entry.preferredAuthTypes;
-    final AuthType authType;
-    if (preferred != null && preferred.isNotEmpty) {
-      authType = preferred.first;
-    } else if (keyId.isNotEmpty) {
-      authType = AuthType.key;
-    } else {
-      authType = AuthType.password;
-    }
+  Session _toSession(rust_import.DbOpenSshImportSession row) =>
+      mapRustImportSession(row);
+
+  SshKeyEntry _toSshKeyEntry(rust_import.DbOpenSshImportKey row) =>
+      mapRustImportKey(row);
+
+  /// Map a Rust-side imported-session row onto the Flutter [Session]
+  /// model. The auth type is the only branching decision; everything
+  /// else is field copy. Public so the openssh-import test surface
+  /// can drive the mapper without booting FRB.
+  @visibleForTesting
+  static Session mapRustImportSession(rust_import.DbOpenSshImportSession row) {
+    final authType = switch (row.authType) {
+      rust_ssh_config.DbOpenSshAuthType.password => AuthType.password,
+      rust_ssh_config.DbOpenSshAuthType.key => AuthType.key,
+    };
     return Session(
-      label: entry.host,
-      folder: folderLabel,
-      server: ServerAddress(
-        host: entry.effectiveHost,
-        port: entry.port ?? 22,
-        user: entry.user ?? '',
-      ),
-      auth: SessionAuth(
-        authType: authType,
-        keyId: authType == AuthType.key ? keyId : '',
-      ),
+      id: row.id,
+      label: row.label,
+      folder: row.folder,
+      server: ServerAddress(host: row.host, port: row.port, user: row.user),
+      auth: SessionAuth(authType: authType, keyId: row.keyId),
     );
   }
 
-  /// Resolve the IdentityFile list for an entry to a key id. Reads each
-  /// candidate through [readPem]; the first one that parses as a PEM private
-  /// key wins. Dedups within this import by fingerprint so two hosts
-  /// pointing at the same key share one [SshKeyEntry].
-  ///
-  /// Returns a structured result distinguishing three outcomes:
-  /// * ok: `keyId` populated, no flags — caller stores the session with key.
-  /// * encrypted: at least one IdentityFile exists but couldn't be parsed
-  ///   because it's passphrase-protected — `keyId` empty, `encrypted=true`.
-  /// * missing: the entry *declared* an IdentityFile but none were readable
-  ///   — `keyId` empty, `missing=true`.
-  _KeyResolution _resolveIdentityKey(
-    OpenSshConfigEntry entry,
-    List<SshKeyEntry> keys,
-    Map<String, String> keyIdByFingerprint,
-    String keyLabelSuffix,
-  ) {
-    if (entry.identityFiles.isEmpty) return const _KeyResolution('');
-    var sawEncrypted = false;
-    for (final rawPath in entry.identityFiles) {
-      if (KeyFileHelper.isSuspiciousPath(rawPath)) {
-        AppLogger.instance.log(
-          'Rejected IdentityFile with traversal segments: $rawPath',
-          name: 'SshConfigImport',
-        );
-        continue;
-      }
-      final path = expandHome(rawPath);
-      final pem = readPem(path);
-      if (pem == null) continue;
-      if (isEncryptedPem(pem)) {
-        sawEncrypted = true;
-        AppLogger.instance.log(
-          'IdentityFile at $path is encrypted — needs passphrase',
-          name: 'SshConfigImport',
-        );
-        continue;
-      }
-      final fp = KeyStore.privateKeyFingerprint(pem);
-      final existingId = keyIdByFingerprint[fp];
-      if (existingId != null) return _KeyResolution(existingId);
-      try {
-        final keyEntry = _keyParser.importKey(
-          pem,
-          _keyLabel(rawPath, keyLabelSuffix),
-        );
-        keys.add(keyEntry);
-        keyIdByFingerprint[fp] = keyEntry.id;
-        return _KeyResolution(keyEntry.id);
-      } catch (e) {
-        AppLogger.instance.log(
-          'Skipped unparseable key at $path: $e',
-          name: 'SshConfigImport',
-        );
-      }
-    }
-    return _KeyResolution('', encrypted: sawEncrypted, missing: !sawEncrypted);
+  /// Map a Rust-side imported-key row onto the Flutter [SshKeyEntry]
+  /// model. `isGenerated=false` because OpenSSH-imported keys came
+  /// from disk, not from the in-app generator.
+  @visibleForTesting
+  static SshKeyEntry mapRustImportKey(rust_import.DbOpenSshImportKey row) {
+    return SshKeyEntry(
+      id: row.id,
+      label: row.label,
+      privateKey: row.privatePem,
+      publicKey: row.publicOpenssh,
+      keyType: row.keyType,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAtUnixMs),
+      isGenerated: false,
+    );
   }
-
-  /// Derive a human label for a key from its file path. Uses the basename
-  /// so "~/.ssh/id_ed25519" becomes "id_ed25519", optionally with a
-  /// trailing [suffix] for uniqueness across imports (e.g. a date stamp).
-  static String _keyLabel(String rawPath, String suffix) {
-    final sep = Platform.pathSeparator;
-    final baseRaw = KeyFileHelper.basename(rawPath);
-    final base = baseRaw.isEmpty ? rawPath : baseRaw.replaceAll(sep, '_');
-    return suffix.isEmpty ? base : '$base $suffix';
-  }
-}
-
-/// Outcome of [OpenSshConfigImporter._resolveIdentityKey]. Exactly one of
-/// the flags is true when [keyId] is empty; [keyId] is always empty when
-/// [encrypted] or [missing].
-class _KeyResolution {
-  final String keyId;
-  final bool encrypted;
-  final bool missing;
-  const _KeyResolution(
-    this.keyId, {
-    this.encrypted = false,
-    this.missing = false,
-  });
 }

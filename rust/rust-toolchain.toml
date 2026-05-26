@@ -1,0 +1,18 @@
+# Pin toolchain to a specific stable release. Rationale: a bare
+# `channel = "stable"` lets the runner-image's currently-installed
+# stable rotate underneath us — every six weeks a new stable lands
+# on `ubuntu-latest` / `macos-latest` / `windows-latest` and any
+# new lint or warning behaviour silently changes the build. Pinning
+# means the upgrade is a deliberate edit to this file (with the
+# corresponding clippy / build re-check on the same PR).
+#
+# Bump policy: pin to the latest stable release that has been out
+# for at least one cycle (~6 weeks) so any post-release fixup
+# release has time to land. The workspace `rust-version` field in
+# `Cargo.toml` documents the MSRV intent (the oldest stable we are
+# willing to support if pulled into a downstream consumer); the
+# toolchain pin here is what every CI run actually uses.
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

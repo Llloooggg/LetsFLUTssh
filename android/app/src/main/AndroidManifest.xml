@@ -7,12 +7,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <!-- Storage: local file browser for SFTP transfers -->
+    <!-- Storage: local file browser for SFTP transfers.
+         MANAGE_EXTERNAL_STORAGE retired — Play Store treats it as a
+         restricted Special Permission for non-file-manager apps. The
+         SSH-key file picker now goes through file_picker (SAF), which
+         already covers the only flow that consumed the broad access. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!-- Camera: QR scanner (used only for the "Scan QR" action in Settings) -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -21,6 +24,25 @@
     <!-- Biometric unlock (optional, only when user enables it in Security settings) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- API 33+ (Android 13+) requires runtime POST_NOTIFICATIONS for
+         every app that posts a notification, including the foreground
+         service that keeps SSH alive. Without it, Android 13+ silently
+         suppresses the persistent notification — the foreground service
+         still runs but the user has no UI cue that an SSH connection is
+         alive in the background. The runtime grant is requested via
+         flutter_foreground_task's `requestPermission` API on first start. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Optional opt-in: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS lets
+         the user grant the app a Doze allowlist slot from Settings →
+         Battery. Without it, Android Doze can suspend the foreground
+         service after extended idle (~30 min screen-off) and SSH
+         connections drop silently. The grant is opt-in only; the app
+         never auto-prompts (Play Store policy) — the Settings →
+         Connection panel surfaces a "Disable battery optimization"
+         button that fires the system dialog. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:label="LFssh"
@@ -58,38 +80,11 @@
                 <data android:scheme="letsflutssh" />
             </intent-filter>
 
-            <!-- Open SSH key files (.pem, .key, .pub) and .lfs export archives -->
-            <!-- Note: mimeType="*/*" would match ALL files (Android ORs data attributes).
-                 Use application/octet-stream — most file managers send this for unknown extensions. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:host="*" />
-                <data android:mimeType="application/octet-stream" />
-                <data android:pathPattern=".*\\.pem" />
-                <data android:pathPattern=".*\\.key" />
-                <data android:pathPattern=".*\\.pub" />
-                <data android:pathPattern=".*\\.lfs" />
-            </intent-filter>
-            <!-- Some file managers send PEM-specific MIME types -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:host="*" />
-                <data android:mimeType="application/x-pem-file" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:host="*" />
-                <data android:mimeType="application/x-x509-ca-cert" />
-            </intent-filter>
+            <!-- No file-extension intent filters. The app does not register to
+                 open .pem / .key / .pub / .lfs (or any extension) — those belong
+                 to the user's own tools, and .lfs archives import via drag-drop /
+                 the in-app picker, not an OS file hand-off. Only the
+                 letsflutssh:// scheme above is handled. -->
         </activity>
 
         <!-- QR scanner activity: shown only when the user taps "Scan QR".

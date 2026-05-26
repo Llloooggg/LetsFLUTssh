@@ -3,11 +3,18 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/utils/format.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Fuzz tests for [sanitizeError].
 ///
 /// Generates random error-like strings and objects to verify
 /// the parser never crashes with an unhandled exception.
 void main() {
+  // formatSize / formatDuration route through `lfs_core::format` —
+  // bootstrap FRB so the fuzz inputs hit the real Rust formatters.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('Fuzz sanitizeError', () {
     final rng = Random(42);
 

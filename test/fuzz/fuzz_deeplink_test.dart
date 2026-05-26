@@ -3,10 +3,18 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Fuzz tests for [DeepLinkHandler.parseConnectUri].
 ///
 /// Verifies that no malformed URI can crash the parser.
 void main() {
+  // parseConnectUri routes through `lfs_core::deeplink` —
+  // bootstrap FRB so the canonical Rust grammar handles the
+  // 1k+ random URIs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('Fuzz DeepLinkHandler.parseConnectUri', () {
     final rng = Random(42);
 

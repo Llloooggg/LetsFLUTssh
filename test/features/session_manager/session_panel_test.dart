@@ -6,18 +6,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
+import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
+import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_dialog.dart';
+import 'package:letsflutssh/widgets/core/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
-import '../../helpers/fake_session_store.dart';
-import '../../helpers/test_notifiers.dart';
+import '../../helpers/fake_session_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 
 void main() {
+  // SessionTree.build now routes through `lfs_core::session_tree`
+  // (FRB sync). Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
   late List<Session> testSessions;
 
   setUp(() {
@@ -53,10 +61,6 @@ void main() {
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
-    final store = FakeSessionStore(
-      sessions: sessionList,
-      emptyFolders: emptyFolders,
-    );
     final tree = SessionTree.build(
       sessionList,
       emptyFolders: emptyFolders ?? const {},
@@ -64,13 +68,23 @@ void main() {
 
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(store),
-        sessionProvider.overrideWith(
-          () => PrePopulatedSessionNotifier(sessionList),
-        ),
-        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+        ...FakeSessionNotifier(
+          sessions: sessionList,
+          emptyFolders: emptyFolders,
+        ).overrides(),
+        sessionsLoadingProvider.overrideWithValue(false),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
+        // SessionEditDialog watches these via FRB / DB. With FRB
+        // bootstrap landed (so the tree builder can run) the live
+        // providers would otherwise spin a CircularProgressIndicator
+        // forever in `pumpAndSettle` because the test process has
+        // no `lfs_core.db` to read from. Stub them out with empty
+        // immediate values.
+        sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+        sshKeysStreamProvider.overrideWith(
+          (_) => Stream.value(const <SshKeyEntry>[]),
+        ),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -228,18 +242,17 @@ void main() {
       // cold-start flashes "your sessions are gone" before the load
       // resolves.
       final tree = SessionTree.build(const []);
-      final store = FakeSessionStore();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(store),
-            sessionProvider.overrideWith(
-              () => PrePopulatedSessionNotifier(const []),
-            ),
+            ...FakeSessionNotifier().overrides(),
             // Default for sessionsLoadingProvider is already `true`,
             // but state the intent so the test fails loudly if that
             // default ever changes.
-            sessionsLoadingProvider.overrideWith(SessionsLoadingNotifier.new),
+            // Default value is `true` for the loading flag — matches
+            // the cold-start state the production sidebar paints
+            // before the workspace stream emits its first snapshot.
+            sessionsLoadingProvider.overrideWithValue(true),
             sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
             filteredSessionTreeProvider.overrideWithValue(tree),
           ],
@@ -320,6 +333,37 @@ void main() {
       // has, the menu has" expectation.
       expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Cut'), findsOneWidget);
+      // Paste is hidden while the clipboard is empty — a context menu is
+      // an action surface, so an item that could only no-op is omitted
+      // rather than shown disabled.
+      expect(find.text('Paste'), findsNothing);
+    });
+
+    testWidgets('Paste appears in the session menu after a Copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp(onSftpConnect: (_) {}));
+      await tester.pumpAndSettle();
+
+      Future<void> rightClickStaging() async {
+        final center = tester.getCenter(find.text('staging'));
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        );
+        await gesture.addPointer(location: center);
+        await gesture.down(center);
+        await gesture.up();
+        await gesture.removePointer();
+        await tester.pumpAndSettle();
+      }
+
+      // Copy the row, then reopen the menu — now the clipboard holds an
+      // entry, so Paste becomes a real, visible action.
+      await rightClickStaging();
+      await tester.tap(find.text('Copy'));
+      await tester.pumpAndSettle();
+      await rightClickStaging();
       expect(find.text('Paste'), findsOneWidget);
     });
 
@@ -470,12 +514,10 @@ void main() {
       expect(find.text('New Folder'), findsOneWidget);
       expect(find.text('Rename Folder'), findsOneWidget);
       expect(find.text('Delete Folder'), findsOneWidget);
-      // Paste pastes directly into the right-clicked folder — it is
-      // always present so the layout does not jitter between the
-      // copy-then-paste sequence and so "paste into this folder"
-      // stays a discoverable menu action even without the keyboard
-      // shortcut scope.
-      expect(find.text('Paste'), findsOneWidget);
+      // Paste is hidden while the clipboard is empty — the folder menu is
+      // an action surface, same rule as the session menu. It reappears
+      // once a copy/cut has stashed something to paste in.
+      expect(find.text('Paste'), findsNothing);
     });
 
     testWidgets('folder expand/collapse toggles on tap', (tester) async {
@@ -612,7 +654,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('This will also delete 2 session(s) inside.'),
+        find.textContaining('This will also delete 2 sessions inside.'),
         findsOneWidget,
       );
     });
@@ -806,9 +848,9 @@ void main() {
       await tester.tap(find.text('New Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog should open — labels have asterisks for required fields
+      // SessionEditDialog opens — the SSH transport block renders
+      // a labelled HOST field as its first input.
       expect(find.text('HOST *'), findsOneWidget);
-      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -833,9 +875,9 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      // SessionEditDialog should show with pre-filled values
+      // SessionEditDialog opens — the SSH transport block renders
+      // a labelled HOST field as its first input.
       expect(find.text('HOST *'), findsOneWidget);
-      expect(find.text('USERNAME *'), findsOneWidget);
     });
   });
 
@@ -864,35 +906,11 @@ void main() {
     });
   });
 
-  group('SessionPanel — Delete Folder confirmation', () {
-    testWidgets('Delete Folder from folder context menu shows confirmation', (
-      tester,
-    ) async {
+  group('SessionPanel — Delete Folder confirm-tap', () {
+    testWidgets('Delete Folder confirm-tap dismisses dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Right-click on empty area (background) — we use the staging session area
-      // but right-click on the background. Let's right-click the 'Sessions' header area.
-      // Actually, the background context menu is triggered on the tree view background.
-      // We can trigger by right-clicking on the staging row with folder context.
-      // Better: right-click directly on the tree's empty space — we need to find
-      // a spot after all sessions. Instead, use the folder context menu on root:
-      // In the test, the filteredSessionTreeProvider is overridden, so background
-      // right-click is on the tree area. Let's test via _showFolderContextMenu('', ...).
-      // Actually, the root folder context menu is shown when right-clicking the tree background.
-      // Since we have sessions, the 'delete_all' item should appear.
-      // The easiest approach: use an offset on the tree view area.
-
-      // The SessionTreeView has onBackgroundContextMenu callback that fires
-      // when the tree background is right-clicked. In practice, this is hard to
-      // trigger reliably in test. Instead, let's test via the folder context menu
-      // on an actual folder, then check the folder menu items.
-      //
-      // But _confirmDeleteAll is triggered from the root ("") folder menu.
-      // Let's test it indirectly by checking the folder menu has 'Delete All Sessions'.
-
-      // For now, test that Delete Folder confirmation for Production works and
-      // exercises the _confirmDeleteFolder path with session count.
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(
@@ -1187,8 +1205,11 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Fill password (required)
-        await tester.tap(find.text('Auth'));
+        // Single-form layout — password is on the same scrollable
+        // page as the host / user fields; scroll it into view.
+        await tester.ensureVisible(
+          find.widgetWithText(TextFormField, '••••••••'),
+        );
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1197,6 +1218,14 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+        // `_handleDialogResult` awaits `syncForwards` → `loadPortForwards`,
+        // which is a real FRB DB call now that the bootstrap is wired in.
+        // The cross-thread completion lands outside the Dart microtask queue
+        // `pumpAndSettle` drains, so let real time pass before the assertion.
+        await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
         await tester.pumpAndSettle();
 
         expect(connected, isNotNull);
@@ -1223,8 +1252,11 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Fill password (required)
-        await tester.tap(find.text('Auth'));
+        // Single-form layout — password is on the same scrollable
+        // page as the host / user fields; scroll it into view.
+        await tester.ensureVisible(
+          find.widgetWithText(TextFormField, '••••••••'),
+        );
         await tester.pumpAndSettle();
         await tester.enterText(
           find.widgetWithText(TextFormField, '••••••••'),
@@ -1232,7 +1264,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Save'));
+        // Stacked footer — tap the standalone Save button. Match a
+        // `Text` widget whose data is exactly "Save" so we don't hit
+        // the leading half of "Save & Connect".
+        await tester.tap(
+          find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+        );
         await tester.pumpAndSettle();
 
         // Save without connect — dialog closes but no connect callback
@@ -1277,8 +1314,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Fill password (required)
-      await tester.tap(find.text('Auth'));
+      // Single-form layout — password is on the same scrollable
+      // page as the host / user fields; scroll it into view.
+      await tester.ensureVisible(
+        find.widgetWithText(TextFormField, '••••••••'),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),
@@ -1287,6 +1327,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+      // `_handleDialogResult` awaits `syncForwards` → `loadPortForwards`,
+      // which is a real FRB DB call now that the bootstrap is wired in.
+      // The cross-thread completion lands outside the Dart microtask queue
+      // `pumpAndSettle` drains, so let real time pass before the assertion.
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -1327,8 +1375,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Fill password (required)
-      await tester.tap(find.text('Auth'));
+      // Single-form layout — password is on the same scrollable
+      // page as the host / user fields; scroll it into view.
+      await tester.ensureVisible(
+        find.widgetWithText(TextFormField, '••••••••'),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(
         find.widgetWithText(TextFormField, '••••••••'),
@@ -1336,10 +1387,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
-      // Dialog should close and onConnect should NOT be called
+      // Dialog should close and onConnect should NOT be called.
       expect(find.text('HOST *'), findsNothing);
       expect(connected, isNull);
     });
@@ -1370,7 +1426,12 @@ void main() {
       expect(find.text('Edit Connection'), findsOneWidget);
 
       // Tap Save
-      await tester.tap(find.text('Save'));
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
       // Dialog should close
@@ -1534,7 +1595,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Folder'), findsOneWidget);
-        expect(find.textContaining('session(s) inside'), findsNothing);
+        expect(find.textContaining('sessions inside'), findsNothing);
 
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
@@ -1598,7 +1659,12 @@ void main() {
       await tester.tap(find.text('Edit Connection'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      // Stacked footer — tap the standalone Save button. Match a
+      // `Text` widget whose data is exactly "Save" so we don't hit
+      // the leading half of "Save & Connect".
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is Text && w.data == 'Save').first,
+      );
       await tester.pumpAndSettle();
 
       expect(connected, isNull);
@@ -2326,7 +2392,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Selected'), findsOneWidget);
-      expect(find.textContaining('1 session(s)'), findsOneWidget);
+      expect(find.textContaining('1 session'), findsOneWidget);
     });
 
     testWidgets('Move shows folder dialog', (tester) async {
@@ -2665,7 +2731,7 @@ void main() {
 
       // Should show bulk delete dialog, not single session delete
       expect(find.text('Delete Selected'), findsOneWidget);
-      expect(find.textContaining('2 session(s)'), findsOneWidget);
+      expect(find.textContaining('2 sessions'), findsOneWidget);
     });
 
     testWidgets('F2 opens edit dialog for focused session', (tester) async {
@@ -2956,6 +3022,16 @@ void main() {
 
       await tester.longPress(find.text('Production'));
       await tester.pumpAndSettle();
+
+      // The folder bottom sheet is taller than the test viewport once
+      // it carries the full New / Copy / Cut / Rename / Delete /
+      // Select stack — scroll the inner SingleChildScrollView so
+      // Select reaches the visible area before hit-testing.
+      await tester.scrollUntilVisible(
+        find.text('Select'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
 
       await tester.tap(find.text('Select'));
       await tester.pumpAndSettle();

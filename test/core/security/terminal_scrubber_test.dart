@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/terminal_scrubber.dart';
-import 'package:xterm/xterm.dart';
 
 void main() {
   setUp(() => TerminalScrubber.instance.resetForTests());
@@ -12,45 +11,51 @@ void main() {
     });
 
     test('register + unregister track count correctly', () {
-      final t = Terminal(maxLines: 10);
-      TerminalScrubber.instance.register(t);
+      void noop() {}
+      TerminalScrubber.instance.register(noop);
       expect(TerminalScrubber.instance.trackedCount, 1);
-      TerminalScrubber.instance.unregister(t);
+      TerminalScrubber.instance.unregister(noop);
       expect(TerminalScrubber.instance.trackedCount, 0);
     });
 
-    test('register is idempotent — same instance twice stays at 1', () {
-      final t = Terminal(maxLines: 10);
-      TerminalScrubber.instance.register(t);
-      TerminalScrubber.instance.register(t);
+    test('register is idempotent — same closure twice stays at 1', () {
+      void noop() {}
+      TerminalScrubber.instance.register(noop);
+      TerminalScrubber.instance.register(noop);
       expect(TerminalScrubber.instance.trackedCount, 1);
     });
 
-    test('unregister of an unknown terminal is a no-op', () {
-      final t = Terminal(maxLines: 10);
-      TerminalScrubber.instance.unregister(t);
+    test('unregister of an unknown closure is a no-op', () {
+      void noop() {}
+      TerminalScrubber.instance.unregister(noop);
       expect(TerminalScrubber.instance.trackedCount, 0);
     });
 
-    test('scrubAll clears the scrollback of every registered terminal', () {
-      final a = Terminal(maxLines: 100);
-      final b = Terminal(maxLines: 100);
-      // Write something so scrollback has content.
-      a.write('secret output\r\n');
-      b.write('other output\r\n');
+    test('scrubAll invokes every registered callback', () {
+      var aCalled = 0;
+      var bCalled = 0;
+      void a() => aCalled++;
+      void b() => bCalled++;
       TerminalScrubber.instance.register(a);
       TerminalScrubber.instance.register(b);
 
       TerminalScrubber.instance.scrubAll();
 
-      // After scrub the buffer's current line should be empty.
-      // We cannot assert on deep internals without tight coupling;
-      // the contract is "scrubAll runs without throwing and resets
-      // cursor to (0,0)" which we verify via the cursor.
-      expect(a.buffer.cursorX, 0);
-      expect(a.buffer.cursorY, 0);
-      expect(b.buffer.cursorX, 0);
-      expect(b.buffer.cursorY, 0);
+      expect(aCalled, 1);
+      expect(bCalled, 1);
+    });
+
+    test('scrubAll continues on a callback that throws', () {
+      var bCalled = 0;
+      void a() => throw StateError('boom');
+      void b() => bCalled++;
+      TerminalScrubber.instance.register(a);
+      TerminalScrubber.instance.register(b);
+
+      // Best-effort — must not propagate the throw and must call
+      // the second callback regardless.
+      expect(() => TerminalScrubber.instance.scrubAll(), returnsNormally);
+      expect(bCalled, 1);
     });
 
     test('scrubAll on an empty registry is a no-op that does not throw', () {

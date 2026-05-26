@@ -1,111 +1,76 @@
 import 'package:flutter/material.dart';
 
 import '../../core/sftp/sftp_models.dart';
+import '../../src/rust/api/sftp_models.dart' as rust_sftp_models;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../widgets/hover_region.dart';
-import '../../widgets/sortable_header_cell.dart';
+import '../../widgets/core/hover_region.dart';
+import '../../widgets/core/sortable_header_cell.dart';
 
-/// File extensions grouped by type for icon/color mapping.
-const _imageExts = {
-  'png',
-  'jpg',
-  'jpeg',
-  'gif',
-  'bmp',
-  'svg',
-  'webp',
-  'ico',
-  'tiff',
-};
-const _archiveExts = {
-  'zip',
-  'tar',
-  'gz',
-  'bz2',
-  'xz',
-  'rar',
-  '7z',
-  'tgz',
-  'zst',
-};
-const _codeExts = {
-  'dart',
-  'js',
-  'ts',
-  'py',
-  'go',
-  'rs',
-  'c',
-  'cpp',
-  'h',
-  'java',
-  'kt',
-  'rb',
-  'sh',
-  'bash',
-  'zsh',
-  'yaml',
-  'yml',
-  'toml',
-  'json',
-  'xml',
-  'html',
-  'css',
-  'scss',
-  'md',
-  'txt',
-  'log',
-  'conf',
-  'cfg',
-  'ini',
-  'env',
-  'sql',
-  'swift',
-  'tsx',
-  'jsx',
-};
+/// Classify [entry] into a `DbFileKind`. The decision tree
+/// (extension buckets, dir / symlink precedence) lives in
+/// `lfs_core::sftp_models::file_kind`; Dart only renders the result.
+/// `FileEntry` doesn't carry a symlink flag (the file panes resolve
+/// symlinks on list), so `isSymlink` is always `false` here — the
+/// dir / extension branches cover every row the table renders.
+rust_sftp_models.DbFileKind _kind(FileEntry entry) => rust_sftp_models
+    .sftpFileKind(name: entry.name, isDir: entry.isDir, isSymlink: false);
 
-String _ext(String name) =>
-    name.contains('.') ? name.split('.').last.toLowerCase() : '';
-
-/// Returns a file-type icon matching the mockup color scheme.
+/// Returns a file-type icon for the entry's [rust_sftp_models.DbFileKind].
+/// This map (kind → glyph) is a rendering concern and is the only
+/// file-type decision that stays Dart-side.
 IconData fileIcon(FileEntry entry) {
-  if (entry.isDir) {
-    return Icons.folder;
+  switch (_kind(entry)) {
+    case rust_sftp_models.DbFileKind.directory:
+      return Icons.folder;
+    case rust_sftp_models.DbFileKind.symlink:
+      return Icons.link;
+    case rust_sftp_models.DbFileKind.image:
+      return Icons.image;
+    case rust_sftp_models.DbFileKind.archive:
+      return Icons.archive;
+    case rust_sftp_models.DbFileKind.code:
+      return Icons.description;
+    case rust_sftp_models.DbFileKind.audio:
+      return Icons.audiotrack;
+    case rust_sftp_models.DbFileKind.video:
+      return Icons.movie;
+    case rust_sftp_models.DbFileKind.document:
+      return Icons.article;
+    case rust_sftp_models.DbFileKind.binary:
+      return Icons.memory;
+    case rust_sftp_models.DbFileKind.plain:
+      return Icons.insert_drive_file;
   }
-  final ext = _ext(entry.name);
-  if (_imageExts.contains(ext)) {
-    return Icons.image;
-  }
-  if (_archiveExts.contains(ext)) {
-    return Icons.archive;
-  }
-  if (_codeExts.contains(ext)) {
-    return Icons.description;
-  }
-  return Icons.insert_drive_file;
 }
 
-/// Returns a file-type icon color matching the mockup.
+/// Returns a file-type icon color for the entry's kind. Dotfiles
+/// (name starting with `.`) render faint regardless of kind — a
+/// presentation rule that keeps hidden entries visually recessive.
 Color fileIconColor(FileEntry entry) {
-  if (entry.isDir) {
-    return AppTheme.folderIcon;
-  }
-  if (entry.name.startsWith('.')) {
+  final kind = _kind(entry);
+  if (kind != rust_sftp_models.DbFileKind.directory &&
+      entry.name.startsWith('.')) {
     return AppTheme.fgFaint;
   }
-  final ext = _ext(entry.name);
-  if (_imageExts.contains(ext)) {
-    return AppTheme.purple;
+  switch (kind) {
+    case rust_sftp_models.DbFileKind.directory:
+      return AppTheme.folderIcon;
+    case rust_sftp_models.DbFileKind.symlink:
+      return AppTheme.fgFaint;
+    case rust_sftp_models.DbFileKind.image:
+      return AppTheme.purple;
+    case rust_sftp_models.DbFileKind.archive:
+      return AppTheme.orange;
+    case rust_sftp_models.DbFileKind.code:
+      return AppTheme.green;
+    case rust_sftp_models.DbFileKind.audio:
+    case rust_sftp_models.DbFileKind.video:
+    case rust_sftp_models.DbFileKind.document:
+    case rust_sftp_models.DbFileKind.binary:
+    case rust_sftp_models.DbFileKind.plain:
+      return AppTheme.blue;
   }
-  if (_archiveExts.contains(ext)) {
-    return AppTheme.orange;
-  }
-  if (_codeExts.contains(ext)) {
-    return AppTheme.green;
-  }
-  return AppTheme.blue;
 }
 
 /// A single file row in the file browser list.
@@ -156,7 +121,7 @@ class FileRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(color: _rowColor(hovered)),
-          child: Row(children: _buildColumns(theme)),
+          child: Row(children: _buildColumns(theme, context)),
         ),
       ),
     );
@@ -168,14 +133,14 @@ class FileRow extends StatelessWidget {
     return null;
   }
 
-  List<Widget> _buildColumns(ThemeData theme) {
+  List<Widget> _buildColumns(ThemeData theme, BuildContext context) {
     final metaStyle = AppFonts.mono(
       fontSize: AppFonts.xs,
       color: AppTheme.fgFaint,
     );
     return [
       Icon(fileIcon(entry), size: 14, color: fileIconColor(entry)),
-      const SizedBox(width: 6),
+      const SizedBox(width: AppSpacing.xxs),
       Expanded(
         child: Tooltip(
           message: entry.name,
@@ -207,7 +172,10 @@ class FileRow extends StatelessWidget {
         SizedBox(
           width: modifiedWidth,
           child: Text(
-            formatTimestamp(entry.modTime),
+            formatTimestamp(
+              entry.modTime,
+              locale: Localizations.localeOf(context),
+            ),
             style: metaStyle,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -259,7 +227,7 @@ class MenuRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 18),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
       ],
     );

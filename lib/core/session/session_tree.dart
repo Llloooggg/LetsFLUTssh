@@ -1,6 +1,13 @@
+import '../../src/rust/api/session_tree.dart' as rust_tree;
 import 'session.dart';
 
 /// A node in the session tree — either a folder or a session leaf.
+///
+/// The tree itself is built by `lfs_core::session_tree`; this class
+/// is the Dart wrapper that re-attaches the live [Session] handle
+/// to leaf nodes (Rust only knows the session id) and carries the
+/// UI-only [expanded] flag the sidebar mutates as the user clicks
+/// folder chevrons.
 class SessionTreeNode {
   final String name;
   final String fullPath;
@@ -8,8 +15,9 @@ class SessionTreeNode {
   final List<SessionTreeNode> children;
   bool expanded;
 
-  /// Cached recursive session count (computed during tree build).
-  int sessionCount;
+  /// Cached recursive session count (computed Rust-side during
+  /// tree build).
+  final int sessionCount;
 
   SessionTreeNode({
     required this.name,
@@ -28,101 +36,65 @@ class SessionTreeNode {
 ///
 /// Example: session with folder "Production/Web" and label "nginx1"
 /// → Production → Web → nginx1 (leaf)
+///
+/// The structural logic (folder collapsing, sort order, recursive
+/// session counting) lives in `lfs_core::session_tree`; this Dart
+/// surface marshals the input/output and re-binds the live
+/// [Session] objects to leaves by id.
 class SessionTree {
   /// Build tree from flat session list.
   ///
   /// [emptyFolders] — folder paths that should appear even without sessions.
+  ///
+  /// Pre-FRB-init callers (Riverpod providers that build during the
+  /// first runApp pass — e.g. `filteredSessionTreeProvider` watched
+  /// by SessionPanel under the splash) get an empty list back.
+  /// `sessions` is empty in that window anyway because the workspace
+  /// stream Provider also gates on FRB, so the empty tree matches
+  /// the empty session list. Once `_initRustCoreOrFatal` resolves
+  /// and the workspace stream emits its first snapshot, Riverpod
+  /// re-runs the dependent providers and the real tree lands.
   static List<SessionTreeNode> build(
     List<Session> sessions, {
     Set<String> emptyFolders = const {},
   }) {
-    final root = <SessionTreeNode>[];
-
-    // Create nodes for empty folders first.
-    for (final folderPath in emptyFolders) {
-      _ensureFolderPath(root, folderPath);
+    if (sessions.isEmpty && emptyFolders.isEmpty) return const [];
+    final byId = {for (final s in sessions) s.id: s};
+    final inputs = sessions
+        .map(
+          (s) => rust_tree.DbSessionTreeInput(
+            id: s.id,
+            label: s.label,
+            folder: s.folder,
+            displayName: s.displayName,
+          ),
+        )
+        .toList();
+    try {
+      final raw = rust_tree.sessionTreeBuild(
+        sessions: inputs,
+        emptyFolders: emptyFolders.toList(),
+      );
+      return raw.map((n) => _wrap(n, byId)).toList();
+    } on StateError catch (e) {
+      if (e.message.contains('flutter_rust_bridge has not been initialized')) {
+        return const [];
+      }
+      rethrow;
     }
-
-    for (final session in sessions) {
-      _insertSession(root, session);
-    }
-
-    _sortTree(root);
-    return root;
   }
 
-  /// Navigate/create all intermediate folder nodes for [folderPath]
-  /// and return the children list of the deepest folder.
-  static List<SessionTreeNode> _ensureFolderPath(
-    List<SessionTreeNode> root,
-    String folderPath,
+  static SessionTreeNode _wrap(
+    rust_tree.DbSessionTreeNode node,
+    Map<String, Session> byId,
   ) {
-    final parts = folderPath.split('/');
-    var currentChildren = root;
-    var currentPath = '';
-    for (final part in parts) {
-      currentPath = currentPath.isEmpty ? part : '$currentPath/$part';
-      var groupNode = _findGroup(currentChildren, part);
-      if (groupNode == null) {
-        groupNode = SessionTreeNode(name: part, fullPath: currentPath);
-        currentChildren.add(groupNode);
-      }
-      currentChildren = groupNode.children;
-    }
-    return currentChildren;
-  }
-
-  /// Create a leaf node for [session] and insert it into the tree.
-  static void _insertSession(List<SessionTreeNode> root, Session session) {
-    final name = session.label.isNotEmpty ? session.label : session.displayName;
-
-    if (session.folder.isEmpty) {
-      // Top-level session (no folder)
-      root.add(
-        SessionTreeNode(name: name, fullPath: session.label, session: session),
-      );
-    } else {
-      // Add session as leaf under the deepest folder
-      final parent = _ensureFolderPath(root, session.folder);
-      parent.add(
-        SessionTreeNode(
-          name: name,
-          fullPath: session.fullPath,
-          session: session,
-        ),
-      );
-    }
-  }
-
-  static SessionTreeNode? _findGroup(List<SessionTreeNode> nodes, String name) {
-    for (final node in nodes) {
-      if (node.isGroup && node.name == name) return node;
-    }
-    return null;
-  }
-
-  /// Sort: folders first (alphabetical), then sessions (alphabetical).
-  /// Also computes sessionCount for each folder node.
-  static void _sortTree(List<SessionTreeNode> nodes) {
-    nodes.sort((a, b) {
-      if (a.isGroup && b.isSession) return -1;
-      if (a.isSession && b.isGroup) return 1;
-      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-    for (final node in nodes) {
-      if (node.isGroup) {
-        _sortTree(node.children);
-        node.sessionCount = _countSessions(node);
-      }
-    }
-  }
-
-  static int _countSessions(SessionTreeNode node) {
-    if (node.isSession) return 1;
-    var count = 0;
-    for (final child in node.children) {
-      count += _countSessions(child);
-    }
-    return count;
+    final id = node.sessionId;
+    return SessionTreeNode(
+      name: node.name,
+      fullPath: node.fullPath,
+      session: id == null ? null : byId[id],
+      children: node.children.map((c) => _wrap(c, byId)).toList(),
+      sessionCount: node.sessionCount,
+    );
   }
 }

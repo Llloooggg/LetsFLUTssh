@@ -1,3 +1,7 @@
+import 'package:uuid/uuid.dart';
+
+import '../../src/rust/api/transfer_conflict.dart' as rust_conflict;
+
 /// Result of a file-conflict resolution: how to proceed when the
 /// destination of a transfer already exists.
 enum ConflictAction {
@@ -14,6 +18,20 @@ enum ConflictAction {
   /// should be processed.
   cancel,
 }
+
+ConflictAction _fromRust(rust_conflict.DbConflictAction a) => switch (a) {
+  rust_conflict.DbConflictAction.skip => ConflictAction.skip,
+  rust_conflict.DbConflictAction.keepBoth => ConflictAction.keepBoth,
+  rust_conflict.DbConflictAction.replace => ConflictAction.replace,
+  rust_conflict.DbConflictAction.cancel => ConflictAction.cancel,
+};
+
+rust_conflict.DbConflictAction _toRust(ConflictAction a) => switch (a) {
+  ConflictAction.skip => rust_conflict.DbConflictAction.skip,
+  ConflictAction.keepBoth => rust_conflict.DbConflictAction.keepBoth,
+  ConflictAction.replace => rust_conflict.DbConflictAction.replace,
+  ConflictAction.cancel => rust_conflict.DbConflictAction.cancel,
+};
 
 /// Decision returned by a conflict UI, pairing an [action] with a
 /// flag indicating whether the same action should be reused for
@@ -40,12 +58,18 @@ typedef ConflictPrompt =
 /// [cancel] short-circuits every further call to [resolve]: once the
 /// user cancels, the resolver yields [ConflictAction.cancel] for the
 /// rest of the batch.
+///
+/// State management routes through the Rust registry
+/// (`lfs_core::transfer_conflict::BatchStateRegistry`) — the cache
+/// + cancellation grammar lives one place. Tests bootstrap FRB via
+/// `requireFrbLoaded()`.
 class BatchConflictResolver {
   final ConflictPrompt _prompt;
-  ConflictAction? _cached;
-  bool _cancelled = false;
+  final String _handle = const Uuid().v4();
 
-  BatchConflictResolver(this._prompt);
+  BatchConflictResolver(this._prompt) {
+    rust_conflict.transferConflictCreate(handle: _handle);
+  }
 
   /// Ask for a decision on [targetPath].
   ///
@@ -55,18 +79,29 @@ class BatchConflictResolver {
     String targetPath, {
     bool isRemote = false,
   }) async {
-    if (_cancelled) return ConflictAction.cancel;
-    if (_cached != null) return _cached!;
-
-    final decision = await _prompt(targetPath, isRemote: isRemote);
-    if (decision.action == ConflictAction.cancel) {
-      _cancelled = true;
-    } else if (decision.applyToAll) {
-      _cached = decision.action;
+    if (rust_conflict.transferConflictIsCancelled(handle: _handle)) {
+      return ConflictAction.cancel;
     }
-    return decision.action;
+    final cached = rust_conflict.transferConflictCached(handle: _handle);
+    if (cached != null) return _fromRust(cached);
+    final decision = await _prompt(targetPath, isRemote: isRemote);
+    return _fromRust(
+      rust_conflict.transferConflictRecordDecision(
+        handle: _handle,
+        action: _toRust(decision.action),
+        applyToAll: decision.applyToAll,
+      ),
+    );
   }
 
   /// Whether the user has cancelled the batch.
-  bool get isCancelled => _cancelled;
+  bool get isCancelled =>
+      rust_conflict.transferConflictIsCancelled(handle: _handle);
+
+  /// Drop the Rust-side state. Idempotent. Call from the
+  /// surrounding `dispose` so the registry doesn't grow per-batch
+  /// orphan entries.
+  void dispose() {
+    rust_conflict.transferConflictDrop(handle: _handle);
+  }
 }

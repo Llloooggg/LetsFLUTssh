@@ -5,7 +5,7 @@
 var CONFIG = {
   logo: 'https://raw.githubusercontent.com/Llloooggg/LetsFLUTssh/main/assets/icons/icon.png',
 
-  tagline: 'Lightweight cross-platform SSH/SFTP client with GUI',
+  tagline: 'Cross-platform SSH/SFTP client with GUI',
   subtitle: 'Open-source alternative to Xshell and Termius',
 
   badges: function (B) {

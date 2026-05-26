@@ -72,7 +72,16 @@ class SAr extends S {
   String get copyModeExtending => 'اسحب لتمديد التحديد';
 
   @override
+  String get copyModeSetAnchor => 'تعيين نقطة الإرساء';
+
+  @override
+  String get copyModeCopySelection => 'نسخ التحديد';
+
+  @override
   String get required => 'مطلوب';
+
+  @override
+  String get errFillRequiredFields => 'املأ الحقول المطلوبة المعلَّمة بـ *';
 
   @override
   String get settings => 'الإعدادات';
@@ -234,11 +243,6 @@ class SAr extends S {
   }
 
   @override
-  String sshKeyReceived(String filename) {
-    return 'تم استلام مفتاح SSH: $filename';
-  }
-
-  @override
   String importedSessions(int count) {
     return 'تم استيراد $count جلسة';
   }
@@ -386,10 +390,54 @@ class SAr extends S {
   String get auth => 'المصادقة';
 
   @override
+  String get sectionAuthentication => 'المصادقة';
+
+  @override
+  String get sectionAdvanced => 'متقدم';
+
+  @override
+  String get moreOptions => 'المزيد من الخيارات';
+
+  @override
+  String forwardRulesSummary(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
+      locale: localeName,
+    );
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString قاعدة توجيه منافذ',
+      many: '$countString قاعدة توجيه منافذ',
+      few: '$countString قواعد توجيه منافذ',
+      two: 'قاعدتا توجيه منفذ',
+      one: 'قاعدة توجيه منفذ واحدة',
+      zero: 'لا توجد قواعد توجيه منافذ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get manageRules => 'إدارة…';
+
+  @override
+  String get authMethodAgent => 'استخدم ssh-agent النظام';
+
+  @override
   String get options => 'الخيارات';
 
   @override
   String get sessionName => 'اسم الجلسة';
+
+  @override
+  String get sessionNameAutoFromHost => 'تلقائي من المضيف';
+
+  @override
+  String get sessionNameAutoFromUrl => 'تلقائي من مضيف URL';
+
+  @override
+  String get sessionNameAutoFromBucket => 'تلقائي من السلة الافتراضية';
 
   @override
   String get hintMyServer => 'خادمي';
@@ -423,6 +471,9 @@ class SAr extends S {
 
   @override
   String get hintOptional => 'اختياري';
+
+  @override
+  String get savedTypeToChange => 'محفوظ — اكتب للتغيير';
 
   @override
   String get hidePemText => 'إخفاء نص PEM';
@@ -536,11 +587,6 @@ class SAr extends S {
 
   @override
   String get importModeReplaceDescription => 'استبدال جميع الجلسات بالمستوردة';
-
-  @override
-  String errorPrefix(String error) {
-    return 'خطأ: $error';
-  }
 
   @override
   String get folderName => 'اسم المجلد';
@@ -708,7 +754,17 @@ class SAr extends S {
   String get calculateFolderSizes => 'حساب أحجام المجلدات';
 
   @override
+  String get verboseConnectionLog => 'سجل اتصال مفصّل';
+
+  @override
+  String get verboseConnectionLogSubtitle =>
+      'تسجيل تتبّع مصافحة SSH والمصادقة الكامل في ملف السجل (لتشخيص فشل الاتصال)';
+
+  @override
   String get exportData => 'تصدير البيانات';
+
+  @override
+  String get exportRecordings => 'تسجيلات الجلسات';
 
   @override
   String sshConfigPreviewHostsFound(int count) {
@@ -880,9 +936,6 @@ class SAr extends S {
   String get sourceCode => 'الشيفرة المصدرية';
 
   @override
-  String get enableLogging => 'تفعيل السجلات';
-
-  @override
   String get logIsEmpty => 'السجل فارغ';
 
   @override
@@ -983,6 +1036,26 @@ class SAr extends S {
   String get disconnected => 'غير متصل';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'جارٍ الاتصال بـ $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'تم الاتصال بـ $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'تم قطع الاتصال بـ $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'فشل الاتصال بـ $host';
+  }
+
+  @override
   String get exit => 'خروج';
 
   @override
@@ -998,19 +1071,12 @@ class SAr extends S {
   String get exportSessionsViaQr => 'تصدير الجلسات عبر QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
 
   @override
   String get qrTooLarge =>
       'كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.';
-
-  @override
-  String get exportAll => 'تصدير الكل';
 
   @override
   String get showQr => 'عرض QR';
@@ -1026,6 +1092,24 @@ class SAr extends S {
 
   @override
   String get liveLog => 'سجل مباشر';
+
+  @override
+  String get archivedLog => 'سجل مؤرشف';
+
+  @override
+  String get loggingLevel => 'مستوى السجل';
+
+  @override
+  String get loggingLevelSubtitleInfo => 'إدخالات روتينية + تحذيرات + أخطاء';
+
+  @override
+  String get loggingLevelSubtitleWarn => 'المسارات المتدهورة والأخطاء فقط';
+
+  @override
+  String get loggingLevelSubtitleError => 'الأخطاء فقط';
+
+  @override
+  String get loggingLevelSubtitleOff => 'لا تُكتب سجلات روتينية';
 
   @override
   String transferNItems(int count) {
@@ -1316,30 +1400,6 @@ class SAr extends S {
   String get progressDecrypting => 'فك التشفير…';
 
   @override
-  String get progressParsingArchive => 'تحليل الأرشيف…';
-
-  @override
-  String get progressImportingSessions => 'استيراد الجلسات';
-
-  @override
-  String get progressImportingFolders => 'استيراد المجلدات';
-
-  @override
-  String get progressImportingManagerKeys => 'استيراد مفاتيح SSH';
-
-  @override
-  String get progressImportingTags => 'استيراد العلامات';
-
-  @override
-  String get progressImportingSnippets => 'استيراد المقتطفات';
-
-  @override
-  String get progressApplyingConfig => 'تطبيق الإعدادات…';
-
-  @override
-  String get progressImportingKnownHosts => 'استيراد known_hosts…';
-
-  @override
   String get progressCollectingData => 'جمع البيانات…';
 
   @override
@@ -1375,10 +1435,8 @@ class SAr extends S {
   String get importAction => 'استيراد';
 
   @override
-  String get saveSessionToAssignTags => 'احفظ الجلسة أولاً لتعيين العلامات';
-
-  @override
-  String get noTagsAssigned => 'لم يتم تعيين علامات';
+  String get noTagsAvailable =>
+      'لا توجد علامات بعد — أنشئ واحدة في الأدوات → العلامات.';
 
   @override
   String errWithPath(String error, String path) {
@@ -1476,23 +1534,6 @@ class SAr extends S {
 
   @override
   String get transferStatusQueued => 'في الانتظار';
-
-  @override
-  String get transferStartingUpload => 'بدء الرفع...';
-
-  @override
-  String get transferStartingDownload => 'بدء التنزيل...';
-
-  @override
-  String get transferCopying => 'جارٍ النسخ...';
-
-  @override
-  String get transferDone => 'تم';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total ملفات';
-  }
 
   @override
   String get fileConflictTitle => 'الملف موجود بالفعل';
@@ -1636,6 +1677,9 @@ class SAr extends S {
   String get addKey => 'إضافة مفتاح';
 
   @override
+  String get addKeyMenuPaste => 'لصق PEM';
+
+  @override
   String get filePickerUnavailable => 'منتقي الملفات غير متاح في هذا النظام';
 
   @override
@@ -1683,6 +1727,56 @@ class SAr extends S {
   String get publicKeyCopied => 'تم نسخ المفتاح العام إلى الحافظة';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'استيراد certificate';
+
+  @override
+  String get certImportTooltip =>
+      'اربط شهادة OpenSSH موقّعة من CA الخاص بك (ملف `-cert.pub` من `ssh-keygen -s …`). استخدم هذا عندما تتحقق الخوادم عبر توقيع CA بدلاً من `authorized_keys`. تجاوز إذا كانت خوادمك تستخدم plain key auth.';
+
+  @override
+  String get certImportPickerTitle => 'اختر ملف certificate من نوع OpenSSH';
+
+  @override
+  String get certValidFrom => 'ساري من';
+
+  @override
+  String get certValidTo => 'ساري حتى';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'صلاحية هذا الـ certificate ستنتهي قريبًا.';
+
+  @override
+  String get certExpired => 'منتهي الصلاحية';
+
+  @override
+  String get certRemove => 'إزالة الـ certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'إزالة الـ certificate؟';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'بعد الإزالة ستعود الجلسة إلى مصادقة public key العادية عند الاتصال.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'تعذر تحليل الـ certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'هذا الـ certificate غير مرتبط بالمفتاح المختار.';
+
+  @override
   String get pastePrivateKey => 'لصق المفتاح الخاص (PEM)';
 
   @override
@@ -1710,21 +1804,7 @@ class SAr extends S {
   String get generated => 'تم التوليد';
 
   @override
-  String get passphraseRequired => 'عبارة المرور مطلوبة';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'مفتاح SSH لـ $host مشفر. أدخل عبارة المرور لفتحه.';
-  }
-
-  @override
-  String get passphraseWrong => 'عبارة المرور غير صحيحة. حاول مرة أخرى.';
-
-  @override
   String get passphrase => 'عبارة المرور';
-
-  @override
-  String get rememberPassphrase => 'تذكر لهذه الجلسة';
 
   @override
   String get enterMasterPassword =>
@@ -1732,9 +1812,6 @@ class SAr extends S {
 
   @override
   String get wrongMasterPassword => 'كلمة مرور خاطئة. حاول مرة أخرى.';
-
-  @override
-  String get newPassword => 'كلمة مرور جديدة';
 
   @override
   String get currentPassword => 'كلمة المرور الحالية';
@@ -1825,12 +1902,6 @@ class SAr extends S {
   @override
   String get wizardReducedBanner =>
       'سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'لا شيء في هذا المستوى.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'لا توجد تهديدات غير مغطاة.';
 
   @override
   String get tierBadgeCurrent => 'الحالي';
@@ -2052,6 +2123,159 @@ class SAr extends S {
   String get commandCopied => 'تم نسخ الأمر';
 
   @override
+  String get snippetTokensHint =>
+      'انقر لإدراج عنصر نائب. تُستبدل هذه القيم وقت التشغيل بقيم من الجلسة النشطة:';
+
+  @override
+  String get snippetCustomTokensHint =>
+      'أي شيء آخر بأقواس مزدوجة يطلب منك قيمة عند تشغيل المقتطف.';
+
+  @override
+  String get snippetFillTitle => 'املأ معلمات المقتطف';
+
+  @override
+  String get snippetFillSubmit => 'تشغيل';
+
+  @override
+  String get broadcastSetDriver => 'بث من هذا الجزء';
+
+  @override
+  String get broadcastClearDriver => 'إيقاف البث من هذا الجزء';
+
+  @override
+  String get broadcastAddReceiver => 'استقبال البث هنا';
+
+  @override
+  String get broadcastRemoveReceiver => 'إيقاف استقبال البث';
+
+  @override
+  String get broadcastClearAll => 'إيقاف كل البث';
+
+  @override
+  String get broadcastPasteTitle => 'إرسال اللصق إلى كل الأجزاء؟';
+
+  @override
+  String broadcastPasteBody(int chars, int count) {
+    return 'سيتم إرسال $chars حرفًا إلى $count أجزاء أخرى.';
+  }
+
+  @override
+  String get broadcastPasteSend => 'إرسال';
+
+  @override
+  String get portForwarding => 'إعادة التوجيه';
+
+  @override
+  String get portForwardingEmpty => 'لا توجد قواعد بعد';
+
+  @override
+  String get addForwardRule => 'إضافة قاعدة';
+
+  @override
+  String get editForwardRule => 'تعديل القاعدة';
+
+  @override
+  String get deleteForwardRule => 'حذف القاعدة';
+
+  @override
+  String get localForward => 'محلي';
+
+  @override
+  String get remoteForward => 'بعيد';
+
+  @override
+  String get dynamicForward => 'ديناميكي';
+
+  @override
+  String get forwardKind => 'النوع';
+
+  @override
+  String get bindAddress => 'عنوان الربط';
+
+  @override
+  String get bindPort => 'منفذ الربط';
+
+  @override
+  String get targetHost => 'الخادم الهدف';
+
+  @override
+  String get targetPort => 'المنفذ الهدف';
+
+  @override
+  String get forwardDescription => 'الوصف (اختياري)';
+
+  @override
+  String get forwardEnabled => 'مفعّل';
+
+  @override
+  String get forwardBindWildcardWarning =>
+      'الربط بـ 0.0.0.0 ينشر التحويل على جميع الواجهات — غالبًا تريد 127.0.0.1.';
+
+  @override
+  String get forwardKindLocalHelp =>
+      'محلي: فتح منفذ على هذا الجهاز يمر عبر النفق إلى هدف يمكن الوصول إليه من خادم SSH. مفيد للوصول إلى قواعد بيانات بعيدة أو واجهات إدارة عبر localhost:bindPort.';
+
+  @override
+  String get forwardKindRemoteHelp =>
+      'بعيد: اطلب من خادم SSH فتح منفذ يمر إلى هدف يمكن الوصول إليه من هذا الجهاز. مفيد لمشاركة خادم تطوير محلي مع مضيف بعيد (قد يحتاج الخادم إلى GatewayPorts yes لربط غير loopback).';
+
+  @override
+  String get forwardKindDynamicHelp =>
+      'ديناميكي: وكيل SOCKS5 على هذا الجهاز يوجه كل اتصال عبر خادم SSH. وجّه المتصفح أو curl إلى localhost:bindPort لإرسال كل الحركة عبر SSH.';
+
+  @override
+  String get proxyJump => 'الاتصال عبر';
+
+  @override
+  String get proxyJumpNone => 'اتصال مباشر';
+
+  @override
+  String get proxyJumpSavedSession => 'جلسة محفوظة';
+
+  @override
+  String get proxyJumpCustom => 'مخصص';
+
+  @override
+  String get proxyJumpCustomNote =>
+      'القفزات المخصصة تستخدم بيانات اعتماد هذه الجلسة. لمصادقة بستيون مختلفة، احفظ البستيون كجلسة خاصة.';
+
+  @override
+  String viaSessionLabel(String label) {
+    return 'عبر $label';
+  }
+
+  @override
+  String get recordSession => 'تسجيل الجلسة';
+
+  @override
+  String get recordSessionHelp =>
+      'حفظ مخرجات الطرفية على القرص لهذه الجلسة. مشفّر في حالة السكون عندما تحمي كلمة مرور رئيسية أو مفتاح أجهزة قاعدة بيانات الجلسات؛ وإلا يُخزَّن كنص عادي بجانب القاعدة.';
+
+  @override
+  String get recordingsBrowserTitle => 'التسجيلات';
+
+  @override
+  String get recordingsBrowserSubtitle =>
+      'تصفح وإعادة تشغيل وحذف الجلسات المسجلة';
+
+  @override
+  String get recordingsEmpty => 'لا توجد تسجيلات بعد';
+
+  @override
+  String get playRecording => 'تشغيل';
+
+  @override
+  String get deleteRecording => 'حذف';
+
+  @override
+  String get recordingPlaybackTitle => 'إعادة تشغيل التسجيل';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'العلامات';
 
   @override
@@ -2176,19 +2400,6 @@ class SAr extends S {
       'الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق';
 
   @override
-  String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
-
-  @override
-  String get exportWithoutPassword => 'تصدير بدون كلمة مرور؟';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.';
-
-  @override
-  String get continueWithoutPassword => 'المتابعة بدون كلمة مرور';
-
-  @override
   String get threatColdDiskTheft => 'سرقة القرص أثناء إيقاف التشغيل';
 
   @override
@@ -2254,9 +2465,6 @@ class SAr extends S {
   String get colT1PasswordBiometric => 'T1 + كلمة مرور + بصمة حيوية';
 
   @override
-  String get colT2 => 'T2 عتاد';
-
-  @override
   String get colT2Password => 'T2 + كلمة مرور';
 
   @override
@@ -2289,6 +2497,11 @@ class SAr extends S {
   String get resetAllDataConfirmAction => 'إعادة تعيين كل شيء';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'اكتب $phrase أدناه للتأكيد:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'جارٍ إعادة التعيين…';
 
   @override
@@ -2296,6 +2509,61 @@ class SAr extends S {
 
   @override
   String get resetAllDataFailed => 'فشلت إعادة التعيين';
+
+  @override
+  String get recordingsTitle => 'التسجيلات';
+
+  @override
+  String get recordingsStorageUsedLabel => 'المستخدم';
+
+  @override
+  String get recordingsCapLabel => 'الحد الأقصى';
+
+  @override
+  String get recordingsCapHint =>
+      'حد صارم على مجلد recordings/. عند التجاوز يُحذف أقدم تسجيل أولاً؛ التسجيل الجاري لا يُمَس أبداً.';
+
+  @override
+  String get recordingsClearAllAction => 'حذف كل التسجيلات';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'حذف كل التسجيلات؟';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'سيتم حذف كل جلسة مسجلة تحت <app>/recordings/. التسجيل الجاري حالياً (إن وُجد) يبقى. لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'تم حذف $count تسجيلاً';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'تم تحديث الحد الأقصى. تم تحرير $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'تم تحديث الحد الأقصى. لا شيء لحذفه.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
 
   @override
   String get autoLockRequiresPassword =>
@@ -2306,7 +2574,7 @@ class SAr extends S {
 
   @override
   String get tierHardwareSubtitleHonest =>
-      'متقدم: مفتاح مرتبط بالعتاد. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.';
+      'متقدم: مفتاح مرتبط بالعتاد، محمي دائماً بكلمة مرور. البيانات غير قابلة للاسترداد إذا فُقدت شريحة هذا الجهاز أو استُبدلت.';
 
   @override
   String get tierParanoidSubtitleHonest =>
@@ -2327,6 +2595,10 @@ class SAr extends S {
 
   @override
   String get modifierPasswordSubtitle => 'حاجز سري يُكتب قبل فتح القبو.';
+
+  @override
+  String get modifierPasswordRequired =>
+      'مطلوبة — مستوى Hardware محمي دائماً بكلمة مرور.';
 
   @override
   String get modifierBiometricLabel => 'اختصار بصمة';
@@ -2356,8 +2628,65 @@ class SAr extends S {
       'لم يتم تثبيت fprintd أو لا توجد بصمة مسجلة.';
 
   @override
-  String get linuxTpmWithoutPasswordNote =>
-      'يوفر TPM بدون كلمة مرور عزلًا وليس مصادقة. أي شخص يستطيع تشغيل هذا التطبيق يمكنه فتح البيانات.';
+  String get t2RequiresPasswordTitle => 'اضبط كلمة مرور رئيسية لمستوى Hardware';
+
+  @override
+  String get t2RequiresPasswordBody =>
+      'يحتاج مستوى Hardware إلى كلمة مرور كمعدّل. القياس الحيوي هو اختصار اختياري فوقها.';
+
+  @override
+  String get t2MigrationPromptTitle => 'مستوى Hardware يحتاج كلمة مرور';
+
+  @override
+  String get t2MigrationPromptBody =>
+      'تثبيتات Hardware الحالية بدون كلمة مرور يجب تعيين واحدة الآن للمتابعة.';
+
+  @override
+  String get t2MigrationContinue => 'متابعة';
+
+  @override
+  String get t2MigrationSetPasswordTitle =>
+      'عيّن كلمة مرور للحفاظ على مستوى Hardware';
+
+  @override
+  String get t2MigrationSetPasswordBody =>
+      'أدخل كلمة مرور رئيسية جديدة. يُعاد ختم مفتاح DB المختوم بالفعل داخل وحدة hardware تحت هذه الكلمة — جلساتك ومفاتيحك تبقى سليمة.';
+
+  @override
+  String get t2MigrationWipeAndRestart => 'محو والبدء من جديد';
+
+  @override
+  String get t2MigrationResealFailed =>
+      'فشل إعادة ختم مستوى Hardware — اختر كلمة مرور أخرى أو امحُ للبدء من جديد.';
+
+  @override
+  String get biometricOverlayEnable =>
+      'تفعيل اختصار القياس الحيوي على مستوى Hardware';
+
+  @override
+  String get biometricOverlayEnableSubtitle =>
+      'يحرّر كلمة المرور من فتحة نظام محمية بالقياس الحيوي.';
+
+  @override
+  String get biometricOverlayUnavailable =>
+      'طبقة القياس الحيوي غير متاحة على هذا النظام بعد.';
+
+  @override
+  String get biometricOverlayRequiresPassword =>
+      'اضبط كلمة مرور مستوى Hardware أولاً.';
+
+  @override
+  String get t2UnlockTitle => 'افتح بكلمة المرور الرئيسية';
+
+  @override
+  String get t2UnlockSubtitle =>
+      'المفتاح المرتبط بالعتاد محمي بكلمة المرور الخاصة بك.';
+
+  @override
+  String get t2UnlockUseBiometricButton => 'استخدم القياس الحيوي';
+
+  @override
+  String get t2PasswordChanged => 'تم تحديث كلمة مرور مستوى Hardware.';
 
   @override
   String get paranoidMasterPasswordNote =>
@@ -2381,4 +2710,944 @@ class SAr extends S {
 
   @override
   String get masterPasswordLabel => 'كلمة المرور الرئيسية';
+
+  @override
+  String get globalErrorTitle => 'خطأ غير متوقع';
+
+  @override
+  String get globalErrorBody => 'حدث خطأ غير متوقع. سيستمر التطبيق في العمل.';
+
+  @override
+  String get globalErrorLogSavedNote => 'كُتبت كل التفاصيل في ملف log.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'فعّل التسجيل من الإعدادات لحفظ تفاصيل الأخطاء.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'خطأ: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'تفعيل التسجيل (log)';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'تم تفعيل التسجيل — ستُكتب الأخطاء في ملف log';
+
+  @override
+  String get fatalErrorQuitButton => 'خروج';
+
+  @override
+  String get fatalErrorWipeButton => 'محو كل البيانات';
+
+  @override
+  String get fatalErrorWipingButton => 'جارٍ المحو…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'المحو يحذف كل ملفات التطبيق (config وقاعدة البيانات وكتل vault والـ log)، فيبدأ التشغيل التالي من تثبيت نظيف. لا يمكن التراجع.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'محو كل البيانات؟';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'هذا يحذف نهائيًا كل ملفات config وقاعدة البيانات وvault. سيعيد التطبيق التشغيل من تثبيت فارغ. متابعة؟';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'محو كل شيء';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'هذا الأرشيف غير محمي بكلمة مرور. أي شخص يملك الملف يمكنه قراءة محتواه.';
+
+  @override
+  String get clipboardCopyFailed => 'فشل النسخ إلى الحافظة.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'اسم المضيف يحتوي على أحرف غير ASCII — تحقق من كل حرف مقابل ما كتبته. النقاط البرمجية المتشابهة بصريًا (السيريلية / اليونانية) قد تنتحل نطاقًا لاتينيًا.';
+
+  @override
+  String get playbackPause => 'إيقاف مؤقت';
+
+  @override
+  String get recordingPlayLocked =>
+      'افتح قفل التطبيق لتشغيل هذا التسجيل المشفّر.';
+
+  @override
+  String get recordToggleStart => 'بدء التسجيل';
+
+  @override
+  String get recordToggleStop => 'إيقاف التسجيل';
+
+  @override
+  String get foregroundServiceTitle => 'SSH نشط';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count اتصالات نشطة',
+      one: 'اتصال نشط واحد',
+      zero: 'لا توجد اتصالات نشطة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'نوع الجلسة';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'اسم المستخدم';
+
+  @override
+  String get webDavAuthMethod => 'طريقة Auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get trustedCert => 'شهادة موثوقة (PEM)';
+
+  @override
+  String get trustedCertHint => '-----BEGIN CERTIFICATE-----';
+
+  @override
+  String get trustedCertHelp =>
+      'ألصق شهادة الخادم (كتلة PEM واحدة أو أكثر). تُضاف كجذر CA إضافي لهذه الجلسة فقط — لا تؤثر على التطبيقات الأخرى. اتركها فارغة لاستخدام مخزن الثقة في النظام.';
+
+  @override
+  String get acceptAnyCert => 'قبول أي شهادة';
+
+  @override
+  String get acceptAnyCertHelp =>
+      'تخطّي كل فحوصات الشهادة واسم المضيف لمصافحات TLS هذه الجلسة. مخرج طوارئ عندما لا يناسب مخزن ثقة النظام أو شهادة مثبتة.';
+
+  @override
+  String get acceptAnyCertWarn =>
+      'عرضة لهجمات MITM — يمكن لأي شخص على الشبكة انتحال هوية الخادم. استخدمها فقط على شبكات خاصة موثوقة.';
+
+  @override
+  String get webDavCopyUrl => 'نسخ WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'فتح في المتصفح';
+
+  @override
+  String get errWebDavAuthFailed => 'فشل auth WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Path غير موجود';
+
+  @override
+  String get errWebDavConflict => 'العملية تتعارض مع الحالة الحالية';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'خادم WebDAV رفض الطلب: $detail';
+  }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL لـ WebDAV مطلوب';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL يجب أن يبدأ بـ http:// أو https://';
+
+  @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'اتركه فارغًا لـ AWS، أو ضع endpoint لـ MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'مطلوب لـ MinIO؛ اتركه off مع AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket الافتراضي';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix الافتراضي';
+
+  @override
+  String get s3GeneratePresignedUrl => 'إنشاء presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'تنتهي خلال';
+
+  @override
+  String get s3CopyUri => 'نسخ URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 دقيقة';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => 'ساعة';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 ساعات';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 ساعة';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 أيام';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (تحقق من access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket غير موجود أو غير قابل للوصول';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket في region مختلف عن المُعدّ';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'خادم S3 رفض الطلب: $detail';
+  }
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'تفعيل WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'يشفّر أرشيف sync. يجب أن يختلف عن كلمة المرور الرئيسية.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase لا يمكن أن يطابق كلمة المرور الرئيسية.';
+
+  @override
+  String get syncRemotePath => 'المسار البعيد';
+
+  @override
+  String get syncRemotePathHint =>
+      'المسار تحت WebDAV base URL — الافتراضي letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'آخر push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'آخر pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'لم يتم';
+
+  @override
+  String get syncUpToDate => 'Sync محدّث';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'تم تطبيق $count تغييرات من remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync معطّل';
+
+  @override
+  String get errSyncEtagMismatch => 'تغيّر remote — pull أولاً، ثم push';
+
+  @override
+  String get errSyncUnauthorized => 'فشل مصادقة WebDAV';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'خطأ شبكة: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'أرشيف sync البعيد يحتاج إصدارًا أحدث';
+
+  @override
+  String get hardwareKey => 'Hardware key';
+
+  @override
+  String get hardwareKeyTapPrompt => 'المس hardware key';
+
+  @override
+  String get hardwareKeyPin => 'PIN الـ hardware key';
+
+  @override
+  String get hardwareKeyTimeout => 'Hardware key لم يستجب';
+
+  @override
+  String get hardwareKeyNotFound => 'لم يتم العثور على hardware key';
+
+  @override
+  String get hardwareKeyUnsupported =>
+      'الوصول المباشر إلى hardware key غير متاح على هذه المنصة';
+
+  @override
+  String get hardwareKeyAppleEntitlementRequired =>
+      'يتطلب Apple Developer Program entitlement؛ استخدم ssh-agent على macOS';
+
+  @override
+  String get skKeyRequiresDevice =>
+      'هذا المفتاح SSH يحتاج hardware key — المسه للمصادقة';
+
+  @override
+  String get errSkWrongPin => 'PIN غير صحيح';
+
+  @override
+  String get hardwareKeyImport => 'استيراد hardware key (sk-*)';
+
+  @override
+  String get hardwareKeyBadge => 'Hardware-bound (FIDO2)';
+
+  @override
+  String get hardwareKeyPromptCancelled => 'تم إلغاء طلب hardware key';
+
+  @override
+  String get agentEndpointSectionTitle => 'تكامل مع عملاء SSH الخارجيين';
+
+  @override
+  String get agentEndpointToggleTitle =>
+      'كشف hardware-bound keys لعملاء SSH على النظام';
+
+  @override
+  String get agentEndpointToggleSubtitle =>
+      'يسمح لـ git و ssh وإضافات IDE على هذا الجهاز باستخدام مفاتيح FIDO2 / smart-card / TPM.';
+
+  @override
+  String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
+
+  @override
+  String get agentEndpointPathLabelWindows => 'OpenSSH named pipe';
+
+  @override
+  String get agentEndpointCopyEnvVar => 'نسخ أمر export';
+
+  @override
+  String get agentEndpointCopyPipeName => 'نسخ اسم pipe';
+
+  @override
+  String get agentEndpointSignatureRequestTitle => 'طلب توقيع';
+
+  @override
+  String agentEndpointSignatureRequestBody(String requester, String keyLabel) {
+    return '$requester يريد التوقيع باستخدام $keyLabel';
+  }
+
+  @override
+  String get agentEndpointRequesterUnknown => 'عميل SSH خارجي';
+
+  @override
+  String get agentEndpointAuthorizeOnce => 'اسمح مرة واحدة';
+
+  @override
+  String get agentEndpointAuthorizeAlways => 'اسمح وتذكّر';
+
+  @override
+  String get agentEndpointDeny => 'رفض';
+
+  @override
+  String get agentEndpointStatusRunning => 'قيد التشغيل';
+
+  @override
+  String get agentEndpointStatusStopped => 'متوقف';
+
+  @override
+  String get agentEndpointStatusUnsupported => 'غير مدعوم على هذه المنصة';
+
+  @override
+  String get agentEndpointRefusedAddIdentity =>
+      'مرفوض: لا يمكن للعملاء الخارجيين إضافة keys.';
+
+  @override
+  String agentEndpointStartFailed(String detail) {
+    return 'تعذّر تشغيل ssh-agent endpoint: $detail';
+  }
+
+  @override
+  String get pkcs11AddTitle => 'إضافة مفتاح smart-card / token';
+
+  @override
+  String get pkcs11ModuleLabel => 'وحدة PKCS#11';
+
+  @override
+  String get pkcs11ModuleAutoDetected => 'تم اكتشافه تلقائيًا';
+
+  @override
+  String get pkcs11ModuleCustom => 'وحدة مخصصة...';
+
+  @override
+  String get pkcs11ModulePickerTitle => 'اختر مكتبة PKCS#11';
+
+  @override
+  String get pkcs11NoModuleFound =>
+      'لم يتم العثور على وحدة PKCS#11. ثبّت OpenSC أو اختر مكتبة المُورد.';
+
+  @override
+  String get pkcs11InitializeFailed => 'فشل تهيئة وحدة PKCS#11.';
+
+  @override
+  String get pkcs11NoTokenPresent => 'لا يوجد token في القارئ.';
+
+  @override
+  String pkcs11TokenLabel(String label) {
+    return 'Token: $label';
+  }
+
+  @override
+  String pkcs11TokenSerial(String serial) {
+    return 'الرقم التسلسلي: $serial';
+  }
+
+  @override
+  String get pkcs11LoginRequired => 'يتطلب الـ token تسجيل دخول.';
+
+  @override
+  String pkcs11PinPrompt(String token) {
+    return 'PIN لـ $token';
+  }
+
+  @override
+  String get pkcs11PinPad => 'أكّد على PIN-pad الـ token.';
+
+  @override
+  String pkcs11PinIncorrect(String remaining) {
+    return 'PIN خاطئ. $remaining محاولات متبقية.';
+  }
+
+  @override
+  String get pkcs11PinLocked => 'PIN الـ token مقفل. افتحه باستخدام PUK.';
+
+  @override
+  String get pkcs11NoSignableKeys =>
+      'الـ token لا يحتوي على مفاتيح SSH (RSA، ECDSA، Ed25519).';
+
+  @override
+  String get pkcs11GostUnsupported => 'مفاتيح GOST لا تعمل مع SSH.';
+
+  @override
+  String pkcs11TokenUnplugged(String label) {
+    return 'الـ token \"$label\" غير موصول.';
+  }
+
+  @override
+  String get pkcs11UriRebindFailed =>
+      'Token المحفوظ غير موجود. أعد التوصيل وحاول مجددًا.';
+
+  @override
+  String pkcs11SignFailed(String reason) {
+    return 'فشل التوقيع: $reason';
+  }
+
+  @override
+  String get pkcs11HwUnavailableMobile =>
+      'Smart-cards / tokens PKCS#11 غير متاحة على هذه المنصة.';
+
+  @override
+  String get pkcs11Badge => 'Smart card / token';
+
+  @override
+  String pkcs11InfoModulePath(String path) {
+    return 'Module: $path';
+  }
+
+  @override
+  String pkcs11InfoTokenSerial(String serial) {
+    return 'Token serial: $serial';
+  }
+
+  @override
+  String pkcs11InfoObjectLabel(String label) {
+    return 'Object: $label';
+  }
+
+  @override
+  String get pkcs11WizardStepModule => 'اختر module PKCS#11';
+
+  @override
+  String get pkcs11WizardStepToken => 'اختر token';
+
+  @override
+  String get pkcs11WizardStepKey => 'اختر مفتاحًا';
+
+  @override
+  String get pkcs11WizardStepPin => 'أدخل PIN';
+
+  @override
+  String get pkcs11AlgoRsa => 'RSA';
+
+  @override
+  String get pkcs11AlgoEcdsa => 'ECDSA';
+
+  @override
+  String get pkcs11AlgoEd25519 => 'Ed25519';
+
+  @override
+  String get pkcs11AlgoGost => 'GOST';
+
+  @override
+  String pkcs11KeyMetaFormat(String algo, String detail) {
+    return '$algo $detail';
+  }
+
+  @override
+  String get pkcs11SaveCta => 'Import key';
+
+  @override
+  String get pkcs11SaveInProgress => 'قراءة المفتاح العام من token...';
+
+  @override
+  String get pkcs11SaveSuccess => 'تم إضافة مفتاح smart card.';
+
+  @override
+  String get pkcs11ScanInProgress => 'البحث عن modules PKCS#11...';
+
+  @override
+  String get pkcs11LoadingTokens => 'تحميل tokens...';
+
+  @override
+  String get pkcs11LoadingKeys => 'تحميل المفاتيح...';
+
+  @override
+  String get pkcs11ModuleStatusReady => 'تم تحميل module.';
+
+  @override
+  String get pkcs11ModuleStatusNoToken => 'لا يوجد token.';
+
+  @override
+  String get pkcs11ModuleStatusFailed => 'فشل تحميل module.';
+
+  @override
+  String get pkcs11PinPadHint => '(PIN pad على الجهاز)';
+
+  @override
+  String get pkcs11WizardBack => 'رجوع';
+
+  @override
+  String get pkcs11WizardNext => 'التالي';
+
+  @override
+  String get sshKeyBackendSoftware => 'Software';
+
+  @override
+  String get sshKeyBackendEnclave => 'Secure Enclave';
+
+  @override
+  String get sshKeyBackendHello => 'Windows Hello';
+
+  @override
+  String get sshKeyBackendFido2 => 'Security key';
+
+  @override
+  String get sshKeyAddHardwareBound => 'إضافة hardware key';
+
+  @override
+  String get sshKeyHardwareBoundExplainer =>
+      'الـ private key يعيش في الـ secure hardware للجهاز ولا يمكن تصديره.';
+
+  @override
+  String get sshKeyEnclaveDeviceBound =>
+      'هذا الـ key يعمل فقط على هذا الـ Mac.';
+
+  @override
+  String get sshKeyEnclaveDeviceBoundIos =>
+      'هذا الـ key يعمل فقط على هذا الـ iPhone.';
+
+  @override
+  String get sshKeyHelloDeviceBound => 'هذا الـ key يعمل فقط على هذا الـ PC.';
+
+  @override
+  String get sshKeyEnclaveTouchIdRequired => 'اشترط Touch ID / Face ID';
+
+  @override
+  String get sshKeyEnclavePasscodeFallback =>
+      'اسمح بـ passcode الجهاز كـ fallback';
+
+  @override
+  String get sshKeyHelloPinRequired =>
+      'اشترط Windows Hello (PIN، بصمة، أو وجه)';
+
+  @override
+  String get sshKeyHardwareUnavailableTitle => 'الـ hardware keys غير متاحة';
+
+  @override
+  String get sshKeyHardwareUnavailableSe =>
+      'يجب أن يكون التطبيق code-signed لاستخدام Secure Enclave.';
+
+  @override
+  String get sshKeyHardwareUnavailableHello =>
+      'Windows Hello غير مُعدّ على هذا الـ PC.';
+
+  @override
+  String get sshKeyHardwareUnavailableTpm =>
+      'لم يتم اكتشاف TPM — software-backed فقط.';
+
+  @override
+  String get sshKeyHardwareUnavailableTier => 'Software-gated';
+
+  @override
+  String get sshKeyEnclaveAlgorithm => 'ecdsa-sha2-nistp256';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa256 => 'ecdsa-sha2-nistp256 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmEcdsa384 => 'ecdsa-sha2-nistp384 (TPM)';
+
+  @override
+  String get sshKeyHelloAlgorithmRsa => 'rsa-sha2-256 (TPM)';
+
+  @override
+  String get sshKeyGenerateCta => 'إنشاء';
+
+  @override
+  String get sshKeyGenerateInProgress => 'إنشاء key في الـ secure hardware...';
+
+  @override
+  String get sshKeyGenerateMissingEntitlement =>
+      'Code-signing مطلوب — راجع USER_GUIDE.md → Hardware-bound keys.';
+
+  @override
+  String get sshKeySignInProgress => 'توقيع عبر الـ secure hardware...';
+
+  @override
+  String get sshKeyPublicCopy => 'نسخ الـ public key';
+
+  @override
+  String get sshKeyAuthorizedKeysHint =>
+      'أضف هذا السطر إلى ~/.ssh/authorized_keys على الخادم.';
+
+  @override
+  String get sshKeyEnclaveWizardTitle => 'Secure Enclave SSH key';
+
+  @override
+  String get sshKeyEnclaveWizardLabelHint => 'اسم الـ key';
+
+  @override
+  String get sshKeyEnclaveBadge => 'Secure Enclave';
+
+  @override
+  String get helloWizardTitle => 'مفتاح SSH عبر Windows Hello';
+
+  @override
+  String get helloWizardLabelHint => 'تسمية المفتاح';
+
+  @override
+  String get helloBadge => 'Windows Hello';
+
+  @override
+  String get helloPromptTitle => 'المصادقة عبر Windows Hello';
+
+  @override
+  String get helloPromptDescription =>
+      'PIN أو بصمة أو وجه — يوقّع Windows Hello تحدّي SSH.';
+
+  @override
+  String get helloSoftwareGatedWarning =>
+      'لا يوجد TPM في هذا الجهاز. يبقى المفتاح في تخزين المستخدم؛ Windows Hello لا يزال يطالب بالتوقيع في كل مرة.';
+
+  @override
+  String get helloP384NotSupported =>
+      'برنامج TPM الثابت لا يدعم P-384. اختر P-256 أو RSA-2048.';
+
+  @override
+  String get helloConfigureFirst =>
+      'اضبط Windows Hello أولًا من الإعدادات -> خيارات تسجيل الدخول.';
+
+  @override
+  String get tpmSshTitle => 'إنشاء مفتاح SSH عبر TPM';
+
+  @override
+  String get tpmSshAlgEcdsa => 'ECDSA P-256 (موصى به)';
+
+  @override
+  String get tpmSshAlgRsa => 'RSA-2048';
+
+  @override
+  String get tpmSshAlgUnsupported =>
+      'خوارزمية غير مدعومة من البرنامج الثابت لـ TPM.';
+
+  @override
+  String get tpmSshPinProtect => 'حماية برمز PIN';
+
+  @override
+  String get tpmSshPinLockoutWarning =>
+      'يقفل TPM المفتاح بعد محاولات PIN خاطئة متكررة.';
+
+  @override
+  String get tpmSshPinMismatch => 'رمزا PIN غير متطابقين.';
+
+  @override
+  String get tpmSshStorageBlob => 'حفظ المفتاح المغلف في بيانات التطبيق';
+
+  @override
+  String get tpmSshStorageHandle => 'حفظ في فتحة ذاكرة TPM';
+
+  @override
+  String get tpmSshStorageHandleHelp =>
+      'توقيع أسرع. يستهلك إحدى الفتحات الدائمة في TPM.';
+
+  @override
+  String get tpmSshLabel => 'اسم المفتاح';
+
+  @override
+  String get tpmSshImportTitle => 'استيراد مفتاح SSH محمي بـ TPM';
+
+  @override
+  String get tpmSshImportFormat => 'ملف مفتاح TPM 2.0 (.tpm, TSS2 PRIVATE KEY)';
+
+  @override
+  String tpmSshPinPrompt(String label) {
+    return 'رمز TPM PIN لـ $label';
+  }
+
+  @override
+  String get tpmSshPinIncorrect => 'رمز PIN غير صحيح.';
+
+  @override
+  String tpmSshPinLockedCooldown(String duration) {
+    return 'TPM في فترة انتظار القفل. انتظر $duration وأعد المحاولة.';
+  }
+
+  @override
+  String get tpmSshGenerating => 'جارٍ إنشاء المفتاح في TPM...';
+
+  @override
+  String get tpmSshSigning => 'جارٍ التوقيع باستخدام TPM...';
+
+  @override
+  String get tpmSshUnavailable => 'لم يتم اكتشاف TPM على هذا الجهاز.';
+
+  @override
+  String get tpmSshUnavailableFwDisabled => 'TPM معطل في البرنامج الثابت.';
+
+  @override
+  String get tpmSshUnavailableNoPermission =>
+      'لا يمكن للتطبيق الوصول إلى TPM. أضف المستخدم إلى مجموعة `tss`.';
+
+  @override
+  String tpmSshHandleInUse(String handle) {
+    return 'الفتحة الدائمة $handle مستخدمة بالفعل.';
+  }
+
+  @override
+  String get tpmSshBadge => 'TPM 2.0';
+
+  @override
+  String get tpmSshSilentWarning =>
+      'يوقع هذا المفتاح دون مطالبة Hello / PIN — أي شخص لديه وصول إلى سطح المكتب أثناء تسجيل دخولك يمكنه استخدامه.';
+
+  @override
+  String get keystoreWizardTitle => 'Android Hardware Key';
+
+  @override
+  String get keystoreBadge => 'Android Keystore';
+
+  @override
+  String get keystoreKeyAndroidLabel => 'Android Keystore (مرتبط بالعتاد)';
+
+  @override
+  String get keystoreKeyStrongBoxLabel => 'StrongBox HSM';
+
+  @override
+  String get keystoreKeyTeeLabel => 'TEE (مدعوم بالعتاد)';
+
+  @override
+  String get keystoreKeyGenerating => 'جاري إنشاء مفتاح مرتبط بالعتاد...';
+
+  @override
+  String get keystoreKeyAuthPrompt => 'أكد هويتك لاستخدام مفتاح SSH';
+
+  @override
+  String get keystoreKeyInvalidatedByEnrollment =>
+      'تم إتلاف المفتاح: تم تسجيل قياس حيوي جديد. أعد تسجيل المفتاح العام على خوادمك.';
+
+  @override
+  String get keystoreKeyStrongBoxUnavailable =>
+      'StrongBox HSM غير متاح على هذا الجهاز';
+
+  @override
+  String get keystoreKeyUserAuthRequired =>
+      'اطلب القياس الحيوي / فتح الجهاز لكل توقيع';
+
+  @override
+  String get keystoreKeyExportDisabled =>
+      'لا يمكن تصدير المفاتيح المرتبطة بالعتاد';
+
+  @override
+  String get keystoreKeyDeleteWarning =>
+      'حذف هذا المفتاح يزيله من مخزن العتاد. سترفض الخوادم هذا المفتاح حتى تسجل واحدا جديدا.';
+
+  @override
+  String get keystoreKeyBiometricNotEnrolled =>
+      'سجل القياس الحيوي أو PIN الجهاز أولا';
+
+  @override
+  String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (مؤهل لـ StrongBox)';
+
+  @override
+  String get keystoreAlgEd25519 => 'Ed25519 (Android 13+، TEE فقط)';
+
+  @override
+  String get keystoreAlgRsa2048 => 'RSA-2048 (أوسع توافق)';
+
+  @override
+  String get keystoreStrongBoxFallbackTitle => 'StrongBox HSM غير متاح';
+
+  @override
+  String get keystoreStrongBoxFallbackBody =>
+      'جهازك لا يعرض StrongBox HSM. هل تريد إنشاء مفتاح مدعوم بـ TEE بدلاً منه؟ سيظل مرتبطًا بالعتاد، فقط بدون عزل StrongBox.';
+
+  @override
+  String get keystoreStrongBoxFallbackConfirm => 'استخدم TEE';
+
+  @override
+  String get keystoreStrongBoxFallbackCancel => 'إلغاء';
+
+  @override
+  String get fido2BrokerSectionTitle => 'مفاتيح الأمان العتادية';
+
+  @override
+  String get fido2BrokerWindowsLabel => 'Windows Hello / security key';
+
+  @override
+  String get fido2BrokerMacosLabel => 'حوار النظام لـ security key';
+
+  @override
+  String get fido2BrokerIosLabel => 'security key النظام (USB / NFC)';
+
+  @override
+  String get fido2BrokerAndroidLabel => 'security key النظام (USB / NFC / BLE)';
+
+  @override
+  String get fido2BrokerTransportDirectHid => 'USB HID مباشر (CTAP2)';
+
+  @override
+  String get fido2BrokerTransportNone => 'غير متاح على هذه المنصة';
+
+  @override
+  String get fido2BrokerPreferDirectHidTitle =>
+      'تفضيل USB HID المباشر على حوار النظام';
+
+  @override
+  String fido2BrokerPreferDirectHidSubtitle(String brokerLabel) {
+    return 'متقدم: تجاوز $brokerLabel على المنصات التي يعمل فيها المساران. الـ HID المباشر يدعم ميزات authenticator أكثر لكن يحتاج صلاحيات لكل تطبيق.';
+  }
+
+  @override
+  String get sshIntegrationSection => 'تكامل SSH';
+
+  @override
+  String get fido2BrokerNoTransportSubtitle =>
+      'دعم مفاتيح الأجهزة غير متاح على هذا الجهاز.';
+
+  @override
+  String fido2BrokerSinglePathSubtitle(String transport) {
+    return 'فقط $transport متاح على هذا الجهاز؛ التبديل معطّل.';
+  }
+
+  @override
+  String get hardwareKeyStubBadge => 'بدل مستورد';
+
+  @override
+  String get hardwareKeyStubSubtitle =>
+      'كان على جهاز آخر — أعد التوليد هنا لاستخدامه';
+
+  @override
+  String get hardwareKeyStubRegenerateAction => 'أعد التوليد هنا';
+
+  @override
+  String get hardwareKeyStubRemoveAction => 'إزالة البدل';
+
+  @override
+  String get hardwareKeyStubPickerTooltip =>
+      'أعد توليد هذا المفتاح على هذا الجهاز قبل الاستخدام';
+
+  @override
+  String pkcs11ModuleResolveOnFirstUse(String token) {
+    return 'حدد مسار وحدة PKCS#11 للرمز \"$token\"';
+  }
+
+  @override
+  String get arrowLeft => 'سهم لليسار';
+
+  @override
+  String get arrowUp => 'سهم لأعلى';
+
+  @override
+  String get arrowDown => 'سهم لأسفل';
+
+  @override
+  String get arrowRight => 'سهم لليمين';
+
+  @override
+  String get copyMode => 'وضع النسخ';
+
+  @override
+  String get exitCopyMode => 'إنهاء وضع النسخ';
+
+  @override
+  String importedGeneric(String items) {
+    return 'تم الاستيراد: $items';
+  }
 }

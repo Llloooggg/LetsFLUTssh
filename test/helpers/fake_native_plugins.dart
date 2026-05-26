@@ -29,43 +29,16 @@ class NativeCall {
 /// sensible no-op default; pass a custom `FakeNativePluginsConfig` to
 /// flip one dimension per test without rewriting handlers.
 class FakeNativePluginsConfig {
-  FakeNativePluginsConfig({
-    this.hardwareVaultAvailable = false,
-    this.hardwareVaultProbeDetail = 'unknown',
-    Uint8List? seededHardwareVaultKey,
-    this.storagePermissionGranted = true,
-    this.qrScanResult,
-    this.secureClipboardSucceeds = true,
-  }) : _seededHardwareVaultKey = seededHardwareVaultKey;
-
-  /// `isAvailable` response on the `hardware_vault` channel.
-  final bool hardwareVaultAvailable;
-
-  /// `probeDetail` response — maps to `HardwareProbeDetail` enum.
-  final String hardwareVaultProbeDetail;
-
-  /// When non-null, `isStored` returns true and `read` returns this
-  /// payload. `store` overwrites this slot in-memory.
-  Uint8List? _seededHardwareVaultKey;
-  Uint8List? get seededHardwareVaultKey => _seededHardwareVaultKey;
-
-  /// `requestStoragePermission` response.
-  final bool storagePermissionGranted;
+  FakeNativePluginsConfig({this.qrScanResult});
 
   /// `scan` response from the QR scanner channel. `null` simulates a
   /// user cancellation / denied permission.
   final String? qrScanResult;
-
-  /// `setSecureText` response from the clipboard_secure channel.
-  /// false triggers the Dart-side fallback to `Clipboard.setData`.
-  final bool secureClipboardSucceeds;
 }
 
 /// Install mock handlers for every MethodChannel the app uses.
 ///
 /// Covers:
-/// - `com.letsflutssh/hardware_vault`
-/// - `com.letsflutssh/clipboard_secure`
 /// - `com.letsflutssh/session_lock`
 /// - `com.letsflutssh/backup_exclusion`
 /// - `com.letsflutssh/permissions`
@@ -76,6 +49,10 @@ class FakeNativePluginsConfig {
 /// Returns the shared [NativeCallLog] so tests can assert on what the
 /// code under test invoked. Call [uninstallFakeNativePlugins] in a
 /// `tearDown` to scrub every handler back to null.
+///
+/// The hardware-vault and clipboard-secure channels are intentionally
+/// absent: every supported platform routes those through FRB into
+/// `lfs_os_security`, so there is no Dart-side MethodChannel to mock.
 ///
 /// `local_auth` and `path_provider` / `flutter_secure_storage` are NOT
 /// covered here — those have dedicated helpers (`FakeBiometricAuth`,
@@ -94,38 +71,6 @@ NativeCallLog installFakeNativePlugins({FakeNativePluginsConfig? config}) {
     });
   }
 
-  // com.letsflutssh/hardware_vault — in-memory sealed-blob slot.
-  mock('com.letsflutssh/hardware_vault', (call) async {
-    switch (call.method) {
-      case 'isAvailable':
-        return cfg.hardwareVaultAvailable;
-      case 'probeDetail':
-        return cfg.hardwareVaultProbeDetail;
-      case 'isStored':
-        return cfg._seededHardwareVaultKey != null;
-      case 'store':
-        final args = (call.arguments as Map).cast<String, Object?>();
-        final dbKey = args['dbKey'];
-        if (dbKey is Uint8List) {
-          cfg._seededHardwareVaultKey = Uint8List.fromList(dbKey);
-        }
-        return true;
-      case 'read':
-        return cfg._seededHardwareVaultKey;
-      case 'clear':
-        cfg._seededHardwareVaultKey = null;
-        return true;
-    }
-    return null;
-  });
-
-  // com.letsflutssh/clipboard_secure — returns the configured success
-  // flag; tests that care assert on `log.forChannel(...)`.
-  mock('com.letsflutssh/clipboard_secure', (call) async {
-    if (call.method == 'setSecureText') return cfg.secureClipboardSucceeds;
-    return null;
-  });
-
   // com.letsflutssh/session_lock — production code only calls `start`
   // and registers a native->dart handler for `sessionLocked`. Dart-
   // driven tests do not need to simulate the event here; for that use
@@ -138,13 +83,8 @@ NativeCallLog installFakeNativePlugins({FakeNativePluginsConfig? config}) {
   // com.letsflutssh/backup_exclusion — fire-and-forget.
   mock('com.letsflutssh/backup_exclusion', (call) async => null);
 
-  // com.letsflutssh/permissions — single storage-permission gate.
-  mock('com.letsflutssh/permissions', (call) async {
-    if (call.method == 'requestStoragePermission') {
-      return cfg.storagePermissionGranted;
-    }
-    return null;
-  });
+  // com.letsflutssh/permissions retired — Android MANAGE_EXTERNAL_STORAGE
+  // gate replaced by SAF (file_picker). No mock needed.
 
   // com.letsflutssh/secure_screen — no-op on the test host.
   mock('com.letsflutssh/secure_screen', (call) async => null);
@@ -184,8 +124,6 @@ void uninstallFakeNativePlugins() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   const channels = [
-    'com.letsflutssh/hardware_vault',
-    'com.letsflutssh/clipboard_secure',
     'com.letsflutssh/session_lock',
     'com.letsflutssh/backup_exclusion',
     'com.letsflutssh/permissions',

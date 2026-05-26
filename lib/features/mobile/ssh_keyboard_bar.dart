@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
-import 'ssh_key_sequences.dart';
+import 'ssh_keyboard_keys.dart';
 
 /// Virtual SSH keyboard bar — provides keys missing from mobile keyboards.
 ///
@@ -16,15 +17,18 @@ import 'ssh_key_sequences.dart';
 /// Copy + Cancel), keeping the outer `Container(height: itemHeightLg)`
 /// constant. Swapping the *contents* — not the widget — is the load-
 /// bearing invariant: any widget-tree height change would propagate
-/// into the enclosing `MobileTerminalView` Column and force an
-/// xterm `buffer.resize`, which reshuffles scrollback lines and was
+/// into the enclosing `MobileTerminalView` Column and force a
+/// terminal resize, which reshuffles scrollback lines and was
 /// the root cause of the recurring "mid-buffer gaps on copy toggle"
 /// reports. The bar is also the single surface for the hint — no
 /// separate banner over the terminal rows, so none of the terminal's
 /// visible rows are ever covered.
 class SshKeyboardBar extends StatefulWidget {
-  /// Called when the bar produces input to send to the terminal.
-  final void Function(String data) onInput;
+  /// Called when the bar produces a logical key to send to the terminal.
+  /// The sticky Ctrl / Alt modifiers are already folded into the key's
+  /// modifier flags; the receiver feeds it to `TerminalSession.sendKey`,
+  /// which encodes the VT bytes against the live terminal mode.
+  final void Function(rust_terminal.TerminalKey key) onKey;
 
   /// Called when the user taps the paste button.
   final VoidCallback? onPaste;
@@ -63,7 +67,7 @@ class SshKeyboardBar extends StatefulWidget {
 
   const SshKeyboardBar({
     super.key,
-    required this.onInput,
+    required this.onKey,
     this.onPaste,
     this.onSnippets,
     this.onCopyModeChanged,
@@ -96,38 +100,39 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     widget.onCopyModeChanged?.call(false);
   }
 
-  /// Apply active Ctrl/Alt modifiers to [data] and consume one-shot modifiers.
-  ///
-  /// Used by [MobileTerminalView] to transform system keyboard input before
-  /// sending it to the SSH shell.
-  ///
-  /// When both modifiers are active the Ctrl transform runs first (collapsing
-  /// the letter to the 0x00-0x1F control-code band) and Alt prepends the ESC
-  /// byte on top — yielding the standard `ESC <Ctrl-X>` two-byte sequence
-  /// that emacs/readline read as `C-M-x`. Order matters: prefixing ESC first
-  /// and then trying to Ctrl-fold the ESC would produce neither a valid
-  /// meta-sequence nor a control code.
-  String applyModifiers(String data) {
-    if (_ctrl == _ModifierState.off && _alt == _ModifierState.off) return data;
-    String result = data;
-    if (data.length == 1) {
-      if (_ctrl != _ModifierState.off) {
-        result = SshKeySequences.ctrlKey(result);
-      }
-      if (_alt != _ModifierState.off) {
-        result = SshKeySequences.altKey(result);
-      }
+  /// Whether the sticky Ctrl modifier is currently active (one-shot or
+  /// locked). Read by [MobileTerminalView] so a character typed on the
+  /// system soft keyboard folds the bar's Ctrl into its [rust_terminal.TerminalKey].
+  bool get ctrlActive => _ctrl != _ModifierState.off;
+
+  /// Whether the sticky Alt modifier is currently active.
+  bool get altActive => _alt != _ModifierState.off;
+
+  /// Consume any one-shot Ctrl / Alt after a key has folded them in. Locked
+  /// modifiers persist; one-shot modifiers fall back to off. Called by the
+  /// system-keyboard path after it has read [ctrlActive] / [altActive] and
+  /// built its key, mirroring the on-bar key path's own consume in [_emit].
+  void consumeOneShotModifiers() {
+    if (_ctrl == _ModifierState.once || _alt == _ModifierState.once) {
+      setState(() {
+        if (_ctrl == _ModifierState.once) _ctrl = _ModifierState.off;
+        if (_alt == _ModifierState.once) _alt = _ModifierState.off;
+      });
     }
-    if (_ctrl == _ModifierState.once) {
-      setState(() => _ctrl = _ModifierState.off);
-    }
-    if (_alt == _ModifierState.once) setState(() => _alt = _ModifierState.off);
-    return result;
   }
 
-  void _send(String seq) {
-    final data = applyModifiers(seq);
-    widget.onInput(data);
+  /// Emit a printable-character key with the sticky modifiers folded in,
+  /// then consume any one-shot modifier.
+  void _emitChar(String ch) {
+    widget.onKey(charKey(ch, ctrl: ctrlActive, alt: altActive));
+    consumeOneShotModifiers();
+  }
+
+  /// Emit a named key (Esc / Tab / arrow / function key) with the sticky
+  /// modifiers folded in, then consume any one-shot modifier.
+  void _emitNamed(rust_terminal.TerminalKeyName name) {
+    widget.onKey(namedKey(name, ctrl: ctrlActive, alt: altActive));
+    consumeOneShotModifiers();
   }
 
   void _toggleModifier(
@@ -170,8 +175,8 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
               children: [
                 for (int i = 0; i < 12; i++)
                   _KeyButton(
-                    label: SshKeySequences.functionKeyNames[i],
-                    onTap: () => _send(SshKeySequences.functionKeySequences[i]),
+                    label: 'F${i + 1}',
+                    onTap: () => _emitNamed(SshBarKeys.function(i + 1)),
                   ),
               ],
             ),
@@ -190,6 +195,7 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
   }
 
   Widget _buildNormalRow() {
+    final l10n = S.of(context);
     return Row(
       children: [
         // Scrollable keys
@@ -199,9 +205,9 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
             children: [
               _KeyButton(
                 label: 'Esc',
-                onTap: () => _send(SshKeySequences.escape),
+                onTap: () => _emitNamed(SshBarKeys.escape),
               ),
-              _KeyButton(label: 'Tab', onTap: () => _send(SshKeySequences.tab)),
+              _KeyButton(label: 'Tab', onTap: () => _emitNamed(SshBarKeys.tab)),
               _ModifierButton(
                 label: 'Ctrl',
                 state: _ctrl,
@@ -216,36 +222,49 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_left,
-                onTap: () => _send(SshKeySequences.arrowLeft),
+                semanticLabel: l10n.arrowLeft,
+                onTap: () => _emitNamed(SshBarKeys.arrowLeft),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_up,
-                onTap: () => _send(SshKeySequences.arrowUp),
+                semanticLabel: l10n.arrowUp,
+                onTap: () => _emitNamed(SshBarKeys.arrowUp),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_down,
-                onTap: () => _send(SshKeySequences.arrowDown),
+                semanticLabel: l10n.arrowDown,
+                onTap: () => _emitNamed(SshBarKeys.arrowDown),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_right,
-                onTap: () => _send(SshKeySequences.arrowRight),
+                semanticLabel: l10n.arrowRight,
+                onTap: () => _emitNamed(SshBarKeys.arrowRight),
               ),
-              _KeyButton(label: '|', onTap: () => _send('|')),
-              _KeyButton(label: '~', onTap: () => _send('~')),
-              _KeyButton(label: '/', onTap: () => _send('/')),
-              _KeyButton(label: '-', onTap: () => _send('-')),
+              _KeyButton(label: '|', onTap: () => _emitChar('|')),
+              _KeyButton(label: '~', onTap: () => _emitChar('~')),
+              _KeyButton(label: '/', onTap: () => _emitChar('/')),
+              _KeyButton(label: '-', onTap: () => _emitChar('-')),
             ],
           ),
         ),
         if (widget.onSnippets != null)
-          _KeyButton(icon: Icons.code, onTap: () => widget.onSnippets!.call()),
+          _KeyButton(
+            icon: Icons.code,
+            semanticLabel: l10n.snippets,
+            onTap: () => widget.onSnippets!.call(),
+          ),
         _KeyButton(
           icon: Icons.paste,
+          semanticLabel: l10n.paste,
           onTap: () {
             widget.onPaste?.call();
           },
         ),
-        _KeyButton(icon: Icons.copy, onTap: _enterCopyMode),
+        _KeyButton(
+          icon: Icons.copy,
+          semanticLabel: l10n.copyMode,
+          onTap: _enterCopyMode,
+        ),
         _KeyButton(
           label: 'Fn',
           isActive: _showFnKeys,
@@ -270,10 +289,12 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     final actionButton = widget.anchorSet
         ? _KeyButton(
             icon: Icons.copy,
+            semanticLabel: l10n.copyModeCopySelection,
             onTap: () => widget.onCopyPressed?.call(),
           )
         : _KeyButton(
             icon: Icons.adjust,
+            semanticLabel: l10n.copyModeSetAnchor,
             onTap: () => widget.onAnchorPressed?.call(),
           );
     return Row(
@@ -294,7 +315,11 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
           ),
         ),
         actionButton,
-        _KeyButton(icon: Icons.close, onTap: exitCopyMode),
+        _KeyButton(
+          icon: Icons.close,
+          semanticLabel: l10n.exitCopyMode,
+          onTap: exitCopyMode,
+        ),
       ],
     );
   }
@@ -303,12 +328,14 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
 class _KeyButton extends StatelessWidget {
   final String? label;
   final IconData? icon;
+  final String? semanticLabel;
   final VoidCallback onTap;
   final bool isActive;
 
   const _KeyButton({
     this.label,
     this.icon,
+    this.semanticLabel,
     required this.onTap,
     this.isActive = false,
   });
@@ -318,40 +345,48 @@ class _KeyButton extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
-      child: Material(
-        color: isActive
-            ? theme.colorScheme.primary.withValues(alpha: 0.3)
-            : theme.colorScheme.surfaceContainerHigh,
-        borderRadius: AppTheme.radiusLg,
-        // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
-        // key does not steal focus from the `TerminalView`, which
-        // would dismiss the system keyboard mid-type. The xterm
-        // input connection is tied to its internal `FocusNode`;
-        // every InkWell tap would otherwise trip
-        // `CustomTextEdit._onFocusChange → _closeInputConnection`
-        // and the Gboard surface would slide away on every
-        // modifier keypress.
-        child: InkWell(
-          canRequestFocus: false,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
+      child: Semantics(
+        // Icon-only keys (arrows, Tab, Esc) need an explicit
+        // accessibility label — the icon glyph alone is silent for
+        // VoiceOver / TalkBack. Text-labelled keys (a / b / 1 / 2 /
+        // …) reuse the visible label as their semantic name.
+        button: true,
+        label: semanticLabel ?? label ?? '',
+        child: Material(
+          color: isActive
+              ? theme.colorScheme.primary.withValues(alpha: 0.3)
+              : theme.colorScheme.surfaceContainerHigh,
           borderRadius: AppTheme.radiusLg,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 38),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            alignment: Alignment.center,
-            child: icon != null
-                ? Icon(icon, size: 20, color: theme.colorScheme.onSurface)
-                : Text(
-                    label!,
-                    style: TextStyle(
-                      fontSize: AppFonts.lg,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.onSurface,
+          // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
+          // key does not steal focus from the hidden `EditableText`
+          // that owns the system keyboard (`MobileTerminalView`'s
+          // `_imeFocus`). A focus steal closes that input connection
+          // and the Gboard surface would slide away on every modifier
+          // keypress.
+          child: InkWell(
+            canRequestFocus: false,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
+            borderRadius: AppTheme.radiusLg,
+            child: Container(
+              // Bumped from 38 to 44 so each key meets the platform
+              // touch-target floor (Apple HIG 44 / Material 48 dp).
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              child: icon != null
+                  ? Icon(icon, size: 22, color: theme.colorScheme.onSurface)
+                  : Text(
+                      label!,
+                      style: TextStyle(
+                        fontSize: AppFonts.lg,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       ),

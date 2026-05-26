@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,42 +5,47 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
+
+import '../helpers/frb_bootstrap.dart';
 
 void main() {
+  // The notifier's `clearEncryption` calls `secretsDrop` Rust-side
+  // — bootstrap FRB so the call has somewhere to land in
+  // flutter_test.
+  setUpAll(requireFrbLoaded);
+
   group('SecurityState', () {
-    test('default state is plaintext with no encryption key', () {
-      final state = SecurityState();
+    test('default state is plaintext with no active key', () {
+      const state = SecurityState();
       expect(state.level, SecurityTier.plaintext);
-      expect(state.encryptionKey, isNull);
+      expect(state.hasActiveDbKey, isFalse);
     });
 
     test('isEncrypted returns false for plaintext', () {
-      final state = SecurityState(level: SecurityTier.plaintext);
+      const state = SecurityState(level: SecurityTier.plaintext);
       expect(state.isEncrypted, isFalse);
     });
 
     test('isEncrypted returns true for keychain', () {
-      final state = SecurityState(level: SecurityTier.keychain);
+      const state = SecurityState(level: SecurityTier.keychain);
       expect(state.isEncrypted, isTrue);
     });
 
-    test('isEncrypted returns true for masterPassword', () {
-      final state = SecurityState(level: SecurityTier.paranoid);
+    test('isEncrypted returns true for paranoid', () {
+      const state = SecurityState(level: SecurityTier.paranoid);
       expect(state.isEncrypted, isTrue);
     });
 
-    test('encryptionKey is preserved when set via notifier', () {
-      // Key bytes are copied into a locked SecretBuffer by the notifier, so
-      // we go through the provider instead of constructing SecurityState
-      // directly.
+    test('hasActiveDbKey flips when notifier is told the slot is staged', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final key = Uint8List.fromList([1, 2, 3, 4]);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, key);
+          .setActive(SecurityTier.paranoid, hasKey: true);
       final state = container.read(securityStateProvider);
-      expect(state.encryptionKey, equals(key));
+      expect(state.hasActiveDbKey, isTrue);
     });
   });
 
@@ -53,61 +56,59 @@ void main() {
       final state = container.read(securityStateProvider);
       expect(state.level, SecurityTier.plaintext);
       expect(state.isEncrypted, isFalse);
+      expect(state.hasActiveDbKey, isFalse);
     });
 
-    test('set() updates level without key', () {
+    test('setActive(level, hasKey: false) updates tier without staging', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      container.read(securityStateProvider.notifier).set(SecurityTier.keychain);
-      final state = container.read(securityStateProvider);
-      expect(state.level, SecurityTier.keychain);
-      expect(state.encryptionKey, isNull);
-      expect(state.isEncrypted, isTrue);
-    });
-
-    test('set() updates level with encryption key', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final key = Uint8List.fromList([0, 1, 2, 3]);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, key);
+          .setActive(SecurityTier.keychain, hasKey: false);
       final state = container.read(securityStateProvider);
-      expect(state.level, SecurityTier.paranoid);
-      expect(state.encryptionKey, equals(key));
+      expect(state.level, SecurityTier.keychain);
+      expect(state.hasActiveDbKey, isFalse);
       expect(state.isEncrypted, isTrue);
     });
 
-    test('clearEncryption() resets to plaintext', () {
+    test('setActive(level, hasKey: true) records active slot', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container
+          .read(securityStateProvider.notifier)
+          .setActive(SecurityTier.paranoid, hasKey: true);
+      final state = container.read(securityStateProvider);
+      expect(state.level, SecurityTier.paranoid);
+      expect(state.hasActiveDbKey, isTrue);
+      expect(state.isEncrypted, isTrue);
+    });
+
+    test('clearEncryption() resets to plaintext + drops active slot', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final notifier = container.read(securityStateProvider.notifier);
-      notifier.set(SecurityTier.paranoid, Uint8List(32));
+      notifier.setActive(SecurityTier.paranoid, hasKey: true);
 
-      // Verify it's encrypted
       expect(container.read(securityStateProvider).isEncrypted, isTrue);
 
-      // Clear
       notifier.clearEncryption();
 
       final state = container.read(securityStateProvider);
       expect(state.level, SecurityTier.plaintext);
-      expect(state.encryptionKey, isNull);
+      expect(state.hasActiveDbKey, isFalse);
       expect(state.isEncrypted, isFalse);
     });
 
-    test('set() replaces previous key', () {
+    test('setActive replaces previous transition', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final notifier = container.read(securityStateProvider.notifier);
-      notifier.set(SecurityTier.paranoid, Uint8List.fromList([1, 2, 3]));
-
-      final key1 = container.read(securityStateProvider).encryptionKey;
-      expect(key1, equals(Uint8List.fromList([1, 2, 3])));
-
-      notifier.set(SecurityTier.paranoid, Uint8List.fromList([4, 5, 6]));
-      final key2 = container.read(securityStateProvider).encryptionKey;
-      expect(key2, equals(Uint8List.fromList([4, 5, 6])));
+      notifier.setActive(SecurityTier.paranoid, hasKey: true);
+      expect(container.read(securityStateProvider).hasActiveDbKey, isTrue);
+      notifier.setActive(SecurityTier.keychain, hasKey: false);
+      final state = container.read(securityStateProvider);
+      expect(state.level, SecurityTier.keychain);
+      expect(state.hasActiveDbKey, isFalse);
     });
   });
 
@@ -116,7 +117,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final storage = container.read(secureKeyStorageProvider);
-      expect(storage, isA<Object>()); // SecureKeyStorage instance
+      expect(storage, isA<SecureKeyStorage>());
     });
   });
 
@@ -149,9 +150,9 @@ void main() {
 
     test('keyringProbeDetailText returns non-empty for every non-available '
         'case', () {
-      for (final result in KeyringProbeResult.values) {
+      for (final result in DbKeyringProbeResult.values) {
         final text = keyringProbeDetailText(l10n, result);
-        if (result == KeyringProbeResult.available) {
+        if (result == DbKeyringProbeResult.available) {
           expect(text, isEmpty);
         } else {
           expect(

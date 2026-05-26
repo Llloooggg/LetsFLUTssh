@@ -1,75 +1,12 @@
-import 'dart:io' show File;
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
-import 'package:letsflutssh/core/security/linux/tpm_client.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/app_button.dart';
-import 'package:letsflutssh/widgets/security_setup_dialog.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
+import 'package:letsflutssh/widgets/core/app_button.dart';
+import 'package:letsflutssh/widgets/security/security_setup_dialog.dart';
 
-class _FakeStorage implements FlutterSecureStorage {
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {}
-
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => null;
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {}
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeTpm implements TpmClient {
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Future<Uint8List?> seal(
-    Uint8List secret, {
-    required Uint8List authValue,
-  }) async => Uint8List.fromList([...authValue, ...secret]);
-
-  @override
-  Future<Uint8List?> unseal(
-    Uint8List blob, {
-    required Uint8List authValue,
-  }) async => blob;
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+import '../helpers/frb_bootstrap.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
@@ -79,29 +16,23 @@ Widget _wrap(Widget child) => MaterialApp(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // SecuritySetupDialog embeds PasswordStrengthMeter, which routes
+  // through `lfs_core::password_strength`; the snapshot fixtures
+  // are built via `securityCapabilitiesDefaults()` which is an FRB
+  // sync call — bootstrap FRB so both paths are available.
+  setUpAll(requireFrbLoaded);
 
   Future<void> openDialog(
     WidgetTester tester, {
-    required SecurityCapabilities caps,
+    required DbSecurityCapabilities caps,
   }) async {
-    final keyStorage = SecureKeyStorage(storage: _FakeStorage());
-    final hardwareVault = HardwareTierVault(
-      tpmClient: _FakeTpm(),
-      stateFileFactory: () async => File('/tmp/ignored_hw_vault.bin'),
-    );
-
     await tester.pumpWidget(
       _wrap(
         Builder(
           builder: (ctx) => TextButton(
             child: const Text('Open'),
             onPressed: () async {
-              await SecuritySetupDialog.show(
-                ctx,
-                keyStorage: keyStorage,
-                hardwareVault: hardwareVault,
-                capabilitiesOverride: caps,
-              );
+              await SecuritySetupDialog.show(ctx, capabilitiesOverride: caps);
             },
           ),
         ),
@@ -111,13 +42,21 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  const allCaps = SecurityCapabilities(
-    keychainAvailable: true,
-    hardwareVaultAvailable: true,
-    biometricAvailable: true,
-  );
-  const noKeychain = SecurityCapabilities(hardwareVaultAvailable: true);
-  const noHardware = SecurityCapabilities(keychainAvailable: true);
+  // Per-test fixture helpers — `securityCapabilitiesDefaults()` is
+  // an FRB sync call so it can run only after `requireFrbLoaded`.
+  late DbSecurityCapabilities allCaps;
+  late DbSecurityCapabilities noKeychain;
+  late DbSecurityCapabilities noHardware;
+  setUpAll(() {
+    final base = securityCapabilitiesDefaults();
+    allCaps = base.copyWith(
+      keychainAvailable: true,
+      hardwareVaultAvailable: true,
+      biometricAvailable: true,
+    );
+    noKeychain = base.copyWith(hardwareVaultAvailable: true);
+    noHardware = base.copyWith(keychainAvailable: true);
+  });
 
   group('SecuritySetupDialog — 3-tier ladder', () {
     testWidgets('renders T0/T1/T2 badges + Paranoid alternative section', (
@@ -141,8 +80,8 @@ void main() {
     testWidgets('T1 row disabled-subtitle text when keychain missing', (
       tester,
     ) async {
-      // Default `SecurityCapabilities.keychainProbe` is
-      // `KeyringProbeResult.probeFailed` (the classified fallback
+      // Default `DbSecurityCapabilities.keychainProbe` is
+      // `DbKeyringProbeResult.probeFailed` (the classified fallback
       // when no probe ran); the wizard prefers that classified copy
       // over the generic `tierKeychainUnavailable` string. If a
       // platform ever classifies the failure more specifically the
@@ -204,7 +143,7 @@ void main() {
     testWidgets(
       'reduced wizard banner shown when neither T1 nor T2 is reachable',
       (tester) async {
-        const noOsVault = SecurityCapabilities(biometricAvailable: false);
+        final noOsVault = securityCapabilitiesDefaults();
         await openDialog(tester, caps: noOsVault);
         final context = tester.element(find.byType(SecuritySetupDialog));
         expect(find.text(S.of(context).wizardReducedBanner), findsOneWidget);

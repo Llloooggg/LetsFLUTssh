@@ -10,7 +10,17 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `width: double.infinity` so the Container always spans the full
+    // cross-axis of its parent Column. Without it, the Container shrinks
+    // to its child Text's intrinsic width, which makes the bottom-border
+    // underline only as long as the title text — and the position of
+    // the header drifts with the Column's `crossAxisAlignment`
+    // (centered when the parent defaults to `center`, left when the
+    // parent explicitly sets `start`). Full-width keeps every
+    // sub-header looking the same regardless of parent alignment:
+    // long horizontal divider with the title on the left.
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.only(bottom: 12),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(border: AppTheme.borderBottom),
@@ -200,7 +210,7 @@ class _SettingsRow extends StatelessWidget {
                       Expanded(child: labelBlock),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Align(alignment: Alignment.centerRight, child: child),
                 ],
               );
@@ -260,7 +270,7 @@ class _Toggle extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: value ? accent : AppTheme.bg4,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: AppTheme.radiusLg,
       ),
       child: AnimatedAlign(
         duration: const Duration(milliseconds: 120),
@@ -275,11 +285,41 @@ class _Toggle extends StatelessWidget {
         ),
       ),
     );
-    Widget row = _SettingsRow(
+    // Tap target = the whole row, not a 48×48 box around the knob.
+    // The previous shape wrapped the knob in `SizedBox(48, 48)` to
+    // meet the Material / WCAG 2.5.5 minimum hit-target, but its
+    // 48 px height made `_SettingsRow`'s `Row(crossAxisAlignment:
+    // center)` lift the label block by 6 px against neighbouring
+    // `_ActionTile` rows (whose intrinsic row height matches the
+    // label block). Move the hit area to the surrounding
+    // `HoverRegion` so a tap anywhere on the row toggles the value —
+    // same pattern as `_ActionTile` — and the knob becomes a purely
+    // visual 32×18 pill that no longer dictates row height. The row
+    // itself is still well above the WCAG minimum.
+    // Semantics(toggled:) keeps TalkBack / VoiceOver / NVDA
+    // announcing the on/off state instead of just "button".
+    final Widget settingsRow = _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
-      child: GestureDetector(onTap: tap, child: knob),
+      child: Semantics(
+        toggled: value,
+        enabled: enabled,
+        label: label,
+        button: true,
+        child: knob,
+      ),
+    );
+    Widget row = HoverRegion(
+      onTap: tap,
+      builder: (hovered) => Container(
+        color: enabled && hovered ? AppTheme.hover : null,
+        // Note: refer to `settingsRow` (captured at construction),
+        // NOT `row` — the variable below is reassigned to this
+        // `HoverRegion`, so `child: row` would close over the
+        // outer Widget and recurse on mount (stack overflow).
+        child: settingsRow,
+      ),
     );
     // Fade the entire row (icon + label + subtitle + knob) when the
     // toggle is disabled. Fading only the knob left the text at full
@@ -335,9 +375,15 @@ class _SegmentControl extends StatelessWidget {
       );
     }
 
-    return AppBorderedBox(
-      height: AppTheme.controlHeightXs,
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    // The Settings body is wrapped in an `AppSelectionArea`; each segment
+    // is a `GestureDetector` button (not a `HoverRegion`, which would
+    // auto-opt-out), so the labels would otherwise be selectable as text.
+    // Opt the whole control out — every child here is a button.
+    return SelectionContainer.disabled(
+      child: AppBorderedBox(
+        height: AppTheme.controlHeightXs,
+        child: Row(mainAxisSize: MainAxisSize.min, children: children),
+      ),
     );
   }
 }
@@ -385,7 +431,7 @@ class _SliderField extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppSpacing.md),
         Text(
           format(value),
           style: AppFonts.mono(fontSize: AppFonts.sm, color: AppTheme.fgDim),

@@ -242,6 +242,31 @@ void main() {
       expect(c.copiedSessionId, 's2');
       expect(c.cutPending, isFalse);
     });
+
+    test('hasClipboardEntry gates the Paste menu item', () {
+      // Spec: the Paste context-menu item is shown only when a copy/cut
+      // has stashed something. A fresh controller has nothing to paste,
+      // each copy/cut path arms it, and clearClipboard disarms it again.
+      final c = SessionPanelController();
+      expect(c.hasClipboardEntry, isFalse);
+
+      c.copySessionId('s1');
+      expect(c.hasClipboardEntry, isTrue);
+
+      c.clearClipboard();
+      expect(c.hasClipboardEntry, isFalse);
+
+      c.copyFolderPath('prod');
+      expect(
+        c.hasClipboardEntry,
+        isTrue,
+        reason: 'a copied folder also makes Paste actionable',
+      );
+
+      c.clearClipboard();
+      c.cutSessionId('s2');
+      expect(c.hasClipboardEntry, isTrue);
+    });
   });
 
   group('SessionPanelController — hasSelection', () {

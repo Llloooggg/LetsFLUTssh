@@ -15,12 +15,12 @@ Follow these steps strictly. This is a gated workflow — do NOT skip steps.
 ### Step 2: Analyze changes
 Determine:
 1. **Type**: feat / fix / refactor / test / docs / chore / ci
-2. **Docs updated?** — Check per the documentation maintenance table in AGENT_RULES.md. If code changed but docs didn't, WARN the user
+2. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
 
-Note: Version bumps are automated by `scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
+Note: Version bumps are automated by `dev/scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
 
 ### Step 3: Pre-commit checks
-- Do NOT run `make analyze` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
+- Do NOT run `make lint` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
 
 ### Step 4: Draft commit message
 - Format: `type: short description`

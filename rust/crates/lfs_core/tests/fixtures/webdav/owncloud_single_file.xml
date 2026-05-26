@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">
+  <d:response>
+    <d:href>/remote.php/dav/files/bob/file.bin</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>file.bin</d:displayname>
+        <d:getcontentlength>42</d:getcontentlength>
+        <d:getcontenttype>application/octet-stream</d:getcontenttype>
+        <d:getlastmodified>Tue, 11 Nov 2025 09:30:00 GMT</d:getlastmodified>
+        <d:getetag>W/"oc-weak-etag"</d:getetag>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>

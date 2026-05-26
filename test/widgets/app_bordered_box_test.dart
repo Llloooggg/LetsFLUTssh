@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_bordered_box.dart';
+import 'package:letsflutssh/widgets/core/app_bordered_box.dart';
 
 void main() {
   group('AppBorderedBox', () {
@@ -51,7 +51,10 @@ void main() {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
-          child: AppBorderedBox(borderRadius: AppTheme.radiusLg, child: SizedBox()),
+          child: AppBorderedBox(
+            borderRadius: AppTheme.radiusLg,
+            child: SizedBox(),
+          ),
         ),
       );
 
@@ -74,7 +77,9 @@ void main() {
       expect(border.top.width, 2);
     });
 
-    testWidgets('passes height, width, padding, alignment, constraints', (tester) async {
+    testWidgets('passes height, width, padding, alignment, constraints', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,

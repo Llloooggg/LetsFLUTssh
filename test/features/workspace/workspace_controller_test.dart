@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
@@ -24,9 +22,11 @@ void main() {
   setUp(() {
     container = ProviderContainer(
       overrides: [
-        knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
+        knownHostsStreamProvider.overrideWith(
+          (_) => const Stream<Map<String, String>>.empty(),
+        ),
+        connectionsProvider.overrideWith(
+          () => StaticConnectionsNotifier(<Connection>[]),
         ),
       ],
     );

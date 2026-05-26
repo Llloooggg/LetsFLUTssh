@@ -18,50 +18,84 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/core/security/kdf_params.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
+import 'package:letsflutssh/src/rust/api/security_capabilities.dart'
+    show DbKeyringProbeResult;
+import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
 class FakeMasterPasswordManager extends MasterPasswordManager {
   bool enabled;
   Uint8List? derivedKey;
   bool verifyResult;
 
+  /// Queued outcomes for [unlockAttempt]. Each call dequeues one;
+  /// the queue running dry returns [TierUnlockAttempt.error] so
+  /// callers that didn't pre-stage anything fail loud rather than
+  /// silently accept. Records every supplied password into
+  /// [unlockAttemptCalls] so tests assert on the exact value the
+  /// dialog handed in.
+  final List<TierUnlockAttempt> unlockOutcomes;
+  final List<Uint8List> unlockAttemptCalls = [];
+
+  /// Static rate-limit status returned by [rateLimitStatus]. Tests
+  /// that need a state machine (e.g. "lock after the next failed
+  /// attempt") swap [statusAfterFailure] in or assign [_status]
+  /// directly between operations.
+  RateLimitStatus _status;
+  final RateLimitStatus? statusAfterFailure;
+
   FakeMasterPasswordManager({
     this.enabled = false,
     this.derivedKey,
     this.verifyResult = false,
-  });
+    List<TierUnlockAttempt>? unlockOutcomes,
+    RateLimitStatus initialStatus = const RateLimitStatus(
+      failureCount: 0,
+      cooldownRemaining: Duration.zero,
+    ),
+    this.statusAfterFailure,
+  }) : unlockOutcomes = unlockOutcomes ?? [],
+       _status = initialStatus,
+       // Pass an explicit cheap Argon2id profile so the super
+       // constructor does not reach for `KdfParams.productionDefaults`
+       // — that field is a `late` mirror populated from Rust at
+       // production bootstrap and fake-driven widget tests that
+       // never load FRB would otherwise hit `LateInitializationError`
+       // on construction.
+       super(
+         kdfParams: const KdfParams.argon2id(
+           memoryKiB: 8,
+           iterations: 1,
+           parallelism: 1,
+         ),
+       );
 
   @override
   Future<bool> isEnabled() async => enabled;
 
   @override
-  Future<Uint8List> deriveKey(String password) async =>
-      derivedKey ?? Uint8List(32);
+  Future<bool> verify(Uint8List password) async => verifyResult;
 
   @override
-  Future<bool> verify(String password) async => verifyResult;
+  Future<Uint8List?> verifyAndDerive(Uint8List password) async =>
+      verifyResult ? (derivedKey ?? Uint8List(32)) : null;
 
   @override
-  Future<Uint8List?> verifyAndDerive(
-    String password, {
-    bool useRateLimit = false,
-  }) async => verifyResult ? (derivedKey ?? Uint8List(32)) : null;
-
-  @override
-  Future<Uint8List> enable(String password) async {
+  Future<Uint8List> enable(Uint8List password) async {
     enabled = true;
     return derivedKey ?? Uint8List(32);
   }
 
   @override
-  Future<Uint8List> changePassword(String oldPwd, String newPwd) async =>
+  Future<Uint8List> changePassword(Uint8List oldPwd, Uint8List newPwd) async =>
       derivedKey ?? Uint8List(32);
 
   @override
@@ -73,19 +107,41 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   Future<void> reset() async {
     enabled = false;
   }
+
+  @override
+  RateLimitStatus rateLimitStatus() => _status;
+
+  /// Override the limiter snapshot — tests that drive a dialog
+  /// through "first attempt clean, second attempt locked" mutate
+  /// this directly between submits.
+  void setStatus(RateLimitStatus status) {
+    _status = status;
+  }
+
+  @override
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
+    unlockAttemptCalls.add(password);
+    final next = unlockOutcomes.isNotEmpty
+        ? unlockOutcomes.removeAt(0)
+        : TierUnlockAttempt.error;
+    if (next == TierUnlockAttempt.wrongSecret && statusAfterFailure != null) {
+      _status = statusAfterFailure!;
+    }
+    return next;
+  }
 }
 
 class FakeSecureKeyStorage extends SecureKeyStorage {
   Uint8List? storedKey;
   Uint8List? biometricKey;
-  KeyringProbeResult probeResult;
+  DbKeyringProbeResult probeResult;
   bool available;
   bool writeKeySucceeds;
 
   FakeSecureKeyStorage({
     this.storedKey,
     this.biometricKey,
-    this.probeResult = KeyringProbeResult.available,
+    this.probeResult = DbKeyringProbeResult.available,
     this.available = true,
     this.writeKeySucceeds = true,
   });
@@ -94,31 +150,22 @@ class FakeSecureKeyStorage extends SecureKeyStorage {
   Future<bool> isAvailable() async => available;
 
   @override
-  Future<KeyringProbeResult> probe() async => probeResult;
+  Future<DbKeyringProbeResult> probe() async => probeResult;
 
   @override
-  Future<Uint8List?> readKey() async => storedKey;
-
-  @override
-  Future<bool> writeKey(Uint8List key) async {
+  Future<bool> writeKeyFromSecret(String secretId) async {
     if (!writeKeySucceeds) return false;
-    storedKey = key;
+    storedKey = Uint8List(32);
     return true;
   }
+
+  @override
+  Future<bool> readKeyToSecret(String secretId) async => storedKey != null;
 
   @override
   Future<void> deleteKey() async {
     storedKey = null;
   }
-
-  @override
-  Future<bool> writeBiometricKey(Uint8List key) async {
-    biometricKey = key;
-    return true;
-  }
-
-  @override
-  Future<Uint8List?> readBiometricKey() async => biometricKey;
 
   @override
   Future<void> deleteBiometricKey() async {
@@ -170,7 +217,7 @@ class FakeHardwareTierVault extends HardwareTierVault {
 
 class FakeKeychainPasswordGate extends KeychainPasswordGate {
   bool configured;
-  String? expectedPassword;
+  Uint8List? expectedPassword;
 
   FakeKeychainPasswordGate({this.configured = false, this.expectedPassword});
 
@@ -178,14 +225,21 @@ class FakeKeychainPasswordGate extends KeychainPasswordGate {
   Future<bool> isConfigured() async => configured;
 
   @override
-  Future<void> setPassword(String password) async {
+  Future<void> setPassword(Uint8List password) async {
     configured = true;
     expectedPassword = password;
   }
 
   @override
-  Future<bool> verify(String password) async =>
-      configured && password == expectedPassword;
+  Future<bool> verify(Uint8List password) async {
+    if (!configured) return false;
+    final expected = expectedPassword;
+    if (expected == null || expected.length != password.length) return false;
+    for (var i = 0; i < expected.length; i++) {
+      if (expected[i] != password[i]) return false;
+    }
+    return true;
+  }
 
   @override
   Future<PasswordRateLimiter?> rateLimiter() async => null;
@@ -229,7 +283,6 @@ class FakeBiometricAuth extends BiometricAuth {
 
 class FakeBiometricKeyVault extends BiometricKeyVault {
   bool stored;
-  Uint8List? key;
 
   /// When non-null, [isStored] throws with this error ONLY after the
   /// first N successful calls. Lets tests drive the in-dialog
@@ -241,7 +294,6 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
 
   FakeBiometricKeyVault({
     this.stored = false,
-    this.key,
     this.isStoredThrows,
     this.throwAfterNCalls = 0,
   });
@@ -255,35 +307,48 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
   }
 
   @override
-  Future<bool> store(Uint8List key) async {
+  Future<bool> storeFromActive() async {
     stored = true;
-    this.key = key;
     return true;
   }
 
   @override
-  Future<Uint8List?> read() async => stored ? key : null;
+  Future<bool> storeFromSecret(String secretId) async {
+    stored = true;
+    return true;
+  }
+
+  @override
+  Future<bool> readToActive() async => stored;
+
+  @override
+  Future<void> clear() async {
+    stored = false;
+  }
 }
 
-/// In-memory AutoLockStore that never touches a DB.
+/// In-memory [AutoLockMinutesNotifier] that never touches the DB.
 ///
-/// The real store reads / writes through `AppDatabase.configDao`;
-/// tests that drive `_markSecurityReady` (which calls
-/// `autoLockMinutesProvider.load` → `AutoLockStore.load`) fail with
-/// "Can't re-open a database" when the controller closed the last
-/// DB the store was pointed at. Overriding with this fake keeps the
-/// minutes as a Dart field so `setDatabase` is a no-op and the load
-/// path is decoupled from the drift handle lifecycle.
-class FakeAutoLockStore extends AutoLockStore {
-  int minutes;
+/// The real notifier reads / writes through `lfs_core.db`; tests that
+/// drive `_markSecurityReady` (which calls `autoLockMinutesProvider
+/// .load`) would otherwise hit FRB and fail. Overriding with this
+/// fake keeps the minutes in `state` so the load path is decoupled
+/// from the FRB native lib.
+class FakeAutoLockNotifier extends AutoLockMinutesNotifier {
+  FakeAutoLockNotifier({this.initialMinutes = 0});
 
-  FakeAutoLockStore({this.minutes = 0});
+  final int initialMinutes;
 
   @override
-  Future<int> load() async => minutes;
+  int build() => initialMinutes;
 
   @override
-  Future<void> save(int value) async {
-    minutes = value;
+  Future<void> load() async {
+    state = initialMinutes;
+  }
+
+  @override
+  Future<void> set(int minutes) async {
+    state = minutes;
   }
 }

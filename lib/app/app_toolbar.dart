@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
-import '../widgets/app_button.dart';
-import '../widgets/app_icon_button.dart';
+import '../widgets/core/app_button.dart';
+import '../widgets/core/app_icon_button.dart';
 
 /// Top toolbar above the workspace panels.
 ///

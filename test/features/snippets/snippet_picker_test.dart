@@ -2,61 +2,97 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
-import 'package:letsflutssh/core/snippets/snippet_store.dart';
 import 'package:letsflutssh/features/snippets/snippet_picker.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/snippet_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:letsflutssh/widgets/app_icon_button.dart';
-import 'package:letsflutssh/widgets/toast.dart';
+import 'package:letsflutssh/widgets/core/app_icon_button.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 
-/// In-memory fake for [SnippetStore] — no database.
-class FakeSnippetStore extends SnippetStore {
+import '../../helpers/frb_bootstrap.dart';
+
+/// In-memory fake for [SnippetsNotifier] — no database. Owns the
+/// session→snippet links so the picker's `sessionSnippetsProvider`
+/// override can resolve against the same state.
+class FakeSnippetsNotifier extends SnippetsNotifier {
+  FakeSnippetsNotifier([List<Snippet>? initial])
+    : _snippets = {for (final s in initial ?? <Snippet>[]) s.id: s},
+      _sessionLinks = {};
+
   final Map<String, Snippet> _snippets;
   final Map<String, Set<String>> _sessionLinks;
 
-  FakeSnippetStore([List<Snippet>? initial])
-    : _snippets = {for (final s in initial ?? []) s.id: s},
-      _sessionLinks = {};
+  bool _attached = false;
 
   @override
-  Future<List<Snippet>> loadAll() async =>
-      _snippets.values.toList()..sort((a, b) => a.title.compareTo(b.title));
+  Future<List<Snippet>> build() async {
+    _attached = true;
+    return _sorted();
+  }
 
   @override
-  Future<void> add(Snippet snippet) async => _snippets[snippet.id] = snippet;
+  Future<List<Snippet>> loadAll() async => _sorted();
 
   @override
-  Future<void> update(Snippet snippet) async => _snippets[snippet.id] = snippet;
+  Future<void> add(Snippet snippet) async {
+    _snippets[snippet.id] = snippet;
+    ref.invalidateSelf();
+  }
 
   @override
-  Future<void> delete(String id) async => _snippets.remove(id);
+  Future<void> save(Snippet snippet) async {
+    _snippets[snippet.id] = snippet;
+    ref.invalidateSelf();
+  }
 
   @override
-  Future<List<Snippet>> loadForSession(String sessionId) async {
-    final ids = _sessionLinks[sessionId] ?? {};
-    return _snippets.values.where((s) => ids.contains(s.id)).toList()
-      ..sort((a, b) => a.title.compareTo(b.title));
+  Future<void> delete(String id) async {
+    _snippets.remove(id);
+    ref.invalidateSelf();
   }
 
   @override
   Future<void> linkToSession(String snippetId, String sessionId) async {
     _sessionLinks.putIfAbsent(sessionId, () => {}).add(snippetId);
+    // `ref` is unsafe to access before the notifier is attached to a
+    // ProviderContainer (tests that pre-seed link state happen before
+    // `pumpWidget`). Skip the family-provider invalidation in that
+    // case — the dialog's first read picks up the current state
+    // anyway.
+    if (_attached) ref.invalidate(sessionSnippetsProvider(sessionId));
   }
 
   @override
   Future<void> unlinkFromSession(String snippetId, String sessionId) async {
     _sessionLinks[sessionId]?.remove(snippetId);
+    if (_attached) ref.invalidate(sessionSnippetsProvider(sessionId));
   }
 
   @override
   Future<Set<String>> linkedSnippetIds(String sessionId) async {
     return Set.of(_sessionLinks[sessionId] ?? {});
   }
+
+  /// Snapshot view consumed by the test-side `sessionSnippetsProvider`
+  /// override.
+  List<Snippet> snippetsForSession(String sessionId) {
+    final ids = _sessionLinks[sessionId] ?? {};
+    return _snippets.values.where((s) => ids.contains(s.id)).toList()
+      ..sort((a, b) => a.title.compareTo(b.title));
+  }
+
+  List<Snippet> _sorted() =>
+      _snippets.values.toList()..sort((a, b) => a.title.compareTo(b.title));
 }
 
 void main() {
-  late FakeSnippetStore fakeStore;
+  // SnippetPicker calls `renderSnippet`, which routes through
+  // `lfs_core::snippet_template::render` — bootstrap FRB so the
+  // widget can render snippets without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  late FakeSnippetsNotifier fakeStore;
 
   final snippet1 = Snippet(id: 's1', title: 'List files', command: 'ls -la');
 
@@ -64,7 +100,12 @@ void main() {
 
   Widget buildApp({String? sessionId}) {
     return ProviderScope(
-      overrides: [snippetStoreProvider.overrideWithValue(fakeStore)],
+      overrides: [
+        snippetsProvider.overrideWith(() => fakeStore),
+        sessionSnippetsProvider.overrideWith(
+          (ref, id) async => fakeStore.snippetsForSession(id),
+        ),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -92,21 +133,21 @@ void main() {
 
   group('SnippetPicker', () {
     testWidgets('shows "Snippets" title', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       expect(find.text('Snippets'), findsOneWidget);
     });
 
     testWidgets('shows empty state when no snippets', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       expect(find.text('No snippets yet'), findsOneWidget);
     });
 
     testWidgets('shows snippet tiles with title and command', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1, snippet2]);
+      fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
       await openDialog(tester);
 
       expect(find.text('List files'), findsOneWidget);
@@ -116,11 +157,16 @@ void main() {
     });
 
     testWidgets('tapping a snippet returns the command', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       String? result;
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [snippetStoreProvider.overrideWithValue(fakeStore)],
+          overrides: [
+            snippetsProvider.overrideWith(() => fakeStore),
+            sessionSnippetsProvider.overrideWith(
+              (ref, id) async => fakeStore.snippetsForSession(id),
+            ),
+          ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -150,11 +196,16 @@ void main() {
     });
 
     testWidgets('cancel button closes dialog with null', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       String? result = 'sentinel';
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [snippetStoreProvider.overrideWithValue(fakeStore)],
+          overrides: [
+            snippetsProvider.overrideWith(() => fakeStore),
+            sessionSnippetsProvider.overrideWith(
+              (ref, id) async => fakeStore.snippetsForSession(id),
+            ),
+          ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -185,7 +236,7 @@ void main() {
     testWidgets('with sessionId: shows pinned snippets section header', (
       tester,
     ) async {
-      fakeStore = FakeSnippetStore([snippet1, snippet2]);
+      fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
       await fakeStore.linkToSession('s1', 'session-1');
       await openDialog(tester, sessionId: 'session-1');
 
@@ -194,7 +245,7 @@ void main() {
     });
 
     testWidgets('with sessionId: pin button pins a snippet', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       await openDialog(tester, sessionId: 'session-1');
 
       // No pinned section initially.
@@ -213,7 +264,7 @@ void main() {
     testWidgets('with sessionId: unpin button unpins a snippet', (
       tester,
     ) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       await fakeStore.linkToSession('s1', 'session-1');
       await openDialog(tester, sessionId: 'session-1');
 
@@ -236,7 +287,7 @@ void main() {
     });
 
     testWidgets('copy button shows "Command copied" toast', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       await openDialog(tester);
 
       await tester.tap(find.byIcon(Icons.content_copy));
@@ -249,7 +300,7 @@ void main() {
     });
 
     testWidgets('without sessionId: no pin buttons shown', (tester) async {
-      fakeStore = FakeSnippetStore([snippet1]);
+      fakeStore = FakeSnippetsNotifier([snippet1]);
       await openDialog(tester);
 
       // No pin/unpin icons should appear.

@@ -17,6 +17,7 @@ class SessionPanelController extends ChangeNotifier {
   int _focusedFolderItemCount = 0;
 
   String? _copiedSessionId;
+  String? _copiedFolderPath;
 
   bool _marqueeInProgress = false;
 
@@ -29,6 +30,13 @@ class SessionPanelController extends ChangeNotifier {
   int get focusedFolderItemCount => _focusedFolderItemCount;
 
   String? get copiedSessionId => _copiedSessionId;
+  String? get copiedFolderPath => _copiedFolderPath;
+
+  /// True when copy/cut has stashed a session or folder waiting to be
+  /// pasted. Gates the Paste context-menu item — an empty clipboard
+  /// makes Paste a no-op, so the item is hidden rather than shown.
+  bool get hasClipboardEntry =>
+      _copiedSessionId != null || _copiedFolderPath != null;
 
   bool get marqueeInProgress => _marqueeInProgress;
 
@@ -154,16 +162,27 @@ class SessionPanelController extends ChangeNotifier {
   // ---- Clipboard ----------------------------------------------------
 
   void copyFocused() {
-    if (_focusedSessionId == null) return;
-    copySessionId(_focusedSessionId!);
+    if (_focusedSessionId != null) {
+      copySessionId(_focusedSessionId!);
+      return;
+    }
+    if (_focusedFolderPath != null) {
+      copyFolderPath(_focusedFolderPath!);
+    }
   }
 
-  /// Mark the focused session for cut — a subsequent paste moves the
-  /// session to the target folder instead of duplicating it. The flag
-  /// is one-shot; paste consumes it and clears the clipboard.
+  /// Mark the focused entry for cut — a subsequent paste moves the
+  /// session / folder to the target folder instead of duplicating
+  /// it. The flag is one-shot; paste consumes it and clears the
+  /// clipboard.
   void cutFocused() {
-    if (_focusedSessionId == null) return;
-    cutSessionId(_focusedSessionId!);
+    if (_focusedSessionId != null) {
+      cutSessionId(_focusedSessionId!);
+      return;
+    }
+    if (_focusedFolderPath != null) {
+      cutFolderPath(_focusedFolderPath!);
+    }
   }
 
   /// Copy [id] directly into the clipboard — used by the right-click
@@ -171,6 +190,7 @@ class SessionPanelController extends ChangeNotifier {
   /// the currently focused row.
   void copySessionId(String id) {
     _copiedSessionId = id;
+    _copiedFolderPath = null;
     _cutPending = false;
     notifyListeners();
   }
@@ -178,6 +198,28 @@ class SessionPanelController extends ChangeNotifier {
   /// Mark [id] for cut — same rationale as [copySessionId].
   void cutSessionId(String id) {
     _copiedSessionId = id;
+    _copiedFolderPath = null;
+    _cutPending = true;
+    notifyListeners();
+  }
+
+  /// Copy a folder path directly into the clipboard. Mutually
+  /// exclusive with the session-id slot — clipboard holds either a
+  /// session OR a folder, never both. Paste decides which entity to
+  /// duplicate / move based on whichever slot is non-null.
+  void copyFolderPath(String path) {
+    _copiedFolderPath = path;
+    _copiedSessionId = null;
+    _cutPending = false;
+    notifyListeners();
+  }
+
+  /// Mark a folder path for cut — paste will move the folder + its
+  /// entire subtree (sessions, subfolders) to the target instead of
+  /// deep-duplicating it.
+  void cutFolderPath(String path) {
+    _copiedFolderPath = path;
+    _copiedSessionId = null;
     _cutPending = true;
     notifyListeners();
   }
@@ -187,16 +229,19 @@ class SessionPanelController extends ChangeNotifier {
   bool get cutPending => _cutPending;
   bool _cutPending = false;
 
-  /// Called by [pasteCopiedSession] after the move / duplicate
+  /// Called by the panel's paste path after the move / duplicate
   /// completes, and by the lock / wipe paths via
-  /// `SessionPanel.dispose` on the reset flow. The clipboard is a
-  /// 30-char session id pointer — not session data — so there is no
-  /// RAM leak beyond the reference itself, and clearing is driven
-  /// by explicit events (paste succeeded, panel torn down) rather
-  /// than a wall-clock timer.
+  /// `SessionPanel.dispose` on the reset flow. The clipboard holds a
+  /// 30-char id or short folder path — not session data — so there
+  /// is no RAM leak beyond the reference itself, and clearing is
+  /// driven by explicit events (paste succeeded, panel torn down)
+  /// rather than a wall-clock timer.
   void clearClipboard() {
-    if (_copiedSessionId == null && !_cutPending) return;
+    if (_copiedSessionId == null && _copiedFolderPath == null && !_cutPending) {
+      return;
+    }
     _copiedSessionId = null;
+    _copiedFolderPath = null;
     _cutPending = false;
     notifyListeners();
   }

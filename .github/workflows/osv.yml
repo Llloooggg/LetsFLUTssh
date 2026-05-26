@@ -1,5 +1,13 @@
 name: OSV-Scanner
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
@@ -23,8 +31,22 @@ jobs:
       - name: Run OSV-Scanner
         uses: google/osv-scanner-action/osv-scanner-action@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
         with:
+          # Both lockfiles scanned: Dart deps (pubspec.lock) and the
+          # Rust security/transport core (rust/Cargo.lock — see
+          # ARCHITECTURE.md §3.14). Dependabot covers the GitHub
+          # Advisory Database on PRs; OSV here adds the broader OSV
+          # DB (aggregates GHSA + RustSec + Go vuln DB + PyPI
+          # advisories + ...) on push and weekly cron.
+          # `--config=osv-scanner.toml` points at the repo-root
+          # suppression file (see its header for the policy). Without
+          # the explicit flag, osv-scanner looks for one config next
+          # to each lockfile (`./osv-scanner.toml` for `pubspec.lock`,
+          # `rust/osv-scanner.toml` for `rust/Cargo.lock`) — and the
+          # Rust-side scan never picks up the root suppressions.
           scan-args: |-
+            --config=osv-scanner.toml
             --lockfile=pubspec.lock
+            --lockfile=rust/Cargo.lock
             --format=sarif
             --output=results.sarif
 

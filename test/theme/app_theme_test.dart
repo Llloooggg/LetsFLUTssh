@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
-import 'package:xterm/xterm.dart';
 
 void main() {
   group('AppTheme.dark()', () {
@@ -211,22 +210,6 @@ void main() {
       final dec = AppTheme.inputDecoration();
       final focused = dec.focusedBorder! as OutlineInputBorder;
       expect(focused.borderSide.color, AppTheme.accent);
-    });
-  });
-
-  group('AppTheme.terminalTheme', () {
-    test('returns a valid TerminalTheme', () {
-      final theme = AppTheme.terminalTheme;
-      expect(theme, isA<TerminalTheme>());
-      expect(theme.foreground, AppTheme.fg);
-      expect(theme.background, AppTheme.bg2);
-      expect(theme.cursor, AppTheme.termCursor);
-    });
-
-    test('search hit colors are set', () {
-      final theme = AppTheme.terminalTheme;
-      expect(theme.searchHitBackgroundCurrent, AppTheme.accent);
-      expect(theme.searchHitForeground, AppTheme.searchHitFg);
     });
   });
 }

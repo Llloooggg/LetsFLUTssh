@@ -1,113 +1,33 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
-/// Fuzz tests for [AppConfig.fromJson] and sub-config parsers.
+import '../helpers/frb_bootstrap.dart';
+
+/// Fuzz tests for the AppConfig JSON parser.
 ///
-/// Verifies that no malformed config JSON can crash the parser.
-/// All fromJson methods must either return a valid object or throw
-/// a predictable type error — never an unhandled exception.
+/// The Dart side no longer carries a Map-based decoder; the
+/// canonical parser lives in `lfs_core::config::AppConfig::
+/// from_json_value` and crosses the FRB boundary via
+/// `configAppConfigFromJsonTyped`. The fuzz targets the same
+/// untrusted-input shape (hand-edited `config.json`, archive
+/// `config.json` blob) through that entrypoint.
+///
+/// Contract: the parser either returns a valid [AppConfig] (every
+/// field clamped inside its sanitiser range) or `null` for a blob
+/// that fails serde JSON parsing at the top level. Never throws,
+/// never crashes the process.
 void main() {
-  group('Fuzz TerminalConfig.fromJson', () {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  group('Fuzz configAppConfigFromJsonTyped (Rust canonical parser)', () {
     final rng = Random(42);
 
-    test('handles 1000 random configs without crashing', () {
-      for (var i = 0; i < 1000; i++) {
-        final json = _randomTerminalJson(rng);
-        try {
-          final config = TerminalConfig.fromJson(json);
-          // Sanitized config must always be valid
-          expect(config.validate(), isNull);
-        } on TypeError {
-          // Expected for type mismatches
-        }
-      }
-    });
-
-    test('handles extreme numeric values', () {
-      final extremes = [
-        double.nan,
-        double.infinity,
-        double.negativeInfinity,
-        double.minPositive,
-        double.maxFinite,
-        -1e308,
-        0.0,
-        -0.0,
-      ];
-      for (final v in extremes) {
-        try {
-          final config = TerminalConfig.fromJson({'font_size': v});
-          // Sanitized config clamps to valid range
-          expect(config.fontSize, isNotNaN);
-        } on TypeError {
-          // Expected
-        }
-      }
-    });
-  });
-
-  group('Fuzz SshDefaults.fromJson', () {
-    final rng = Random(42);
-
-    test('handles 1000 random configs without crashing', () {
-      for (var i = 0; i < 1000; i++) {
-        final json = _randomSshJson(rng);
-        try {
-          final config = SshDefaults.fromJson(json);
-          expect(config.validate(), isNull);
-        } on TypeError {
-          // Expected
-        }
-      }
-    });
-
-    test('handles extreme port values', () {
-      final ports = [-1, 0, 1, 22, 65535, 65536, -2147483648, 2147483647];
-      for (final p in ports) {
-        final config = SshDefaults.fromJson({'default_port': p});
-        // Sanitized port must be in valid range
-        expect(config.defaultPort, greaterThanOrEqualTo(1));
-        expect(config.defaultPort, lessThanOrEqualTo(65535));
-      }
-    });
-  });
-
-  group('Fuzz UiConfig.fromJson', () {
-    final rng = Random(42);
-
-    test('handles 1000 random configs without crashing', () {
-      for (var i = 0; i < 1000; i++) {
-        final json = _randomUiJson(rng);
-        try {
-          UiConfig.fromJson(json);
-        } on TypeError {
-          // Expected
-        }
-      }
-    });
-  });
-
-  group('Fuzz BehaviorConfig.fromJson', () {
-    final rng = Random(42);
-
-    test('handles 1000 random configs without crashing', () {
-      for (var i = 0; i < 1000; i++) {
-        final json = _randomBehaviorJson(rng);
-        try {
-          BehaviorConfig.fromJson(json);
-        } on TypeError {
-          // Expected
-        }
-      }
-    });
-  });
-
-  group('Fuzz AppConfig.fromJson', () {
-    final rng = Random(42);
-
-    test('handles 1000 random composite configs without crashing', () {
+    test('handles 1000 random composite blobs without crashing', () {
       for (var i = 0; i < 1000; i++) {
         final json = <String, dynamic>{
           ..._randomTerminalJson(rng),
@@ -118,40 +38,104 @@ void main() {
           if (rng.nextBool()) 'max_history': _randomValue(rng),
           if (rng.nextBool()) 'locale': _randomValue(rng),
         };
-        try {
-          AppConfig.fromJson(json);
-        } on TypeError {
-          // Expected
+        final encoded = _safeJsonEncode(json);
+        if (encoded == null) continue;
+        final typed = rust_config.configAppConfigFromJsonTyped(
+          inputJson: encoded,
+        );
+        if (typed != null) {
+          // Sanitiser clamps every field — the build-side Dart
+          // wrapper accepts the snapshot without further coercion.
+          AppConfig.fromTyped(typed);
         }
       }
     });
 
-    test('handles empty map', () {
-      final config = AppConfig.fromJson({});
-      expect(config, isNotNull);
+    test('handles map with all wrong types — never crashes', () {
+      final pathological = jsonEncode({
+        'font_size': 'big',
+        'theme': 42,
+        'scrollback': 'lots',
+        'keepalive_sec': false,
+        'default_port': 'twenty-two',
+        'ssh_timeout_sec': [],
+        'toast_duration_ms': {},
+        'window_width': true,
+        'window_height': null,
+        'ui_scale': 'large',
+        'check_updates_on_start': 0,
+        'transfer_workers': 'four',
+        'max_history': 9.99,
+      });
+      final typed = rust_config.configAppConfigFromJsonTyped(
+        inputJson: pathological,
+      );
+      // Parser tolerates the wrong types — falls back to defaults
+      // for every field that fails its serde guard. Shape lands as
+      // canonical AppConfig defaults.
+      expect(typed, isNotNull);
     });
 
-    test('handles map with all wrong types', () {
-      try {
-        AppConfig.fromJson({
-          'font_size': 'big',
-          'theme': 42,
-          'scrollback': 'lots',
-          'keepalive_sec': false,
-          'default_port': 'twenty-two',
-          'ssh_timeout_sec': [],
-          'toast_duration_ms': {},
-          'window_width': true,
-          'window_height': null,
-          'ui_scale': 'large',
-          'enable_logging': 'yes',
-          'check_updates_on_start': 0,
-          'transfer_workers': 'four',
-          'max_history': 9.99,
-        });
-      } on TypeError {
-        // Expected
+    test('handles extreme numeric values for fontSize', () {
+      final extremes = [
+        // NaN / infinities are not valid JSON numbers — serde rejects
+        // the blob at the top level, the parser returns null. The
+        // finite extremes survive and clamp via the sanitiser.
+        double.minPositive,
+        double.maxFinite,
+        -1e308,
+        0.0,
+        -0.0,
+      ];
+      for (final v in extremes) {
+        final encoded = _safeJsonEncode({'font_size': v});
+        if (encoded == null) continue;
+        final typed = rust_config.configAppConfigFromJsonTyped(
+          inputJson: encoded,
+        );
+        if (typed != null) {
+          final config = AppConfig.fromTyped(typed);
+          expect(config.terminal.fontSize, isNotNaN);
+          expect(config.terminal.fontSize, greaterThanOrEqualTo(6.0));
+          expect(config.terminal.fontSize, lessThanOrEqualTo(72.0));
+        }
       }
+    });
+
+    test('handles extreme port values', () {
+      final ports = [-1, 0, 1, 22, 65535, 65536, -2147483648, 2147483647];
+      for (final p in ports) {
+        final encoded = jsonEncode({'default_port': p});
+        final typed = rust_config.configAppConfigFromJsonTyped(
+          inputJson: encoded,
+        );
+        if (typed != null) {
+          final config = AppConfig.fromTyped(typed);
+          expect(config.ssh.defaultPort, greaterThanOrEqualTo(1));
+          expect(config.ssh.defaultPort, lessThanOrEqualTo(65535));
+        }
+      }
+    });
+
+    test('garbage input collapses to null', () {
+      expect(
+        rust_config.configAppConfigFromJsonTyped(inputJson: 'not json'),
+        isNull,
+      );
+      expect(rust_config.configAppConfigFromJsonTyped(inputJson: ''), isNull);
+      expect(
+        rust_config.configAppConfigFromJsonTyped(inputJson: '[]'),
+        // Array root parses as JSON but the parser returns defaults
+        // (its `as_object()` guard collapses non-objects to
+        // `AppConfig::default()`).
+        isNotNull,
+      );
+    });
+
+    test('empty object collapses to defaults', () {
+      final typed = rust_config.configAppConfigFromJsonTyped(inputJson: '{}');
+      expect(typed, isNotNull);
+      expect(AppConfig.fromTyped(typed!), AppConfig.defaults);
     });
   });
 }
@@ -184,7 +168,7 @@ Map<String, dynamic> _randomUiJson(Random rng) {
 
 Map<String, dynamic> _randomBehaviorJson(Random rng) {
   return {
-    if (rng.nextBool()) 'enable_logging': _randomValue(rng),
+    if (rng.nextBool()) 'log_level': _randomValue(rng),
     if (rng.nextBool()) 'check_updates_on_start': _randomValue(rng),
     if (rng.nextBool()) 'skipped_version': _randomValue(rng),
   };
@@ -212,5 +196,16 @@ Object? _randomValue(Random rng) {
       return <String>[];
     default:
       return 'random_${rng.nextInt(999)}';
+  }
+}
+
+/// `jsonEncode` throws on values like NaN / Infinity (Dart's JSON
+/// encoder is strict). The fuzz harness skips those rather than
+/// teach every test about the codec's edge cases.
+String? _safeJsonEncode(Object? value) {
+  try {
+    return jsonEncode(value);
+  } catch (_) {
+    return null;
   }
 }

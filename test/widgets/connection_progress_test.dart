@@ -4,10 +4,19 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/connection_progress.dart';
-import 'package:letsflutssh/widgets/readonly_terminal_view.dart';
+import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
+import 'package:letsflutssh/widgets/terminal/terminal_view.dart';
+
+import '../helpers/frb_bootstrap.dart';
 
 void main() {
+  // ConnectionProgress opens a Rust TerminalReplay in initState, so these
+  // widget tests need the native library loaded.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    await requireFrbLoaded();
+  });
+
   Connection makeConnection({
     SSHConnectionState state = SSHConnectionState.connecting,
   }) {
@@ -21,96 +30,61 @@ void main() {
     );
   }
 
-  group('ConnectionProgress', () {
-    testWidgets('renders ReadOnlyTerminalView', (tester) async {
-      final conn = makeConnection();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(body: ConnectionProgress(connection: conn)),
+  Widget host(Connection conn, {double? fontSize, String? channelLabel}) =>
+      MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
+        home: Scaffold(
+          body: ConnectionProgress(
+            connection: conn,
+            fontSize: fontSize ?? 14.0,
+            channelLabel: channelLabel,
+          ),
         ),
       );
 
-      expect(find.byType(ReadOnlyTerminalView), findsOneWidget);
+  group('ConnectionProgress', () {
+    testWidgets('renders the terminal view', (tester) async {
+      await tester.pumpWidget(host(makeConnection()));
+      expect(find.byType(TerminalView), findsOneWidget);
     });
 
-    testWidgets('uses default fontSize of 14', (tester) async {
-      final conn = makeConnection();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(body: ConnectionProgress(connection: conn)),
-        ),
-      );
-
+    testWidgets('defaults fontSize to 14', (tester) async {
+      await tester.pumpWidget(host(makeConnection()));
       final widget = tester.widget<ConnectionProgress>(
         find.byType(ConnectionProgress),
       );
       expect(widget.fontSize, 14.0);
     });
 
-    testWidgets('passes custom fontSize to ReadOnlyTerminalView', (
-      tester,
-    ) async {
-      final conn = makeConnection();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(
-            body: ConnectionProgress(connection: conn, fontSize: 18),
-          ),
-        ),
-      );
-
-      final termView = tester.widget<ReadOnlyTerminalView>(
-        find.byType(ReadOnlyTerminalView),
-      );
-      expect(termView.fontSize, 18.0);
+    testWidgets('passes custom fontSize to the terminal view', (tester) async {
+      await tester.pumpWidget(host(makeConnection(), fontSize: 18));
+      final view = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(view.fontSize, 18.0);
     });
 
     testWidgets('accepts channelLabel parameter', (tester) async {
-      final conn = makeConnection();
-
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(
-            body: ConnectionProgress(
-              connection: conn,
-              channelLabel: 'Opening SFTP…',
-            ),
-          ),
-        ),
+        host(makeConnection(), channelLabel: 'Opening SFTP…'),
       );
-
       final widget = tester.widget<ConnectionProgress>(
         find.byType(ConnectionProgress),
       );
       expect(widget.channelLabel, 'Opening SFTP…');
     });
 
-    testWidgets('addStep does not throw', (tester) async {
-      final conn = makeConnection();
+    testWidgets('addStep feeds the engine without throwing', (tester) async {
       final key = GlobalKey<ConnectionProgressState>();
-
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           home: Scaffold(
-            body: ConnectionProgress(key: key, connection: conn),
+            body: ConnectionProgress(key: key, connection: makeConnection()),
           ),
         ),
       );
 
-      // addStep should not throw
       key.currentState!.addStep(
         const ConnectionStep(
           phase: ConnectionPhase.openChannel,
@@ -121,37 +95,24 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('writeError does not throw', (tester) async {
-      final conn = makeConnection();
+    testWidgets('writeError feeds the engine without throwing', (tester) async {
       final key = GlobalKey<ConnectionProgressState>();
-
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           home: Scaffold(
-            body: ConnectionProgress(key: key, connection: conn),
+            body: ConnectionProgress(key: key, connection: makeConnection()),
           ),
         ),
       );
 
-      // writeError should not throw
       key.currentState!.writeError('Connection refused');
       await tester.pump();
     });
 
     testWidgets('disposes cleanly', (tester) async {
-      final conn = makeConnection();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: S.localizationsDelegates,
-          supportedLocales: S.supportedLocales,
-          home: Scaffold(body: ConnectionProgress(connection: conn)),
-        ),
-      );
-
-      // Replacing widget should trigger dispose without errors
+      await tester.pumpWidget(host(makeConnection()));
       await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: SizedBox())),
       );

@@ -1,114 +1,55 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/security/secure_clipboard.dart';
 import '../../core/snippets/snippet.dart';
+import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_collection_toolbar.dart';
-import '../../widgets/app_data_row.dart';
-import '../../widgets/app_data_search_bar.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/app_icon_button.dart';
-import '../../widgets/app_empty_state.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_collection_panel.dart';
+import '../../widgets/core/app_data_row.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/app_icon_button.dart';
+import '../../widgets/core/hover_region.dart';
+import '../../widgets/core/toast.dart';
 
-/// Embeddable snippet manager — toolbar + list with CRUD.
+/// Embeddable snippet manager — toolbar + list with CRUD over
+/// [CollectionManagerPanel].
 ///
 /// Used standalone inside [SnippetManagerDialog] (mobile) and embedded in
 /// the desktop Tools dialog.
-class SnippetManagerPanel extends ConsumerStatefulWidget {
+class SnippetManagerPanel extends StatelessWidget {
   const SnippetManagerPanel({super.key});
-
-  @override
-  ConsumerState<SnippetManagerPanel> createState() =>
-      _SnippetManagerPanelState();
-}
-
-class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
-  List<Snippet> _snippets = [];
-  bool _loading = true;
-  String _filter = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final store = ref.read(snippetStoreProvider);
-    final snippets = await store.loadAll();
-    if (mounted) {
-      setState(() {
-        _snippets = snippets;
-        _loading = false;
-      });
-    }
-  }
-
-  List<Snippet> _filtered() {
-    if (_filter.isEmpty) return _snippets;
-    final needle = _filter.toLowerCase();
-    return _snippets.where((sn) {
-      return sn.title.toLowerCase().contains(needle) ||
-          sn.command.toLowerCase().contains(needle) ||
-          sn.description.toLowerCase().contains(needle);
-    }).toList();
-  }
 
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    return Column(
-      children: [
-        _buildToolbar(s),
-        const Divider(height: 1),
-        Expanded(child: _buildBody(s)),
-      ],
-    );
-  }
-
-  Widget _buildToolbar(S s) {
-    return AppCollectionToolbar(
-      hasItems: _snippets.isNotEmpty,
-      search: AppDataSearchBar(
-        onChanged: (v) => setState(() => _filter = v),
-        hintText: s.search,
-      ),
-      countLabel: s.snippetCount(_snippets.length),
-      actions: [
+    return CollectionManagerPanel<Snippet>(
+      load: (ref) => ref.read(snippetsProvider.notifier).loadAll(),
+      filter: filterSnippets,
+      countLabel: s.snippetCount,
+      emptyMessage: s.noSnippets,
+      noResultsMessage: s.noResults,
+      toolbarActions: (context, ref, reload) => [
         AppButton.secondary(
           label: s.addSnippet,
           icon: Icons.add,
-          onTap: _addSnippet,
           dense: true,
+          onTap: () => _addSnippet(context, ref, reload),
         ),
       ],
+      itemBuilder: _buildEntry,
     );
   }
 
-  Widget _buildBody(S s) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    }
-    if (_snippets.isEmpty) {
-      return AppEmptyState(message: s.noSnippets);
-    }
-    final visible = _filtered();
-    if (visible.isEmpty) {
-      return AppEmptyState(message: s.noResults);
-    }
-    return ListView.separated(
-      itemCount: visible.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => _buildEntry(s, visible[index]),
-    );
-  }
-
-  Widget _buildEntry(S s, Snippet snippet) {
+  Widget _buildEntry(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) {
+    final s = S.of(context);
     return AppDataRow(
       icon: Icons.code,
       title: snippet.title,
@@ -120,42 +61,61 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
           icon: Icons.content_copy,
           tooltip: s.copy,
           dense: true,
-          onTap: () => _copyCommand(snippet),
+          onTap: () => _copyCommand(context, snippet),
         ),
         AppIconButton(
           icon: Icons.edit_outlined,
           tooltip: s.editSnippet,
           dense: true,
-          onTap: () => _editSnippet(snippet),
+          onTap: () => _editSnippet(context, ref, snippet, reload),
         ),
         AppIconButton(
           icon: Icons.delete_outline,
           tooltip: s.deleteSnippet,
           dense: true,
           color: AppTheme.red,
-          onTap: () => _deleteSnippet(snippet),
+          onTap: () => _deleteSnippet(context, ref, snippet, reload),
         ),
       ],
     );
   }
 
-  void _copyCommand(Snippet snippet) {
-    Clipboard.setData(ClipboardData(text: snippet.command));
+  Future<void> _copyCommand(BuildContext context, Snippet snippet) async {
+    // Snippets can carry credentials; SecureClipboard pins the
+    // per-platform "no-cloud" flag so bytes don't reach Windows
+    // clipboard history, macOS Universal Clipboard, iOS Handoff
+    // or Android 13+ history. Refuse on Rust-side failure rather
+    // than fall back to Flutter's stock channel.
+    bool ok;
+    try {
+      ok = await SecureClipboard().setText(snippet.command);
+    } catch (_) {
+      // Native channel / FRB unreachable (flutter_test, missing
+      // plugin) — surface the same failure-toast path the
+      // refused-cloud-leak case uses so the user gets a clear
+      // signal rather than a silent no-op.
+      ok = false;
+    }
+    if (!context.mounted) return;
     Toast.show(
       context,
-      message: S.of(context).commandCopied,
-      level: ToastLevel.info,
+      message: ok
+          ? S.of(context).commandCopied
+          : S.of(context).clipboardCopyFailed,
+      level: ok ? ToastLevel.info : ToastLevel.error,
     );
   }
 
-  Future<void> _addSnippet() async {
+  Future<void> _addSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Future<void> Function() reload,
+  ) async {
     final result = await _SnippetEditDialog.show(context);
-    if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.add(result);
-    ref.invalidate(snippetsProvider);
-    await _load();
-    if (mounted) {
+    if (result == null || !context.mounted) return;
+    await ref.read(snippetsProvider.notifier).add(result);
+    await reload();
+    if (context.mounted) {
       Toast.show(
         context,
         message: S.of(context).snippetSaved,
@@ -164,14 +124,17 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  Future<void> _editSnippet(Snippet snippet) async {
+  Future<void> _editSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) async {
     final result = await _SnippetEditDialog.show(context, snippet: snippet);
-    if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.update(result);
-    ref.invalidate(snippetsProvider);
-    await _load();
-    if (mounted) {
+    if (result == null || !context.mounted) return;
+    await ref.read(snippetsProvider.notifier).save(result);
+    await reload();
+    if (context.mounted) {
       Toast.show(
         context,
         message: S.of(context).snippetSaved,
@@ -180,7 +143,12 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  Future<void> _deleteSnippet(Snippet snippet) async {
+  Future<void> _deleteSnippet(
+    BuildContext context,
+    WidgetRef ref,
+    Snippet snippet,
+    Future<void> Function() reload,
+  ) async {
     final s = S.of(context);
     final confirmed = await AppDialog.show<bool>(
       context,
@@ -196,15 +164,13 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.delete(snippet.id);
-    ref.invalidate(snippetsProvider);
-    // SessionSnippets cascades on FK; reload so the in-memory session list
-    // doesn't hold stale snippet links in its derived UI state.
-    await ref.read(sessionProvider.notifier).load();
-    await _load();
-    if (mounted) {
+    if (confirmed != true || !context.mounted) return;
+    await ref.read(snippetsProvider.notifier).delete(snippet.id);
+    // SessionSnippets cascades on FK; `dbSnippetsDelete` Rust-side
+    // publishes `SessionsChanged` so the workspace stream re-fetches
+    // and the derived UI drops the dead snippet link.
+    await reload();
+    if (context.mounted) {
       Toast.show(context, message: s.snippetDeleted(snippet.title));
     }
   }
@@ -291,7 +257,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               hintText: s.snippetTitleHint,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _commandCtrl,
             maxLines: 3,
@@ -302,7 +268,15 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.sm),
+          // Inline hint listing the built-in placeholder tokens —
+          // without it users have no way to discover that
+          // {{host}} / {{user}} / {{port}} / {{label}} / {{now}}
+          // (plus arbitrary user-named tokens) get substituted at
+          // execution time. Tap a chip to insert the token at the
+          // current caret position.
+          _SnippetTokenHints(controller: _commandCtrl),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _descCtrl,
             decoration: InputDecoration(
@@ -336,5 +310,104 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
             description: _descCtrl.text.trim(),
           );
     Navigator.pop(context, snippet);
+  }
+}
+
+/// Inline hint surfaced under the command field — chips that
+/// document the built-in `{{name}}` tokens and insert them into the
+/// command field on tap. Without this hint users had no way to
+/// discover that snippets support template substitution at all.
+class _SnippetTokenHints extends StatelessWidget {
+  final TextEditingController controller;
+  const _SnippetTokenHints({required this.controller});
+
+  /// Built-in tokens — kept in sync with `core/snippets/snippet_template.dart`.
+  /// Custom user tokens (`{{my-name}}`) work too — those prompt at
+  /// run time. The chip row here only documents the always-resolved
+  /// set; the runtime help text below adds the prompt-on-execute
+  /// note for everything else.
+  static const _tokens = ['host', 'user', 'port', 'label', 'now'];
+
+  void _insert(String token) {
+    final inject = '{{$token}}';
+    final selection = controller.selection;
+    if (selection.isValid) {
+      final text = controller.text;
+      final start = selection.start;
+      final end = selection.end;
+      final next = text.replaceRange(start, end, inject);
+      controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: start + inject.length),
+      );
+    } else {
+      controller.text = '${controller.text}$inject';
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          s.snippetTokensHint,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontSize: AppFonts.xs,
+            fontFamily: AppFonts.interFamily,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final t in _tokens)
+              // SelectionContainer.disabled — the chip is a button,
+              // its label must not behave like body text inside the
+              // surrounding SelectionArea (drag-to-copy on a button
+              // is the wrong affordance and reads as "this is text"
+              // not "this is tappable").
+              SelectionContainer.disabled(
+                child: HoverRegion(
+                  onTap: () => _insert(t),
+                  builder: (hovered) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hovered ? AppTheme.hover : AppTheme.bg3,
+                      borderRadius: AppTheme.radiusSm,
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: Text(
+                      '{{$t}}',
+                      style: AppFonts.mono(
+                        fontSize: AppFonts.xs,
+                        color: AppTheme.accent,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          s.snippetCustomTokensHint,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontSize: AppFonts.xs,
+            fontFamily: AppFonts.interFamily,
+          ),
+        ),
+      ],
+    );
   }
 }

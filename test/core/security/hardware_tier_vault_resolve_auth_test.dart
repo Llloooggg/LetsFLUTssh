@@ -5,22 +5,32 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // resolveAuthValue routes through `lfs_core::security::hardware_tier_vault`
+  // — bootstrap FRB so the canonical Rust HMAC + isolation grammar is
+  // exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   final salt = Uint8List.fromList(List.generate(32, (i) => i));
 
   Uint8List hmac(List<int> message) =>
       Uint8List.fromList(Hmac(sha256, salt).convert(message).bytes);
 
   group('HardwareTierVault.resolveAuthValue', () {
-    test('no password + no biometric → empty auth (isolation only)', () {
-      final out = HardwareTierVault.resolveAuthValue(
-        password: false,
-        biometric: false,
-        salt: salt,
-      );
-      expect(out, isNotNull);
-      expect(out, isEmpty);
-    });
+    test(
+      'no password + no biometric → null (Hardware tier always password-gated)',
+      () {
+        final out = HardwareTierVault.resolveAuthValue(
+          password: false,
+          biometric: false,
+          salt: salt,
+        );
+        expect(out, isNull);
+      },
+    );
 
     test('password only → HMAC(typedPassword, salt)', () {
       const pw = 'hunter2';

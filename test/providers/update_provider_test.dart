@@ -6,6 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
+
+import '../helpers/frb_bootstrap.dart';
 
 /// Stub UpdateService that resolves immediately with fixed results.
 class _StubUpdateService extends UpdateService {
@@ -72,8 +76,22 @@ void _clearPathProviderMock() {
       );
 }
 
+/// Scope the Rust-side support-dir singleton against `dir` so the
+/// stale-download cleanup (which now reads through
+/// `app::instance().support_dir()`) targets the per-case temp dir
+/// rather than whatever the first test in the binary pinned. The
+/// reset seam is `#[cfg(any(test, debug_assertions))]`-gated — only
+/// reachable from test + dev builds.
+void _scopeSupportDir(String dir) {
+  rust_app.appResetSupportDirForTests();
+  rust_config.configStoreInit(supportDir: dir);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // UpdateInfo.compareVersions routes through `lfs_core::update_metadata`
+  // — bootstrap FRB.
+  setUpAll(requireFrbLoaded);
 
   group('UpdateState', () {
     test('default status is idle', () {
@@ -209,6 +227,7 @@ void main() {
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('upd_test_');
       _mockPathProvider(tempDir.path);
+      _scopeSupportDir(tempDir.path);
     });
 
     tearDown(() async {
@@ -339,6 +358,7 @@ void main() {
         addTearDown(() => dir.deleteSync(recursive: true));
         _mockPathProvider(dir.path);
         addTearDown(_clearPathProviderMock);
+        _scopeSupportDir(dir.path);
 
         // Create a stale file with the same platform suffix
         final staleFile = File(
@@ -373,6 +393,7 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
       _mockPathProvider(dir.path);
       addTearDown(_clearPathProviderMock);
+      _scopeSupportDir(dir.path);
 
       // Create a file with a different suffix (e.g. a .dmg while we download .exe)
       final otherFile = File(
@@ -406,6 +427,7 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
       _mockPathProvider(dir.path);
       addTearDown(_clearPathProviderMock);
+      _scopeSupportDir(dir.path);
 
       final service = _StubUpdateService(
         onCheck: (_) => const UpdateInfo(
@@ -434,6 +456,7 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
       _mockPathProvider(dir.path);
       addTearDown(_clearPathProviderMock);
+      _scopeSupportDir(dir.path);
 
       final service = _StubUpdateService(
         onCheck: (_) => const UpdateInfo(

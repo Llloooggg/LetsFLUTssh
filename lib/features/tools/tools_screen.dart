@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../key_manager/key_manager_dialog.dart';
+import '../recordings/recordings_browser.dart';
 import '../settings/known_hosts_manager.dart';
 import '../snippets/snippet_manager_dialog.dart';
 import '../tags/tag_manager_dialog.dart';
@@ -54,6 +55,12 @@ class ToolsScreen extends StatelessWidget {
             title: Text(l10n.knownHosts),
             subtitle: Text(l10n.knownHostsSubtitle),
             onTap: () => KnownHostsManagerDialog.show(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.play_circle_outline),
+            title: Text(l10n.recordingsBrowserTitle),
+            subtitle: Text(l10n.recordingsBrowserSubtitle),
+            onTap: () => RecordingsBrowserDialog.show(context),
           ),
         ],
       ),

@@ -120,4 +120,77 @@ void main() {
       expect(error.port, isNull);
     });
   });
+
+  group('SSHError — _rootCauseMessage prefix stripping', () {
+    test('strips SocketException: prefix from string causes', () {
+      // Plain `Exception(message)` toString-prefixes "Exception: "; we
+      // strip that out for cleaner display. SocketException uses the
+      // same shape, but its toString is locale-sensitive in production
+      // — for this test we lean on the fact that the prefix-strip
+      // routine matches by string prefix, so a manually-constructed
+      // string-typed cause exercises the same code path.
+      const error = SSHError('outer', 'SocketException: Connection refused');
+      expect(error.userMessage, 'outer (Connection refused)');
+    });
+
+    test('strips Exception: prefix from string causes', () {
+      const error = SSHError('outer', 'Exception: inner-detail');
+      expect(error.userMessage, 'outer (inner-detail)');
+    });
+
+    test('strips SSHAuthFailError: prefix', () {
+      const error = SSHError('outer', 'SSHAuthFailError: bad password');
+      expect(error.userMessage, 'outer (bad password)');
+    });
+
+    test('strips SSHAuthAbortError: prefix', () {
+      const error = SSHError('outer', 'SSHAuthAbortError: cancelled');
+      expect(error.userMessage, 'outer (cancelled)');
+    });
+
+    test('non-prefixed string cause passes through verbatim', () {
+      const error = SSHError('outer', 'plain string detail');
+      expect(error.userMessage, 'outer (plain string detail)');
+    });
+
+    test('cause whose message equals the outer collapses to one copy', () {
+      // Pin the "cause echoes outer" branch — userMessage returns just
+      // the message without the redundant parenthesised cause.
+      const error = SSHError('same', 'same');
+      expect(error.userMessage, 'same');
+    });
+  });
+
+  group('ProxyJumpCycleError', () {
+    test('message names the offending session', () {
+      final err = ProxyJumpCycleError('sid-99');
+      expect(err.message, contains('sid-99'));
+      expect(err.offendingSessionId, 'sid-99');
+      expect(err, isA<SSHError>());
+    });
+  });
+
+  group('ProxyJumpDepthError', () {
+    test('message includes the depth limit', () {
+      final err = ProxyJumpDepthError(8);
+      expect(err.message, contains('8'));
+      expect(err.depth, 8);
+    });
+  });
+
+  group('ProxyJumpBastionError', () {
+    test('wraps the underlying cause + names the bastion', () {
+      const inner = ConnectError('refused');
+      final err = ProxyJumpBastionError('alice@bastion', inner);
+      expect(err.bastionLabel, 'alice@bastion');
+      expect(err.cause, same(inner));
+      expect(err.message, contains('alice@bastion'));
+    });
+
+    test('userMessage unwraps the cause for display', () {
+      const inner = ConnectError('refused');
+      final err = ProxyJumpBastionError('b', inner);
+      expect(err.userMessage, contains('refused'));
+    });
+  });
 }

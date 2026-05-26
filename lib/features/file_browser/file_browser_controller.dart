@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../src/rust/api/path.dart' as rust_path;
+import '../../src/rust/api/sftp_models.dart' as rust_sftp_models;
 import '../../utils/logger.dart';
 
 /// Sort column options for file table.
@@ -48,6 +50,11 @@ class FilePaneController extends ChangeNotifier {
   Set<String> _selected = {};
   bool _loading = false;
   Object? _error;
+  // Monotonic refresh token. Each `refresh()` claims the next value;
+  // an in-flight listing whose token is no longer current (the user
+  // navigated, or a later refresh started) drops its result so a slow
+  // listing of directory A can't land its entries under path B.
+  int _refreshGeneration = 0;
   SortColumn _sortColumn = SortColumn.name;
   bool _sortAscending = true;
 
@@ -72,6 +79,17 @@ class FilePaneController extends ChangeNotifier {
   /// to update a single row's trailing text.
   final ValueNotifier<int> _folderSizeRevision = ValueNotifier<int>(0);
   ValueListenable<int> get folderSizeRevision => _folderSizeRevision;
+
+  /// Per-axis listenable for the selection set. Exposed so the
+  /// file-row selection chip + the toolbar's "N selected"
+  /// counter can subscribe via [ValueListenableBuilder] /
+  /// [AnimatedBuilder] instead of the main [ChangeNotifier].
+  /// Selection toggles used to fan out through every listener
+  /// — every row repainted on every checkbox tap; per-axis
+  /// listening trims that to the rows that actually rebind.
+  final ValueNotifier<Set<String>> _selectedListenable =
+      ValueNotifier<Set<String>>(const <String>{});
+  ValueListenable<Set<String>> get selectedListenable => _selectedListenable;
 
   // Navigation history
   final _backStack = <String>[];
@@ -162,36 +180,20 @@ class FilePaneController extends ChangeNotifier {
 
   /// Go to parent directory.
   ///
-  /// Accepts both forward and backslash separators so the same
-  /// controller handles the Windows local pane (native paths like
-  /// `C:\Users\foo`) and the SFTP pane (always forward-slash) without
-  /// a platform branch at the call site. The `lastIndexOf('/')` form
-  /// that lived here dropped every Windows `Up` click back to `/`,
-  /// which the local `Directory.list` then rejected as "path not
-  /// found".
+  /// The Windows / POSIX parent grammar lives in
+  /// `lfs_core::path::parent` — one `DbPathStyle.auto` call handles
+  /// the Windows local pane (native paths like `C:\Users\foo`) and
+  /// the SFTP pane (always forward-slash) without a platform branch.
+  /// A `null` result means the current path is a root (POSIX `/`,
+  /// Windows drive root) with no parent, so `Up` is a no-op rather
+  /// than dropping to a directory the lister would reject.
   Future<void> navigateUp() async {
-    if (_currentPath.isEmpty || _currentPath == '/') return;
-    // Windows drive root — `C:\`, `D:/` — has no parent. Match both
-    // separator forms in case the fs layer handed us a trailing `/`.
-    if (RegExp(r'^[A-Za-z]:[\\/]?$').hasMatch(_currentPath)) return;
-    var parent = _currentPath;
-    if (parent.endsWith('/') || parent.endsWith(r'\')) {
-      parent = parent.substring(0, parent.length - 1);
-    }
-    final idx = parent.lastIndexOf(RegExp(r'[\\/]'));
-    if (idx < 0) return;
-    if (idx == 0) {
-      await navigateTo('/');
-      return;
-    }
-    final up = parent.substring(0, idx);
-    // `up` of `C:\Users` becomes `C:`; snap the drive root's
-    // trailing separator back so `list()` gets the canonical form.
-    if (RegExp(r'^[A-Za-z]:$').hasMatch(up)) {
-      await navigateTo('$up\\');
-      return;
-    }
-    await navigateTo(up);
+    final parent = rust_path.pathParent(
+      path: _currentPath,
+      style: rust_path.DbPathStyle.auto,
+    );
+    if (parent == null) return;
+    await navigateTo(parent);
   }
 
   /// Go back in navigation history.
@@ -214,17 +216,25 @@ class FilePaneController extends ChangeNotifier {
 
   /// Refresh current directory listing.
   Future<void> refresh() async {
+    final generation = ++_refreshGeneration;
+    final path = _currentPath;
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _entries = await fs.list(_currentPath);
+      final entries = await fs.list(path);
+      // A later refresh / navigation superseded this listing while
+      // `list` was in flight — drop the stale result rather than
+      // render directory `path`'s contents under the current path.
+      if (generation != _refreshGeneration) return;
+      _entries = entries;
       _sortEntries();
       _invalidateCaches();
     } catch (e) {
+      if (generation != _refreshGeneration) return;
       AppLogger.instance.log(
-        'Failed to list $_currentPath: $e',
+        'Failed to list $path: $e',
         name: 'FilePane',
         error: e,
       );
@@ -232,8 +242,12 @@ class FilePaneController extends ChangeNotifier {
       _entries = [];
       _invalidateCaches();
     } finally {
-      _loading = false;
-      notifyListeners();
+      // Only the latest refresh owns the loading flag; a superseded
+      // one leaves it to the refresh that replaced it.
+      if (generation == _refreshGeneration) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -246,6 +260,14 @@ class FilePaneController extends ChangeNotifier {
     _cachedSelectedEntries = null;
   }
 
+  // Selection mutators bump [_selectedListenable] but DO NOT call
+  // `notifyListeners()`. Selection consumers (file_pane row badge,
+  // footer counter) subscribe to the listenable via
+  // `ValueListenableBuilder` so a per-row toggle redraws only the
+  // affected rows + the counter, not the whole 700+-line pane
+  // tree. The broad ChangeNotifier still fires for entries / path /
+  // loading / sort changes.
+
   /// Toggle selection of a file entry.
   void toggleSelect(String path) {
     final newSet = Set<String>.from(_selected);
@@ -256,28 +278,28 @@ class FilePaneController extends ChangeNotifier {
     }
     _selected = newSet;
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Select a single entry (clear others).
   void selectSingle(String path) {
     _selected = {path};
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Clear selection.
   void clearSelection() {
     _selected = {};
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Select all entries.
   void selectAll() {
     _selected = _entries.map((e) => e.path).toSet();
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Change sort column/direction.
@@ -292,34 +314,35 @@ class FilePaneController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-sort `_entries` in place by the active column + direction.
+  /// The comparison grammar (dir-first, case-folding, numeric /
+  /// temporal ordering) lives in `lfs_core::sftp_models` — this only
+  /// maps the pane's [SortColumn] to the Rust [rust_sftp_models.DbSortField].
   void _sortEntries() {
-    _entries.sort((a, b) {
-      // Directories always first
-      if (a.isDir && !b.isDir) return -1;
-      if (!a.isDir && b.isDir) return 1;
-
-      int cmp;
-      switch (_sortColumn) {
-        case SortColumn.name:
-          cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        case SortColumn.size:
-          cmp = a.size.compareTo(b.size);
-        case SortColumn.mode:
-          cmp = a.mode.compareTo(b.mode);
-        case SortColumn.modified:
-          cmp = a.modTime.compareTo(b.modTime);
-        case SortColumn.owner:
-          cmp = a.owner.toLowerCase().compareTo(b.owner.toLowerCase());
-      }
-      return _sortAscending ? cmp : -cmp;
-    });
+    sortFileEntriesBy(_entries, _rustSortField(_sortColumn), _sortAscending);
   }
 
-  /// Set selection to a specific set of paths.
+  static rust_sftp_models.DbSortField _rustSortField(SortColumn column) {
+    switch (column) {
+      case SortColumn.name:
+        return rust_sftp_models.DbSortField.name;
+      case SortColumn.size:
+        return rust_sftp_models.DbSortField.size;
+      case SortColumn.mode:
+        return rust_sftp_models.DbSortField.mode;
+      case SortColumn.modified:
+        return rust_sftp_models.DbSortField.modified;
+      case SortColumn.owner:
+        return rust_sftp_models.DbSortField.owner;
+    }
+  }
+
+  /// Set selection to a specific set of paths. See the selection-
+  /// mutator note above for why this skips `notifyListeners()`.
   void selectPaths(Set<String> paths) {
     _selected = paths;
     _invalidateSelectionCache();
-    notifyListeners();
+    _selectedListenable.value = _selected;
   }
 
   /// Total size of all non-directory entries (cached).
@@ -341,6 +364,7 @@ class FilePaneController extends ChangeNotifier {
     _backStack.clear();
     _forwardStack.clear();
     _folderSizeRevision.dispose();
+    _selectedListenable.dispose();
     super.dispose();
   }
 }

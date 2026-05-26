@@ -1,18 +1,12 @@
-import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
-import 'dart:math';
 
-import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/logger.dart';
-import 'linux/tpm_client.dart';
 
-/// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
+/// Hardware-bound DB-key vault for T2 (Hardware + PIN) tier.
 ///
 /// The DB key is sealed inside a hardware module under an auth value
 /// derived from the user's PIN. The platform's hardware-enforced
@@ -21,91 +15,50 @@ import 'linux/tpm_client.dart';
 /// PIN is infeasible when the hardware locks out after N wrong
 /// attempts.
 ///
-/// Platform dispatch:
-/// - **Linux** — `TpmClient` + `tpm2-tools` shell-out. Sealed blob
-///   lives in `hardware_vault.bin` alongside the salt.
-/// - **iOS / macOS** — MethodChannel to `HardwareVaultPlugin.swift`
-///   which wraps the DB key under a Secure Enclave P-256 key bound
-///   by `.biometryCurrentSet`.
-/// - **Android** — MethodChannel to `HardwareVaultPlugin.kt`; AES-
-///   GCM wrap under a Keystore key with StrongBox preferred,
-///   `setUserAuthenticationRequired(true)` + `setInvalidatedBy
-///   BiometricEnrollment(true)`.
-/// - **Windows** — MethodChannel to `hardware_vault_plugin.cpp`;
-///   CNG `NCrypt` on the Microsoft Platform Crypto Provider (TPM
-///   2.0) with RSA-OAEP-SHA-256 wrap. Primary wrap is silent — the
-///   PIN-HMAC gates decrypt so there is no Hello prompt on unlock.
-///   Biometric overlay is a second NCrypt key with
-///   `NCRYPT_UI_PROTECT_KEY_FLAG` that Hello gates on each decrypt.
+/// Platform dispatch — every supported platform now lives behind FRB
+/// inside the Rust workspace; there is no remaining native-plugin
+/// path:
+/// - **Linux** — `lfs_core::security::hardware_tier_vault::linux`.
+///   The orchestrator runs `tpm2-tools` as a Rust subprocess and
+///   writes `hardware_vault.bin` (salt + sealed blob co-located)
+///   atomically — no shell-out from Dart.
+/// - **iOS / macOS** — `lfs_os_security::hardware_tier_vault::apple`.
+///   Direct `security-framework` + `objc2` calls; SE-bound wrap
+///   (`ECIESEncryptionCofactorVariableIVX963SHA256AESGCM`) +
+///   on-disk envelope.
+/// - **Android** — `lfs_os_security::android::hardware_vault`.
+///   Direct JNI to `java.security.KeyStore` provider
+///   `"AndroidKeyStore"` with `setIsStrongBoxBacked(true)` (API 28+,
+///   silent fallback to TEE on `StrongBoxUnavailableException`).
+/// - **Windows** — `lfs_os_security::windows::hardware_vault`. CNG
+///   `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0)
+///   with RSA-OAEP-SHA-256 wrap; persistent key
+///   `letsflutssh_hardware_vault_v1` lives in the user-scoped key
+///   container with `NCRYPT_UI_PROTECT_KEY_FLAG`.
 ///
-/// The PIN itself cannot be the auth value on Apple/Android/Windows
-/// because those APIs do not accept arbitrary secrets — they gate
-/// on biometrics / Hello. The PIN is therefore an **external HMAC
-/// gate**: Dart computes `HMAC(pin, salt)` and hands it to the
-/// native side, which refuses to unseal unless the gate matches
-/// the value saved on `store`. Wrong PIN fails locally without
-/// waking the biometric prompt. Salt lives in
-/// `hardware_vault_salt.bin` so two installs with the same PIN
-/// produce different gates.
+/// The PIN itself cannot be the auth value on Apple / Android /
+/// Windows because those APIs do not accept arbitrary secrets —
+/// they gate on biometrics / Hello. The PIN is therefore an
+/// **external HMAC gate**: the user-typed PIN crosses FRB once into
+/// the combined `hardwareTierVaultStoreWithPin` /
+/// `hardwareTierVaultReadWithPin` / `…StoreFromSecretWithPin` call,
+/// Rust HMACs it under the per-install salt, and the native side
+/// refuses to unseal unless the gate matches the value saved on
+/// `store`. Wrong PIN fails locally without waking the biometric
+/// prompt. On Apple / Android / Windows the salt lives in
+/// `hardware_vault_salt.bin` next to the wrapped key; on Linux it's
+/// co-located inside `hardware_vault.bin` since the entire envelope
+/// is one file.
 class HardwareTierVault {
-  HardwareTierVault({
-    TpmClient? tpmClient,
-    MethodChannel? channel,
-    Future<File> Function()? stateFileFactory,
-    Future<File> Function()? saltFileFactory,
-    Random? random,
-  }) : _tpm = tpmClient ?? TpmClient(),
-       _channel = channel ?? const MethodChannel(_channelName),
-       _stateFile = stateFileFactory ?? _defaultStateFile,
-       _saltFile = saltFileFactory ?? _defaultSaltFile,
-       _random = random ?? Random.secure();
-
-  static const _channelName = 'com.letsflutssh/hardware_vault';
-  static const _fileName = 'hardware_vault.bin';
-  static const _saltFileName = 'hardware_vault_salt.bin';
-  static const _saltLength = 32;
-
-  final TpmClient _tpm;
-  final MethodChannel _channel;
-  final Future<File> Function() _stateFile;
-  final Future<File> Function() _saltFile;
-  final Random _random;
-
-  static Future<File> _defaultStateFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _fileName));
-  }
-
-  static Future<File> _defaultSaltFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _saltFileName));
-  }
-
-  bool get _usesMethodChannel =>
-      Platform.isIOS ||
-      Platform.isMacOS ||
-      Platform.isAndroid ||
-      Platform.isWindows;
+  HardwareTierVault();
 
   /// True when the current platform can host the Hardware tier
-  /// *today*. Linux returns true iff `/dev/tpmrm0` is accessible
-  /// and `tpm2-tools` is installed; other platforms ask their
-  /// native plugin.
+  /// *today*. The Rust FRB shim covers every supported OS — Apple
+  /// SE / Android Keystore / Windows CNG via `lfs_os_security`,
+  /// Linux TPM2 via `lfs_core::platform::linux::tpm` (CLI shell-out
+  /// is a Rust subprocess).
   Future<bool> isAvailable() async {
-    if (Platform.isLinux) return _tpm.isAvailable();
-    if (_usesMethodChannel) {
-      try {
-        final result = await _channel.invokeMethod<bool>('isAvailable');
-        return result ?? false;
-      } catch (e) {
-        AppLogger.instance.log(
-          'HardwareTierVault.isAvailable channel error: $e',
-          name: 'HardwareTierVault',
-        );
-        return false;
-      }
-    }
-    return false;
+    return await rust_vault.hardwareTierVaultIsAvailable();
   }
 
   /// Classified hardware-unavailable reason. Returns an opaque
@@ -116,21 +69,11 @@ class HardwareTierVault {
   /// when the channel call fails. The Dart-side provider maps this
   /// to the `HardwareProbeDetail` enum and the localised hint copy.
   ///
-  /// Linux is handled by `TpmClient.probe()` at the provider layer
-  /// and never enters this method — the TPM CLI is local, richer,
-  /// and does not round-trip through a method channel.
+  /// Linux is handled by the provider-layer FRB call into
+  /// `lfs_core::platform::linux::tpm::probe` and never enters this
+  /// method.
   Future<String> probeDetail() async {
-    if (!_usesMethodChannel) return 'unknown';
-    try {
-      final result = await _channel.invokeMethod<String>('probeDetail');
-      return result ?? 'unknown';
-    } catch (e) {
-      AppLogger.instance.log(
-        'HardwareTierVault.probeDetail channel error: $e',
-        name: 'HardwareTierVault',
-      );
-      return 'unknown';
-    }
+    return await rust_vault.hardwareTierVaultProbeDetail();
   }
 
   /// True when a sealed blob is on disk. Linux inspects
@@ -140,16 +83,18 @@ class HardwareTierVault {
   Future<bool> isStored() async {
     try {
       if (Platform.isLinux) {
-        final file = await _stateFile();
-        return file.exists();
+        // Linux orchestrator co-locates salt + sealed inside
+        // `hardware_vault.bin` — single-file presence is the
+        // whole contract.
+        return await rust_vault.hardwareTierVaultIsStored();
       }
-      if (_usesMethodChannel) {
-        final saltFile = await _saltFile();
-        if (!await saltFile.exists()) return false;
-        final result = await _channel.invokeMethod<bool>('isStored');
-        return result ?? false;
-      }
-      return false;
+      // Apple / Android / Windows keep the wrapped key inside the
+      // platform vault; the salt rides next to it on disk under
+      // `hardware_vault_salt.bin`. Both halves required —
+      // half-wiped state is a reset, not an unlock.
+      final salt = await rust_vault.hardwareTierVaultReadSalt();
+      if (salt == null) return false;
+      return await rust_vault.hardwareTierVaultIsStored();
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.isStored failed: $e',
@@ -171,42 +116,28 @@ class HardwareTierVault {
   Future<bool> store({required Uint8List dbKey, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
-      final salt = _randomBytes(_saltLength);
-      final authValue = _deriveAuth(pin, salt);
-      if (Platform.isLinux) {
-        final sealed = await _tpm.seal(dbKey, authValue: authValue);
-        if (sealed == null) return false;
-
-        final file = await _stateFile();
-        await file.parent.create(recursive: true);
-        final blob = jsonEncode({
-          'salt': base64.encode(salt),
-          'sealed': base64.encode(sealed),
-        });
-        // Atomic write — a crash mid-flush on direct `writeAsBytes`
-        // could leave `hardware_vault.bin` half-written, bricking the
-        // tier (unseal path reads the JSON and throws on malformed
-        // input; user sees "unlock failed" with no recoverable state).
-        // `writeBytesAtomic` writes to `<path>.tmp` first, chmods it,
-        // then renames — either the previous sealed blob survives or
-        // the new one does, never a torn file.
-        await writeBytesAtomic(file.path, utf8.encode(blob));
+      try {
+        // Salt provision, HMAC, and platform-vault store all run
+        // inside the same Rust task — the PIN crosses FRB once
+        // into `hardwareTierVaultStoreWithPin` and the derived
+        // auth value never leaves Rust. Salt-then-vault ordering
+        // still applies: a crash between the salt write and the
+        // vault store leaves the next launch with a sibling salt
+        // and no wrapped key, which `is_stored` surfaces as
+        // "not configured" and the next attempt re-provisions
+        // cleanly.
+        await rust_vault.hardwareTierVaultStoreWithPin(
+          dbKey: dbKey,
+          pin: pin ?? '',
+        );
         return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.store (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return false;
       }
-      if (_usesMethodChannel) {
-        final ok =
-            await _channel.invokeMethod<bool>('store', <String, Object>{
-              'dbKey': dbKey,
-              'pinHmac': authValue,
-            }) ??
-            false;
-        if (!ok) return false;
-        // Native side persisted the wrapped key; Dart keeps the salt
-        // so the unseal path can re-derive the HMAC gate.
-        await _writeSaltFile(salt);
-        return true;
-      }
-      return false;
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.store failed: $e',
@@ -216,44 +147,71 @@ class HardwareTierVault {
     }
   }
 
+  /// SecretRef variant — pulls the DB key from the Rust-side
+  /// `SecretStore` under [secretId] instead of materialising it as
+  /// `Uint8List` Dart-side. Routes through
+  /// `hardware_tier_vault_store_from_secret_with_pin` so neither the
+  /// DB-key bytes nor the derived auth value cross the FRB boundary.
+  Future<bool> storeFromSecret({required String secretId, String? pin}) async {
+    try {
+      if (!await isAvailable()) return false;
+      try {
+        // Salt-then-vault ordering: same rationale as `store`.
+        // Failing the salt provision before touching the vault
+        // means the live state stays whatever it was before this
+        // call started; the user's prior entry (if any) is intact
+        // and the next attempt re-derives a fresh salt cleanly.
+        // On Linux the salt rides inside `hardware_vault.bin`,
+        // so the provision call returns the bytes without writing
+        // a sibling file. The PIN crosses FRB once into the
+        // combined call and the HMAC happens Rust-side.
+        await rust_vault.hardwareTierVaultStoreFromSecretWithPin(
+          secretId: secretId,
+          pin: pin ?? '',
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.storeFromSecret (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return false;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.storeFromSecret failed: $e',
+        name: 'HardwareTierVault',
+      );
+      return false;
+    }
+  }
+
   /// Unseal the DB key using [pin]. Returns null on wrong PIN,
-  /// missing state, unsupported platform, or any other failure —
-  /// the rate limiter layered on top is responsible for backoff.
+  /// missing state, or any other failure — the rate limiter layered
+  /// on top is responsible for backoff.
   ///
   /// When [pin] is null or empty the derivation mirrors [store]'s
   /// passwordless branch (empty auth value), so a vault sealed
-  /// without a PIN unseals without a PIN. Callers that persist
-  /// `SecurityTierModifiers.password = false` go through this
-  /// branch silently — no unlock dialog.
+  /// without a PIN unseals without a PIN.
   Future<Uint8List?> read(String? pin) async {
     try {
       if (!await isAvailable()) return null;
-      if (Platform.isLinux) {
-        final file = await _stateFile();
-        if (!await file.exists()) return null;
-
-        final raw = await file.readAsBytes();
-        final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-        final saltB64 = decoded['salt'];
-        final sealedB64 = decoded['sealed'];
-        if (saltB64 is! String || sealedB64 is! String) return null;
-
-        final salt = base64.decode(saltB64);
-        final sealed = base64.decode(sealedB64);
-        final authValue = _deriveAuth(pin, salt);
-        return _tpm.unseal(sealed, authValue: authValue);
-      }
-      if (_usesMethodChannel) {
-        final salt = await _readSaltFile();
-        if (salt == null) return null;
-        final authValue = _deriveAuth(pin, salt);
-        final dbKey = await _channel.invokeMethod<Uint8List>(
-          'read',
-          <String, Object>{'pinHmac': authValue},
+      try {
+        // Combined read: salt resolution (Linux co-located inside
+        // `hardware_vault.bin`, others sibling
+        // `hardware_vault_salt.bin`), HMAC under that salt, and
+        // platform-vault unwrap all run inside the same Rust
+        // task. The PIN crosses FRB once into
+        // `hardwareTierVaultReadWithPin` and the derived auth
+        // value never leaves Rust.
+        return await rust_vault.hardwareTierVaultReadWithPin(pin: pin ?? '');
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.read (Rust): $e',
+          name: 'HardwareTierVault',
         );
-        return dbKey;
+        return null;
       }
-      return null;
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.read failed: $e',
@@ -263,31 +221,61 @@ class HardwareTierVault {
     }
   }
 
-  /// Drop the sealed blob. Called on tier switch away from L3 and
+  /// True when a platform-bound biometric overlay (sealed master
+  /// password) is on disk for the Hardware tier. The overlay is a
+  /// shortcut that releases the typed password from an
+  /// OS-biometric-gated slot; absent overlay means the user has to
+  /// type the password every time.
+  ///
+  /// Apple (Secure Enclave + `kSecAccessControlBiometryCurrentSet`),
+  /// Android (Hardware Keystore + biometric-bound wrap key alias
+  /// `lfs.hardware_tier_vault.l3.bio`), Windows (NCrypt persistent
+  /// key `letsflutssh_hardware_vault_bio_v1` gated by
+  /// `NCRYPT_UI_PROTECT_KEY_FLAG`), and Linux (TPM2-sealed
+  /// `hardware_vault_password_overlay_linux.bin` keyed by the
+  /// fprintd enrolment hash) all support the overlay. The Linux
+  /// arm needs `fprintd` running with at least one enrolled finger;
+  /// a missing daemon surfaces as the `vaultPlatformUnsupported`
+  /// FRB envelope on store / read, and `isBiometricPasswordStored`
+  /// reports the file's presence regardless so wipe can still clean
+  /// it up.
+  Future<bool> isBiometricPasswordStored() async {
+    try {
+      return await rust_vault.hardwareTierVaultIsBiometricPasswordStored();
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.isBiometricPasswordStored failed: $e',
+        name: 'HardwareTierVault',
+      );
+      return false;
+    }
+  }
+
+  /// Drop the sealed blob. Called on tier switch away from T2 and
   /// on PIN change (before a new [store]).
   Future<void> clear() async {
     try {
-      if (Platform.isLinux) {
-        final file = await _stateFile();
-        if (await file.exists()) await file.delete();
-        return;
+      try {
+        await rust_vault.hardwareTierVaultClear();
+      } catch (e) {
+        // Best-effort — the salt file is authoritative for "is
+        // stored" on Apple / Android / Windows, so failing the
+        // Rust-side clear still degrades safely into "locked out".
+        // Log so a support trace points at a stale native-side
+        // blob the next tier-switch has to tolerate. Linux
+        // co-locates both halves so the Rust clear *is* the whole
+        // clear; failure there leaves a stuck file the next
+        // attempt overwrites.
+        AppLogger.instance.log(
+          'HardwareTierVault.clear (Rust) failed (salt delete continues): $e',
+          name: 'HardwareTierVault',
+        );
       }
-      if (_usesMethodChannel) {
-        try {
-          await _channel.invokeMethod<bool>('clear');
-        } catch (e) {
-          // Best-effort — the salt file is authoritative for "is
-          // stored", so failing to tell the native side about a
-          // clear still degrades safely into "locked out". Log the
-          // native miss anyway so a support trace points at a stale
-          // native-side blob the next tier-switch has to tolerate.
-          AppLogger.instance.log(
-            'HardwareTierVault native clear failed (salt delete continues): $e',
-            name: 'HardwareTierVault',
-          );
-        }
-        final saltFile = await _saltFile();
-        if (await saltFile.exists()) await saltFile.delete();
+      // Apple / Android / Windows keep the salt in a sibling
+      // file; drop it Rust-side now. Linux co-locates the salt
+      // inside the envelope and is already cleared above.
+      if (!Platform.isLinux) {
+        await rust_vault.hardwareTierVaultDeleteSalt();
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -295,50 +283,6 @@ class HardwareTierVault {
         name: 'HardwareTierVault',
       );
     }
-  }
-
-  Future<void> _writeSaltFile(Uint8List salt) async {
-    final file = await _saltFile();
-    await file.parent.create(recursive: true);
-    // Salt is half of the unseal contract on method-channel platforms
-    // (the other half lives inside the native hw-vault); a torn salt
-    // file from a mid-write crash would fail HMAC derivation and
-    // permanently lock the user out. Atomic write rules out that
-    // tear — the previous salt survives on failure.
-    await writeBytesAtomic(file.path, salt);
-  }
-
-  Future<Uint8List?> _readSaltFile() async {
-    try {
-      final file = await _saltFile();
-      if (!await file.exists()) return null;
-      final bytes = await file.readAsBytes();
-      if (bytes.length != _saltLength) return null;
-      return bytes;
-    } catch (e) {
-      AppLogger.instance.log(
-        'HardwareTierVault._readSaltFile failed: $e',
-        name: 'HardwareTierVault',
-      );
-      return null;
-    }
-  }
-
-  /// Derive a 32-byte auth value from the user's PIN + the
-  /// per-install salt. HMAC-SHA256 rather than Argon2id because the
-  /// hardware lockout is the rate limiter; slowing this derivation
-  /// would only slow the legitimate user. Salting still matters —
-  /// it keeps the sealed blob device-specific even when two users
-  /// pick the same PIN.
-  /// HMAC the typed pin under the per-install [salt], or return an
-  /// empty auth value when the caller passed null / empty — the
-  /// "passwordless T2" path. The empty value is a stable choice:
-  /// every store / read pair derived this way agrees byte-for-byte,
-  /// so a vault sealed passwordless always unseals passwordless.
-  Uint8List _deriveAuth(String? pin, Uint8List salt) {
-    if (pin == null || pin.isEmpty) return Uint8List(0);
-    final mac = Hmac(sha256, salt);
-    return Uint8List.fromList(mac.convert(utf8.encode(pin)).bytes);
   }
 
   /// Resolve the TPM / hw-vault auth value for a (password, biometric)
@@ -361,9 +305,10 @@ class HardwareTierVault {
   /// Callers surface null as "modifier resolution failed — treat as a
   /// cancelled unlock" so we never silently fall back to an empty auth.
   ///
-  /// Pure helper today; callers plumb it into `store` / `read` once
-  /// the `SecurityTierModifiers` shape is fully consumed at the rekey
-  /// / switcher layer.
+  /// Routes through `lfs_core::security::hardware_tier_vault::
+  /// resolve_auth_value` (FRB sync) so the (password, biometric) →
+  /// auth-bytes contract lives one place across the Linux TPM
+  /// path + the per-platform Rust vault paths.
   @visibleForTesting
   static Uint8List? resolveAuthValue({
     required bool password,
@@ -372,24 +317,13 @@ class HardwareTierVault {
     String? typedPassword,
     Uint8List? fprintdHash,
   }) {
-    if (biometric) {
-      if (fprintdHash == null || fprintdHash.isEmpty) return null;
-      final mac = Hmac(sha256, salt);
-      return Uint8List.fromList(mac.convert(fprintdHash).bytes);
-    }
-    if (password) {
-      if (typedPassword == null || typedPassword.isEmpty) return null;
-      final mac = Hmac(sha256, salt);
-      return Uint8List.fromList(mac.convert(utf8.encode(typedPassword)).bytes);
-    }
-    return Uint8List(0);
-  }
-
-  Uint8List _randomBytes(int n) {
-    final out = Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      out[i] = _random.nextInt(256);
-    }
-    return out;
+    final v = rust_vault.hardwareTierVaultResolveAuthValue(
+      password: password,
+      biometric: biometric,
+      salt: salt,
+      typedPassword: typedPassword,
+      fprintdHash: fprintdHash,
+    );
+    return v == null ? null : Uint8List.fromList(v);
   }
 }

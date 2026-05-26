@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/app_button.dart';
-import 'package:letsflutssh/widgets/expandable_tier_card.dart';
+import 'package:letsflutssh/widgets/core/app_button.dart';
+import 'package:letsflutssh/widgets/security/expandable_tier_card.dart';
+
+import '../helpers/frb_bootstrap.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
@@ -15,12 +17,18 @@ Future<void> _noop({
   required SecurityTier tier,
   required SecurityTierModifiers modifiers,
   String? shortPassword,
-  String? pin,
+  String? hardwarePassword,
   String? masterPassword,
   bool? pendingBiometric,
 }) async {}
 
 void main() {
+  // ExpandableTierCard renders threat rows via `evaluate()`, which
+  // routes through `lfs_core::threat_vocabulary` — bootstrap FRB so
+  // the card can build.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('ExpandableTierCard', () {
     testWidgets('expands and collapses on header tap', (tester) async {
       await tester.pumpWidget(
@@ -139,7 +147,7 @@ void main() {
         required SecurityTier tier,
         required SecurityTierModifiers modifiers,
         String? shortPassword,
-        String? pin,
+        String? hardwarePassword,
         String? masterPassword,
         bool? pendingBiometric,
       }) async {
@@ -181,7 +189,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {
@@ -228,7 +236,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {
@@ -269,7 +277,7 @@ void main() {
           required SecurityTier tier,
           required SecurityTierModifiers modifiers,
           String? shortPassword,
-          String? pin,
+          String? hardwarePassword,
           String? masterPassword,
           bool? pendingBiometric,
         }) async {
@@ -362,12 +370,12 @@ void main() {
         );
 
         // Simulate user applying password on → parent rebuild lands
-        // the card with currentTier=keychainWithPassword + password=true.
+        // the card with currentTier=keychain + password=true.
         await tester.pumpWidget(
           _wrap(
             const ExpandableTierCard(
               tier: SecurityTier.keychain,
-              currentTier: SecurityTier.keychainWithPassword,
+              currentTier: SecurityTier.keychain,
               currentModifiers: SecurityTierModifiers(password: true),
               tierAvailable: true,
               initiallyExpanded: true,

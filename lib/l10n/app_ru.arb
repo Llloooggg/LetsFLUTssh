@@ -21,7 +21,10 @@
   "select": "Выбрать",
   "copyModeTapToStart": "Коснитесь, чтобы отметить начало выделения",
   "copyModeExtending": "Ведите пальцем, чтобы расширить выделение",
+  "copyModeSetAnchor": "Поставить якорь",
+  "copyModeCopySelection": "Скопировать выделение",
   "required": "Обязательное поле",
+  "errFillRequiredFields": "Заполните обязательные поля, отмеченные *",
   "settings": "Настройки",
   "appSettings": "Настройки приложения",
   "includePasswords": "Пароли сессий",
@@ -69,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Не удалось запустить установщик; открыта страница релиза в браузере",
   "versionAvailable": "Доступна версия {version}",
   "currentVersion": "Текущая: v{version}",
-  "sshKeyReceived": "SSH-ключ получен: {filename}",
   "importedSessions": "Импортировано сессий: {count}",
   "importFailed": "Ошибка импорта: {error}",
   "importSkippedLinks": "{count, plural, =1{отброшена {count} связь (цель отсутствует)} few{отброшено {count} связи (цели отсутствуют)} many{отброшено {count} связей (цели отсутствуют)} other{отброшено {count} связей (цели отсутствуют)}}",
@@ -104,8 +106,17 @@
   "deleteSessionConfirm": "Удалить \"{name}\"?",
   "connection": "Подключение",
   "auth": "Авторизация",
+  "sectionAuthentication": "Аутентификация",
+  "sectionAdvanced": "Дополнительно",
+  "moreOptions": "Дополнительно",
+  "forwardRulesSummary": "{count, plural, =0{Нет правил проброса портов} one{{count} правило проброса} few{{count} правила проброса} many{{count} правил проброса} other{{count} правил проброса}}",
+  "manageRules": "Управлять…",
+  "authMethodAgent": "Использовать системный ssh-agent",
   "options": "Параметры",
   "sessionName": "Имя сессии",
+  "sessionNameAutoFromHost": "Авто из host",
+  "sessionNameAutoFromUrl": "Авто из host'а URL",
+  "sessionNameAutoFromBucket": "Авто из default bucket",
   "hintMyServer": "Мой сервер",
   "hostRequired": "Хост *",
   "hintHost": "192.168.1.1",
@@ -117,6 +128,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Парольная фраза ключа",
   "hintOptional": "Необязательно",
+  "savedTypeToChange": "Сохранено — введите для замены",
   "hidePemText": "Скрыть PEM-текст",
   "pastePemKeyText": "Вставить PEM-текст ключа",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +164,6 @@
   "confirmPassword": "Подтверждение пароля",
   "importModeMergeDescription": "Добавить новые сессии, сохранить существующие",
   "importModeReplaceDescription": "Заменить все сессии импортированными",
-  "errorPrefix": "Ошибка: {error}",
   "folderName": "Имя папки",
   "newName": "Новое имя",
   "deleteItems": "Удалить {names}?",
@@ -203,7 +214,10 @@
   "parallelWorkers": "Параллельные потоки",
   "maxHistory": "Макс. история",
   "calculateFolderSizes": "Вычислять размеры папок",
+  "verboseConnectionLog": "Подробный лог подключения",
+  "verboseConnectionLogSubtitle": "Записывать полный трейс SSH-хендшейка и аутентификации в файл лога (для диагностики ошибок подключения)",
   "exportData": "Экспорт данных",
+  "exportRecordings": "Записи сессий",
   "sshConfigPreviewHostsFound": "Найдено хостов: {count}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -274,7 +288,6 @@
   "urlCopied": "URL скопирован в буфер обмена",
   "aboutSubtitle": "v{version} — SSH/SFTP клиент",
   "sourceCode": "Исходный код",
-  "enableLogging": "Включить журналирование",
   "logIsEmpty": "Журнал пуст",
   "logExportedTo": "Журнал экспортирован в: {path}",
   "logExportFailed": "Ошибка экспорта журнала: {error}",
@@ -307,20 +320,56 @@
   "completed": "Завершено",
   "connected": "Подключено",
   "disconnected": "Отключено",
+  "a11yConnectingTo": "Подключение к {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Подключено к {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Отключено от {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Не удалось подключиться к {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Выход",
   "exitConfirmation": "Активные сессии будут отключены. Выйти?",
   "hintFolderExample": "напр. Production",
   "credentialsNotSet": "Учётные данные не заданы",
   "exportSessionsViaQr": "Экспорт сессий через QR",
-  "qrNoCredentialsWarning": "Пароли и SSH-ключи НЕ включены.\nДля импортированных сессий потребуется заполнить учётные данные.",
   "qrTooManyForSingleCode": "Слишком много сессий для одного QR-кода. Снимите часть выделения или используйте экспорт в .lfs.",
   "qrTooLarge": "Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.",
-  "exportAll": "Экспортировать все",
   "showQr": "Показать QR",
   "sort": "Сортировка",
   "resizePanelDivider": "Изменить размер разделителя панелей",
   "youreRunningLatest": "У вас установлена последняя версия",
   "liveLog": "Лог в реальном времени",
+  "archivedLog": "Архивный лог",
+  "loggingLevel": "Уровень логирования",
+  "loggingLevelSubtitleInfo": "Обычные записи + предупреждения + ошибки",
+  "loggingLevelSubtitleWarn": "Только проблемные пути и ошибки",
+  "loggingLevelSubtitleError": "Только ошибки",
+  "loggingLevelSubtitleOff": "Обычные логи не пишутся",
   "time": "Время",
   "failed": "Ошибка",
   "transferNItems": "Передать {count} элементов",
@@ -401,20 +450,11 @@
   "errLfsUnsupportedVersion": "Архив использует схему v{found}, а эта сборка поддерживает только до v{supported}. Обновите приложение для импорта.",
   "progressReadingArchive": "Чтение архива…",
   "progressDecrypting": "Расшифровка…",
-  "progressParsingArchive": "Разбор архива…",
-  "progressImportingSessions": "Импорт сессий",
-  "progressImportingFolders": "Импорт папок",
-  "progressImportingManagerKeys": "Импорт SSH-ключей",
-  "progressImportingTags": "Импорт тегов",
-  "progressImportingSnippets": "Импорт сниппетов",
-  "progressApplyingConfig": "Применение конфигурации…",
-  "progressImportingKnownHosts": "Импорт known_hosts…",
   "progressCollectingData": "Сбор данных…",
   "progressEncrypting": "Шифрование…",
   "progressWritingArchive": "Запись архива…",
   "progressWorking": "Обработка…",
-  "saveSessionToAssignTags": "Сначала сохраните сессию, чтобы назначить теги",
-  "noTagsAssigned": "Теги не назначены",
+  "noTagsAvailable": "Тегов пока нет — создайте в Tools → Tags.",
   "manageTags": "Управление тегами",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
@@ -447,11 +487,6 @@
   "transferTooltipEnded": "Завершено: {time}",
   "transferTooltipDuration": "Длительность: {duration}",
   "transferStatusQueued": "В очереди",
-  "transferStartingUpload": "Начало загрузки...",
-  "transferStartingDownload": "Начало скачивания...",
-  "transferCopying": "Копирование...",
-  "transferDone": "Готово",
-  "transferFilesProgress": "{done}/{total} файлов",
   "fileConflictTitle": "Файл уже существует",
   "fileConflictMessage": "\"{fileName}\" уже существует в {targetDir}. Что сделать?",
   "fileConflictSkip": "Пропустить",
@@ -489,6 +524,7 @@
   "noKeys": "Нет SSH-ключей. Импортируйте или сгенерируйте.",
   "generateKey": "Сгенерировать ключ",
   "addKey": "Добавить ключ",
+  "addKeyMenuPaste": "Вставить PEM",
   "filePickerUnavailable": "Файловый пикер недоступен в этой системе",
   "importKey": "Импортировать ключ",
   "keyLabel": "Название ключа",
@@ -502,20 +538,37 @@
   "keyDeleted": "Ключ удалён: {label}",
   "publicKey": "Публичный ключ",
   "publicKeyCopied": "Публичный ключ скопирован в буфер обмена",
+  "sshCertificate": "Сертификат",
+  "certImport": "Импортировать сертификат",
+  "certImportTooltip": "Прикрепить OpenSSH-сертификат, подписанный вашим CA (файл `-cert.pub` от `ssh-keygen -s …`). Используйте, когда серверы проверяют по подписи CA вместо `authorized_keys`. Пропустите, если ваши серверы используют plain key auth.",
+  "certImportPickerTitle": "Выберите файл сертификата OpenSSH",
+  "certValidFrom": "Действителен с",
+  "certValidTo": "Действителен до",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Срок действия сертификата скоро истекает.",
+  "certExpired": "Истёк",
+  "certRemove": "Удалить сертификат",
+  "certRemoveConfirmTitle": "Удалить сертификат?",
+  "certRemoveConfirmBody": "После удаления сертификата сессия будет подключаться по обычному публичному ключу.",
+  "errCertParse": "Не удалось разобрать сертификат: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Этот сертификат не привязан к выбранному ключу.",
   "pastePrivateKey": "Вставить приватный ключ (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Некорректный PEM-ключ",
   "selectFromKeyStore": "Выбрать из хранилища ключей",
   "keyCount": "{count, plural, =0{Нет ключей} =1{1 ключ} few{{count} ключа} other{{count} ключей}}",
   "generated": "Сгенерирован",
-  "passphraseRequired": "Требуется парольная фраза",
-  "passphrasePrompt": "SSH-ключ для {host} зашифрован. Введите парольную фразу для разблокировки.",
-  "passphraseWrong": "Неверная парольная фраза. Попробуйте ещё раз.",
   "passphrase": "Парольная фраза",
-  "rememberPassphrase": "Запомнить для этой сессии",
   "enterMasterPassword": "Введите мастер-пароль для доступа к сохранённым учётным данным.",
   "wrongMasterPassword": "Неверный пароль. Попробуйте ещё раз.",
-  "newPassword": "Новый пароль",
   "currentPassword": "Текущий пароль",
   "forgotPassword": "Забыли пароль?",
   "credentialsReset": "Все сохранённые учётные данные удалены",
@@ -556,7 +609,6 @@
   "maxHistorySubtitle": "Максимум сохранённых команд в истории",
   "calculateFolderSizesSubtitle": "Показывать суммарный размер рядом с папками в сайдбаре",
   "checkForUpdatesOnStartupSubtitle": "Проверять новую версию на GitHub при запуске приложения",
-  "enableLoggingSubtitle": "Записывать события приложения в ротируемый лог-файл",
   "snippets": "Сниппеты",
   "snippetsSubtitle": "Управление переиспользуемыми командными сниппетами",
   "noSnippets": "Сниппетов пока нет",
@@ -578,6 +630,79 @@
   "pinnedSnippets": "Закреплённые",
   "allSnippets": "Все",
   "commandCopied": "Команда скопирована",
+  "snippetTokensHint": "Нажми чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:",
+  "snippetCustomTokensHint": "Любое другое имя в двойных фигурных скобках спросит у тебя значение при выполнении.",
+  "snippetFillTitle": "Заполните параметры сниппета",
+  "snippetFillSubmit": "Выполнить",
+  "broadcastSetDriver": "Транслировать из этой панели",
+  "broadcastClearDriver": "Прекратить трансляцию из этой панели",
+  "broadcastAddReceiver": "Принимать трансляцию здесь",
+  "broadcastRemoveReceiver": "Прекратить приём трансляции",
+  "broadcastClearAll": "Остановить всю трансляцию",
+  "broadcastPasteTitle": "Отправить вставку во все панели?",
+  "broadcastPasteBody": "{chars} символов будут отправлены в {count} других панелей.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Отправить",
+  "portForwarding": "Туннели",
+  "portForwardingEmpty": "Правил пока нет",
+  "addForwardRule": "Добавить правило",
+  "editForwardRule": "Изменить правило",
+  "deleteForwardRule": "Удалить правило",
+  "localForward": "Локальный",
+  "remoteForward": "Удалённый",
+  "dynamicForward": "Динамический",
+  "forwardKind": "Тип",
+  "bindAddress": "Адрес слушания",
+  "bindPort": "Порт слушания",
+  "targetHost": "Целевой хост",
+  "targetPort": "Целевой порт",
+  "forwardDescription": "Описание (необязательно)",
+  "forwardEnabled": "Включено",
+  "forwardBindWildcardWarning": "Привязка к 0.0.0.0 открывает туннель на всех интерфейсах — обычно нужен 127.0.0.1.",
+  "forwardKindLocalHelp": "Локальный: открывает порт на этом устройстве и туннелирует к цели, доступной с SSH-сервера. Удобно для доступа к удалённым БД или админкам через localhost:bindPort.",
+  "forwardKindRemoteHelp": "Удалённый: просит SSH-сервер открыть порт, туннелирующий обратно к цели, доступной с этого устройства. Удобно чтобы поделиться локальным dev-сервером с удалённым хостом (сервер может требовать GatewayPorts yes для не-loopback bind).",
+  "forwardKindDynamicHelp": "Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.",
+  "proxyJump": "Подключаться через",
+  "proxyJumpNone": "Прямое подключение",
+  "proxyJumpSavedSession": "Сохранённая сессия",
+  "proxyJumpCustom": "Своё",
+  "proxyJumpCustomNote": "Свои хопы используют учётные данные этой сессии. Для другой аутентификации бастиона сохрани бастион отдельной сессией.",
+  "viaSessionLabel": "через {label}",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "recordSession": "Записывать сессию",
+  "recordSessionHelp": "Сохранять вывод терминала на диск для этой сессии. Шифруется на диске когда мастер-пароль или аппаратный ключ защищает базу сессий; иначе пишется plaintext рядом с базой.",
+  "recordingsBrowserTitle": "Записи",
+  "recordingsBrowserSubtitle": "Просмотр, воспроизведение и удаление записанных сессий",
+  "recordingsEmpty": "Записей пока нет",
+  "playRecording": "Воспроизвести",
+  "deleteRecording": "Удалить",
+  "recordingPlaybackTitle": "Воспроизвести запись",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Теги",
   "tagsSubtitle": "Организуйте сессии и папки цветными тегами",
   "noTags": "Тегов пока нет",
@@ -599,9 +724,6 @@
   "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
   "importAction": "Импортировать",
   "emptyFolder": "Папка пуста",
-  "exportWithoutPassword": "Экспортировать без пароля?",
-  "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
-  "continueWithoutPassword": "Продолжить без пароля",
   "tierHardwareUnavailable": "Аппаратное хранилище недоступно на этой установке.",
   "pinLabel": "Пароль",
   "l2UnlockTitle": "Требуется пароль",
@@ -627,8 +749,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Аппаратное хранилище недоступно на этом устройстве.",
   "firstLaunchSecurityOpenSettings": "Открыть настройки",
   "wizardReducedBanner": "Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.",
-  "tierBlockProtectsEmpty": "На этом уровне — ничего.",
-  "tierBlockDoesNotProtectEmpty": "Непокрытых угроз нет.",
   "tierBadgeCurrent": "Текущий",
   "securitySetupEnable": "Включить",
   "securitySetupApply": "Применить",
@@ -692,7 +812,6 @@
   "colT1": "T1 Ключница",
   "colT1Password": "T1 + пароль",
   "colT1PasswordBiometric": "T1 + пароль + биометрия",
-  "colT2": "T2 Аппаратный",
   "colT2Password": "T2 + пароль",
   "colT2PasswordBiometric": "T2 + пароль + биометрия",
   "colParanoid": "Параноидальный",
@@ -703,13 +822,45 @@
   "resetAllDataConfirmTitle": "Сбросить все данные?",
   "resetAllDataConfirmBody": "Все сессии, SSH ключи, known hosts, сниппеты, теги, настройки и все артефакты безопасности (записи связки ключей, данные аппаратного хранилища, биометрическая оболочка) будут безвозвратно удалены. Это действие нельзя отменить.",
   "resetAllDataConfirmAction": "Сбросить всё",
+  "resetAllDataConfirmTypePrompt": "Введите {phrase} ниже для подтверждения:",
   "resetAllDataInProgress": "Сброс…",
   "resetAllDataDone": "Все данные сброшены",
   "resetAllDataFailed": "Не удалось выполнить сброс",
+  "recordingsTitle": "Записи",
+  "recordingsStorageUsedLabel": "Занято",
+  "recordingsCapLabel": "Лимит",
+  "recordingsCapHint": "Жёсткий лимит на папку recordings/. При превышении первой удаляется самая старая запись; текущая запись не трогается.",
+  "recordingsClearAllAction": "Удалить все записи",
+  "recordingsClearAllConfirmTitle": "Удалить все записи?",
+  "recordingsClearAllConfirmBody": "Каждая запись сессии в <app>/recordings/ будет удалена. Текущая запись (если есть) останется. Действие необратимо.",
+  "recordingsClearAllResult": "Удалено записей: {count}",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Лимит обновлён. Освобождено: {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Лимит обновлён. Удалять нечего.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "ТЕКУЩИЙ",
   "paranoidAlternativeHeader": "АЛЬТЕРНАТИВА",
   "modifierPasswordLabel": "Пароль",
   "modifierPasswordSubtitle": "Вводимый секрет — барьер перед разблокировкой хранилища.",
+  "modifierPasswordRequired": "Обязательно — Hardware-уровень всегда защищён паролем.",
   "modifierBiometricLabel": "Биометрический ярлык",
   "modifierBiometricSubtitle": "Получение пароля из биометрически защищённого слота ОС вместо ввода вручную.",
   "biometricRequiresPassword": "Сначала включите пароль — биометрия это ярлык для его ввода.",
@@ -717,7 +868,23 @@
   "autoLockRequiresActiveTier": "Сначала выберите этот уровень, чтобы настроить автоблокировку",
   "biometricForbiddenParanoid": "Paranoid не допускает биометрию по замыслу.",
   "fprintdNotAvailable": "fprintd не установлен или нет зарегистрированного отпечатка.",
-  "linuxTpmWithoutPasswordNote": "TPM без пароля обеспечивает изоляцию, но не аутентификацию. Любой, кто может запустить это приложение, сможет разблокировать данные.",
+  "t2RequiresPasswordTitle": "Задайте мастер-пароль для Hardware-уровня",
+  "t2RequiresPasswordBody": "Hardware-уровень требует пароль как модификатор. Биометрия — опциональный ярлык поверх него.",
+  "t2MigrationPromptTitle": "Hardware-уровень требует пароль",
+  "t2MigrationPromptBody": "Существующие установки Hardware без пароля должны задать его сейчас, чтобы продолжить.",
+  "t2MigrationContinue": "Продолжить",
+  "t2MigrationSetPasswordTitle": "Задайте пароль для Hardware-тира",
+  "t2MigrationSetPasswordBody": "Введите новый мастер-пароль. DB-ключ, уже запечатанный в hardware-модуле, перезапечатается под этим паролем — сессии и ключи останутся целы.",
+  "t2MigrationWipeAndRestart": "Стереть и начать заново",
+  "t2MigrationResealFailed": "Не удалось перезапечатать Hardware-тир — выберите другой пароль или сотрите всё.",
+  "biometricOverlayEnable": "Включить биометрический ярлык на Hardware-уровне",
+  "biometricOverlayEnableSubtitle": "Освобождает пароль из биометрически защищённого слота ОС.",
+  "biometricOverlayUnavailable": "Биометрическая оболочка пока недоступна на этой платформе.",
+  "biometricOverlayRequiresPassword": "Сначала задайте пароль Hardware-уровня.",
+  "t2UnlockTitle": "Разблокировать мастер-паролем",
+  "t2UnlockSubtitle": "Hardware-bound ключ защищён вашим паролем.",
+  "t2UnlockUseBiometricButton": "Использовать биометрию",
+  "t2PasswordChanged": "Пароль Hardware-уровня обновлён.",
   "paranoidMasterPasswordNote": "Настоятельно рекомендуется длинная парольная фраза — Argon2id лишь замедляет перебор, но не блокирует его.",
   "plaintextWarningTitle": "Открытый текст: без шифрования",
   "plaintextWarningBody": "Сессии, ключи и known hosts будут храниться без шифрования. Любой, у кого есть доступ к файловой системе этого компьютера, сможет их прочитать.",
@@ -727,7 +894,468 @@
   "masterPasswordLabel": "Мастер-пароль",
   "autoLockRequiresPassword": "Для авто-блокировки нужен пароль на активном уровне.",
   "recommendedBadge": "РЕКОМЕНДУЕТСЯ",
-  "tierHardwareSubtitleHonest": "Продвинутый: ключ привязан к оборудованию. Данные невосстановимы, если чип этого устройства утерян или заменён.",
+  "tierHardwareSubtitleHonest": "Продвинутый: ключ привязан к оборудованию, всегда защищён паролем. Данные невосстановимы, если чип этого устройства утерян или заменён.",
   "tierParanoidSubtitleHonest": "Альтернативный: мастер-пароль, без доверия к ОС. Защищает от компрометации ОС. Не улучшает защиту во время выполнения по сравнению с T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Угрозы во время выполнения (runtime — malware от того же пользователя, дамп памяти живого процесса) показаны как ✗ во всех уровнях. Они устраняются отдельными функциями защиты, применяемыми независимо от выбранного уровня."
+  "mitigationsNoteRuntimeThreats": "Угрозы во время выполнения (runtime — malware от того же пользователя, дамп памяти живого процесса) показаны как ✗ во всех уровнях. Они устраняются отдельными функциями защиты, применяемыми независимо от выбранного уровня.",
+  "globalErrorTitle": "Непредвиденная ошибка",
+  "globalErrorBody": "Произошла непредвиденная ошибка. Приложение продолжит работу.",
+  "globalErrorLogSavedNote": "Подробности записаны в журнал.",
+  "globalErrorLogDisabledNote": "Включите логирование в настройках, чтобы сохранять детали ошибок.",
+  "globalErrorTechnicalLine": "Ошибка: {detail}",
+  "globalErrorEnableLoggingButton": "Включить логирование",
+  "globalErrorLoggingEnabledToast": "Логирование включено — ошибки будут сохраняться в журнал",
+  "fatalErrorQuitButton": "Выйти",
+  "fatalErrorWipeButton": "Удалить все данные",
+  "fatalErrorWipingButton": "Удаление…",
+  "fatalErrorWipeExplanation": "Удаление сотрёт все файлы приложения (конфигурацию, базу, vault-блобы, логи) — следующий запуск начнётся с чистой установки. Это необратимо.",
+  "fatalErrorWipeConfirmTitle": "Удалить все данные?",
+  "fatalErrorWipeConfirmBody": "Это безвозвратно удалит все файлы конфигурации, базы данных и хранилищ. Приложение перезапустится с пустой установкой. Продолжить?",
+  "fatalErrorWipeConfirmAction": "Удалить всё",
+  "unencryptedArchiveWarning": "Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое.",
+  "clipboardCopyFailed": "Не удалось скопировать в буфер.",
+  "nonAsciiHostnameWarning": "Имя хоста содержит не-ASCII символы — проверьте каждый символ. Визуально похожие кодпоинты (кириллица / греческий) могут подменить латинский домен.",
+  "playbackPause": "Пауза",
+  "recordingPlayLocked": "Разблокируйте приложение, чтобы воспроизвести зашифрованную запись",
+  "recordToggleStart": "Начать запись",
+  "recordToggleStop": "Остановить запись",
+  "foregroundServiceTitle": "SSH активен",
+  "foregroundServiceConnections": "{count, plural, =0{Нет активных подключений} =1{1 активное подключение} few{{count} активных подключения} other{{count} активных подключений}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Тип сессии",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Имя пользователя",
+  "webDavAuthMethod": "Метод аутентификации",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer токен",
+  "trustedCert": "Доверенный сертификат (PEM)",
+  "trustedCertHint": "-----BEGIN CERTIFICATE-----",
+  "trustedCertHelp": "Вставьте сертификат сервера (один или несколько PEM-блоков). Добавляется как дополнительный root CA только для этой сессии — другие приложения не затрагиваются. Оставьте пустым, чтобы использовать системный trust store.",
+  "acceptAnyCert": "Принимать любой сертификат",
+  "acceptAnyCertHelp": "Пропустить все проверки сертификата и hostname для TLS-handshake'ов этой сессии. Аварийный выход когда ни системный trust store, ни pinned cert не подходят.",
+  "acceptAnyCertWarn": "Уязвимо к MITM-атакам — любой в сети может выдать себя за сервер. Используй только в доверенных приватных сетях.",
+  "webDavCopyUrl": "Скопировать WebDAV URL",
+  "webDavOpenInBrowser": "Открыть в браузере",
+  "errWebDavAuthFailed": "Сбой аутентификации WebDAV",
+  "errWebDavNotFound": "Путь не найден",
+  "errWebDavConflict": "Операция конфликтует с текущим состоянием",
+  "errWebDavGeneric": "WebDAV сервер отклонил запрос: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Нужен base URL WebDAV",
+  "errWebDavBaseUrlInvalid": "Base URL должен быть http:// или https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Пусто для AWS, или укажи для MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style адресация",
+  "s3PathStyleHint": "Нужно для MinIO; выключи для AWS",
+  "s3DefaultBucket": "Bucket по умолчанию",
+  "s3DefaultPrefix": "Prefix по умолчанию",
+  "s3GeneratePresignedUrl": "Сгенерировать presigned URL",
+  "s3PresignedUrlExpiry": "Истекает через",
+  "s3CopyUri": "Скопировать s3://bucket/key URI",
+  "s3PresignedUrlExpiry15min": "15 минут",
+  "s3PresignedUrlExpiry1hour": "1 час",
+  "s3PresignedUrlExpiry4hour": "4 часа",
+  "s3PresignedUrlExpiry24hour": "24 часа",
+  "s3PresignedUrlExpiry7day": "7 дней",
+  "errS3AuthFailed": "S3 authentication failed (проверь access key + secret)",
+  "errS3NoSuchBucket": "Bucket не существует или недоступен",
+  "errS3RegionMismatch": "Bucket в другом регионе, чем настроено",
+  "errS3Generic": "S3 сервер отклонил запрос: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "Включить WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Шифрует sync-архив. Должен отличаться от мастер-пароля.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase не должен совпадать с мастер-паролем.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Путь под base URL WebDAV — по умолчанию letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Последний push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Последний pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Никогда",
+  "syncUpToDate": "Sync актуален",
+  "syncPushedBytes": "Отправлено {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Применено {count} изменений с remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync выключён",
+  "errSyncEtagMismatch": "Remote изменился — сначала pull, потом push",
+  "errSyncUnauthorized": "WebDAV-аутентификация не прошла",
+  "errSyncNetwork": "Сетевая ошибка: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Sync-архив с remote требует более новой сборки",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Коснитесь hardware key",
+  "hardwareKeyPin": "PIN hardware key",
+  "hardwareKeyTimeout": "Hardware key не ответил",
+  "hardwareKeyNotFound": "Hardware key не найден",
+  "hardwareKeyUnsupported": "Прямой доступ к hardware key недоступен на этой платформе",
+  "hardwareKeyAppleEntitlementRequired": "Требуется Apple Developer Program entitlement; используйте ssh-agent на macOS",
+  "skKeyRequiresDevice": "Этому SSH-ключу нужен hardware key — коснитесь устройства для аутентификации",
+  "errSkWrongPin": "Неверный PIN",
+  "hardwareKeyImport": "Импорт hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Запрос hardware key отменён",
+  "agentEndpointSectionTitle": "Интеграция с внешними SSH-клиентами",
+  "agentEndpointToggleTitle": "Открыть hardware-bound ключи системным SSH-клиентам",
+  "agentEndpointToggleSubtitle": "Позволяет git, ssh, плагинам IDE на этом устройстве использовать ваши FIDO2 / smart-card / TPM ключи.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Скопировать export-команду",
+  "agentEndpointCopyPipeName": "Скопировать имя pipe",
+  "agentEndpointSignatureRequestTitle": "Запрос на подпись",
+  "agentEndpointSignatureRequestBody": "{requester} запрашивает подпись ключом {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "Внешний SSH-клиент",
+  "agentEndpointAuthorizeOnce": "Разрешить один раз",
+  "agentEndpointAuthorizeAlways": "Разрешить и запомнить",
+  "agentEndpointDeny": "Отклонить",
+  "agentEndpointStatusRunning": "Работает",
+  "agentEndpointStatusStopped": "Остановлено",
+  "agentEndpointStatusUnsupported": "Не поддерживается на этой платформе",
+  "agentEndpointRefusedAddIdentity": "Отказано: внешние клиенты не могут добавлять ключи.",
+  "agentEndpointStartFailed": "Не удалось запустить ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Добавить ключ со смарт-карты или токена",
+  "pkcs11ModuleLabel": "Модуль PKCS#11",
+  "pkcs11ModuleAutoDetected": "Найдено автоматически",
+  "pkcs11ModuleCustom": "Указать модуль...",
+  "pkcs11ModulePickerTitle": "Выбор библиотеки PKCS#11",
+  "pkcs11NoModuleFound": "Модуль PKCS#11 не найден. Установите OpenSC или укажите библиотеку вендора.",
+  "pkcs11InitializeFailed": "Модуль PKCS#11 не инициализировался.",
+  "pkcs11NoTokenPresent": "Нет токена в считывателе.",
+  "pkcs11TokenLabel": "Токен: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Серийный номер: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Требуется вход на токен.",
+  "pkcs11PinPrompt": "PIN для {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Подтвердите на PIN-паде токена.",
+  "pkcs11PinIncorrect": "Неверный PIN. Осталось попыток: {remaining}.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN заблокирован. Разблокируйте через PUK.",
+  "pkcs11NoSignableKeys": "На токене нет ключей, пригодных для SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Ключи GOST не работают по SSH.",
+  "pkcs11TokenUnplugged": "Токен \"{label}\" не вставлен.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Сохранённый токен не найден. Переподключите и повторите.",
+  "pkcs11SignFailed": "Подпись не удалась: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Смарт-карты и токены PKCS#11 недоступны на этой платформе.",
+  "pkcs11Badge": "Смарт-карта / токен",
+  "pkcs11InfoModulePath": "Модуль: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Серийный номер токена: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Объект: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "Выберите модуль PKCS#11",
+  "pkcs11WizardStepToken": "Выберите токен",
+  "pkcs11WizardStepKey": "Выберите ключ",
+  "pkcs11WizardStepPin": "Введите PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Импортировать ключ",
+  "pkcs11SaveInProgress": "Чтение публичного ключа с токена...",
+  "pkcs11SaveSuccess": "Ключ со смарт-карты добавлен.",
+  "pkcs11ScanInProgress": "Поиск модулей PKCS#11...",
+  "pkcs11LoadingTokens": "Загрузка токенов...",
+  "pkcs11LoadingKeys": "Загрузка ключей...",
+  "pkcs11ModuleStatusReady": "Модуль загружен.",
+  "pkcs11ModuleStatusNoToken": "Токен не вставлен.",
+  "pkcs11ModuleStatusFailed": "Не удалось загрузить модуль.",
+  "pkcs11PinPadHint": "(PIN-пад на устройстве)",
+  "pkcs11WizardBack": "Назад",
+  "pkcs11WizardNext": "Далее",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Добавить hardware-ключ",
+  "sshKeyHardwareBoundExplainer": "Приватный ключ хранится в защищённом hardware и не может быть экспортирован.",
+  "sshKeyEnclaveDeviceBound": "Этот ключ работает только на этом Mac.",
+  "sshKeyEnclaveDeviceBoundIos": "Этот ключ работает только на этом iPhone.",
+  "sshKeyHelloDeviceBound": "Этот ключ работает только на этом PC.",
+  "sshKeyEnclaveTouchIdRequired": "Требовать Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Разрешить passcode устройства как fallback",
+  "sshKeyHelloPinRequired": "Требовать Windows Hello (PIN, отпечаток или лицо)",
+  "sshKeyHardwareUnavailableTitle": "Hardware-ключи недоступны",
+  "sshKeyHardwareUnavailableSe": "Для Secure Enclave приложение должно быть подписано.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello не настроен на этом PC.",
+  "sshKeyHardwareUnavailableTpm": "TPM не обнаружен — только software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Сгенерировать",
+  "sshKeyGenerateInProgress": "Генерация ключа в защищённом hardware...",
+  "sshKeyGenerateMissingEntitlement": "Требуется code-signing — см. USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Подписание через защищённое hardware...",
+  "sshKeyPublicCopy": "Скопировать публичный ключ",
+  "sshKeyAuthorizedKeysHint": "Добавьте эту строку в ~/.ssh/authorized_keys на сервере.",
+  "sshKeyEnclaveWizardTitle": "SSH-ключ в Secure Enclave",
+  "sshKeyEnclaveWizardLabelHint": "Название ключа",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "SSH-ключ Windows Hello",
+  "helloWizardLabelHint": "Метка ключа",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Подтвердите через Windows Hello",
+  "helloPromptDescription": "PIN, отпечаток или лицо — Windows Hello подпишет SSH-запрос.",
+  "helloSoftwareGatedWarning": "На устройстве нет TPM. Ключ ляжет в пользовательское хранилище; Windows Hello всё равно прогоняет каждую подпись.",
+  "helloP384NotSupported": "Прошивка TPM не поддерживает P-384. Выберите P-256 или RSA-2048.",
+  "helloConfigureFirst": "Сначала настройте Windows Hello: Параметры -> Варианты входа.",
+  "tpmSshTitle": "Создать SSH-ключ через TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (рекомендуется)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Прошивка TPM не поддерживает этот algorithm.",
+  "tpmSshPinProtect": "Защитить PIN",
+  "tpmSshPinLockoutWarning": "После нескольких неверных PIN TPM блокирует ключ.",
+  "tpmSshPinMismatch": "PIN не совпадают.",
+  "tpmSshStorageBlob": "Хранить wrapped-ключ в данных приложения",
+  "tpmSshStorageHandle": "Положить в слот памяти TPM",
+  "tpmSshStorageHandleHelp": "Подпись быстрее. Занимает один из persistent-слотов TPM.",
+  "tpmSshLabel": "Метка ключа",
+  "tpmSshImportTitle": "Импортировать SSH-ключ под TPM",
+  "tpmSshImportFormat": "Файл TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN для {label}",
+  "tpmSshPinIncorrect": "PIN неверный.",
+  "tpmSshPinLockedCooldown": "TPM в lockout-кулдауне. Подождите {duration} и повторите.",
+  "tpmSshGenerating": "Создаём ключ в TPM...",
+  "tpmSshSigning": "Подписываем через TPM...",
+  "tpmSshUnavailable": "TPM на устройстве не найден.",
+  "tpmSshUnavailableFwDisabled": "TPM выключен в прошивке.",
+  "tpmSshUnavailableNoPermission": "Приложение не может обратиться к TPM. Добавьте пользователя в группу `tss`.",
+  "tpmSshHandleInUse": "Слот {handle} уже занят.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Ключ подписывает БЕЗ запроса Hello / PIN — пока вы залогинены, любой с доступом к рабочему столу сможет им подписать.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (аппаратная привязка)",
+  "keystoreKeyGenerating": "Генерируется аппаратный ключ...",
+  "keystoreKeyAuthPrompt": "Подтвердите личность для использования SSH-ключа",
+  "keystoreKeyInvalidatedByEnrollment": "Ключ уничтожен: добавлен новый биометрический шаблон. Зарегистрируйте новый публичный ключ на серверах.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM недоступен на этом устройстве",
+  "keystoreKeyUserAuthRequired": "Требовать биометрию / разблокировку устройства для каждой подписи",
+  "keystoreKeyExportDisabled": "Аппаратные ключи нельзя экспортировать",
+  "keystoreKeyDeleteWarning": "Удаление ключа сотрёт его из аппаратного хранилища. Серверы будут отклонять этот ключ, пока вы не зарегистрируете новый.",
+  "keystoreKeyBiometricNotEnrolled": "Сначала настройте биометрию или PIN устройства",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (поддерживает StrongBox)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, только TEE)",
+  "keystoreAlgRsa2048": "RSA-2048 (максимальная совместимость)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM недоступен",
+  "keystoreStrongBoxFallbackBody": "Устройство не отдаёт StrongBox HSM. Создать вместо этого ключ с привязкой к TEE? Аппаратная привязка останется, только без изоляции StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "Использовать TEE",
+  "keystoreStrongBoxFallbackCancel": "Отмена",
+  "fido2BrokerSectionTitle": "Аппаратные ключи безопасности",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Системный диалог security key",
+  "fido2BrokerIosLabel": "Системный security key (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Системный security key (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "Прямой USB HID (CTAP2)",
+  "fido2BrokerTransportNone": "Недоступно на этой платформе",
+  "fido2BrokerPreferDirectHidTitle": "Использовать прямой USB HID вместо системного диалога",
+  "fido2BrokerPreferDirectHidSubtitle": "Для продвинутых пользователей: обойти {brokerLabel} там, где работают оба пути. Прямой HID поддерживает больше возможностей аутентификатора, но требует разрешений на доступ к устройству.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "SSH-интеграция",
+  "fido2BrokerNoTransportSubtitle": "Поддержка аппаратных ключей недоступна на этом устройстве.",
+  "fido2BrokerSinglePathSubtitle": "На этом устройстве доступен только {transport}; переключатель отключён.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "Импортированный стаб",
+  "hardwareKeyStubSubtitle": "Импортирован с другого устройства — сгенерируйте здесь, чтобы использовать",
+  "hardwareKeyStubRegenerateAction": "Сгенерировать здесь",
+  "hardwareKeyStubRemoveAction": "Удалить стаб",
+  "hardwareKeyStubPickerTooltip": "Сгенерируйте этот ключ на этом устройстве перед использованием",
+  "pkcs11ModuleResolveOnFirstUse": "Укажите путь к модулю PKCS#11 для токена «{token}»",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "arrowLeft": "Стрелка влево",
+  "arrowUp": "Стрелка вверх",
+  "arrowDown": "Стрелка вниз",
+  "arrowRight": "Стрелка вправо",
+  "copyMode": "Режим копирования",
+  "exitCopyMode": "Выйти из режима копирования",
+  "importedGeneric": "Импортировано: {items}"
 }

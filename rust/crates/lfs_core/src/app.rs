@@ -1,0 +1,282 @@
+//! Process-singleton app state. The root actor every Rust-owned
+//! sub-module attaches to. Today it owns the [`SecretStore`] plus
+//! the optional [`Db`] handle; runtime services (sessions,
+//! connections, port forwards, recorder, transfer queue) plug their
+//! own state buckets onto this struct as they migrate so the FRB
+//! layer has a single root to dispatch commands against.
+//!
+//! Initialisation: `lfs_core::app::init()` runs once per process.
+//! The Dart side calls it from `main.dart` right after `RustLib.init()`.
+//! Idempotent — repeated calls return the same instance.
+
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::OnceLock;
+
+use crate::archive::ImportRegistry;
+use crate::autolock::AutoLockMachine;
+use crate::bus::EventBus;
+use crate::clipboard::FileBrowserClipboard;
+use crate::connection::ConnectionRegistry;
+use crate::db::Db;
+use crate::deeplink::DeeplinkDispatcher;
+use crate::error::Error;
+use crate::known_hosts::PromptRegistry as KnownHostsPromptRegistry;
+use crate::portforward::PortForwardRegistry;
+use crate::rate_limit::InMemoryRateLimiterRegistry;
+use crate::recorder::queue::RecorderQueue;
+use crate::recorder::RecorderRegistry;
+use crate::secrets::SecretStore;
+use crate::sessions::Registry as SessionsRegistry;
+use crate::storage::ProviderRegistry;
+use crate::transfer::driver::WorkerPool;
+use crate::transfer::TransferQueue;
+use crate::transfer_conflict::BatchStateRegistry;
+
+static APP_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
+
+pub struct AppState {
+    pub secrets: SecretStore,
+    /// Encrypted sqlite DB. `None` until `db_init` runs — the Dart
+    /// side calls it after the security tier dispatcher has the
+    /// master key in hand. Callers that hit a `None` here surface
+    /// "DB not initialized" up the stack rather than panicking.
+    db: Mutex<Option<Arc<Db>>>,
+    /// Typed Command / Event bus. Domain actors append events;
+    /// FRB subscribers consume them via per-screen view streams.
+    /// See `crate::bus` for the wire contract.
+    pub bus: EventBus,
+    /// Connection registry. Owns every active connection actor;
+    /// commands look up actors by [`crate::connection::ConnId`]
+    /// and run state-machine transitions under per-actor locks.
+    pub connections: ConnectionRegistry,
+    /// Auto-lock state machine. Owns the canonical idle timer +
+    /// lifecycle state; emits `AutoLockLocked` /
+    /// `AutoLockUnlocked` events when transitions fire. Crate-
+    /// internal: external callers reach the machine through bus
+    /// events, never the field, so the type stays sealed inside
+    /// `lfs_core` together with [`crate::autolock`].
+    pub(crate) autolock: Arc<AutoLockMachine>,
+    /// Recorder registry. Owns the canonical state of every
+    /// active recording — Dart-side `SessionRecorder` swaps to
+    /// thin views over this once the frame-write driver lands.
+    pub recorders: RecorderRegistry,
+    /// Per-recording write queue. The Dart shim enqueues header /
+    /// event / rotate / close entries; a dedicated tokio worker per
+    /// id drains and serialises against the registry so the
+    /// asciinema event sequence on disk reflects the user's input
+    /// / terminal-output sequence even under concurrent FRB calls.
+    pub recorder_queue: RecorderQueue,
+    /// Transfer queue. Owns the canonical task table + per-task
+    /// progress.
+    pub transfers: TransferQueue,
+    /// Worker pool that drains the queue. Lazy-initialised on
+    /// first dispatch (the FRB endpoint creates it once a tokio
+    /// runtime is available); `None` until then.
+    pub transfer_pool: Mutex<Option<Arc<WorkerPool>>>,
+    /// Port-forward registry. Owns the canonical rule table +
+    /// status; Tokio listener-accept loops land in a follow-up.
+    pub port_forwards: PortForwardRegistry,
+    /// Import handle registry. Holds decrypted-but-not-yet-
+    /// applied `.lfs` archives between the preview and apply FRB
+    /// calls so plaintext entries never leak through the Dart
+    /// heap during the user's preview review.
+    pub imports: ImportRegistry,
+    /// Deep-link dispatcher. Owns dedup state across the
+    /// `app_links.getInitialLink` / `uriLinkStream` cold-start
+    /// race so the Dart side is just a URI pump.
+    pub deeplinks: DeeplinkDispatcher,
+    /// TOFU prompt registry. The russh handler parks a oneshot
+    /// here when it needs the user's verdict on an unknown /
+    /// changed host key; the Dart UI dispatches the response
+    /// command and the bus dispatcher resolves the awaiting
+    /// receiver.
+    pub known_hosts_prompts: KnownHostsPromptRegistry,
+    /// Per-id in-memory password rate limiter pool. The Dart
+    /// `InMemoryRateLimiter` shim routes status / record_failure
+    /// / record_success through the FRB sync endpoints; the
+    /// canonical state lives in this registry across hot reload
+    /// + settings nav cycles.
+    pub rate_limiters: InMemoryRateLimiterRegistry,
+    /// Cached read view of the sessions / folders cache. Mirrors
+    /// what the Dart `SessionStore` builds today; populated by
+    /// `sessions::Registry::reload(db)`. Read-only at this slice
+    /// — the future actor cutover will route mutations through
+    /// here so the Dart store retires.
+    pub sessions_registry: SessionsRegistry,
+    /// Per-handle conflict-resolver state. The Dart
+    /// `BatchConflictResolver` allocates a UUID handle on
+    /// construction, folds prompt outcomes through
+    /// `record_decision`, and drops the handle on dispose. Living
+    /// the cache + cancellation grammar one place lets the future
+    /// bus-prompt-protocol arc swap the resolver itself for a
+    /// Rust-side dispatcher without re-inventing the state
+    /// machine.
+    pub conflict_resolvers: BatchStateRegistry,
+    /// Process-singleton registry of live non-SSH transport
+    /// providers keyed by connection id. WebDAV / S3 connects
+    /// register their `Arc<dyn Provider>` here so the transfer
+    /// worker can reach them — SSH uses [`connections`] (the russh
+    /// actor map) for the same lookup. Held inside an `Arc` so the
+    /// FRB-opaque connect handles can carry a `Weak` reference for
+    /// their drop-time unregister guard without a circular ref.
+    pub providers: Arc<ProviderRegistry>,
+    /// Process-singleton file-browser clipboard. Holds the
+    /// last-copied entry set for the desktop / mobile file panes
+    /// across tab switches. Plain `Arc` because every clipboard op
+    /// runs through a short critical section — no need for the
+    /// `Weak`-guarded handle pattern `providers` uses.
+    pub file_clipboard: Arc<FileBrowserClipboard>,
+}
+
+impl AppState {
+    fn new() -> Self {
+        Self {
+            secrets: SecretStore::new(),
+            db: Mutex::new(None),
+            bus: EventBus::new(),
+            connections: ConnectionRegistry::new(),
+            autolock: Arc::new(AutoLockMachine::new()),
+            recorders: RecorderRegistry::new(),
+            recorder_queue: RecorderQueue::new(),
+            transfers: TransferQueue::new(),
+            transfer_pool: Mutex::new(None),
+            port_forwards: PortForwardRegistry::new(),
+            imports: ImportRegistry::new(),
+            deeplinks: DeeplinkDispatcher::new(),
+            known_hosts_prompts: KnownHostsPromptRegistry::new(),
+            rate_limiters: InMemoryRateLimiterRegistry::new(),
+            sessions_registry: SessionsRegistry::new(),
+            conflict_resolvers: BatchStateRegistry::new(),
+            providers: Arc::new(ProviderRegistry::new()),
+            file_clipboard: Arc::new(FileBrowserClipboard::new()),
+        }
+    }
+
+    /// Open the app DB at `path` with the given SQLCipher key. Runs
+    /// on the caller's thread (rusqlite is blocking). Replaces the
+    /// current DB handle — called at startup once and on rekey
+    /// events.
+    pub fn db_init(&self, path: &Path, key: &[u8]) -> Result<(), Error> {
+        let db = Db::open(path, key)?;
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        *g = Some(Arc::new(db));
+        Ok(())
+    }
+
+    /// Fetch the DB handle. `None` when init hasn't run.
+    pub fn db(&self) -> Option<Arc<Db>> {
+        let g = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        g.clone()
+    }
+
+    /// Test-only DB injection. Wraps an already-built `Db` (typically
+    /// `Db::from_raw_for_tests` over an in-memory rusqlite connection)
+    /// into the singleton slot so module tests can exercise paths
+    /// that route through `app::instance().db()` without going through
+    /// SQLCipher. Mirrors `db_init` minus the file/keying step.
+    #[cfg(test)]
+    pub fn db_inject_for_tests(&self, db: Db) {
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        *g = Some(Arc::new(db));
+    }
+
+    /// Canonical accessor for the platform support directory
+    /// (`getApplicationSupportDirectory()` Dart-side). Reads through
+    /// the `master_password` pin — the only place the path is held —
+    /// so per-FRB-endpoint `support_dir: String` arguments retire in
+    /// favour of a single Rust-side lookup. `Err` only when no pin
+    /// has been set yet (cold-start window before
+    /// `config_store_init` lands); FRB callers surface the typed
+    /// error rather than panicking.
+    pub fn support_dir(&self) -> Result<&'static Path, Error> {
+        crate::security::master_password::try_pinned_support_dir()
+    }
+
+    /// Drop the running DB handle. Idempotent — calling twice is a
+    /// no-op. Used by the auto-lock path to release the rusqlite
+    /// connection (and SQLCipher's C-layer page-cipher state) when
+    /// the user steps away. Unlock re-runs `db_init` to bring the
+    /// handle back under the freshly re-derived master key.
+    pub fn db_close(&self) {
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        *g = None;
+    }
+}
+
+/// Build the singleton if it doesn't exist yet. Safe to call from
+/// any thread; `OnceLock` serialises the first call. Starts the
+/// auto-lock ticker on the first call so the idle timer runs for
+/// the life of the process.
+pub fn init() -> Arc<AppState> {
+    let state = APP_STATE
+        .get_or_init(|| {
+            let app = Arc::new(AppState::new());
+            // Wire the side-effect chain that fires alongside
+            // `Event::AutoLockLocked`. Held inside a closure so the
+            // machine stays decoupled from `AppState` for unit tests.
+            let app_for_lock = Arc::downgrade(&app);
+            app.autolock.set_lock_action(Arc::new(move || {
+                if let Some(app) = app_for_lock.upgrade() {
+                    app.secrets.clear();
+                    app.db_close();
+                }
+            }));
+            app.autolock.clone().spawn_ticker();
+            app
+        })
+        .clone();
+    state
+}
+
+/// Fetch the running singleton. Panics if `init()` has not run —
+/// callers should always go through the FRB `app_init` entry first.
+pub fn instance() -> Arc<AppState> {
+    APP_STATE
+        .get()
+        .expect("AppState not initialized — call app::init() first")
+        .clone()
+}
+
+/// Non-panicking variant of [`instance`]. Returns `None` when the
+/// singleton has not been initialised yet (cold-start window before
+/// the FRB worker calls `app_init`, standalone unit tests that
+/// don't share the test binary's init priming). Use from the
+/// "fire-and-forget" log fan-out path so a pre-init log call drops
+/// the line silently rather than panicking the caller.
+pub fn try_instance() -> Option<Arc<AppState>> {
+    APP_STATE.get().cloned()
+}
+
+/// Process-global serial gate for tests that touch the shared security
+/// singletons — the `SecretStore`, the `AppState` bus, the config-store
+/// actor. Per-module locks only serialise within their own module, so
+/// a test in one module and a test in another can still race on the
+/// same global state (intermittent, order-dependent failures). Every
+/// such test across the crate locks this one mutex instead.
+#[cfg(test)]
+pub(crate) fn test_serial_lock() -> &'static tokio::sync::Mutex<()> {
+    static M: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    M.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_is_idempotent() {
+        let a = init();
+        let b = init();
+        assert!(Arc::ptr_eq(&a, &b));
+    }
+
+    #[test]
+    fn secrets_round_trip_via_singleton() {
+        let app = init();
+        app.secrets.put("singleton-test", b"value");
+        assert_eq!(&*app.secrets.get("singleton-test").unwrap(), b"value");
+        app.secrets.drop_id("singleton-test");
+    }
+}

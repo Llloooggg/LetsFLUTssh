@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:xterm/xterm.dart';
 
 import '../utils/platform.dart' as plat;
 
@@ -189,6 +188,11 @@ abstract final class AppTheme {
   static Color get hover => isDark ? _hoverColor : const Color(0x12000000);
   static Color get active => isDark ? _activeColor : const Color(0x1A000000);
 
+  /// Drop shadow for floating overlays (toasts, popovers).
+  /// Black @ 25 % regardless of theme — both palettes keep the
+  /// elevated surface readable against the underlying scaffold.
+  static const Color overlayShadow = Color(0x40000000);
+
   /// Text color for accent-colored backgrounds (buttons, badges, toggles).
   static Color get onAccent => isDark ? _onAccent : _lightOnAccent;
 
@@ -308,28 +312,65 @@ abstract final class AppTheme {
   /// 56 px — mobile bottom navigation bar.
   static const double itemHeightXl = 56;
 
+  // ── Split / pane minimums ──
+  // Floor enforced by the divider drag handlers when the user resizes a
+  // tiled layout. Two scales because the surfaces have different content:
+  // a terminal pane stays usable at a smaller width (single-column text
+  // grid, one cell per glyph) than a workspace panel (session sidebar,
+  // file browser, terminal stack — each needs room for icons + labels).
+  //
+  /// 80 px — minimum width or height of a terminal pane in a tiling
+  /// layout. Below this the cell grid collapses below ~10 columns and
+  /// becomes unreadable for most shells.
+  static const double terminalPaneMin = 80;
+
+  /// 120 px — minimum width or height of a workspace panel in a tiling
+  /// layout. Below this the session list / file row layouts truncate
+  /// labels before the icon column.
+  static const double workspacePanelMin = 120;
+
   // ── Icon button sizing ──
-  // Mobile needs ≥40 px touch targets per platform HIGs; desktop stays
-  // compact to preserve information density in toolbars/headers.
-  /// Standard icon-button hit target — 40 px on mobile, 26 px on desktop.
-  static double get iconBtnBox => plat.isMobilePlatform ? 40.0 : 26.0;
+  // Mobile needs ≥44 px touch targets — Apple HIG §accessibility +
+  // Material Design accessibility guideline both pin 44 dp / 48 dp
+  // as the floor; we standardise on 44 to satisfy both. Desktop
+  // stays compact to preserve information density in toolbars and
+  // headers.
+  /// Standard icon-button hit target — 44 px on mobile, 26 px on desktop.
+  static double get iconBtnBox => plat.isMobilePlatform ? 44.0 : 26.0;
 
-  /// Standard icon size inside [iconBtnBox] — 20 px on mobile, 14 px on desktop.
-  static double get iconBtnIcon => plat.isMobilePlatform ? 20.0 : 14.0;
+  /// Standard icon size inside [iconBtnBox] — 22 px on mobile, 14 px
+  /// on desktop. Mobile bumps to 22 to keep the visual hit area
+  /// proportional to the new 44 px box.
+  static double get iconBtnIcon => plat.isMobilePlatform ? 22.0 : 14.0;
 
-  /// Dense icon-button hit target — used in tight toolbars (file browser,
-  /// dialog headers). Still meets the mobile touch-target floor but sits one
-  /// step down from the standard size on desktop.
-  static double get iconBtnBoxDense => plat.isMobilePlatform ? 36.0 : 22.0;
+  /// Dense icon-button hit target — used in tight toolbars (file
+  /// browser, dialog headers). On mobile this collapses back to the
+  /// platform floor (44 px) because dropping below the touch
+  /// minimum to fit one more icon in a row violates the Apple /
+  /// Material guideline; the extra density a dense variant offers
+  /// only matters on desktop. On desktop dense sits one step down
+  /// from the standard 26 px box.
+  static double get iconBtnBoxDense => plat.isMobilePlatform ? 44.0 : 22.0;
 
-  /// Dense icon size inside [iconBtnBoxDense].
-  static double get iconBtnIconDense => plat.isMobilePlatform ? 18.0 : 14.0;
+  /// Dense icon size inside [iconBtnBoxDense]. Mobile mirrors the
+  /// non-dense icon size since the boxes are equal.
+  static double get iconBtnIconDense => plat.isMobilePlatform ? 22.0 : 14.0;
 
   // ── Popup constraints ──
   /// 400 px — max height for popup menus (scrolls when content exceeds).
   static const double popupMaxHeight = 400;
 
   // ── Border radius scale ──
+  /// 2 px — strength meter / progress-bar segments. The thinnest
+  /// rung; reaches for visual softening on bars 2-4 px tall where
+  /// `radiusSm` would round away too much of the visible body.
+  static const radiusXxs = BorderRadius.all(Radius.circular(2));
+
+  /// 3 px — tier-card chevrons, security-setup expandable headers.
+  /// Sits between `radiusXxs` (bar segments) and `radiusSm` (input
+  /// rounding) for elements that need a softer-than-input look.
+  static const radiusXs = BorderRadius.all(Radius.circular(3));
+
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));
 
@@ -338,6 +379,10 @@ abstract final class AppTheme {
 
   /// 8 px — toasts, mobile elements, larger containers.
   static const radiusLg = BorderRadius.all(Radius.circular(8));
+
+  /// 10 px — first-launch security toast / large highlight cards
+  /// where the surface needs more visual lift than `radiusLg`.
+  static const radiusXl = BorderRadius.all(Radius.circular(10));
 
   static ThemeData dark() => _buildTheme(
     scheme: const ColorScheme(
@@ -716,36 +761,6 @@ abstract final class AppTheme {
   static Color get searchHighlight =>
       isDark ? _searchHighlightDark : _searchHighlightLight;
 
-  /// Terminal search hit foreground — high-contrast text on colored bg.
-  static Color get searchHitFg => isDark ? _termBrightWhite : _lightFgBright;
-
-  /// Shared terminal color theme for xterm views.
-  static TerminalTheme get terminalTheme => TerminalTheme(
-    cursor: termCursor,
-    selection: termSelection,
-    foreground: fg,
-    background: bg2,
-    black: termBlack,
-    red: termRed,
-    green: termGreen,
-    yellow: termYellow,
-    blue: termBlue,
-    magenta: termMagenta,
-    cyan: termCyan,
-    white: termWhite,
-    brightBlack: termBrightBlack,
-    brightRed: termBrightRed,
-    brightGreen: termBrightGreen,
-    brightYellow: termBrightYellow,
-    brightBlue: termBrightBlue,
-    brightMagenta: termBrightMagenta,
-    brightCyan: termBrightCyan,
-    brightWhite: termBrightWhite,
-    searchHitBackground: accent.withValues(alpha: 0.3),
-    searchHitBackgroundCurrent: accent,
-    searchHitForeground: searchHitFg,
-  );
-
   /// Standard input decoration used across dialogs.
   ///
   /// Provides consistent filled input styling with themed borders.
@@ -822,6 +837,33 @@ class _ThemeExtras {
   });
 }
 
+/// 4-pt grid of spacing tokens. Use instead of bare `SizedBox(height: N)` /
+/// `SizedBox(width: N)` / `EdgeInsets.all(N)` literals so a future spacing
+/// rebalance lands one place. Values reflect the codebase's actual
+/// distribution — `xs`/`sm`/`md` cover the bulk of inline gaps, `lg`/`xl`
+/// cover dialog padding, `xxl` covers section-level breaks. Anything outside
+/// this set stays a literal — it's almost certainly an alignment quirk
+/// (avatar sizing, icon offset) that doesn't belong in a shared scale.
+abstract final class AppSpacing {
+  /// 4 — tight inline gap (icon-to-text in a row).
+  static const double xs = 4;
+
+  /// 6 — between dense controls (per-row trailing buttons).
+  static const double xxs = 6;
+
+  /// 8 — default inline gap (most `SizedBox(height:8)` / `width:8` use this).
+  static const double sm = 8;
+
+  /// 12 — paragraph-level gap (between form rows, list items).
+  static const double md = 12;
+
+  /// 16 — section gap (between dialog blocks, settings panels).
+  static const double lg = 16;
+
+  /// 20 — large dialog padding.
+  static const double xl = 20;
+}
+
 /// Font helpers — Inter for UI, JetBrains Mono for technical data.
 ///
 /// Returns plain [TextStyle] objects with [fontFamily] set.
@@ -833,8 +875,15 @@ abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';
 
+  /// UI sans-serif family ('Inter') exposed for callers that hand a
+  /// raw [TextStyle] to a Flutter widget (custom painters,
+  /// third-party badges) instead of one of the [inter] /
+  /// [interMono] helpers below. Use this constant rather than the
+  /// raw string literal so a future font swap lands one place.
+  static const interFamily = _inter;
+
   /// Monospace family used by the terminal views and cursor overlay. Exposed
-  /// so xterm's `TerminalStyle` and the custom cursor painter can share a
+  /// so the terminal grid painter and the custom cursor painter can share a
   /// single source of truth with [mono].
   static const monoFamily = _mono;
 

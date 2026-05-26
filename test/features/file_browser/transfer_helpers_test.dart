@@ -1,518 +1,178 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:letsflutssh/core/sftp/sftp_client.dart';
+import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
-import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
-import 'package:letsflutssh/core/transfer/transfer_manager.dart';
-import 'package:letsflutssh/core/transfer/transfer_task.dart';
 import 'package:letsflutssh/features/file_browser/transfer_helpers.dart';
-import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:path/path.dart' as p;
+import 'package:letsflutssh/providers/transfer_provider.dart';
 
-class _FakeLoc implements S {
+/// In-memory `FileSystem` stub that records the calls
+/// `TransferHelpers` makes — the regression test below pins that
+/// the helpers route through the generic [`FileSystem`] surface
+/// rather than the SFTP-specific [`RemoteSftpFs`] shape. Until the
+/// generalisation landed, calling `TransferHelpers.enqueueUpload`
+/// with a non-SFTP backend (WebDAV / S3) was impossible — the
+/// signature demanded a `RemoteSftpFs` the caller couldn't
+/// provide, so drag-drop / paste / transfer-button on those panes
+/// no-op'd silently. The test below proves the helpers now accept
+/// any `FileSystem` and reach the manager.
+class _RecordingFs implements FileSystem {
+  final List<String> createdDirs = [];
+  // Set of paths the stub treats as "already present"; consulted
+  // by [`exists`]. Empty default — `enqueueUpload` skips the
+  // conflict probe when no `conflictResolver` is passed, but the
+  // surface stays available for future tests that exercise it.
+  final Set<String> existing;
+
+  // ignore: unused_element_parameter
+  _RecordingFs({this.existing = const {}});
+
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<String> initialDir() async => '/';
+
+  @override
+  Future<List<FileEntry>> list(String path) async => const [];
+
+  @override
+  Future<void> mkdir(String path) async => createdDirs.add(path);
+
+  @override
+  Future<void> remove(String path) async {}
+
+  @override
+  Future<void> removeDir(String path) async {}
+
+  @override
+  Future<void> rename(String oldPath, String newPath) async {}
+
+  @override
+  Future<int> dirSize(String path) async => 0;
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root, {int maxDepth = 100}) =>
+      flatWalkViaList(this, root, maxDepth: maxDepth);
+
+  @override
+  Future<bool> exists(String path) async => existing.contains(path);
+
+  @override
+  FileSystemCapabilities get capabilities => FileSystemCapabilities.objectStore;
 }
 
-/// Fake SFTPService — never called because TransferManager has parallelism: 0,
-/// so tasks stay queued and their run() closures are never invoked.
-class _FakeSFTPService extends Fake implements SFTPService {
-  final Set<String> existingRemote = {};
+/// Captures every `enqueueUpload` / `enqueueDownload` call on the
+/// notifier — the assertions below grep through this list rather
+/// than driving the real Rust transfer queue.
+class _CapturingTransfersNotifier extends TransfersNotifier {
+  final uploads = <Map<String, Object?>>[];
+  final downloads = <Map<String, Object?>>[];
 
   @override
-  Future<bool> exists(String path) async => existingRemote.contains(path);
-}
-
-/// TransferManager subclass that captures enqueued tasks for inspection.
-/// Uses parallelism: 0 so tasks remain in the queue and are never executed.
-class _CapturingTransferManager extends TransferManager {
-  final List<TransferTask> capturedTasks = [];
-
-  _CapturingTransferManager() : super(parallelism: 0);
+  TransfersState build() {
+    state = const TransfersState();
+    return state;
+  }
 
   @override
-  String enqueue(TransferTask task) {
-    capturedTasks.add(task);
-    return super.enqueue(task);
+  Future<String> enqueueUpload({
+    required String connectionId,
+    required String name,
+    required String localPath,
+    required String remotePath,
+    int sizeBytes = 0,
+  }) async {
+    uploads.add({
+      'connectionId': connectionId,
+      'name': name,
+      'localPath': localPath,
+      'remotePath': remotePath,
+      'sizeBytes': sizeBytes,
+    });
+    return 'fake-upload-${uploads.length}';
+  }
+
+  @override
+  Future<String> enqueueDownload({
+    required String connectionId,
+    required String name,
+    required String remotePath,
+    required String localPath,
+    int sizeBytes = 0,
+  }) async {
+    downloads.add({
+      'connectionId': connectionId,
+      'name': name,
+      'remotePath': remotePath,
+      'localPath': localPath,
+      'sizeBytes': sizeBytes,
+    });
+    return 'fake-download-${downloads.length}';
   }
 }
 
 void main() {
-  late _CapturingTransferManager manager;
-  late _FakeSFTPService fakeSftp;
-  late _FakeLoc fakeLoc;
-
-  setUp(() {
-    manager = _CapturingTransferManager();
-    fakeSftp = _FakeSFTPService();
-    fakeLoc = _FakeLoc();
-  });
-
-  tearDown(() {
-    manager.dispose();
-  });
-
-  group('TransferHelpers.enqueueUpload', () {
-    test('creates task with correct name, direction, and paths for a file', () {
+  // The download-directory walk rejects unsafe SFTP-supplied entry
+  // names before joining them onto the user-chosen destination. That
+  // safety predicate is owned by Rust
+  // (`lfs_core::path::is_safe_transfer_entry_name`, surfaced as
+  // `path_is_safe_entry_name`) and is unit + property tested there —
+  // it cannot run in this pure-Dart harness without Rust-lib init.
+  group('TransferHelpers — generic FileSystem dispatch', () {
+    test('enqueueUpload reaches the transfer manager when given a non-SFTP '
+        'FileSystem (the WebDAV / S3 drag-drop path)', () async {
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
       final entry = FileEntry(
-        name: 'readme.txt',
-        path: '/home/user/readme.txt',
-        size: 1024,
-        modTime: DateTime(2025, 1, 1),
-        isDir: false,
-      );
-
-      TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: entry,
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.capturedTasks, hasLength(1));
-      final task = manager.capturedTasks.first;
-      expect(task.name, 'readme.txt');
-      expect(task.direction, TransferDirection.upload);
-      expect(task.sourcePath, '/home/user/readme.txt');
-      expect(task.targetPath, '/srv/www/readme.txt');
-      expect(task.sizeBytes, 1024);
-    });
-
-    test('creates task with trailing slash in name for directory entry', () {
-      final entry = FileEntry(
-        name: 'images',
-        path: '/home/user/images',
-        size: 0,
-        modTime: DateTime(2025, 1, 1),
-        isDir: true,
-      );
-
-      TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: entry,
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.capturedTasks, hasLength(1));
-      final task = manager.capturedTasks.first;
-      expect(task.name, 'images/');
-      expect(task.direction, TransferDirection.upload);
-      expect(task.sourcePath, '/home/user/images');
-      expect(task.targetPath, '/srv/www/images');
-    });
-
-    test('increments queue length after enqueue', () {
-      expect(manager.queueLength, 0);
-
-      final entry = FileEntry(
-        name: 'file.txt',
-        path: '/home/user/file.txt',
-        size: 512,
-        modTime: DateTime(2025, 1, 1),
-        isDir: false,
-      );
-
-      TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: entry,
-        remoteDirPath: '/remote',
-        remoteCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.queueLength, 1);
-    });
-  });
-
-  group('TransferHelpers.enqueueDownload', () {
-    test('creates task with correct name, direction, and paths for a file', () {
-      final entry = FileEntry(
-        name: 'data.csv',
-        path: '/srv/data/data.csv',
-        size: 2048,
-        modTime: DateTime(2025, 6, 15),
-        isDir: false,
-      );
-
-      TransferHelpers.enqueueDownload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: entry,
-        localDirPath: '/home/user/downloads',
-        localCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.capturedTasks, hasLength(1));
-      final task = manager.capturedTasks.first;
-      expect(task.name, 'data.csv');
-      expect(task.direction, TransferDirection.download);
-      expect(task.sourcePath, '/srv/data/data.csv');
-      expect(task.targetPath, '/home/user/downloads/data.csv');
-      expect(task.sizeBytes, 2048);
-    });
-
-    test('creates task with trailing slash in name for directory entry', () {
-      final entry = FileEntry(
-        name: 'logs',
-        path: '/var/log/app/logs',
-        size: 0,
-        modTime: DateTime(2025, 3, 10),
-        isDir: true,
-      );
-
-      TransferHelpers.enqueueDownload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: entry,
-        localDirPath: '/home/user/backup',
-        localCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.capturedTasks, hasLength(1));
-      final task = manager.capturedTasks.first;
-      expect(task.name, 'logs/');
-      expect(task.direction, TransferDirection.download);
-      expect(task.sourcePath, '/var/log/app/logs');
-      expect(task.targetPath, '/home/user/backup/logs');
-    });
-
-    test('increments queue length after enqueue', () {
-      expect(manager.queueLength, 0);
-
-      final entry = FileEntry(
-        name: 'archive.tar.gz',
-        path: '/srv/archive.tar.gz',
+        name: 'photo.png',
+        path: '/local/photo.png',
         size: 4096,
-        modTime: DateTime(2025, 1, 1),
+        modTime: DateTime(2026, 5, 16),
         isDir: false,
       );
 
-      TransferHelpers.enqueueDownload(
+      final ok = await TransferHelpers.enqueueUpload(
         manager: manager,
-        sftp: fakeSftp,
+        remoteFs: fs,
+        connectionId: 'conn-webdav-1',
         entry: entry,
-        localDirPath: '/tmp',
-        localCtrl: null,
-        loc: fakeLoc,
-      );
-
-      expect(manager.queueLength, 1);
-    });
-  });
-
-  group('TransferHelpers.enqueueUpload — conflict handling', () {
-    FileEntry fileEntry() => FileEntry(
-      name: 'report.txt',
-      path: '/home/user/report.txt',
-      size: 100,
-      modTime: DateTime(2025, 1, 1),
-      isDir: false,
-    );
-
-    BatchConflictResolver resolverYielding(ConflictAction action) {
-      return BatchConflictResolver(
-        (_, {bool isRemote = false}) async => ConflictDecision(action),
-      );
-    }
-
-    test('skips enqueue when resolver returns skip', () async {
-      fakeSftp.existingRemote.add('/srv/www/report.txt');
-
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: fileEntry(),
-        remoteDirPath: '/srv/www',
+        remoteDirPath: '/uploads',
         remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.skip),
       );
 
-      expect(enqueued, isFalse);
-      expect(manager.capturedTasks, isEmpty);
+      expect(ok, isTrue);
+      expect(manager.uploads, hasLength(1));
+      expect(manager.uploads.first['connectionId'], 'conn-webdav-1');
+      expect(manager.uploads.first['localPath'], '/local/photo.png');
+      expect(manager.uploads.first['remotePath'], '/uploads/photo.png');
+      expect(manager.uploads.first['sizeBytes'], 4096);
     });
-
-    test('skips enqueue when resolver returns cancel', () async {
-      fakeSftp.existingRemote.add('/srv/www/report.txt');
-
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: fileEntry(),
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.cancel),
-      );
-
-      expect(enqueued, isFalse);
-      expect(manager.capturedTasks, isEmpty);
-    });
-
-    test('replace proceeds with the original target path', () async {
-      fakeSftp.existingRemote.add('/srv/www/report.txt');
-
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: fileEntry(),
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.replace),
-      );
-
-      expect(enqueued, isTrue);
-      expect(manager.capturedTasks, hasLength(1));
-      expect(manager.capturedTasks.single.targetPath, '/srv/www/report.txt');
-      expect(manager.capturedTasks.single.name, 'report.txt');
-    });
-
-    test('keepBoth enqueues a renamed sibling path', () async {
-      fakeSftp.existingRemote.add('/srv/www/report.txt');
-
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: fileEntry(),
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.keepBoth),
-      );
-
-      expect(enqueued, isTrue);
-      expect(manager.capturedTasks, hasLength(1));
-      expect(
-        manager.capturedTasks.single.targetPath,
-        '/srv/www/report (1).txt',
-      );
-      // Display name tracks the renamed file.
-      expect(manager.capturedTasks.single.name, 'report (1).txt');
-    });
-
-    test('enqueues normally when no conflict exists', () async {
-      // existingRemote is empty → exists() returns false → no prompt.
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: fileEntry(),
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.skip),
-      );
-
-      expect(enqueued, isTrue);
-      expect(manager.capturedTasks.single.targetPath, '/srv/www/report.txt');
-    });
-
-    test('directory entries bypass the conflict check', () async {
-      fakeSftp.existingRemote.add('/srv/www/images');
-      final dirEntry = FileEntry(
-        name: 'images',
-        path: '/home/user/images',
-        size: 0,
-        modTime: DateTime(2025, 1, 1),
-        isDir: true,
-      );
-
-      final enqueued = await TransferHelpers.enqueueUpload(
-        manager: manager,
-        sftp: fakeSftp,
-        entry: dirEntry,
-        remoteDirPath: '/srv/www',
-        remoteCtrl: null,
-        loc: fakeLoc,
-        conflictResolver: resolverYielding(ConflictAction.skip),
-      );
-
-      // Even though the remote dir "exists" and the resolver would
-      // say skip, directories are not gated by the conflict dialog.
-      expect(enqueued, isTrue);
-      expect(manager.capturedTasks, hasLength(1));
-    });
-  });
-
-  group('TransferHelpers.enqueueDownload — TOCTOU local overwrite guard', () {
-    late Directory tmpDir;
-
-    setUp(() {
-      tmpDir = Directory.systemTemp.createTempSync('xfer-toctou-');
-    });
-
-    tearDown(() {
-      if (tmpDir.existsSync()) {
-        tmpDir.deleteSync(recursive: true);
-      }
-    });
-
-    FileEntry remoteEntry(String name) => FileEntry(
-      name: name,
-      path: '/srv/data/$name',
-      size: 999,
-      modTime: DateTime(2026, 4, 17),
-      isDir: false,
-    );
-
-    BatchConflictResolver resolverYielding(ConflictAction action) {
-      return BatchConflictResolver(
-        (_, {bool isRemote = false}) async => ConflictDecision(action),
-      );
-    }
 
     test(
-      'refuses to overwrite a pre-existing local symlink (replace blocked)',
+      'enqueueDownload reaches the transfer manager with a generic '
+      'FileSystem (mirrors the upload contract for the download side)',
       () async {
-        const targetName = 'bookkeeping.pdf';
-        final targetPath = p.join(tmpDir.path, targetName);
-        // Bait: a symlink planted at the target path before the dialog
-        // is even shown. A naive overwrite would follow the link to
-        // the pointed-at file (here a "sensitive" scratch file) and
-        // clobber it.
-        final sensitive = File(p.join(tmpDir.path, 'id_ed25519'))
-          ..writeAsStringSync('pretend-private-key');
-        Link(targetPath).createSync(sensitive.path);
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs();
+        final entry = FileEntry(
+          name: 'data.csv',
+          path: '/remote/data.csv',
+          size: 8192,
+          modTime: DateTime(2026, 5, 16),
+          isDir: false,
+        );
 
-        final enqueued = await TransferHelpers.enqueueDownload(
+        final ok = await TransferHelpers.enqueueDownload(
           manager: manager,
-          sftp: fakeSftp,
-          entry: remoteEntry(targetName),
-          localDirPath: tmpDir.path,
+          remoteFs: fs,
+          connectionId: 'conn-s3-1',
+          entry: entry,
+          localDirPath: '/downloads',
           localCtrl: null,
-          loc: fakeLoc,
-          conflictResolver: resolverYielding(ConflictAction.replace),
         );
 
-        expect(
-          enqueued,
-          isFalse,
-          reason:
-              'replace through a pre-existing symlink must be refused — '
-              'the user cannot have given informed consent for the link target',
-        );
-        expect(manager.capturedTasks, isEmpty);
-        // The "sensitive" file must remain untouched.
-        expect(sensitive.readAsStringSync(), 'pretend-private-key');
+        expect(ok, isTrue);
+        expect(manager.downloads, hasLength(1));
+        expect(manager.downloads.first['connectionId'], 'conn-s3-1');
+        expect(manager.downloads.first['remotePath'], '/remote/data.csv');
+        expect(manager.downloads.first['sizeBytes'], 8192);
       },
     );
-
-    test(
-      'aborts replace when the target is swapped between probe and confirm',
-      () async {
-        const targetName = 'config.json';
-        final targetPath = p.join(tmpDir.path, targetName);
-        // Original file present at probe time — 10 bytes.
-        File(targetPath).writeAsStringSync('original!!');
-
-        // The resolver runs between the probe stat and the post-confirm
-        // re-stat. Simulate an attacker replacing the file during the
-        // dialog by rewriting it inside the prompt callback.
-        final raceResolver = BatchConflictResolver((
-          path, {
-          bool isRemote = false,
-        }) async {
-          // Overwrite with a different size + mtime shape so the
-          // post-confirm snapshot can't match the pre-probe one.
-          final replacement = File(path);
-          replacement.deleteSync();
-          replacement.writeAsStringSync(
-            'REPLACED with more bytes — different size',
-          );
-          return const ConflictDecision(ConflictAction.replace);
-        });
-
-        final enqueued = await TransferHelpers.enqueueDownload(
-          manager: manager,
-          sftp: fakeSftp,
-          entry: remoteEntry(targetName),
-          localDirPath: tmpDir.path,
-          localCtrl: null,
-          loc: fakeLoc,
-          conflictResolver: raceResolver,
-        );
-
-        expect(
-          enqueued,
-          isFalse,
-          reason:
-              'the file the user consented to replace is no longer what is '
-              'there now — the overwrite must be aborted',
-        );
-        expect(manager.capturedTasks, isEmpty);
-      },
-    );
-
-    test(
-      'replace proceeds when the target snapshot matches on re-check',
-      () async {
-        const targetName = 'ok.txt';
-        final targetPath = p.join(tmpDir.path, targetName);
-        File(targetPath).writeAsStringSync('steady state');
-
-        final enqueued = await TransferHelpers.enqueueDownload(
-          manager: manager,
-          sftp: fakeSftp,
-          entry: remoteEntry(targetName),
-          localDirPath: tmpDir.path,
-          localCtrl: null,
-          loc: fakeLoc,
-          conflictResolver: resolverYielding(ConflictAction.replace),
-        );
-
-        expect(enqueued, isTrue);
-        expect(manager.capturedTasks, hasLength(1));
-        expect(manager.capturedTasks.single.targetPath, targetPath);
-      },
-    );
-  });
-
-  test('multiple enqueues increase queue length cumulatively', () {
-    final file1 = FileEntry(
-      name: 'a.txt',
-      path: '/local/a.txt',
-      size: 100,
-      modTime: DateTime(2025, 1, 1),
-      isDir: false,
-    );
-    final file2 = FileEntry(
-      name: 'b.txt',
-      path: '/remote/b.txt',
-      size: 200,
-      modTime: DateTime(2025, 1, 1),
-      isDir: false,
-    );
-
-    TransferHelpers.enqueueUpload(
-      manager: manager,
-      sftp: fakeSftp,
-      entry: file1,
-      remoteDirPath: '/remote',
-      remoteCtrl: null,
-      loc: fakeLoc,
-    );
-    TransferHelpers.enqueueDownload(
-      manager: manager,
-      sftp: fakeSftp,
-      entry: file2,
-      localDirPath: '/local',
-      localCtrl: null,
-      loc: fakeLoc,
-    );
-
-    expect(manager.queueLength, 2);
-    expect(manager.capturedTasks, hasLength(2));
-    expect(manager.capturedTasks[0].direction, TransferDirection.upload);
-    expect(manager.capturedTasks[1].direction, TransferDirection.download);
   });
 }

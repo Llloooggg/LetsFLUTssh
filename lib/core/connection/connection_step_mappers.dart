@@ -1,0 +1,154 @@
+part of 'connection.dart';
+
+/// Map the FRB-mirrored phase enum to the Dart enum the UI
+/// renders against. Lives in its own file so callers that don't
+/// touch the FRB bus events (pure data tests / value-type
+/// fixtures) can import `connection_step.dart` without pulling
+/// in the FRB native-lib dependency.
+ConnectionPhase mapBusPhase(rust_bus.BusConnectionPhase phase) {
+  return switch (phase) {
+    rust_bus.BusConnectionPhase.socketConnect => ConnectionPhase.socketConnect,
+    rust_bus.BusConnectionPhase.hostKeyVerify => ConnectionPhase.hostKeyVerify,
+    rust_bus.BusConnectionPhase.authenticate => ConnectionPhase.authenticate,
+    rust_bus.BusConnectionPhase.openChannel => ConnectionPhase.openChannel,
+  };
+}
+
+/// Map the FRB-mirrored step-status enum to the Dart enum.
+StepStatus mapBusStatus(rust_bus.BusStepStatus status) {
+  return switch (status) {
+    rust_bus.BusStepStatus.inProgress => StepStatus.inProgress,
+    rust_bus.BusStepStatus.success => StepStatus.success,
+    rust_bus.BusStepStatus.failed => StepStatus.failed,
+  };
+}
+
+/// Translate the Dart [SshAuthMethod] sealed family into the
+/// FRB-mirrored bus connect-auth ref. Pure mapping — extracted
+/// from `ConnectionsNotifier` so the per-tier auth-ref construction
+/// lives alongside the phase / status mappers.
+rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
+  return switch (auth) {
+    SshAuthPasswordRef(:final passwordSecretId) =>
+      rust_bus.BusConnectAuthRef.password(secretId: passwordSecretId),
+    SshAuthPubkeyRef(:final keySecretId, :final passphraseSecretId) =>
+      rust_bus.BusConnectAuthRef.pubkey(
+        keySecretId: keySecretId,
+        passphraseSecretId: passphraseSecretId,
+      ),
+    SshAuthPubkeyCertRef(
+      :final keySecretId,
+      :final certSecretId,
+      :final passphraseSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyCert(
+        keySecretId: keySecretId,
+        certSecretId: certSecretId,
+        passphraseSecretId: passphraseSecretId,
+      ),
+    SshAuthPubkeySkRef(
+      :final publicOpenssh,
+      :final credentialId,
+      :final application,
+      :final pinSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeySk(
+        publicOpenssh: publicOpenssh,
+        credentialId: credentialId,
+        application: application,
+        pinSecretId: pinSecretId,
+      ),
+    SshAuthPubkeySkCertRef(
+      :final publicOpenssh,
+      :final credentialId,
+      :final application,
+      :final certSecretId,
+      :final pinSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeySkCert(
+        publicOpenssh: publicOpenssh,
+        credentialId: credentialId,
+        application: application,
+        certSecretId: certSecretId,
+        pinSecretId: pinSecretId,
+      ),
+    SshAuthPubkeyPkcs11Ref(
+      :final publicOpenssh,
+      :final modulePath,
+      :final tokenSerial,
+      :final ckaId,
+      :final keyType,
+      :final pinSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyPkcs11(
+        publicOpenssh: publicOpenssh,
+        modulePath: modulePath,
+        tokenSerial: tokenSerial,
+        ckaId: ckaId,
+        keyType: keyType,
+        pinSecretId: pinSecretId,
+      ),
+    SshAuthPubkeyEnclaveRef(:final publicOpenssh, :final applicationTag) =>
+      rust_bus.BusConnectAuthRef.pubkeyEnclave(
+        publicOpenssh: publicOpenssh,
+        applicationTag: applicationTag,
+      ),
+    SshAuthPubkeyHelloRef(
+      :final publicOpenssh,
+      :final credentialName,
+      :final keyType,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyHello(
+        publicOpenssh: publicOpenssh,
+        credentialName: credentialName,
+        keyType: keyType,
+      ),
+    SshAuthPubkeyTpmRef(
+      :final publicOpenssh,
+      :final provider,
+      :final blob,
+      :final cngKeyName,
+      :final keyType,
+      :final pinSecretId,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyTpm(
+        publicOpenssh: publicOpenssh,
+        provider: provider,
+        blob: blob,
+        cngKeyName: cngKeyName,
+        keyType: keyType,
+        pinSecretId: pinSecretId,
+      ),
+    SshAuthPubkeyKeystoreRef(
+      :final publicOpenssh,
+      :final keystoreAlias,
+      :final keyType,
+    ) =>
+      rust_bus.BusConnectAuthRef.pubkeyKeystore(
+        publicOpenssh: publicOpenssh,
+        keystoreAlias: keystoreAlias,
+        keyType: keyType,
+      ),
+    SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
+  };
+}
+
+/// Build the FRB-mirrored bus connect args from a [Connection] +
+/// [SSHConfig] + resolved [SshAuthMethod]. Pure mapping — used by
+/// `ConnectionsNotifier._doConnect` to feed the Rust connect actor.
+rust_bus.BusConnectArgs busConnectArgs(
+  Connection conn,
+  SSHConfig config,
+  SshAuthMethod auth,
+) {
+  return rust_bus.BusConnectArgs(
+    label: conn.label,
+    sessionId: conn.sessionId,
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    auth: busAuthRef(auth),
+    bastionId: conn.bastion?.id,
+    internal: conn.internal,
+  );
+}

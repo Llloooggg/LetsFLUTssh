@@ -21,7 +21,10 @@
   "select": "Pilih",
   "copyModeTapToStart": "Sentuh untuk menandai awal pilihan",
   "copyModeExtending": "Seret untuk memperluas pilihan",
+  "copyModeSetAnchor": "Tetapkan jangkar",
+  "copyModeCopySelection": "Salin pilihan",
   "required": "Wajib",
+  "errFillRequiredFields": "Isi field wajib yang ditandai *",
   "settings": "Pengaturan",
   "appSettings": "Pengaturan Aplikasi",
   "includePasswords": "Kata sandi sesi",
@@ -69,7 +72,6 @@
   "installerFailedOpenedReleasePage": "Peluncuran penginstal gagal; halaman rilis dibuka di browser",
   "versionAvailable": "Versi {version} tersedia",
   "currentVersion": "Saat ini: v{version}",
-  "sshKeyReceived": "Kunci SSH diterima: {filename}",
   "importedSessions": "{count} sesi diimpor",
   "importFailed": "Impor gagal: {error}",
   "importSkippedLinks": "{count, plural, other{{count} asosiasi dilewati (target hilang)}}",
@@ -104,8 +106,17 @@
   "deleteSessionConfirm": "Hapus \"{name}\"?",
   "connection": "Koneksi",
   "auth": "Autentikasi",
+  "sectionAuthentication": "Autentikasi",
+  "sectionAdvanced": "Lanjutan",
+  "moreOptions": "Opsi lainnya",
+  "forwardRulesSummary": "{count, plural, =0{Tidak ada aturan port forwarding} other{{count} aturan port forwarding}}",
+  "manageRules": "Kelola…",
+  "authMethodAgent": "Pakai ssh-agent sistem",
   "options": "Opsi",
   "sessionName": "Nama Sesi",
+  "sessionNameAutoFromHost": "Auto dari host",
+  "sessionNameAutoFromUrl": "Auto dari host URL",
+  "sessionNameAutoFromBucket": "Auto dari bucket default",
   "hintMyServer": "Server Saya",
   "hostRequired": "Host *",
   "hintHost": "192.168.1.1",
@@ -117,6 +128,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Frasa Sandi Kunci",
   "hintOptional": "Opsional",
+  "savedTypeToChange": "Tersimpan — ketik untuk mengubah",
   "hidePemText": "Sembunyikan teks PEM",
   "pastePemKeyText": "Tempel teks kunci PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -152,7 +164,6 @@
   "confirmPassword": "Konfirmasi Kata Sandi",
   "importModeMergeDescription": "Tambahkan sesi baru, pertahankan yang ada",
   "importModeReplaceDescription": "Ganti semua sesi dengan yang diimpor",
-  "errorPrefix": "Kesalahan: {error}",
   "folderName": "Nama folder",
   "newName": "Nama baru",
   "deleteItems": "Hapus {names}?",
@@ -200,10 +211,13 @@
   "keepAliveInterval": "Interval Keep-Alive (detik)",
   "sshTimeout": "Batas Waktu SSH (detik)",
   "defaultPort": "Port Default",
-  "parallelWorkers": "Pekerja Paralel",
+  "parallelWorkers": "Worker Paralel",
   "maxHistory": "Riwayat Maksimal",
   "calculateFolderSizes": "Hitung Ukuran Folder",
+  "verboseConnectionLog": "Log koneksi verbose",
+  "verboseConnectionLogSubtitle": "Catat seluruh trace handshake SSH dan autentikasi ke file log (untuk mendiagnosis kegagalan koneksi)",
   "exportData": "Ekspor Data",
+  "exportRecordings": "Rekaman Sesi",
   "sshConfigPreviewHostsFound": "{count} host ditemukan",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
@@ -274,7 +288,6 @@
   "urlCopied": "URL disalin ke clipboard",
   "aboutSubtitle": "v{version} — Klien SSH/SFTP",
   "sourceCode": "Kode Sumber",
-  "enableLogging": "Aktifkan Log",
   "logIsEmpty": "Log kosong",
   "logExportedTo": "Log diekspor ke: {path}",
   "logExportFailed": "Ekspor log gagal: {error}",
@@ -307,20 +320,56 @@
   "completed": "Selesai",
   "connected": "Terhubung",
   "disconnected": "Terputus",
+  "a11yConnectingTo": "Menghubungkan ke {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Terhubung ke {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Terputus dari {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Gagal terhubung ke {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Keluar",
   "exitConfirmation": "Sesi aktif akan terputus. Keluar?",
   "hintFolderExample": "contoh: Production",
   "credentialsNotSet": "Kredensial belum diatur",
   "exportSessionsViaQr": "Ekspor Sesi via QR",
-  "qrNoCredentialsWarning": "Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.",
   "qrTooManyForSingleCode": "Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.",
   "qrTooLarge": "Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.",
-  "exportAll": "Ekspor Semua",
   "showQr": "Tampilkan QR",
   "sort": "Urutkan",
   "resizePanelDivider": "Ubah ukuran pembagi panel",
   "youreRunningLatest": "Anda menggunakan versi terbaru",
   "liveLog": "Log Langsung",
+  "archivedLog": "Log terarsip",
+  "loggingLevel": "Level log",
+  "loggingLevelSubtitleInfo": "Entri rutin + warning + error",
+  "loggingLevelSubtitleWarn": "Hanya path degraded dan error",
+  "loggingLevelSubtitleError": "Hanya error",
+  "loggingLevelSubtitleOff": "Log rutin tidak ditulis",
   "transferNItems": "Transfer {count} item",
   "time": "Waktu",
   "failed": "Gagal",
@@ -401,20 +450,11 @@
   "errLfsUnsupportedVersion": "Arsip menggunakan skema v{found}, tetapi build ini hanya mendukung hingga v{supported}. Perbarui aplikasi untuk mengimpornya.",
   "progressReadingArchive": "Membaca arsip…",
   "progressDecrypting": "Mendekripsi…",
-  "progressParsingArchive": "Mengurai arsip…",
-  "progressImportingSessions": "Mengimpor sesi",
-  "progressImportingFolders": "Mengimpor folder",
-  "progressImportingManagerKeys": "Mengimpor kunci SSH",
-  "progressImportingTags": "Mengimpor tag",
-  "progressImportingSnippets": "Mengimpor snippet",
-  "progressApplyingConfig": "Menerapkan konfigurasi…",
-  "progressImportingKnownHosts": "Mengimpor known_hosts…",
   "progressCollectingData": "Mengumpulkan data…",
   "progressEncrypting": "Mengenkripsi…",
   "progressWritingArchive": "Menulis arsip…",
   "progressWorking": "Memproses…",
-  "saveSessionToAssignTags": "Simpan sesi terlebih dahulu untuk menetapkan tag",
-  "noTagsAssigned": "Tidak ada tag yang ditetapkan",
+  "noTagsAvailable": "Belum ada tag — buat satu di Tools → Tags.",
   "manageTags": "Kelola tag",
   "errWithPath": "{error}: {path}",
   "errWithCause": "{error} ({cause})",
@@ -447,11 +487,6 @@
   "transferTooltipEnded": "Selesai: {time}",
   "transferTooltipDuration": "Durasi: {duration}",
   "transferStatusQueued": "Dalam antrean",
-  "transferStartingUpload": "Memulai unggah...",
-  "transferStartingDownload": "Memulai unduh...",
-  "transferCopying": "Menyalin...",
-  "transferDone": "Selesai",
-  "transferFilesProgress": "{done}/{total} file",
   "fileConflictTitle": "File sudah ada",
   "fileConflictMessage": "\"{fileName}\" sudah ada di {targetDir}. Apa yang ingin Anda lakukan?",
   "fileConflictSkip": "Lewati",
@@ -489,6 +524,7 @@
   "noKeys": "Tidak ada kunci SSH. Impor atau buat satu.",
   "generateKey": "Buat kunci",
   "addKey": "Tambah kunci",
+  "addKeyMenuPaste": "Tempel PEM",
   "filePickerUnavailable": "Pemilih berkas tidak tersedia pada sistem ini",
   "importKey": "Impor kunci",
   "keyLabel": "Nama kunci",
@@ -502,20 +538,37 @@
   "keyDeleted": "Kunci dihapus: {label}",
   "publicKey": "Kunci publik",
   "publicKeyCopied": "Kunci publik disalin ke clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportTooltip": "Attach OpenSSH certificate yang di-sign oleh CA Anda (file `-cert.pub` dari `ssh-keygen -s …`). Pakai saat server verifikasi lewat CA signature, bukan `authorized_keys`. Skip kalau server Anda pakai plain key auth.",
+  "certImportPickerTitle": "Pilih file certificate OpenSSH",
+  "certValidFrom": "Berlaku sejak",
+  "certValidTo": "Berlaku sampai",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Certificate ini akan segera expired.",
+  "certExpired": "Expired",
+  "certRemove": "Hapus certificate",
+  "certRemoveConfirmTitle": "Hapus certificate?",
+  "certRemoveConfirmBody": "Setelah dihapus, sesi akan kembali memakai jalur public key biasa saat connect.",
+  "errCertParse": "Tidak bisa parse certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Certificate ini tidak dipasangkan dengan key yang dipilih.",
   "pastePrivateKey": "Tempel kunci privat (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Data kunci PEM tidak valid",
   "selectFromKeyStore": "Pilih dari penyimpanan kunci",
   "keyCount": "{count, plural, =0{Tidak ada kunci} other{{count} kunci}}",
   "generated": "Dibuat",
-  "passphraseRequired": "Frasa sandi diperlukan",
-  "passphrasePrompt": "Kunci SSH untuk {host} terenkripsi. Masukkan frasa sandi untuk membukanya.",
-  "passphraseWrong": "Frasa sandi salah. Silakan coba lagi.",
   "passphrase": "Frasa sandi",
-  "rememberPassphrase": "Ingat untuk sesi ini",
   "enterMasterPassword": "Masukkan kata sandi utama untuk mengakses kredensial tersimpan.",
-  "wrongMasterPassword": "Kata sandi salah. Silakan coba lagi.",
-  "newPassword": "Kata sandi baru",
+  "wrongMasterPassword": "Kata sandi salah. Coba lagi.",
   "currentPassword": "Kata sandi saat ini",
   "forgotPassword": "Lupa kata sandi?",
   "credentialsReset": "Semua kredensial tersimpan telah dihapus",
@@ -552,11 +605,10 @@
   "keepAliveIntervalSubtitle": "Detik antara paket SSH keep-alive (0 = mati)",
   "sshTimeoutSubtitle": "Batas waktu koneksi dalam detik",
   "defaultPortSubtitle": "Port default untuk sesi baru",
-  "parallelWorkersSubtitle": "Pekerja transfer SFTP paralel",
+  "parallelWorkersSubtitle": "Worker transfer SFTP paralel",
   "maxHistorySubtitle": "Maksimum perintah tersimpan di riwayat",
   "calculateFolderSizesSubtitle": "Tampilkan ukuran total di samping folder di bilah sisi",
   "checkForUpdatesOnStartupSubtitle": "Cek rilis baru di GitHub saat aplikasi dijalankan",
-  "enableLoggingSubtitle": "Tulis peristiwa aplikasi ke berkas log berotasi",
   "snippets": "Snippet",
   "snippetsSubtitle": "Kelola snippet perintah yang dapat digunakan kembali",
   "noSnippets": "Belum ada snippet",
@@ -578,6 +630,79 @@
   "pinnedSnippets": "Disematkan",
   "allSnippets": "Semua",
   "commandCopied": "Perintah disalin",
+  "snippetTokensHint": "Ketuk untuk menyisipkan placeholder. Ini diganti saat dijalankan dengan nilai dari sesi aktif:",
+  "snippetCustomTokensHint": "Apa pun lainnya dengan tanda kurung kurawal ganda akan meminta nilai saat snippet dijalankan.",
+  "snippetFillTitle": "Isi parameter snippet",
+  "snippetFillSubmit": "Jalankan",
+  "broadcastSetDriver": "Siarkan dari panel ini",
+  "broadcastClearDriver": "Hentikan siaran dari panel ini",
+  "broadcastAddReceiver": "Terima siaran di sini",
+  "broadcastRemoveReceiver": "Berhenti menerima siaran",
+  "broadcastClearAll": "Hentikan semua siaran",
+  "broadcastPasteTitle": "Kirim tempel ke semua panel?",
+  "broadcastPasteBody": "{chars} karakter akan dikirim ke {count} panel lain.",
+  "@broadcastPasteBody": {
+    "placeholders": {
+      "chars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "broadcastPasteSend": "Kirim",
+  "portForwarding": "Penerusan",
+  "portForwardingEmpty": "Belum ada aturan",
+  "addForwardRule": "Tambah aturan",
+  "editForwardRule": "Edit aturan",
+  "deleteForwardRule": "Hapus aturan",
+  "localForward": "Lokal",
+  "remoteForward": "Jarak jauh",
+  "dynamicForward": "Dinamis",
+  "forwardKind": "Jenis",
+  "bindAddress": "Alamat bind",
+  "bindPort": "Port bind",
+  "targetHost": "Host target",
+  "targetPort": "Port target",
+  "forwardDescription": "Deskripsi (opsional)",
+  "forwardEnabled": "Aktif",
+  "forwardBindWildcardWarning": "Bind ke 0.0.0.0 mempublikasikan penerusan ke semua antarmuka — biasanya 127.0.0.1 yang Anda inginkan.",
+  "forwardKindLocalHelp": "Lokal: membuka port di perangkat ini yang menerowong ke target yang dapat dijangkau dari server SSH. Berguna untuk mengakses database jarak jauh atau UI admin di localhost:bindPort.",
+  "forwardKindRemoteHelp": "Jarak jauh: meminta server SSH membuka port yang menerowong kembali ke target yang dapat dijangkau dari perangkat ini. Berguna untuk berbagi dev server lokal dengan host jarak jauh (server mungkin perlu GatewayPorts yes untuk bind non-loopback).",
+  "forwardKindDynamicHelp": "Dinamis: proxy SOCKS5 di perangkat ini yang merutekan setiap koneksi melalui server SSH. Arahkan browser atau curl ke localhost:bindPort untuk mengirim semua lalu lintas melalui SSH.",
+  "proxyJump": "Hubungkan melalui",
+  "proxyJumpNone": "Koneksi langsung",
+  "proxyJumpSavedSession": "Sesi tersimpan",
+  "proxyJumpCustom": "Kustom",
+  "proxyJumpCustomNote": "Hop kustom memakai kredensial sesi ini. Untuk auth bastion berbeda, simpan bastion sebagai sesi tersendiri.",
+  "viaSessionLabel": "via {label}",
+  "@viaSessionLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "recordSession": "Rekam sesi",
+  "recordSessionHelp": "Simpan output terminal ke disk untuk sesi ini. Terenkripsi saat istirahat jika master password atau hardware key melindungi database sesi; selain itu disimpan sebagai plaintext di samping database.",
+  "recordingsBrowserTitle": "Rekaman",
+  "recordingsBrowserSubtitle": "Telusuri, putar ulang, dan hapus sesi yang direkam",
+  "recordingsEmpty": "Belum ada rekaman",
+  "playRecording": "Putar",
+  "deleteRecording": "Hapus",
+  "recordingPlaybackTitle": "Putar ulang rekaman",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Tag",
   "tagsSubtitle": "Atur sesi dan folder dengan tag berwarna",
   "noTags": "Belum ada tag",
@@ -599,9 +724,6 @@
   "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
   "importAction": "Impor",
   "emptyFolder": "Folder kosong",
-  "exportWithoutPassword": "Ekspor tanpa kata sandi?",
-  "exportWithoutPasswordWarning": "Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.",
-  "continueWithoutPassword": "Lanjutkan tanpa kata sandi",
   "tierHardwareUnavailable": "Hardware vault tidak tersedia pada instalasi ini.",
   "pinLabel": "Kata sandi",
   "l2UnlockTitle": "Kata sandi diperlukan",
@@ -627,8 +749,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Penyimpanan berbasis perangkat keras tidak tersedia di perangkat ini.",
   "firstLaunchSecurityOpenSettings": "Buka Pengaturan",
   "wizardReducedBanner": "Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.",
-  "tierBlockProtectsEmpty": "Tidak ada pada tingkat ini.",
-  "tierBlockDoesNotProtectEmpty": "Tidak ada ancaman yang tidak tertutup.",
   "tierBadgeCurrent": "Saat ini",
   "securitySetupEnable": "Aktifkan",
   "securitySetupApply": "Terapkan",
@@ -692,7 +812,6 @@
   "colT1": "T1 Keychain",
   "colT1Password": "T1 + kata sandi",
   "colT1PasswordBiometric": "T1 + kata sandi + biometrik",
-  "colT2": "T2 Perangkat keras",
   "colT2Password": "T2 + kata sandi",
   "colT2PasswordBiometric": "T2 + kata sandi + biometrik",
   "colParanoid": "Paranoid",
@@ -703,9 +822,40 @@
   "resetAllDataConfirmTitle": "Reset semua data?",
   "resetAllDataConfirmBody": "Semua sesi, kunci SSH, known hosts, snippet, tag, preferensi, dan semua artefak keamanan (entri keychain, data brankas perangkat keras, lapisan biometrik) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
   "resetAllDataConfirmAction": "Reset semuanya",
+  "resetAllDataConfirmTypePrompt": "Ketik {phrase} di bawah untuk mengonfirmasi:",
   "resetAllDataInProgress": "Mereset…",
   "resetAllDataDone": "Semua data telah direset",
   "resetAllDataFailed": "Reset gagal",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Terpakai",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "Hard cap untuk folder recordings/. Saat terlampaui, recording terlama dihapus dulu; recording yang sedang berjalan tidak pernah disentuh.",
+  "recordingsClearAllAction": "Hapus semua recordings",
+  "recordingsClearAllConfirmTitle": "Hapus semua recordings?",
+  "recordingsClearAllConfirmBody": "Setiap session yang direkam di bawah <app>/recordings/ akan dihapus. Recording yang sedang berjalan (jika ada) tetap. Aksi ini tidak bisa dibatalkan.",
+  "recordingsClearAllResult": "{count} recordings dihapus",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap diperbarui. {bytes} dibebaskan.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap diperbarui. Tidak ada yang dihapus.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "SAAT INI",
   "paranoidAlternativeHeader": "ALTERNATIF",
   "modifierPasswordLabel": "Kata sandi",
@@ -717,7 +867,24 @@
   "autoLockRequiresActiveTier": "Pilih tingkat ini terlebih dahulu untuk mengonfigurasi kunci otomatis",
   "biometricForbiddenParanoid": "Paranoid tidak mengizinkan biometrik secara desain.",
   "fprintdNotAvailable": "fprintd belum diinstal atau tidak ada sidik jari terdaftar.",
-  "linuxTpmWithoutPasswordNote": "TPM tanpa kata sandi menyediakan isolasi, bukan autentikasi. Siapa pun yang dapat menjalankan aplikasi ini dapat membuka data.",
+  "modifierPasswordRequired": "Wajib — tier Hardware selalu dilindungi password.",
+  "t2RequiresPasswordTitle": "Atur master password untuk tier Hardware",
+  "t2RequiresPasswordBody": "Tier Hardware butuh password sebagai modifier. Biometric adalah shortcut opsional di atasnya.",
+  "t2MigrationPromptTitle": "Tier Hardware butuh password",
+  "t2MigrationPromptBody": "Install Hardware yang sudah ada tanpa password harus menetapkan satu sekarang untuk melanjutkan.",
+  "t2MigrationContinue": "Lanjutkan",
+  "t2MigrationSetPasswordTitle": "Set password untuk menyimpan tier Hardware",
+  "t2MigrationSetPasswordBody": "Ketik master password baru. DB key yang sudah di-seal di hardware module akan di-re-seal di bawah password ini — session dan key kamu tetap utuh.",
+  "t2MigrationWipeAndRestart": "Wipe dan mulai ulang",
+  "t2MigrationResealFailed": "Re-seal tier Hardware gagal — pilih password lain atau wipe untuk mulai dari nol.",
+  "biometricOverlayEnable": "Aktifkan shortcut biometric pada tier Hardware",
+  "biometricOverlayEnableSubtitle": "Membebaskan password kamu dari slot OS yang dilindungi biometric.",
+  "biometricOverlayUnavailable": "Overlay biometric belum tersedia di platform ini.",
+  "biometricOverlayRequiresPassword": "Atur password tier Hardware terlebih dahulu.",
+  "t2UnlockTitle": "Buka dengan master password kamu",
+  "t2UnlockSubtitle": "Kunci hardware-bound dilindungi password kamu.",
+  "t2UnlockUseBiometricButton": "Gunakan biometric",
+  "t2PasswordChanged": "Password tier Hardware diperbarui.",
   "paranoidMasterPasswordNote": "Sangat disarankan menggunakan frasa sandi yang panjang — Argon2id hanya memperlambat serangan brute force, bukan memblokirnya.",
   "plaintextWarningTitle": "Teks polos: tanpa enkripsi",
   "plaintextWarningBody": "Sesi, kunci, dan known hosts akan disimpan tanpa enkripsi. Siapa pun yang memiliki akses ke sistem file komputer ini dapat membacanya.",
@@ -727,7 +894,468 @@
   "masterPasswordLabel": "Kata sandi utama",
   "autoLockRequiresPassword": "Kunci otomatis memerlukan kata sandi pada tier aktif.",
   "recommendedBadge": "DIREKOMENDASIKAN",
-  "tierHardwareSubtitleHonest": "Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.",
+  "tierHardwareSubtitleHonest": "Lanjutan: kunci terikat pada perangkat keras, selalu dilindungi password. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.",
   "tierParanoidSubtitleHonest": "Alternatif: kata sandi utama, tanpa memercayai OS. Melindungi dari OS yang disusupi. Tidak meningkatkan proteksi runtime dibandingkan T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih."
+  "mitigationsNoteRuntimeThreats": "Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih.",
+  "globalErrorTitle": "Kesalahan tak terduga",
+  "globalErrorBody": "Terjadi kesalahan tak terduga. Aplikasi akan tetap berjalan.",
+  "globalErrorLogSavedNote": "Semua detail telah ditulis ke file log.",
+  "globalErrorLogDisabledNote": "Aktifkan logging di Pengaturan untuk menyimpan detail kesalahan.",
+  "globalErrorTechnicalLine": "Kesalahan: {detail}",
+  "globalErrorEnableLoggingButton": "Aktifkan logging",
+  "globalErrorLoggingEnabledToast": "Logging aktif — kesalahan akan ditulis ke file log",
+  "fatalErrorQuitButton": "Keluar",
+  "fatalErrorWipeButton": "Hapus semua data",
+  "fatalErrorWipingButton": "Menghapus…",
+  "fatalErrorWipeExplanation": "Menghapus akan membuang semua file aplikasi (config, database, blob vault, log); peluncuran berikutnya mulai dari instalasi bersih. Tidak bisa dibatalkan.",
+  "fatalErrorWipeConfirmTitle": "Hapus semua data?",
+  "fatalErrorWipeConfirmBody": "Ini menghapus permanen semua file config, database, dan vault. Aplikasi akan mulai ulang dari instalasi kosong. Lanjutkan?",
+  "fatalErrorWipeConfirmAction": "Hapus semuanya",
+  "unencryptedArchiveWarning": "Arsip ini tidak dilindungi kata sandi. Siapa pun yang punya file ini bisa membaca isinya.",
+  "clipboardCopyFailed": "Gagal menyalin ke clipboard.",
+  "nonAsciiHostnameWarning": "Nama host mengandung karakter non-ASCII — periksa tiap karakter terhadap yang kamu ketik. Codepoint yang mirip secara visual (Sirilik / Yunani) bisa memalsukan domain Latin.",
+  "playbackPause": "Jeda",
+  "recordingPlayLocked": "Buka kunci aplikasi untuk memutar rekaman terenkripsi ini.",
+  "recordToggleStart": "Mulai recording",
+  "recordToggleStop": "Hentikan recording",
+  "foregroundServiceTitle": "SSH aktif",
+  "foregroundServiceConnections": "{count, plural, =1{1 koneksi aktif} other{{count} koneksi aktif}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Tipe session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Metode auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "trustedCert": "Sertifikat tepercaya (PEM)",
+  "trustedCertHint": "-----BEGIN CERTIFICATE-----",
+  "trustedCertHelp": "Tempel sertifikat server (satu atau lebih blok PEM). Ditambahkan sebagai CA root tambahan hanya untuk sesi ini — tidak memengaruhi aplikasi lain. Kosongkan untuk menggunakan trust store sistem.",
+  "acceptAnyCert": "Terima sertifikat apa pun",
+  "acceptAnyCertHelp": "Lewati semua pemeriksaan sertifikat dan hostname untuk handshake TLS sesi ini. Pintu darurat ketika baik trust store sistem maupun sertifikat yang di-pin tidak cocok.",
+  "acceptAnyCertWarn": "Rentan terhadap serangan MITM — siapa pun di jaringan dapat menyamar sebagai server. Gunakan hanya di jaringan privat tepercaya.",
+  "webDavCopyUrl": "Salin URL WebDAV",
+  "webDavOpenInBrowser": "Buka di browser",
+  "errWebDavAuthFailed": "Auth WebDAV gagal",
+  "errWebDavNotFound": "Path tidak ditemukan",
+  "errWebDavConflict": "Operasi bentrok dengan state saat ini",
+  "errWebDavGeneric": "Server WebDAV menolak request: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errWebDavBaseUrlRequired": "Base URL WebDAV diperlukan",
+  "errWebDavBaseUrlInvalid": "Base URL harus http:// atau https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Kosongkan untuk AWS, atau isi untuk MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Wajib untuk MinIO; off-kan untuk AWS",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Generate presigned URL",
+  "s3PresignedUrlExpiry": "Kedaluwarsa dalam",
+  "s3CopyUri": "Copy URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 menit",
+  "s3PresignedUrlExpiry1hour": "1 jam",
+  "s3PresignedUrlExpiry4hour": "4 jam",
+  "s3PresignedUrlExpiry24hour": "24 jam",
+  "s3PresignedUrlExpiry7day": "7 hari",
+  "errS3AuthFailed": "S3 authentication failed (cek access key + secret)",
+  "errS3NoSuchBucket": "Bucket tidak ada atau tidak dapat diakses",
+  "errS3RegionMismatch": "Bucket berada di region berbeda dari konfigurasi",
+  "errS3Generic": "S3 server menolak request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "syncSection": "Sync",
+  "syncEnable": "Aktifkan WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Mengenkripsi arsip sync. Harus berbeda dari master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase tidak boleh sama dengan master password.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Path di bawah WebDAV base URL — default letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Push terakhir: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Pull terakhir: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Belum pernah",
+  "syncUpToDate": "Sync up to date",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "{count} perubahan diterapkan dari remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync nonaktif",
+  "errSyncEtagMismatch": "Remote berubah — pull dulu, baru push",
+  "errSyncUnauthorized": "Autentikasi WebDAV gagal",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Arsip sync remote butuh build yang lebih baru",
+  "hardwareKey": "Hardware key",
+  "hardwareKeyTapPrompt": "Sentuh hardware key kamu",
+  "hardwareKeyPin": "PIN hardware key",
+  "hardwareKeyTimeout": "Hardware key tidak merespons",
+  "hardwareKeyNotFound": "Hardware key tidak ditemukan",
+  "hardwareKeyUnsupported": "Akses langsung ke hardware key tidak tersedia di platform ini",
+  "hardwareKeyAppleEntitlementRequired": "Butuh Apple Developer Program entitlement; pakai ssh-agent di macOS",
+  "skKeyRequiresDevice": "SSH key ini butuh hardware key — sentuh untuk auth",
+  "errSkWrongPin": "PIN salah",
+  "hardwareKeyImport": "Import hardware key (sk-*)",
+  "hardwareKeyBadge": "Hardware-bound (FIDO2)",
+  "hardwareKeyPromptCancelled": "Prompt hardware key dibatalkan",
+  "agentEndpointSectionTitle": "Integrasi SSH client eksternal",
+  "agentEndpointToggleTitle": "Expose hardware-bound keys ke SSH client sistem",
+  "agentEndpointToggleSubtitle": "Mengizinkan git, ssh, dan IDE plugin di perangkat ini menggunakan FIDO2 / smart-card / TPM keys Anda.",
+  "agentEndpointPathLabel": "SSH_AUTH_SOCK",
+  "agentEndpointPathLabelWindows": "OpenSSH named pipe",
+  "agentEndpointCopyEnvVar": "Salin perintah export",
+  "agentEndpointCopyPipeName": "Salin nama pipe",
+  "agentEndpointSignatureRequestTitle": "Permintaan tanda tangan",
+  "agentEndpointSignatureRequestBody": "{requester} ingin menandatangani dengan {keyLabel}",
+  "@agentEndpointSignatureRequestBody": {
+    "placeholders": {
+      "requester": {
+        "type": "String"
+      },
+      "keyLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "agentEndpointRequesterUnknown": "SSH client eksternal",
+  "agentEndpointAuthorizeOnce": "Izinkan sekali",
+  "agentEndpointAuthorizeAlways": "Izinkan dan ingat",
+  "agentEndpointDeny": "Tolak",
+  "agentEndpointStatusRunning": "Berjalan",
+  "agentEndpointStatusStopped": "Berhenti",
+  "agentEndpointStatusUnsupported": "Tidak didukung di platform ini",
+  "agentEndpointRefusedAddIdentity": "Ditolak: client eksternal tidak boleh menambahkan keys.",
+  "agentEndpointStartFailed": "Tidak dapat memulai ssh-agent endpoint: {detail}",
+  "@agentEndpointStartFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11AddTitle": "Tambah key smart-card / token",
+  "pkcs11ModuleLabel": "Modul PKCS#11",
+  "pkcs11ModuleAutoDetected": "Terdeteksi otomatis",
+  "pkcs11ModuleCustom": "Modul kustom...",
+  "pkcs11ModulePickerTitle": "Pilih library PKCS#11",
+  "pkcs11NoModuleFound": "Modul PKCS#11 tidak ditemukan. Install OpenSC atau pilih library vendor.",
+  "pkcs11InitializeFailed": "Modul PKCS#11 gagal initialise.",
+  "pkcs11NoTokenPresent": "Tidak ada token di reader manapun.",
+  "pkcs11TokenLabel": "Token: {label}",
+  "@pkcs11TokenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11TokenSerial": "Serial: {serial}",
+  "@pkcs11TokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11LoginRequired": "Token butuh login.",
+  "pkcs11PinPrompt": "PIN untuk {token}",
+  "@pkcs11PinPrompt": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinPad": "Konfirmasi di PIN-pad token.",
+  "pkcs11PinIncorrect": "PIN salah. Sisa {remaining} percobaan.",
+  "@pkcs11PinIncorrect": {
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11PinLocked": "PIN token terkunci. Unblock dengan PUK.",
+  "pkcs11NoSignableKeys": "Token tidak punya key SSH (RSA, ECDSA, Ed25519).",
+  "pkcs11GostUnsupported": "Key GOST tidak bisa dipakai dengan SSH.",
+  "pkcs11TokenUnplugged": "Token \"{label}\" tidak terpasang.",
+  "@pkcs11TokenUnplugged": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11UriRebindFailed": "Token tersimpan tidak ditemukan. Sambungkan ulang dan coba lagi.",
+  "pkcs11SignFailed": "Signing gagal: {reason}",
+  "@pkcs11SignFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11HwUnavailableMobile": "Smart-card / token PKCS#11 tidak tersedia di platform ini.",
+  "pkcs11Badge": "Smart card / token",
+  "pkcs11InfoModulePath": "Module: {path}",
+  "@pkcs11InfoModulePath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoTokenSerial": "Token serial: {serial}",
+  "@pkcs11InfoTokenSerial": {
+    "placeholders": {
+      "serial": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11InfoObjectLabel": "Object: {label}",
+  "@pkcs11InfoObjectLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11WizardStepModule": "Pilih module PKCS#11",
+  "pkcs11WizardStepToken": "Pilih token",
+  "pkcs11WizardStepKey": "Pilih key",
+  "pkcs11WizardStepPin": "Masukkan PIN",
+  "pkcs11AlgoRsa": "RSA",
+  "pkcs11AlgoEcdsa": "ECDSA",
+  "pkcs11AlgoEd25519": "Ed25519",
+  "pkcs11AlgoGost": "GOST",
+  "pkcs11KeyMetaFormat": "{algo} {detail}",
+  "@pkcs11KeyMetaFormat": {
+    "placeholders": {
+      "algo": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "pkcs11SaveCta": "Import key",
+  "pkcs11SaveInProgress": "Membaca public key dari token...",
+  "pkcs11SaveSuccess": "Key smart card ditambahkan.",
+  "pkcs11ScanInProgress": "Memindai module PKCS#11...",
+  "pkcs11LoadingTokens": "Memuat token...",
+  "pkcs11LoadingKeys": "Memuat key...",
+  "pkcs11ModuleStatusReady": "Module dimuat.",
+  "pkcs11ModuleStatusNoToken": "Token tidak ada.",
+  "pkcs11ModuleStatusFailed": "Gagal memuat module.",
+  "pkcs11PinPadHint": "(PIN pad di perangkat)",
+  "pkcs11WizardBack": "Kembali",
+  "pkcs11WizardNext": "Lanjut",
+  "sshKeyBackendSoftware": "Software",
+  "sshKeyBackendEnclave": "Secure Enclave",
+  "sshKeyBackendHello": "Windows Hello",
+  "sshKeyBackendFido2": "Security key",
+  "sshKeyAddHardwareBound": "Tambah hardware key",
+  "sshKeyHardwareBoundExplainer": "Private key tersimpan di secure hardware perangkat dan tidak bisa diexport.",
+  "sshKeyEnclaveDeviceBound": "Key ini hanya berfungsi di Mac ini.",
+  "sshKeyEnclaveDeviceBoundIos": "Key ini hanya berfungsi di iPhone ini.",
+  "sshKeyHelloDeviceBound": "Key ini hanya berfungsi di PC ini.",
+  "sshKeyEnclaveTouchIdRequired": "Wajibkan Touch ID / Face ID",
+  "sshKeyEnclavePasscodeFallback": "Izinkan passcode perangkat sebagai fallback",
+  "sshKeyHelloPinRequired": "Wajibkan Windows Hello (PIN, sidik jari, atau wajah)",
+  "sshKeyHardwareUnavailableTitle": "Hardware key tidak tersedia",
+  "sshKeyHardwareUnavailableSe": "Aplikasi harus code-signed untuk pakai Secure Enclave.",
+  "sshKeyHardwareUnavailableHello": "Windows Hello belum disetup di PC ini.",
+  "sshKeyHardwareUnavailableTpm": "TPM tidak terdeteksi — hanya software-backed.",
+  "sshKeyHardwareUnavailableTier": "Software-gated",
+  "sshKeyEnclaveAlgorithm": "ecdsa-sha2-nistp256",
+  "sshKeyHelloAlgorithmEcdsa256": "ecdsa-sha2-nistp256 (TPM)",
+  "sshKeyHelloAlgorithmEcdsa384": "ecdsa-sha2-nistp384 (TPM)",
+  "sshKeyHelloAlgorithmRsa": "rsa-sha2-256 (TPM)",
+  "sshKeyGenerateCta": "Generate",
+  "sshKeyGenerateInProgress": "Membuat key di secure hardware...",
+  "sshKeyGenerateMissingEntitlement": "Code-signing diperlukan — lihat USER_GUIDE.md → Hardware-bound keys.",
+  "sshKeySignInProgress": "Menandatangani via secure hardware...",
+  "sshKeyPublicCopy": "Copy public key",
+  "sshKeyAuthorizedKeysHint": "Tambahkan baris ini ke ~/.ssh/authorized_keys di server.",
+  "sshKeyEnclaveWizardTitle": "Secure Enclave SSH key",
+  "sshKeyEnclaveWizardLabelHint": "Nama key",
+  "sshKeyEnclaveBadge": "Secure Enclave",
+  "helloWizardTitle": "Kunci SSH Windows Hello",
+  "helloWizardLabelHint": "Label kunci",
+  "helloBadge": "Windows Hello",
+  "helloPromptTitle": "Autentikasi via Windows Hello",
+  "helloPromptDescription": "PIN, sidik jari, atau wajah — Windows Hello menandatangani SSH challenge ini.",
+  "helloSoftwareGatedWarning": "Device ini tidak punya TPM. Kunci masuk ke user storage; Windows Hello tetap gate setiap tanda tangan.",
+  "helloP384NotSupported": "Firmware TPM tidak mendukung P-384. Pilih P-256 atau RSA-2048.",
+  "helloConfigureFirst": "Setup Windows Hello dulu di Settings -> Sign-in options.",
+  "tpmSshTitle": "Buat kunci SSH berbasis TPM",
+  "tpmSshAlgEcdsa": "ECDSA P-256 (direkomendasikan)",
+  "tpmSshAlgRsa": "RSA-2048",
+  "tpmSshAlgUnsupported": "Algorithm tidak didukung firmware TPM ini.",
+  "tpmSshPinProtect": "Lindungi dengan PIN",
+  "tpmSshPinLockoutWarning": "TPM mengunci key setelah beberapa kali PIN salah.",
+  "tpmSshPinMismatch": "PIN tidak cocok.",
+  "tpmSshStorageBlob": "Simpan wrapped key di data aplikasi",
+  "tpmSshStorageHandle": "Simpan di slot memori TPM",
+  "tpmSshStorageHandleHelp": "Signing lebih cepat. Memakai salah satu slot persistent TPM.",
+  "tpmSshLabel": "Label key",
+  "tpmSshImportTitle": "Import SSH key terlindung TPM",
+  "tpmSshImportFormat": "File TPM 2.0 (.tpm, TSS2 PRIVATE KEY)",
+  "tpmSshPinPrompt": "TPM PIN untuk {label}",
+  "tpmSshPinIncorrect": "PIN salah.",
+  "tpmSshPinLockedCooldown": "TPM dalam lockout cooldown. Tunggu {duration} dan coba lagi.",
+  "tpmSshGenerating": "Membuat key di TPM...",
+  "tpmSshSigning": "Signing dengan TPM...",
+  "tpmSshUnavailable": "TPM tidak terdeteksi di perangkat ini.",
+  "tpmSshUnavailableFwDisabled": "TPM dinonaktifkan di firmware.",
+  "tpmSshUnavailableNoPermission": "Aplikasi tidak bisa mengakses TPM. Tambahkan user ke grup `tss`.",
+  "tpmSshHandleInUse": "Slot persistent {handle} sudah dipakai.",
+  "tpmSshBadge": "TPM 2.0",
+  "tpmSshSilentWarning": "Key ini sign TANPA prompt Hello / PIN — siapa saja yang mengakses desktop saat kamu logged in bisa memakainya.",
+  "keystoreWizardTitle": "Android Hardware Key",
+  "keystoreBadge": "Android Keystore",
+  "keystoreKeyAndroidLabel": "Android Keystore (hardware-bound)",
+  "keystoreKeyStrongBoxLabel": "StrongBox HSM",
+  "keystoreKeyTeeLabel": "TEE (hardware-backed)",
+  "keystoreKeyGenerating": "Generating hardware-bound key...",
+  "keystoreKeyAuthPrompt": "Authenticate untuk pakai SSH key",
+  "keystoreKeyInvalidatedByEnrollment": "Key dihancurkan: biometric baru ter-enroll. Register ulang public key di server kamu.",
+  "keystoreKeyStrongBoxUnavailable": "StrongBox HSM tidak tersedia di device ini",
+  "keystoreKeyUserAuthRequired": "Wajib biometric / device unlock setiap signature",
+  "keystoreKeyExportDisabled": "Hardware-bound keys tidak bisa di-export",
+  "keystoreKeyDeleteWarning": "Menghapus key ini akan mengeluarkannya dari hardware store. Server akan menolak key ini sampai kamu register yang baru.",
+  "keystoreKeyBiometricNotEnrolled": "Enroll biometric atau device PIN dulu",
+  "keystoreAlgEcdsaP256": "ECDSA P-256 (StrongBox-eligible)",
+  "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE only)",
+  "keystoreAlgRsa2048": "RSA-2048 (widest compatibility)",
+  "keystoreStrongBoxFallbackTitle": "StrongBox HSM tidak tersedia",
+  "keystoreStrongBoxFallbackBody": "Device kamu tidak meng-expose StrongBox HSM. Buat key TEE-backed saja? Tetap hardware-backed, hanya tanpa isolation StrongBox.",
+  "keystoreStrongBoxFallbackConfirm": "Pakai TEE",
+  "keystoreStrongBoxFallbackCancel": "Batal",
+  "fido2BrokerSectionTitle": "Hardware security keys",
+  "fido2BrokerWindowsLabel": "Windows Hello / security key",
+  "fido2BrokerMacosLabel": "Dialog security key sistem",
+  "fido2BrokerIosLabel": "Security key sistem (USB / NFC)",
+  "fido2BrokerAndroidLabel": "Security key sistem (USB / NFC / BLE)",
+  "fido2BrokerTransportDirectHid": "USB HID langsung (CTAP2)",
+  "fido2BrokerTransportNone": "Tidak tersedia di platform ini",
+  "fido2BrokerPreferDirectHidTitle": "Pilih USB HID langsung daripada dialog sistem",
+  "fido2BrokerPreferDirectHidSubtitle": "Lanjutan: lewati {brokerLabel} di platform yang mendukung kedua jalur. HID langsung mendukung lebih banyak fitur authenticator tapi butuh izin per-app.",
+  "@fido2BrokerPreferDirectHidSubtitle": {
+    "placeholders": {
+      "brokerLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "sshIntegrationSection": "Integrasi SSH",
+  "fido2BrokerNoTransportSubtitle": "Dukungan hardware key tidak tersedia di device ini.",
+  "fido2BrokerSinglePathSubtitle": "Hanya {transport} yang tersedia di device ini; toggle dinonaktifkan.",
+  "@fido2BrokerSinglePathSubtitle": {
+    "placeholders": {
+      "transport": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinPrompt": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshPinLockedCooldown": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "@tpmSshHandleInUse": {
+    "placeholders": {
+      "handle": {
+        "type": "String"
+      }
+    }
+  },
+  "hardwareKeyStubBadge": "Stub impor",
+  "hardwareKeyStubSubtitle": "Ada di perangkat lain — regenerasi di sini untuk dipakai",
+  "hardwareKeyStubRegenerateAction": "Regenerasi di sini",
+  "hardwareKeyStubRemoveAction": "Hapus stub",
+  "hardwareKeyStubPickerTooltip": "Regenerasi key ini di perangkat ini sebelum dipakai",
+  "pkcs11ModuleResolveOnFirstUse": "Temukan modul PKCS#11 untuk token \"{token}\"",
+  "@pkcs11ModuleResolveOnFirstUse": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "arrowLeft": "Panah kiri",
+  "arrowUp": "Panah atas",
+  "arrowDown": "Panah bawah",
+  "arrowRight": "Panah kanan",
+  "copyMode": "Mode salin",
+  "exitCopyMode": "Keluar mode salin",
+  "importedGeneric": "Diimpor: {items}"
 }

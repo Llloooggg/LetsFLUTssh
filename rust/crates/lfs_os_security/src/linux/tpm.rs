@@ -1,0 +1,580 @@
+//! TPM2 seal/unseal. Two backends behind one public surface
+//! (`probe` / `seal` / `unseal`):
+//!
+//! 1. **Subprocess (default)** — `tpm2-tools` CLI. Auth values
+//!    pass via `file:<path>` (not argv) so the HMAC stays out
+//!    of `/proc/<pid>/cmdline`; the per-op work dir is
+//!    zero-overwritten on unlink.
+//! 2. **Native (opt-in via `LFS_TPM_BACKEND=native`)** —
+//!    direct `libtss2-esys` calls through `tss-esapi`, see
+//!    [`super::tpm_native`].
+//!
+//! Both backends emit the same envelope: an `LFHV[magic|version|
+//! platform_id=linux]` header followed by a TCG ASN.1 DER
+//! `id-loadablekey` body per [`super::tpm_tcg_pem`]
+//! (`draft-bottomley-tpm2-keys-asn1`). The chip-side `(public,
+//! private)` bytes round-trip across backends because they ride
+//! inside the DER `pubkey` / `privkey` OCTET STRINGs — the
+//! marshalled bytes themselves come from the TPM, not the
+//! backend.
+//!
+//! Backend selection: [`TpmConfig::default`] reads
+//! `LFS_TPM_BACKEND`; callers may also set `cfg.backend`
+//! directly. Sync API; the caller wraps in `spawn_blocking`.
+
+use std::fs::{self, File, OpenOptions};
+use std::io::{Read, Write};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::Duration;
+
+use super::tpm_tcg_pem::{self, TpmKey, TPM_RH_OWNER};
+use crate::linux::TpmError as Error;
+
+const DEFAULT_BINARY: &str = "tpm2";
+const DEFAULT_DEVICE: &str = "/dev/tpmrm0";
+
+/// LFHV outer-envelope shape, mirrored from the shared
+/// [`crate::hardware_tier_vault`] header so the subprocess path
+/// emits byte-identical bytes to the native path. Re-declared
+/// here (not imported) to keep `linux::tpm` self-contained — the
+/// chip-side modules under `linux/*.rs` are the audit perimeter
+/// for the OS-FFI surface and pull no higher-level crate deps.
+const LFHV_MAGIC: &[u8; 4] = b"LFHV";
+const LFHV_VERSION: u8 = 2;
+const HW_VAULT_PLATFORM_LINUX: u8 = 4;
+const LFHV_HEADER_LEN: usize = 6;
+/// Hard upper bound on a single seal / unseal step.
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
+/// TPM2 spec direct-seal limit. Mirrors the Dart guardrail.
+pub const MAX_SEAL_BYTES: usize = 128;
+
+/// Classified probe outcome. Lets the Settings UI render a
+/// targeted hint instead of a generic "hardware unavailable".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TpmProbeResult {
+    /// Device node + binary + `getcap` + `createprimary` all
+    /// succeeded — TPM sealing is ready to go.
+    Available,
+    /// `/dev/tpmrm0` (or the override) does not exist. Either
+    /// no TPM, kernel module not loaded, or fTPM disabled in
+    /// firmware.
+    DeviceNodeMissing,
+    /// `tpm2` binary not on `$PATH` or not executable.
+    BinaryMissing,
+    /// `getcap` / `createprimary` returned non-zero — usually
+    /// a permissions issue on `/dev/tpmrm0` (wrong udev rule)
+    /// or a TPM-side command failure.
+    ProbeFailed,
+}
+
+/// Which seal/unseal implementation to dispatch to. Default is
+/// [`TpmBackend::Subprocess`] (verified-working tpm2-tools
+/// shell-out); set to [`TpmBackend::Native`] to opt into the
+/// direct-libtss2 path while it is verification-pending.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TpmBackend {
+    /// Spawn `tpm2 ...` per operation; on-disk envelope bytes
+    /// produced by `tpm2 create -u/-r`. The historical default;
+    /// stays the default until NI-2 verifies the native path on
+    /// real TPM hardware.
+    Subprocess,
+    /// Direct calls into `libtss2-esys` via the `tss-esapi`
+    /// crate; see [`super::tpm_native`]. Byte-compatible with
+    /// the subprocess envelope at the marshalling layer (both
+    /// go through `Tss2_MU_TPM2B_*` inside libtss2).
+    Native,
+}
+
+impl Default for TpmBackend {
+    fn default() -> Self {
+        // Env-var opt-in is read here so a single `TpmConfig::default`
+        // call captures the user's choice for the lifetime of the
+        // resulting config. Recognised values: `native` (case-
+        // insensitive) flips to the native path; anything else
+        // (including unset) keeps the subprocess default.
+        match std::env::var("LFS_TPM_BACKEND") {
+            Ok(v) if v.eq_ignore_ascii_case("native") => TpmBackend::Native,
+            _ => TpmBackend::Subprocess,
+        }
+    }
+}
+
+/// Configurable knobs — tests inject a fake binary path /
+/// device path, production uses [`DEFAULT_BINARY`] +
+/// [`DEFAULT_DEVICE`].
+#[derive(Debug, Clone)]
+pub struct TpmConfig {
+    pub binary: String,
+    pub device: String,
+    pub timeout: Duration,
+    /// Implementation backend — set via env var by default
+    /// ([`TpmBackend::default`]); the FRB layer or tests can
+    /// override programmatically.
+    pub backend: TpmBackend,
+}
+
+impl Default for TpmConfig {
+    fn default() -> Self {
+        Self {
+            binary: DEFAULT_BINARY.to_string(),
+            device: DEFAULT_DEVICE.to_string(),
+            timeout: DEFAULT_TIMEOUT,
+            backend: TpmBackend::default(),
+        }
+    }
+}
+
+/// Probe the TPM availability path: device node, binary, and
+/// a real `createprimary` round-trip. The full primary creation
+/// matches the seal flow's first step, so `Available` here is
+/// a strict guarantee that downstream sealing will not fail
+/// with a permissions / lockout error.
+pub fn probe(cfg: &TpmConfig) -> TpmProbeResult {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::probe(cfg);
+    }
+    probe_subprocess(cfg)
+}
+
+fn probe_subprocess(cfg: &TpmConfig) -> TpmProbeResult {
+    if !Path::new(&cfg.device).exists() {
+        return TpmProbeResult::DeviceNodeMissing;
+    }
+    match run_tpm(cfg, &["getcap", "-l"]) {
+        Ok(_) => {}
+        Err(ProcessError::BinaryMissing) => return TpmProbeResult::BinaryMissing,
+        Err(_) => return TpmProbeResult::ProbeFailed,
+    }
+    let work = match WorkDir::new("lfs-tpm-probe-") {
+        Ok(w) => w,
+        Err(_) => return TpmProbeResult::ProbeFailed,
+    };
+    let ctx = work.path().join("probe.ctx");
+    let ctx_str = ctx.to_string_lossy().into_owned();
+    match run_tpm(cfg, &["createprimary", "-Q", "-C", "o", "-c", &ctx_str]) {
+        Ok(_) => TpmProbeResult::Available,
+        Err(_) => TpmProbeResult::ProbeFailed,
+    }
+}
+
+/// Seal `secret` under a freshly-created primary with
+/// `auth_value` as the unseal password. Returns the
+/// `LFHV[…|platform_id_linux] || TCG_ASN1_DER` envelope.
+pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::seal(cfg, secret, auth_value);
+    }
+    seal_subprocess(cfg, secret, auth_value)
+}
+
+fn seal_subprocess(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    if secret.len() > MAX_SEAL_BYTES {
+        return Err(Error::Crypto(format!(
+            "tpm seal rejected: secret {} bytes > {}",
+            secret.len(),
+            MAX_SEAL_BYTES
+        )));
+    }
+    let work = WorkDir::new("lfs-tpm-seal-")?;
+    let primary = work.path().join("primary.ctx");
+    let pub_path = work.path().join("sealed.pub");
+    let priv_path = work.path().join("sealed.priv");
+    let secret_path = work.path().join("secret.bin");
+    write_0600(&secret_path, secret)?;
+    let auth_arg = write_auth_file(&work, auth_value)?;
+
+    let primary_str = primary.to_string_lossy().into_owned();
+    let pub_str = pub_path.to_string_lossy().into_owned();
+    let priv_str = priv_path.to_string_lossy().into_owned();
+    let secret_str = secret_path.to_string_lossy().into_owned();
+
+    run_tpm(cfg, &["createprimary", "-Q", "-C", "o", "-c", &primary_str])
+        .map_err(|e| Error::Crypto(format!("tpm createprimary: {e}")))?;
+    run_tpm(
+        cfg,
+        &[
+            "create",
+            "-Q",
+            "-C",
+            &primary_str,
+            "-u",
+            &pub_str,
+            "-r",
+            &priv_str,
+            "-i",
+            &secret_str,
+            "-p",
+            &auth_arg,
+        ],
+    )
+    .map_err(|e| Error::Crypto(format!("tpm create: {e}")))?;
+
+    let pub_bytes = read_all(&pub_path)?;
+    let priv_bytes = read_all(&priv_path)?;
+    Ok(wrap_envelope(&TpmKey {
+        empty_auth: Some(auth_value.is_empty()),
+        parent: TPM_RH_OWNER,
+        public: pub_bytes,
+        private: priv_bytes,
+    }))
+}
+
+/// Inverse of [`seal`]. Returns the original secret on
+/// `verify-match`; format mismatch / wrong auth / missing TPM
+/// all produce `Err`.
+pub fn unseal(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::unseal(cfg, blob, auth_value);
+    }
+    unseal_subprocess(cfg, blob, auth_value)
+}
+
+fn unseal_subprocess(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    let key = unwrap_envelope(blob)?;
+    let work = WorkDir::new("lfs-tpm-unseal-")?;
+    let primary = work.path().join("primary.ctx");
+    let pub_path = work.path().join("sealed.pub");
+    let priv_path = work.path().join("sealed.priv");
+    let loaded_ctx = work.path().join("loaded.ctx");
+    write_0600(&pub_path, &key.public)?;
+    write_0600(&priv_path, &key.private)?;
+    let auth_arg = write_auth_file(&work, auth_value)?;
+
+    let primary_str = primary.to_string_lossy().into_owned();
+    let pub_str = pub_path.to_string_lossy().into_owned();
+    let priv_str = priv_path.to_string_lossy().into_owned();
+    let loaded_str = loaded_ctx.to_string_lossy().into_owned();
+
+    run_tpm(cfg, &["createprimary", "-Q", "-C", "o", "-c", &primary_str])
+        .map_err(|e| Error::Crypto(format!("tpm createprimary: {e}")))?;
+    run_tpm(
+        cfg,
+        &[
+            "load",
+            "-Q",
+            "-C",
+            &primary_str,
+            "-u",
+            &pub_str,
+            "-r",
+            &priv_str,
+            "-c",
+            &loaded_str,
+        ],
+    )
+    .map_err(|e| Error::Crypto(format!("tpm load: {e}")))?;
+
+    let stdout = run_tpm_capture(cfg, &["unseal", "-Q", "-c", &loaded_str, "-p", &auth_arg])
+        .map_err(|e| Error::Crypto(format!("tpm unseal: {e}")))?;
+    Ok(stdout)
+}
+
+// ---- Internals ---------------------------------------------------------
+
+#[derive(Debug)]
+enum ProcessError {
+    BinaryMissing,
+    NonZero { exit: i32, stderr: String },
+    Io(String),
+}
+
+impl std::fmt::Display for ProcessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProcessError::BinaryMissing => write!(f, "tpm2 binary missing"),
+            ProcessError::NonZero { exit, stderr } => {
+                write!(f, "tpm2 exit={exit} stderr={stderr}")
+            }
+            ProcessError::Io(s) => write!(f, "tpm2 io: {s}"),
+        }
+    }
+}
+
+fn run_tpm(cfg: &TpmConfig, args: &[&str]) -> Result<(), ProcessError> {
+    let _ = run_tpm_capture(cfg, args)?;
+    Ok(())
+}
+
+fn run_tpm_capture(cfg: &TpmConfig, args: &[&str]) -> Result<Vec<u8>, ProcessError> {
+    let mut cmd = Command::new(&cfg.binary);
+    cmd.args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null());
+    let child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(ProcessError::BinaryMissing);
+        }
+        Err(e) => return Err(ProcessError::Io(e.to_string())),
+    };
+    let output = match wait_with_timeout(child, cfg.timeout) {
+        Ok(o) => o,
+        Err(e) => return Err(ProcessError::Io(e)),
+    };
+    if !output.status.success() {
+        return Err(ProcessError::NonZero {
+            exit: output.status.code().unwrap_or(-1),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    Ok(output.stdout)
+}
+
+fn wait_with_timeout(
+    child: std::process::Child,
+    timeout: Duration,
+) -> Result<std::process::Output, String> {
+    use std::sync::mpsc;
+    use std::thread;
+    let pid = child.id();
+    let (tx, rx) = mpsc::channel();
+    // Move stdin/stdout/stderr off the parent thread via wait_with_output.
+    thread::spawn(move || {
+        let result = child.wait_with_output();
+        let _ = tx.send(result);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Ok(o)) => Ok(o),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => {
+            // Kill the orphaned `tpm2` on timeout instead of leaking
+            // both the process and the blocked wait thread. The thread
+            // still owns the unreaped Child, so its pid is valid (not
+            // yet recycled); SIGKILL lets `wait_with_output` return and
+            // reap it.
+            // SAFETY: `kill` on a pid we spawned and have not reaped.
+            unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+            Err(format!("tpm2 timed out after {}s", timeout.as_secs()))
+        }
+    }
+}
+
+fn write_0600(path: &Path, bytes: &[u8]) -> Result<(), Error> {
+    let mut opts = OpenOptions::new();
+    opts.create(true).write(true).truncate(true);
+    use std::os::unix::fs::OpenOptionsExt;
+    opts.mode(0o600);
+    let mut f = opts
+        .open(path)
+        .map_err(|e| Error::Platform(format!("tpm write {}: {e}", path.display())))?;
+    f.write_all(bytes)
+        .map_err(|e| Error::Platform(format!("tpm write {}: {e}", path.display())))?;
+    f.sync_all()
+        .map_err(|e| Error::Platform(format!("tpm sync {}: {e}", path.display())))?;
+    Ok(())
+}
+
+fn read_all(path: &Path) -> Result<Vec<u8>, Error> {
+    let mut f = File::open(path)
+        .map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
+    let mut buf = Vec::new();
+    f.read_to_end(&mut buf)
+        .map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
+    Ok(buf)
+}
+
+fn write_auth_file(work: &WorkDir, auth_value: &[u8]) -> Result<String, Error> {
+    let path = work.path().join("auth.bin");
+    write_0600(&path, auth_value)?;
+    Ok(format!("file:{}", path.display()))
+}
+
+/// Build `LFHV[magic|version|platform_id_linux] || TCG_ASN1_DER`
+/// from a marshalled `(public, private)` pair. Shared envelope
+/// shape with [`super::tpm_native`] — the native backend can
+/// round-trip a subprocess-sealed envelope and vice versa.
+fn wrap_envelope(key: &TpmKey) -> Vec<u8> {
+    let der = tpm_tcg_pem::encode(key);
+    let mut out = Vec::with_capacity(LFHV_HEADER_LEN + der.len());
+    out.extend_from_slice(LFHV_MAGIC);
+    out.push(LFHV_VERSION);
+    out.push(HW_VAULT_PLATFORM_LINUX);
+    out.extend_from_slice(&der);
+    out
+}
+
+/// Inverse of [`wrap_envelope`]. Refuses anything that does not
+/// carry the expected LFHV header + a parseable TCG ASN.1 body
+/// with the typed "unsupported envelope version: this build
+/// expects TCG ASN.1 PEM body" rejection the tier-reset cascade
+/// routes on. A pre-rev custom-binary envelope fails the magic
+/// check; a `.tpm` file from `openssl-tpm2-engine` / `ssh-tpm-agent`
+/// fails because the LFHV header is missing.
+fn unwrap_envelope(blob: &[u8]) -> Result<TpmKey, Error> {
+    if blob.len() < LFHV_HEADER_LEN
+        || &blob[0..4] != LFHV_MAGIC
+        || blob[4] != LFHV_VERSION
+        || blob[5] != HW_VAULT_PLATFORM_LINUX
+    {
+        return Err(Error::Crypto(
+            "unsupported envelope version: this build expects TCG ASN.1 PEM body".to_string(),
+        ));
+    }
+    tpm_tcg_pem::decode(&blob[LFHV_HEADER_LEN..])
+}
+
+/// RAII temp dir — Drop wipes every file (zero-overwrite then
+/// unlink) so a sealed-but-transient plaintext (`secret.bin`)
+/// is not left readable on whatever filesystem `/tmp` lives on.
+struct WorkDir {
+    path: PathBuf,
+}
+
+impl WorkDir {
+    fn new(prefix: &str) -> Result<Self, Error> {
+        // std doesn't ship a `mkdtemp`; build one against a
+        // monotonic counter + pid + random suffix. Collisions
+        // get retried up to 16 times.
+        use rand::Rng;
+        let base = std::env::temp_dir();
+        let pid = std::process::id();
+        let mut rng = rand::rng();
+        for _ in 0..16 {
+            let mut bytes = [0u8; 8];
+            rng.fill_bytes(&mut bytes);
+            let suffix: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+            let candidate = base.join(format!("{prefix}{pid}-{suffix}"));
+            match fs::create_dir(&candidate) {
+                Ok(_) => {
+                    let _ = fs::set_permissions(&candidate, fs::Permissions::from_mode(0o700));
+                    return Ok(Self { path: candidate });
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err(Error::Platform(format!("tpm mkdtemp: {e}"))),
+            }
+        }
+        Err(Error::Io("tpm mkdtemp: out of retries".to_string()))
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for WorkDir {
+    fn drop(&mut self) {
+        if let Ok(entries) = fs::read_dir(&self.path) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if let Ok(meta) = fs::metadata(&p) {
+                    if meta.is_file() {
+                        // Best-effort overwrite before unlink.
+                        let len = meta.len();
+                        let zeros = vec![0u8; len as usize];
+                        let _ = fs::write(&p, zeros);
+                    }
+                }
+                let _ = fs::remove_file(&p);
+            }
+        }
+        let _ = fs::remove_dir(&self.path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_unwrap_envelope_round_trips() {
+        let key = TpmKey {
+            empty_auth: Some(false),
+            parent: TPM_RH_OWNER,
+            public: vec![1, 2, 3, 4],
+            private: vec![5, 6, 7, 8, 9],
+        };
+        let wrapped = wrap_envelope(&key);
+        let unwrapped = unwrap_envelope(&wrapped).expect("unwrap");
+        assert_eq!(unwrapped, key);
+    }
+
+    #[test]
+    fn unwrap_rejects_short_blob() {
+        assert!(unwrap_envelope(&[]).is_err());
+        assert!(unwrap_envelope(b"LFHV").is_err());
+    }
+
+    #[test]
+    fn unwrap_rejects_pre_rev_custom_binary_envelope() {
+        // The pre-rev shape `[u32 BE pub_len][pub][u32 BE priv_len][priv]`
+        // starts with the high byte of `pub_len` (almost always 0x00
+        // for a real envelope), which does not match the LFHV magic
+        // — the magic check refuses with the typed error the tier-
+        // reset cascade routes on.
+        let mut legacy = Vec::new();
+        legacy.extend_from_slice(&2u32.to_be_bytes());
+        legacy.extend_from_slice(&[0xaa, 0xbb]);
+        legacy.extend_from_slice(&2u32.to_be_bytes());
+        legacy.extend_from_slice(&[0xcc, 0xdd]);
+        let err = unwrap_envelope(&legacy).unwrap_err();
+        match err {
+            Error::Crypto(msg) => {
+                assert!(
+                    msg.contains("unsupported envelope version") && msg.contains("TCG ASN.1 PEM"),
+                    "expected the typed rejection message, got: {msg}"
+                );
+            }
+            other => panic!("expected Crypto error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn probe_with_missing_device_returns_devicenodemissing() {
+        let cfg = TpmConfig {
+            binary: "tpm2".into(),
+            device: "/nonexistent/tpm-test-node".into(),
+            timeout: Duration::from_secs(2),
+            backend: TpmBackend::Subprocess,
+        };
+        assert_eq!(probe(&cfg), TpmProbeResult::DeviceNodeMissing);
+    }
+
+    #[test]
+    fn probe_with_present_device_but_missing_binary() {
+        // Use /dev/null (always exists on Linux) as the fake
+        // device node so the probe gets past the device check
+        // and tries to spawn the (missing) binary.
+        let cfg = TpmConfig {
+            binary: "/nonexistent/tpm2-binary-test".into(),
+            device: "/dev/null".into(),
+            timeout: Duration::from_secs(2),
+            backend: TpmBackend::Subprocess,
+        };
+        assert_eq!(probe(&cfg), TpmProbeResult::BinaryMissing);
+    }
+
+    #[test]
+    fn backend_default_reads_env() {
+        // Saved + restored to keep test cases independent.
+        let prev = std::env::var("LFS_TPM_BACKEND").ok();
+        // SAFETY rationale: env mutation in tests is the
+        // standard Rust pattern; lfs_core's `unsafe_code = "forbid"`
+        // doesn't apply here because `set_var` / `remove_var`
+        // are not unsafe in std.
+        std::env::set_var("LFS_TPM_BACKEND", "native");
+        assert_eq!(TpmBackend::default(), TpmBackend::Native);
+        std::env::set_var("LFS_TPM_BACKEND", "Native");
+        assert_eq!(TpmBackend::default(), TpmBackend::Native);
+        std::env::set_var("LFS_TPM_BACKEND", "subprocess");
+        assert_eq!(TpmBackend::default(), TpmBackend::Subprocess);
+        std::env::remove_var("LFS_TPM_BACKEND");
+        assert_eq!(TpmBackend::default(), TpmBackend::Subprocess);
+        if let Some(v) = prev {
+            std::env::set_var("LFS_TPM_BACKEND", v);
+        }
+    }
+
+    #[test]
+    fn workdir_wipes_files_on_drop() {
+        let work = WorkDir::new("lfs-tpm-test-").expect("mkdtemp");
+        let path = work.path().to_path_buf();
+        let file = path.join("secret.bin");
+        write_0600(&file, b"deadbeef").expect("write");
+        assert!(file.exists());
+        drop(work);
+        assert!(!path.exists(), "workdir leaked: {}", path.display());
+    }
+}

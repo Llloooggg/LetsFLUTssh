@@ -1,54 +1,62 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:xterm/xterm.dart';
 
+import '../../src/rust/api/terminal.dart' as rust_terminal;
 import '../../theme/app_theme.dart';
-import '../terminal/cursor_overlay.dart' show kTerminalLineHeight;
+import '../../widgets/terminal/terminal_cell_metrics.dart';
 
-/// Trackpad-style copy mode for the mobile terminal.
+/// Trackpad-style copy mode for the mobile terminal, driving the
+/// Rust-engine selection.
 ///
-/// Renders a virtual cursor on top of the [TerminalView] and exposes
-/// relative pan gestures that move the cursor in cell units — the finger
-/// never jumps the cursor to its local position (absolute placement would
-/// mean covering the target with the thumb). The first touch-down also
-/// drops a selection anchor at the cursor's current cell; subsequent
-/// movement extends the selection from anchor → cursor and writes it
-/// through [TerminalController.setSelection]. The [Terminal] itself is
-/// unchanged — selection is driven entirely via the controller, so the
-/// same path that desktop drag-select uses renders the highlight.
+/// Renders a virtual cursor on top of the terminal content (the unified
+/// `TerminalView`) and exposes relative pan gestures that move the cursor in cell
+/// units — the finger never jumps the cursor to its local position
+/// (absolute placement would mean covering the target with the thumb). The
+/// user drops a selection anchor with the "Set anchor" bar button; from
+/// then on each pan extends the selection from anchor → cursor through
+/// [onSetSelection], which the host forwards to
+/// `TerminalSession.setSelection`. The copy then reads the covered text via
+/// `TerminalSession.selectionText`.
 ///
-/// The overlay is sized to the [TerminalView]'s padded content area. It
-/// does *not* intercept two-finger gestures — those are routed to the
-/// outer pinch-zoom detector by the parent view, which tracks pointer
-/// count and dispatches single-finger deltas through [onCursorPan] and
-/// two-finger events to its own recognizer. Suspend xterm's own pointer
-/// input on the enclosing [TerminalController] for the lifetime of this
-/// widget so the built-in tap / long-press handlers don't fight the
-/// virtual cursor.
+/// The selection lives Rust-side; this widget only computes cell
+/// coordinates from the gesture and the live frame geometry and hands them
+/// to the host. It owns no terminal state — it reads cols / rows / scroll
+/// offset off the latest [snapshotProvider] frame each gesture.
+///
+/// The overlay is sized to the grid's padded content area and does not
+/// intercept pointers: the enclosing [Listener] reads cursor-pan deltas via
+/// [onCursorPan], and an opaque widget on top would swallow them.
 class TerminalCopyOverlay extends StatefulWidget {
   const TerminalCopyOverlay({
     super.key,
-    required this.terminal,
-    required this.controller,
-    required this.scrollController,
+    required this.snapshotProvider,
+    required this.onSetSelection,
+    required this.onClearSelection,
+    required this.onScroll,
     required this.fontSize,
-    required this.fontFamily,
-    required this.fontFamilyFallback,
-    this.padding = const EdgeInsets.all(4),
+    this.padding = const EdgeInsets.all(kTerminalPadding),
   });
 
-  final Terminal terminal;
-  final TerminalController controller;
+  /// Pulls the latest [rust_terminal.TerminalFrame] so the overlay knows the
+  /// current cols / rows and scroll `displayOffset` to map the virtual
+  /// cursor to an absolute grid line.
+  final rust_terminal.TerminalFrame Function() snapshotProvider;
 
-  /// Shared with `TerminalView` so edge-panning during copy mode
-  /// scrolls the xterm viewport instead of clamping the virtual
-  /// cursor inside the visible rows — without this the user could
-  /// never select more than one screen of text at a time.
-  final ScrollController scrollController;
+  /// Set the selection over the engine: anchor → cursor in absolute
+  /// grid-line coordinates (negative row = scrollback). The host forwards
+  /// this to `TerminalSession.setSelection` and pulls a fresh snapshot so
+  /// the highlight paints.
+  final void Function(int startRow, int startCol, int endRow, int endCol)
+  onSetSelection;
+
+  /// Clear any active engine selection (overlay open / dispose).
+  final VoidCallback onClearSelection;
+
+  /// Scroll the viewport by whole lines (positive = up into scrollback)
+  /// when the virtual cursor pans past the top / bottom edge, so one drag
+  /// can extend the selection through the whole scrollback.
+  final void Function(int lineDelta) onScroll;
+
   final double fontSize;
-  final String fontFamily;
-  final List<String> fontFamilyFallback;
   final EdgeInsets padding;
 
   @override
@@ -56,105 +64,77 @@ class TerminalCopyOverlay extends StatefulWidget {
 }
 
 class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
-  /// Viewport-relative cell position of the virtual cursor (0..viewWidth-1,
-  /// 0..viewHeight-1). We keep it viewport-relative rather than buffer-
-  /// absolute so a scroll underneath the overlay (shell output) doesn't
-  /// leave the cursor stranded.
+  /// Viewport-relative cell position of the virtual cursor (0..cols-1,
+  /// 0..rows-1). Kept viewport-relative rather than buffer-absolute so a
+  /// scroll underneath the overlay (shell output) doesn't strand it.
   int _cursorX = 0;
   int _cursorY = 0;
 
   /// Sub-cell accumulator — the gesture stream delivers fractional pixels
-  /// per frame, and we only move the cursor when the accumulator crosses
-  /// a full cell width/height. Prevents the cursor from jittering through
-  /// a cell when the finger barely moves.
+  /// per frame; the cursor only advances when the accumulator crosses a
+  /// full cell width / height, so it never jitters through a cell when the
+  /// finger barely moves.
   double _pxX = 0;
   double _pxY = 0;
 
-  /// Selection anchor in *buffer-absolute* coordinates (y includes the
-  /// scrollback offset at the moment it was set). Null before the first
-  /// pointer-down in this copy-mode session.
-  int? _anchorX;
-  int? _anchorYAbs;
+  /// Selection anchor in *absolute* grid-line coordinates (row includes the
+  /// scroll offset at the moment it was set). Null before the user taps
+  /// "Set anchor" in the copy-mode bar row.
+  int? _anchorCol;
+  int? _anchorRowAbs;
 
-  /// Measured cell dimensions, computed lazily on first paint and
-  /// recomputed whenever [TerminalCopyOverlay.fontSize] or fontFamily
-  /// changes. Mirrors the measurement approach used by
-  /// [`CursorTextOverlay`](../terminal/cursor_overlay.dart) so the virtual
-  /// cursor lines up exactly with the glyph cells underneath.
   Size? _cellSize;
   double? _measuredFontSize;
-  String? _measuredFontFamily;
 
   @override
   void initState() {
     super.initState();
-    final buf = widget.terminal.buffer;
-    final viewStart = buf.lines.length - buf.viewHeight;
-    final relY = buf.absoluteCursorY - viewStart;
-    if (relY >= 0 && relY < buf.viewHeight) {
-      _cursorX = buf.cursorX;
-      _cursorY = relY;
+    final frame = widget.snapshotProvider();
+    // Start the cursor under the engine cursor when it is on-screen,
+    // otherwise centre it. `frame.cursor.row` is viewport-relative.
+    final cursorRow = frame.cursor.row;
+    if (cursorRow >= 0 && cursorRow < frame.rows) {
+      _cursorX = frame.cursor.col.clamp(0, _maxX(frame));
+      _cursorY = cursorRow;
     } else {
-      _cursorX = widget.terminal.viewWidth ~/ 2;
-      _cursorY = widget.terminal.viewHeight ~/ 2;
+      _cursorX = (frame.cols ~/ 2).clamp(0, _maxX(frame));
+      _cursorY = (frame.rows ~/ 2).clamp(0, _maxY(frame));
     }
-    widget.controller.setSuspendPointerInput(true);
-    widget.controller.clearSelection();
+    widget.onClearSelection();
   }
 
   @override
   void dispose() {
-    widget.controller.setSuspendPointerInput(false);
-    widget.controller.clearSelection();
+    widget.onClearSelection();
     super.dispose();
   }
 
+  int _maxX(rust_terminal.TerminalFrame frame) =>
+      frame.cols > 0 ? frame.cols.toInt() - 1 : 0;
+  int _maxY(rust_terminal.TerminalFrame frame) =>
+      frame.rows > 0 ? frame.rows.toInt() - 1 : 0;
+
   Size _measureCellSize() {
-    if (_cellSize != null &&
-        _measuredFontSize == widget.fontSize &&
-        _measuredFontFamily == widget.fontFamily) {
+    if (_cellSize != null && _measuredFontSize == widget.fontSize) {
       return _cellSize!;
     }
-    // Must match xterm's painter: `height: kTerminalLineHeight` on both
-    // the paragraph style and the text style, otherwise the virtual
-    // cursor marker lands ~20 % off from the xterm-rendered glyphs and
-    // selection anchors drift below the cursor cell.
-    final style = ui.TextStyle(
-      fontFamily: widget.fontFamily,
-      fontFamilyFallback: widget.fontFamilyFallback,
-      fontSize: widget.fontSize,
-      height: kTerminalLineHeight,
-    );
-    final builder =
-        ui.ParagraphBuilder(ui.ParagraphStyle(height: kTerminalLineHeight))
-          ..pushStyle(style)
-          ..addText('mmmmmmmmmm');
-    final paragraph = builder.build()
-      ..layout(const ui.ParagraphConstraints(width: double.infinity));
-    _cellSize = Size(paragraph.maxIntrinsicWidth / 10, paragraph.height);
+    _cellSize = measureMonoCell(fontSize: widget.fontSize);
     _measuredFontSize = widget.fontSize;
-    _measuredFontFamily = widget.fontFamily;
-    paragraph.dispose();
     return _cellSize!;
   }
 
   /// Consume [delta] pixels of finger movement, advance the cursor by the
   /// whole-cell remainder, and update the live selection. Called by the
-  /// parent [MobileTerminalView] when a single-pointer drag is in flight.
+  /// host when a single-pointer drag is in flight.
   ///
-  /// Horizontal overflow rolls onto the next buffer row (and vice versa
-  /// on negative dx): a long pasted line that soft-wraps at the right
-  /// edge of the viewport lives on multiple buffer rows, and the copy
-  /// cursor has to be able to cross that wrap in one continuous drag.
-  /// The old `_cursorX.clamp(0, viewWidth - 1)` behaviour parked the
-  /// cursor at the right edge and refused to advance even though the
-  /// wrap continuation was plainly visible on the next row.
-  ///
-  /// Vertical overflow past the top / bottom viewport edge scrolls the
-  /// xterm buffer in that direction by the overflow cells — a single
-  /// drag can extend the selection through the entire scrollback.
+  /// Horizontal overflow rolls onto the next row (and back on negative dx)
+  /// so a soft-wrapped line can be crossed in one continuous drag. Vertical
+  /// overflow past the top / bottom edge scrolls the engine viewport by the
+  /// overflow cells via [onScroll] — a single drag can extend the selection
+  /// through the entire scrollback.
   void onCursorPan(Offset delta) {
     final cell = _measureCellSize();
+    if (cell.width <= 0 || cell.height <= 0) return;
     _pxX += delta.dx;
     _pxY += delta.dy;
     final dx = _pxX ~/ cell.width;
@@ -163,25 +143,25 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
     _pxX -= dx * cell.width;
     _pxY -= dy * cell.height;
 
-    final viewWidth = widget.terminal.viewWidth;
-    final viewMaxY = widget.terminal.viewHeight - 1;
+    final frame = widget.snapshotProvider();
+    final cols = frame.cols.toInt();
+    final viewMaxY = _maxY(frame);
+    if (cols <= 0) return;
 
-    // Linearise the grid into row-major cell indices so a horizontal
-    // overflow rolls to the next row instead of clamping at the right
-    // edge. Dart's `~/` truncates toward zero, which is wrong for
-    // negative values (we want floor), so the negative branch uses
-    // `ceil(abs/viewWidth)` and flips the sign — that gives the same
-    // result as `combined.floor()` without importing `dart:math`.
-    final combined = _cursorY * viewWidth + _cursorX + dx + dy * viewWidth;
+    // Linearise into row-major cell indices so a horizontal overflow rolls
+    // to the next row instead of clamping at the right edge. Dart's `~/`
+    // truncates toward zero (wrong for negatives — we want floor), so the
+    // negative branch uses ceil(abs/cols) and flips the sign.
+    final combined = _cursorY * cols + _cursorX + dx + dy * cols;
     int newY;
     final int newX;
     if (combined >= 0) {
-      newY = combined ~/ viewWidth;
-      newX = combined - newY * viewWidth;
+      newY = combined ~/ cols;
+      newX = combined - newY * cols;
     } else {
       final abs = -combined;
-      newY = -((abs + viewWidth - 1) ~/ viewWidth);
-      newX = combined - newY * viewWidth;
+      newY = -((abs + cols - 1) ~/ cols);
+      newX = combined - newY * cols;
     }
 
     int scrollOverflowCells = 0;
@@ -193,89 +173,56 @@ class TerminalCopyOverlayState extends State<TerminalCopyOverlay> {
       newY = viewMaxY;
     }
     if (scrollOverflowCells != 0) {
-      _scrollByCells(scrollOverflowCells, cell.height);
+      // `onScroll` is positive-up; a cursor moving down past the bottom
+      // (positive overflow) should scroll the viewport toward the live
+      // screen (negative line delta), and vice versa.
+      widget.onScroll(-scrollOverflowCells);
     }
     setState(() {
-      _cursorX = newX.clamp(0, viewWidth - 1);
+      _cursorX = newX.clamp(0, cols - 1);
       _cursorY = newY;
-      _syncSelection();
+      _syncSelection(frame);
     });
   }
 
-  /// Jump the shared scroll controller by [cells] rows worth of pixels,
-  /// clamping to the scrollable extent. No-op when the controller is
-  /// not attached (widget still building) or the extent is zero (buffer
-  /// fits in the viewport).
-  void _scrollByCells(int cells, double cellHeight) {
-    if (!widget.scrollController.hasClients) return;
-    final pos = widget.scrollController.position;
-    final desired = (widget.scrollController.offset + cells * cellHeight).clamp(
-      pos.minScrollExtent,
-      pos.maxScrollExtent,
-    );
-    widget.scrollController.jumpTo(desired);
-  }
-
-  /// Drop the selection anchor at the current cursor position. Called by
-  /// the parent on the *first* pointer-down of each copy-mode session —
-  /// subsequent pointer-downs don't re-anchor, they continue extending the
-  /// existing selection so the user can lift and re-touch without losing
-  /// progress.
+  /// Drop the selection anchor at the current cursor cell. No-op once an
+  /// anchor exists — subsequent pans extend the existing selection so the
+  /// user can lift + re-touch without losing progress.
   void onAnchorDown() {
-    if (_anchorX != null) return;
-    _anchorX = _cursorX;
-    _anchorYAbs = _cursorY + _viewportStartLine();
-    _syncSelection();
+    if (_anchorCol != null) return;
+    final frame = widget.snapshotProvider();
+    _anchorCol = _cursorX;
+    _anchorRowAbs = _absoluteRow(_cursorY, frame);
+    _syncSelection(frame);
   }
 
-  /// Buffer-absolute index of the first visible row, accounting for
-  /// live scroll offset. The old `buf.lines.length - buf.viewHeight`
-  /// formula only held when the view was pinned to the bottom —
-  /// during copy mode the user can scroll up, so we derive the
-  /// visible start from the shared scroll controller instead.
-  int _viewportStartLine() {
-    final buf = widget.terminal.buffer;
-    if (!widget.scrollController.hasClients) {
-      return buf.lines.length - buf.viewHeight;
-    }
-    final cellHeight = _measureCellSize().height;
-    if (cellHeight <= 0) return buf.lines.length - buf.viewHeight;
-    // Scroll offset pixels ÷ cell height = absolute row index of the
-    // topmost visible line (xterm renders from row 0 at offset 0,
-    // matching the same convention).
-    return (widget.scrollController.offset / cellHeight).floor();
+  /// Map a viewport row to an absolute grid line. The engine's snapshot
+  /// adds `displayOffset` to map a native line to a viewport row, so the
+  /// inverse subtracts it — the same mapping `pointerToCell` uses on the
+  /// desktop grid.
+  int _absoluteRow(int viewportRow, rust_terminal.TerminalFrame frame) =>
+      viewportRow - frame.displayOffset.toInt();
+
+  void _syncSelection(rust_terminal.TerminalFrame frame) {
+    final ac = _anchorCol;
+    final ar = _anchorRowAbs;
+    if (ac == null || ar == null) return;
+    widget.onSetSelection(ar, ac, _absoluteRow(_cursorY, frame), _cursorX);
   }
 
-  void _syncSelection() {
-    final ax = _anchorX;
-    final ay = _anchorYAbs;
-    if (ax == null || ay == null) return;
-    final buf = widget.terminal.buffer;
-    final cyAbs = _cursorY + _viewportStartLine();
-    widget.controller.setSelection(
-      buf.createAnchor(ax, ay),
-      buf.createAnchor(_cursorX, cyAbs),
-    );
-  }
-
-  /// True after the first [onAnchorDown] — surfaced so the parent can
-  /// swap between "Tap to mark start" and "Tap to extend" hint copy in
-  /// the top hint bar that now lives above the terminal in the mobile
-  /// Column layout.
-  bool get anchorSet => _anchorX != null;
+  /// True after the first [onAnchorDown] — surfaced so the bar can swap
+  /// between "tap to start" and "tap to extend" hint copy.
+  bool get anchorSet => _anchorCol != null;
 
   @override
   Widget build(BuildContext context) {
     final cell = _measureCellSize();
     final x = _cursorX * cell.width + widget.padding.left;
     final y = _cursorY * cell.height + widget.padding.top;
-    // Cursor marker only. The hint banner and Copy/Cancel toolbar moved
-    // out to `MobileTerminalView`'s Column so they shrink the terminal
-    // instead of floating over its last row (covering the active line
-    // is unusable on a 400 px-tall phone viewport). Pointer events on
-    // the cursor must not be intercepted: the enclosing Listener reads
-    // cursor-pan deltas via `onCursorPan`, and an opaque widget on top
-    // would swallow them.
+    // Cursor marker only. The hint + Copy / Cancel toolbar lives in the
+    // SshKeyboardBar's copy-mode row (stable-height swap), not over the
+    // terminal rows. IgnorePointer so the enclosing Listener keeps reading
+    // cursor-pan deltas through this overlay.
     return IgnorePointer(
       child: Stack(
         children: [
@@ -305,13 +252,3 @@ class _CursorMarker extends StatelessWidget {
     );
   }
 }
-
-// The former CopyModeHint / CopyModeToolbar helpers were removed: the
-// stable-height layout now swaps the SshKeyboardBar's own row content
-// between a normal-keys variant and a copy-mode variant (hint text +
-// Copy + Cancel) inside the SAME `itemHeightLg` container. Having
-// dedicated banner / toolbar widgets next to the terminal forced the
-// terminal's widget height to change every time copy mode toggled,
-// which was the source of the mid-buffer reshuffle users kept
-// reporting. See `ssh_keyboard_bar._buildCopyModeRow` for the new
-// hint + action surface.

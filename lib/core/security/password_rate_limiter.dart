@@ -1,13 +1,11 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:math' as math;
+import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/persisted_rate_limit_actor.dart'
+    as rust_persisted_actor;
+import '../../src/rust/api/rate_limit.dart' as rust_rate_limit;
 import '../../utils/logger.dart';
 
 /// Exponential-backoff password rate limiter.
@@ -24,19 +22,26 @@ import '../../utils/logger.dart';
 /// [InMemoryRateLimiter] drops everything on restart (fine for
 /// Paranoid master-password mode, where the Argon2id cost is the
 /// real brake), [PersistedRateLimiter] writes an HMAC-authenticated
-/// record to disk (used by L2 keychain-with-password, where the
+/// record to disk (used by T1+pw keychain-with-password, where the
 /// wrap-less check would otherwise permit immediate retry after a
 /// relaunch).
 abstract class PasswordRateLimiter {
   /// Seconds to wait between attempts after N consecutive failures.
   /// Index 0 = "no failures yet, no wait"; index 1 = "one failure,
   /// wait 1 s"; every index above that doubles up to the cap.
-  static const List<int> backoffSchedule = [0, 1, 2, 4, 8, 16, 32, 60, 60, 60];
+  ///
+  /// Hydrated lazily from
+  /// `lfs_core::rate_limit::BACKOFF_SCHEDULE` (FRB sync) so the
+  /// schedule lives one place across Dart + Rust.
+  static List<int> get backoffSchedule {
+    return _cachedBackoff ??= List.unmodifiable(
+      rust_rate_limit.rateLimitBackoffScheduleSeconds().map((s) => s.toInt()),
+    );
+  }
 
-  /// Clock injection for deterministic tests.
-  final DateTime Function() _now;
+  static List<int>? _cachedBackoff;
 
-  PasswordRateLimiter({DateTime Function()? now}) : _now = now ?? DateTime.now;
+  PasswordRateLimiter();
 
   /// Describes the limiter's current state to the caller. When a
   /// cooldown is active, [cooldownRemaining] is non-null and the
@@ -50,24 +55,6 @@ abstract class PasswordRateLimiter {
   /// Register a successful attempt. Wipes the counter so the next
   /// unlock starts fresh.
   void recordSuccess();
-
-  /// How long the user must wait from [fromNow] before the next
-  /// retry is allowed, or `Duration.zero` if no cooldown is active.
-  Duration _cooldownRemaining(DateTime? nextRetryAt) {
-    if (nextRetryAt == null) return Duration.zero;
-    final diff = nextRetryAt.difference(_now());
-    return diff.isNegative ? Duration.zero : diff;
-  }
-
-  /// Compute the next-retry timestamp from the current failure count.
-  DateTime? _nextRetryAfterFailure(int failureCount) {
-    final idx = failureCount < backoffSchedule.length
-        ? failureCount
-        : backoffSchedule.length - 1;
-    final seconds = backoffSchedule[idx];
-    if (seconds == 0) return null;
-    return _now().add(Duration(seconds: seconds));
-  }
 }
 
 /// Current state of a [PasswordRateLimiter]. `cooldownRemaining`
@@ -90,269 +77,275 @@ class RateLimitStatus {
 /// persistent counter here would be security theatre and user-
 /// hostile (forgot-password wait carries across restarts for no
 /// extra safety).
+/// Thin shim over `lfs_core::rate_limit::InMemoryRateLimiterRegistry`
+/// — the canonical exponential-backoff state lives Rust-side and
+/// survives across Dart hot reload + Riverpod provider rebuilds.
+/// Each instance allocates a unique id so multiple
+/// `MasterPasswordManager` instances (production + tests) never
+/// share counters.
+///
+/// The injected `now` clock is no longer honoured — Rust uses
+/// `SystemTime::now`. Tests that need deterministic time should
+/// build their own `PasswordRateLimiter` subclass; the production
+/// path covers paranoid mode where Argon2id provides the real
+/// brake regardless of the limiter clock.
 class InMemoryRateLimiter extends PasswordRateLimiter {
-  InMemoryRateLimiter({super.now});
+  InMemoryRateLimiter() : _id = const Uuid().v4();
 
-  int _failureCount = 0;
-  DateTime? _nextRetryAt;
+  final String _id;
+  bool _disposed = false;
 
   @override
-  RateLimitStatus status() => RateLimitStatus(
-    failureCount: _failureCount,
-    cooldownRemaining: _cooldownRemaining(_nextRetryAt),
-  );
+  RateLimitStatus status() {
+    if (_disposed) return _zero;
+    try {
+      final s = rust_rate_limit.rateLimitStatus(id: _id);
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: Duration(
+          milliseconds: s.cooldownRemainingMs.toInt(),
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitStatus FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+      return _zero;
+    }
+  }
 
   @override
   void recordFailure() {
-    _failureCount = math.min(
-      _failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
-    _nextRetryAt = _nextRetryAfterFailure(_failureCount);
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordFailure(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordFailure FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   @override
   void recordSuccess() {
-    _failureCount = 0;
-    _nextRetryAt = null;
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordSuccess(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordSuccess FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop the Rust-side limiter for this instance's id. Idempotent;
+  /// safe to call multiple times. Not part of the abstract base —
+  /// only the in-memory variant has Rust state to release.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      rust_rate_limit.rateLimitDrop(id: _id);
+    } catch (_) {
+      // FRB unavailable in flutter_test; nothing to drop.
+    }
   }
 }
 
-/// Disk-backed rate limiter — used by the L2 keychain-with-password
+/// Disk-backed rate limiter — used by the T1+pw keychain-with-password
 /// path where the password is a bystander gate with no cryptographic
 /// strength, and a restart-reset counter would let an attacker just
 /// relaunch the process between attempts.
 ///
 /// State file holds `{failureCount, nextRetryAtMillis, hmac}`. The
-/// HMAC is computed with a secret key the caller supplies — in L2's
+/// HMAC is computed with a secret key the caller supplies — in T1+pw's
 /// case the SHA-256 of the comparison-hash already held in the
 /// keychain, so an attacker who tampers with the state file without
 /// also possessing the keychain entry ends up with a detectable HMAC
 /// mismatch and is immediately thrown into max cooldown.
 ///
-/// Tamper path: [status] verifies the HMAC at load. On mismatch the
-/// failure counter is clamped to the schedule cap and `nextRetryAt`
-/// is set to `now + maxCooldown`. Legitimate writers always produce
-/// a valid HMAC, so a legit restart never trips this branch.
+/// State lives in `lfs_core::security::persisted_rate_limit_actor`
+/// (tokio actor with periodic flush). This Dart class is a thin
+/// façade — `init_or_get` registers the limiter under [_id] with
+/// the on-disk path + HMAC key; subsequent ops snapshot / mutate
+/// that registered slot.
+///
+/// The production path uses [`PersistedRateLimiter.fromPrebuiltId`]:
+/// `lfs_core::security::keychain_password_gate_actor::
+/// build_persisted_rate_limiter` reads the gate envelope and
+/// registers the slot inside Rust, so the HMAC bytes never cross
+/// the FRB boundary. The default constructor stays for tests that
+/// need to drive the limiter against an explicit HMAC + state
+/// file path without going through the gate actor.
 class PersistedRateLimiter extends PasswordRateLimiter {
-  PersistedRateLimiter({
-    required Uint8List hmacKey,
-    Future<File> Function()? stateFileFactory,
-    super.now,
-  }) : _hmacKey = hmacKey,
-       _stateFile = stateFileFactory ?? _defaultStateFile;
+  PersistedRateLimiter({required Uint8List hmacKey, String? id})
+    : _hmacKey = hmacKey,
+      _id = id ?? const Uuid().v4(),
+      _initialised = false;
 
-  static const _fileName = 'rate_limit_state.bin';
+  /// Build a limiter against an id whose Rust-side slot is already
+  /// registered (via `keychain_password_gate_actor::
+  /// build_persisted_rate_limiter`). The HMAC + state-file path
+  /// live entirely in the Rust actor under `id`; this Dart wrapper
+  /// only forwards status / record ops to that slot. Skips the
+  /// `_ensureInit` round-trip — the actor is already wired.
+  PersistedRateLimiter.fromPrebuiltId(String id)
+    : _hmacKey = Uint8List(0),
+      _id = id,
+      _initialised = true;
 
+  /// Only consulted by the explicit-constructor path; the
+  /// `fromPrebuiltId` factory leaves this empty because the actor
+  /// is already wired with the HMAC inside Rust.
   final Uint8List _hmacKey;
-  final Future<File> Function() _stateFile;
 
-  _RateState? _cached;
-  bool _loaded = false;
+  /// Per-instance id under which the Rust
+  /// `persisted_rate_limit_actor` registers this limiter. Each
+  /// Dart instance auto-allocates one so multiple gates
+  /// (production + tests) never share counters inside the
+  /// singleton registry.
+  final String _id;
 
-  /// Serialises writes so two rapid-fire `recordFailure` /
-  /// `recordSuccess` calls never race each other at the filesystem —
-  /// the second write always observes the first's completion even
-  /// though neither is awaited by the caller.
-  Future<void> _pendingSave = Future<void>.value();
+  /// True once the Rust actor has a registered slot for [_id]. The
+  /// `fromPrebuiltId` factory starts true because Rust already
+  /// registered the slot before handing the id over; the default
+  /// constructor starts false and flips via `statusAsync` /
+  /// `_ensureInit` on first call.
+  bool _initialised;
 
-  static Future<File> _defaultStateFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _fileName));
-  }
-
-  /// Force an on-disk read on the next [status] call. Primarily
-  /// exists for tests that edit the state file behind the limiter's
-  /// back to simulate tamper.
+  /// Force a re-read on next status call. Clears the actor's slot
+  /// and the local init flag so the next operation re-initialises.
   void invalidateCache() {
-    _cached = null;
-    _loaded = false;
+    if (_initialised) {
+      try {
+        rust_persisted_actor.persistedRateLimitActorClear(id: _id);
+      } catch (_) {
+        // Actor unreachable — re-init on next call will recover.
+      }
+    }
+    _initialised = false;
   }
 
-  /// Awaits the currently-pending save chain so a test can assert
-  /// post-write invariants deterministically. Production callers
-  /// never need this — the unlock flow is fine with fire-and-forget.
-  Future<void> awaitPendingSave() => _pendingSave;
+  /// Awaits the actor's most-recent in-flight `tokio::spawn_blocking`
+  /// disk write for this limiter. Routes through
+  /// `persisted_rate_limit_actor_flush` (FRB async) so callers
+  /// observe a settled disk state deterministically — replaces the
+  /// earlier `Future.delayed(50ms)` heuristic.
+  ///
+  /// Safe to call when no write is pending — the FRB function
+  /// returns immediately in that case.
+  Future<void> awaitPendingSave() async {
+    try {
+      await rust_persisted_actor.persistedRateLimitActorFlush(id: _id);
+    } catch (_) {
+      // FRB unavailable / actor unreachable in some test contexts —
+      // fall through; the worst case is the test observes the
+      // pre-write state, not an empty / corrupt one.
+    }
+  }
 
   @override
   RateLimitStatus status() {
-    // Returning a synchronous snapshot is required by the base-class
-    // contract; `statusAsync` runs the disk read + HMAC verify.
-    if (!_loaded) {
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
+    if (!_initialised) {
+      // Init hasn't settled yet (sync caller hit before
+      // `statusAsync`). Return the safe baseline so the unlock
+      // dialog renders no cooldown — `statusAsync` resolves the
+      // actor slot and the next read shows the real state.
+      return _zero;
     }
-    final state = _cached;
-    if (state == null) {
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
+    try {
+      final s = rust_persisted_actor.persistedRateLimitActorStatus(id: _id);
+      final ms = s.cooldownRemainingMs.toInt();
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: ms > 0 ? Duration(milliseconds: ms) : Duration.zero,
       );
+    } catch (_) {
+      return _zero;
     }
-    return RateLimitStatus(
-      failureCount: state.failureCount,
-      cooldownRemaining: _cooldownRemaining(state.nextRetryAt),
-    );
   }
 
-  /// Async variant that loads + HMAC-verifies the on-disk state.
-  /// Callers on the unlock path should await this before rendering a
-  /// cooldown countdown.
+  /// Async variant — loads the on-disk frame (HMAC-verified) before
+  /// snapshotting. The unlock dialog awaits this on open so the
+  /// post-restart cooldown countdown lands on the first frame.
   Future<RateLimitStatus> statusAsync() async {
-    await _ensureLoaded();
+    await _ensureInit();
     return status();
   }
 
   @override
   void recordFailure() {
-    final current = _cached ?? const _RateState(failureCount: 0);
-    final nextCount = math.min(
-      current.failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
-    final nextRetryAt = _nextRetryAfterFailure(nextCount);
-    final state = _RateState(failureCount: nextCount, nextRetryAt: nextRetryAt);
-    _cached = state;
-    _loaded = true;
-    _unawaitedSave(state);
+    if (!_initialised) {
+      // First call before `statusAsync` settled — try the Rust
+      // actor direct (the call is itself the probe; success means
+      // the actor accepted the failure under [_id], failure means
+      // the slot wasn't registered yet and the failure is lost).
+      try {
+        rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
+        _initialised = true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'PersistedRateLimiter recordFailure pre-init dropped: $e',
+          name: 'PersistedRateLimiter',
+        );
+      }
+      return;
+    }
+    try {
+      rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'PersistedRateLimiter recordFailure failed: $e',
+        name: 'PersistedRateLimiter',
+      );
+    }
   }
 
   @override
   void recordSuccess() {
-    _cached = const _RateState(failureCount: 0);
-    _loaded = true;
-    _unawaitedSave(_cached!);
-  }
-
-  /// Kicks off the disk write without awaiting. A persist failure is
-  /// logged but never blocks the unlock flow — worst case is the
-  /// counter drops on restart, which is a smaller loss than a failed
-  /// password field. Writes are chained on `_pendingSave` so a
-  /// sequence of `recordFailure; recordSuccess` always lands as two
-  /// sequential writes rather than a race.
-  void _unawaitedSave(_RateState state) {
-    _pendingSave = _pendingSave.catchError((_) {}).then((_) async {
+    if (!_initialised) {
       try {
-        final file = await _stateFile();
-        await file.parent.create(recursive: true);
-        final bytes = _encode(state);
-        await file.writeAsBytes(bytes, flush: true);
-        await hardenFilePerms(file.path);
+        rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
+        _initialised = true;
       } catch (e) {
         AppLogger.instance.log(
-          'PersistedRateLimiter save failed: $e',
+          'PersistedRateLimiter recordSuccess pre-init dropped: $e',
           name: 'PersistedRateLimiter',
         );
       }
-    });
-  }
-
-  Future<void> _ensureLoaded() async {
-    if (_loaded) return;
+      return;
+    }
     try {
-      final file = await _stateFile();
-      if (!await file.exists()) {
-        _cached = const _RateState(failureCount: 0);
-        _loaded = true;
-        return;
-      }
-      final raw = await file.readAsBytes();
-      final decoded = _decode(raw);
-      if (decoded == null) {
-        // Tamper or corruption — treat as worst-case cooldown.
-        _cached = _RateState(
-          failureCount: PasswordRateLimiter.backoffSchedule.length - 1,
-          nextRetryAt: _now().add(
-            Duration(seconds: PasswordRateLimiter.backoffSchedule.last),
-          ),
-        );
-        _loaded = true;
-        AppLogger.instance.log(
-          'PersistedRateLimiter state tampered or corrupt — max cooldown',
-          name: 'PersistedRateLimiter',
-        );
-        return;
-      }
-      _cached = decoded;
-      _loaded = true;
+      rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
     } catch (e) {
       AppLogger.instance.log(
-        'PersistedRateLimiter load failed: $e',
+        'PersistedRateLimiter recordSuccess failed: $e',
         name: 'PersistedRateLimiter',
       );
-      _cached = const _RateState(failureCount: 0);
-      _loaded = true;
     }
   }
 
-  Uint8List _encode(_RateState state) {
-    final payload = jsonEncode({
-      'failure_count': state.failureCount,
-      'next_retry_at_millis': state.nextRetryAt?.millisecondsSinceEpoch,
-    });
-    final payloadBytes = utf8.encode(payload);
-    final hmac = Hmac(sha256, _hmacKey).convert(payloadBytes);
-    final frame = jsonEncode({
-      'payload': base64.encode(payloadBytes),
-      'hmac': base64.encode(hmac.bytes),
-    });
-    return Uint8List.fromList(utf8.encode(frame));
-  }
-
-  _RateState? _decode(Uint8List bytes) {
+  Future<void> _ensureInit() async {
+    if (_initialised) return;
     try {
-      final frame = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      final payloadB64 = frame['payload'];
-      final hmacB64 = frame['hmac'];
-      if (payloadB64 is! String || hmacB64 is! String) return null;
-      final payloadBytes = base64.decode(payloadB64);
-      final claimed = base64.decode(hmacB64);
-      final expected = Hmac(sha256, _hmacKey).convert(payloadBytes).bytes;
-      if (!_constantTimeEqual(claimed, expected)) return null;
-      final payload =
-          jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
-      final failureCount = (payload['failure_count'] as num?)?.toInt() ?? 0;
-      final retryMillis = (payload['next_retry_at_millis'] as num?)?.toInt();
-      return _RateState(
-        failureCount: failureCount.clamp(
-          0,
-          PasswordRateLimiter.backoffSchedule.length - 1,
-        ),
-        nextRetryAt: retryMillis == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(retryMillis),
+      rust_persisted_actor.persistedRateLimitActorInitOrGet(
+        id: _id,
+        hmacKey: _hmacKey,
       );
+      _initialised = true;
     } catch (e) {
-      // Tamper or corruption — return null so the caller starts
-      // from a clean state. Log the reason because a "rate limit
-      // reset itself" complaint needs to distinguish expected
-      // fresh-install (no file) from "bytes on disk were malformed"
-      // (should not happen unless something wrote into the state file).
       AppLogger.instance.log(
-        'PasswordRateLimiter: state decode failed (starting fresh): $e',
-        name: 'RateLimiter',
+        'PersistedRateLimiter init failed: $e',
+        name: 'PersistedRateLimiter',
       );
-      return null;
     }
   }
-
-  static bool _constantTimeEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
-  }
-}
-
-class _RateState {
-  final int failureCount;
-  final DateTime? nextRetryAt;
-
-  const _RateState({required this.failureCount, this.nextRetryAt});
 }
 
 /// Thin software counter layered **on top of** the hardware rate
@@ -363,34 +356,91 @@ class _RateState {
 /// still slows the attacker via the same exp-backoff schedule the
 /// other limiters use.
 ///
+/// State lives in `lfs_core::rate_limit::InMemoryRateLimiterRegistry`,
+/// the same registry [`InMemoryRateLimiter`] uses; the canonical
+/// schedule + counter math lives one place across both Dart limiter
+/// shims so the hardware-overlay can never drift from the in-memory
+/// path. Each instance allocates a unique id so multiple unlock
+/// flows (production + tests) never share counters.
+///
 /// State is in-memory — the hardware layer is the source of truth
 /// for persistent lockout semantics. Resets on process restart;
 /// anyone restarting the process already paid the cost of talking
 /// to the hardware again, which itself is rate-limited.
+///
+/// The injected `now` clock is no longer honoured — Rust uses
+/// `SystemTime::now`. Mirrors [`InMemoryRateLimiter`].
 class HardwareRateLimiter extends PasswordRateLimiter {
-  HardwareRateLimiter({super.now});
+  HardwareRateLimiter() : _id = const Uuid().v4();
 
-  int _failureCount = 0;
-  DateTime? _nextRetryAt;
+  final String _id;
+  bool _disposed = false;
 
   @override
-  RateLimitStatus status() => RateLimitStatus(
-    failureCount: _failureCount,
-    cooldownRemaining: _cooldownRemaining(_nextRetryAt),
-  );
+  RateLimitStatus status() {
+    if (_disposed) return _zero;
+    try {
+      final s = rust_rate_limit.rateLimitStatus(id: _id);
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: Duration(
+          milliseconds: s.cooldownRemainingMs.toInt(),
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitStatus FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+      return _zero;
+    }
+  }
 
   @override
   void recordFailure() {
-    _failureCount = math.min(
-      _failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
-    _nextRetryAt = _nextRetryAfterFailure(_failureCount);
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordFailure(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordFailure FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   @override
   void recordSuccess() {
-    _failureCount = 0;
-    _nextRetryAt = null;
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordSuccess(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordSuccess FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop the Rust-side limiter slot for this instance's id.
+  /// Idempotent; safe to call repeatedly. Mirrors
+  /// [`InMemoryRateLimiter.dispose`] — the hardware overlay's state
+  /// is in the same registry.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      rust_rate_limit.rateLimitDrop(id: _id);
+    } catch (_) {
+      // FRB unavailable in flutter_test; nothing to drop.
+    }
   }
 }
+
+const _zero = RateLimitStatus(
+  failureCount: 0,
+  cooldownRemaining: Duration.zero,
+);

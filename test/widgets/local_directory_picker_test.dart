@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/widgets/local_directory_picker.dart';
+import 'package:letsflutssh/widgets/import_export/local_directory_picker.dart';
 import 'package:path/path.dart' as p;
+
+import '../helpers/frb_bootstrap.dart';
 
 Widget _host(String initialPath) {
   return MaterialApp(
@@ -18,11 +20,11 @@ Widget _host(String initialPath) {
 
 /// Pump [widget] and wait for the directory listing to come back.
 ///
-/// The picker renders a [CircularProgressIndicator] while `dart:io`
-/// walks the directory. CPI animates forever, so `pumpAndSettle` never
-/// reaches steady state on its own — we drive one real async step via
-/// [WidgetTester.runAsync] (which processes the `Directory.list` stream)
-/// and then pump frames until the spinner is gone.
+/// The picker renders a [CircularProgressIndicator] while the Rust
+/// `list_directories` call resolves. CPI animates forever, so
+/// `pumpAndSettle` never reaches steady state on its own — we drive one
+/// real async step via [WidgetTester.runAsync] (which processes the FRB
+/// future) and then pump frames until the spinner is gone.
 Future<void> _pumpUntilLoaded(WidgetTester tester, Widget widget) async {
   await tester.pumpWidget(widget);
   await _waitForAsyncLoad(tester);
@@ -33,12 +35,12 @@ Future<void> _tapAndReload(WidgetTester tester, Finder f) async {
   await _waitForAsyncLoad(tester);
 }
 
-/// Drive the picker's async `dart:io` work to completion.
+/// Drive the picker's async work to completion.
 ///
 /// `CircularProgressIndicator` animates forever, so plain
 /// `pumpAndSettle` never settles. Instead we yield real wall time via
-/// [WidgetTester.runAsync] (which lets `Directory.list` stream complete)
-/// and then pump a few frames for the pending `setState` to flush.
+/// [WidgetTester.runAsync] (which lets the FRB future complete) and
+/// then pump a few frames for the pending `setState` to flush.
 Future<void> _waitForAsyncLoad(WidgetTester tester) async {
   for (var i = 0; i < 5; i++) {
     await tester.runAsync(() async {
@@ -49,7 +51,13 @@ Future<void> _waitForAsyncLoad(WidgetTester tester) async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tmp;
+
+  setUpAll(() async {
+    await requireFrbLoaded();
+  });
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('ldp-');
@@ -71,7 +79,8 @@ void main() {
     tester,
   ) async {
     // Create a mixed bag: visible subdirs in un-sorted order + a hidden
-    // one. The UI must sort case-insensitively and drop the hidden dir.
+    // one. The UI must sort case-insensitively (sorting happens Rust-
+    // side in `list_directories`) and drop the hidden dir.
     Directory(p.join(tmp.path, 'Banana')).createSync();
     Directory(p.join(tmp.path, 'apple')).createSync();
     Directory(p.join(tmp.path, 'cherry')).createSync();
@@ -138,9 +147,9 @@ void main() {
     final ghost = p.join(tmp.path, 'does-not-exist');
     await _pumpUntilLoaded(tester, _host(ghost));
 
-    // The contract for a missing path is an explicit error message, not
-    // a silent empty list — otherwise the user cannot tell why nothing
-    // is shown.
+    // The Rust contract returns the pinned `"no_such_file_or_directory"`
+    // key; `localizeError` maps it to the localised toast. We assert on
+    // the rendered English copy to pin the round-trip.
     expect(find.text('No such file or directory'), findsOneWidget);
   });
 }

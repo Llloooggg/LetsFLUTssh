@@ -1,27 +1,31 @@
 package com.llloooggg.letsflutssh
 
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.Settings
 import android.view.WindowManager
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 // FlutterFragmentActivity (instead of FlutterActivity) is required by
-// local_auth's BiometricPrompt, which hosts its UI inside a Fragment.
+// `androidx.biometric.BiometricPrompt` (consumed Rust-side via JNI in
+// `lfs_os_security::android::biometric`); the prompt hosts its UI
+// inside a Fragment and crashes on a plain FlutterActivity.
 class MainActivity : FlutterFragmentActivity() {
-    private val permissionChannel = "com.letsflutssh/permissions"
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
-    private var pendingResult: MethodChannel.Result? = null
+
+    // Cross-thread access to the pending QR-scan result. `launchQrScanner`
+    // runs on the platform-channel thread; `onActivityResult` runs on the
+    // main thread. Without `@Volatile` the write from one thread is not
+    // guaranteed to be visible to the other, and a stale-null read from
+    // `onActivityResult` would silently drop the user's scan response.
+    // The `synchronized(scanResultLock)` blocks make the
+    // null-check-then-set and read-then-clear atomic against each other
+    // so a second `scan` call cannot race past the busy guard while the
+    // first result is mid-delivery.
+    @Volatile
     private var pendingScanResult: MethodChannel.Result? = null
-    private var hardwareVault: HardwareVaultPlugin? = null
-    private var clipboardSecure: ClipboardSecurePlugin? = null
+    private val scanResultLock = Any()
 
     // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
     // unlock dialog inside the wizard) should not clear the flag when
@@ -30,21 +34,25 @@ class MainActivity : FlutterFragmentActivity() {
     private var secureScreenRefcount = 0
 
     companion object {
-        private const val MANAGE_STORAGE_REQUEST = 1001
-        private const val LEGACY_STORAGE_REQUEST = 1002
         private const val QR_SCAN_REQUEST = 1003
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, permissionChannel)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "requestStoragePermission" -> requestStoragePermission(result)
-                    else -> result.notImplemented()
-                }
-            }
+        // JavaVM + activity + Application context bootstrap for
+        // the lfs_os_security Android JNI path. Cargokit-loaded
+        // `liblfs_frb.so` comes in via `dart:ffi` (not
+        // `System.loadLibrary`), so the standard `JNI_OnLoad`
+        // callback never fires; calling
+        // `LfsJniBootstrap.register(this)` here captures the
+        // three handles (JavaVM, FragmentActivity for
+        // BiometricPrompt, Application context for getFilesDir
+        // etc.) into process-wide OnceLocks that
+        // `lfs_os_security::android::*` reads on every JNI call.
+        // Idempotent — safe to call again on MainActivity
+        // recreation; the OnceLocks ignore second-write attempts.
+        LfsJniBootstrap.register(this)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, qrScannerChannel)
             .setMethodCallHandler { call, result ->
@@ -54,21 +62,17 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
-        // L3 hardware-backed vault. The plugin owns its own
-        // MethodChannel name (`HardwareVaultPlugin.CHANNEL`) so the
-        // registration stays self-contained here.
-        val hwChannel = MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            HardwareVaultPlugin.CHANNEL
-        )
-        hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }
+        // L3 hardware-backed vault is owned Rust-side now —
+        // `lfs_os_security::android::hardware_vault` calls into
+        // `java.security.KeyStore` provider `"AndroidKeyStore"`
+        // directly via JNI. The Dart `HardwareTierVault` wrapper
+        // routes Android through FRB, no MethodChannel involved.
 
-        val clipboardChannel = MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            ClipboardSecurePlugin.CHANNEL
-        )
-        clipboardSecure = ClipboardSecurePlugin(applicationContext)
-            .also { it.register(clipboardChannel) }
+        // Sensitive-clipboard writes (EXTRA_IS_SENSITIVE) are
+        // owned Rust-side too —
+        // `lfs_os_security::android::clipboard` JNIs directly into
+        // `android.content.ClipboardManager`. The Dart
+        // `SecureClipboard` wrapper routes Android through FRB.
 
         // Selective FLAG_SECURE — per-screen opt-in, refcounted so
         // nested SecureScreenScope widgets do not clear the flag
@@ -112,73 +116,27 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun launchQrScanner(result: MethodChannel.Result) {
-        if (pendingScanResult != null) {
-            result.error("BUSY", "A scan is already in progress", null)
-            return
+        synchronized(scanResultLock) {
+            if (pendingScanResult != null) {
+                result.error("BUSY", "A scan is already in progress", null)
+                return
+            }
+            pendingScanResult = result
         }
-        pendingScanResult = result
         val intent = Intent(this, QrScannerActivity::class.java)
         startActivityForResult(intent, QR_SCAN_REQUEST)
     }
 
-    private fun requestStoragePermission(result: MethodChannel.Result) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ — need MANAGE_EXTERNAL_STORAGE
-            if (Environment.isExternalStorageManager()) {
-                result.success(true)
-            } else {
-                pendingResult = result
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivityForResult(intent, MANAGE_STORAGE_REQUEST)
-            }
-        } else {
-            // Android 10 and below — runtime permission
-            val permission = android.Manifest.permission.READ_EXTERNAL_STORAGE
-            if (ContextCompat.checkSelfPermission(this, permission)
-                == android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                result.success(true)
-            } else {
-                pendingResult = result
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(
-                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    ),
-                    LEGACY_STORAGE_REQUEST
-                )
-            }
-        }
-    }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == MANAGE_STORAGE_REQUEST) {
-            val granted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                Environment.isExternalStorageManager()
-            pendingResult?.success(granted)
-            pendingResult = null
-        } else if (requestCode == QR_SCAN_REQUEST) {
+        if (requestCode == QR_SCAN_REQUEST) {
             val payload = data?.getStringExtra(QrScannerActivity.EXTRA_RESULT)
-            pendingScanResult?.success(if (resultCode == RESULT_OK) payload else null)
-            pendingScanResult = null
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == LEGACY_STORAGE_REQUEST) {
-            val granted = grantResults.isNotEmpty() &&
-                grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
-            pendingResult?.success(granted)
-            pendingResult = null
+            val pending = synchronized(scanResultLock) {
+                val r = pendingScanResult
+                pendingScanResult = null
+                r
+            }
+            pending?.success(if (resultCode == RESULT_OK) payload else null)
         }
     }
 }

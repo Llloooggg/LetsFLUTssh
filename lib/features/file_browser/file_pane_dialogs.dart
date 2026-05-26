@@ -5,8 +5,8 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/toast.dart';
+import '../../widgets/core/app_dialog.dart';
+import '../../widgets/core/toast.dart';
 import 'file_browser_controller.dart';
 
 /// Shared dialogs for file pane operations (New Folder, Rename, Delete).
@@ -34,14 +34,14 @@ class FilePaneDialogs {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                   color: AppTheme.fgFaint,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: nameCtrl,
                 autofocus: true,
@@ -198,7 +198,7 @@ class FilePaneDialogs {
           name: 'FilePane',
           error: e,
         );
-        errors.add(l10n.failedToDeleteItem(entry.name, e.toString()));
+        errors.add(l10n.failedToDeleteItem(entry.name, localizeError(l10n, e)));
       }
     }
     if (errors.isNotEmpty && context.mounted) {
@@ -213,7 +213,11 @@ class FilePaneDialogs {
     FilePaneController ctrl,
     FileEntry entry,
   ) async {
-    if (entry.isDir) {
+    // A symlink-to-directory reports `isDir: true` (the metadata
+    // follows the link), but recursing into it would delete the
+    // link's *target* contents. Unlink the link itself instead —
+    // `remove` lstat-routes to an unlink for symlinks.
+    if (entry.isDir && !entry.isSymlink) {
       await ctrl.fs.removeDir(entry.path);
     } else {
       await ctrl.fs.remove(entry.path);
