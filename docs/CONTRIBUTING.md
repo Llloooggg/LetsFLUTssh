@@ -4,7 +4,7 @@
 
 **Prerequisites:**
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.41.0** (ships Dart ≥ 3.11.3)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.44.0** (ships Dart ≥ 3.12.0)
 - [Rust toolchain](https://rustup.rs/) — required for the `lfs_core` / `lfs_frb` workspace under `rust/` (security + transport core)
 - **GNU `make`** — every documented build / test / lint command in this repo runs through `make`. Pre-installed on Linux + macOS; Windows hosts get it through MSYS2 (`pacman -S make`), Git Bash (already bundled with `make.exe`), or `choco install make` / `winget install GnuWin32.Make`. Direct `flutter` / `cargo` invocations work but skip the cross-language gates `make` orchestrates.
 - Platform-specific toolchain (see below)

@@ -74,7 +74,7 @@ internal-russh-forked-ssh-key = { version = "=0.6.18", features = [
 # (OpenSSH-server default). Backs `lfs_core::sftp` — list / read /
 # write / stat / rename / mkdir / remove. Caret-pinned; major bumps
 # need manual review for protocol surface changes.
-russh-sftp = "2.1"
+russh-sftp = "2.3"
 # Typed error enum derive — used in lfs_core's `Error` to keep the
 # error-path well-shaped without manual `Display`/`From` boilerplate.
 thiserror = "2"
@@ -233,7 +233,7 @@ url = "2"
 # `read_event_into` loop — WebDAV servers vary on which
 # prefix they bind `DAV:` under (`<D:multistatus>`,
 # `<d:multistatus>`, default-namespaced `<multistatus>`).
-quick-xml = "0.36"
+quick-xml = "0.40"
 # MD5 hashing for HTTP Digest authentication (RFC 7616). Only
 # consumer is `lfs_core::webdav::auth::digest` — MD5 is
 # cryptographically broken but Digest auth requires it. Never
@@ -264,7 +264,7 @@ ctap-hid-fido2 = { version = "3", default-features = false, features = ["ring"] 
 # discover a host-local agent socket. Default feature set already
 # pulls the `agent` umbrella (futures + log + tokio + async-trait +
 # codec + service-binding) which is what the listener needs.
-ssh-agent-lib = "0.5.2"
+ssh-agent-lib = "0.6.0"
 # `ssh-key` 0.6 (RustCrypto crate, not the russh fork). ssh-agent-lib
 # uses `KeyData` / `Signature` from this crate; we re-parse the
 # OpenSSH public-key bytes stored in `ssh_keys.public_key` through

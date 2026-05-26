@@ -188,11 +188,10 @@ class UpdateService {
     HttpFetcher? fetch,
     InstallerOpener? openInstaller,
     String? platform,
-    MacosDmgInstaller? macosDmgInstaller,
+    this._macosDmgInstaller,
   }) : _fetch = fetch ?? defaultFetch,
        _openInstaller = openInstaller ?? _defaultOpenInstaller,
-       _platform = platform ?? _hostPlatform(),
-       _macosDmgInstaller = macosDmgInstaller;
+       _platform = platform ?? _hostPlatform();
 
   /// Default production binding for [InstallerOpener]: route the
   /// hand-off through the FRB shim so the subprocess plumbing

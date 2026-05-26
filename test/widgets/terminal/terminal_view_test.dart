@@ -52,10 +52,10 @@ TerminalFrame _frameWith(
 class _FakeController extends TerminalController {
   _FakeController({
     required this.snapshotFn,
-    Stream<TerminalUiEvent>? events,
+    this._events,
     this.live = true,
     this.selection,
-  }) : _events = events;
+  });
 
   final TerminalFrame Function() snapshotFn;
   final Stream<TerminalUiEvent>? _events;

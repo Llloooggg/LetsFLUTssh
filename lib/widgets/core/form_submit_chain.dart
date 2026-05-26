@@ -42,9 +42,8 @@ class FormSubmitChain {
   final VoidCallback _onSubmit;
   final List<FocusNode> _nodes;
 
-  FormSubmitChain({required int length, required VoidCallback onSubmit})
+  FormSubmitChain({required int length, required this._onSubmit})
     : assert(length > 0, 'FormSubmitChain needs at least one field'),
-      _onSubmit = onSubmit,
       _nodes = List.generate(length, (_) => FocusNode());
 
   /// Focus node for the field at [index].

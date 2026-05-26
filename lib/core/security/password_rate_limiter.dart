@@ -184,9 +184,8 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
 /// need to drive the limiter against an explicit HMAC + state
 /// file path without going through the gate actor.
 class PersistedRateLimiter extends PasswordRateLimiter {
-  PersistedRateLimiter({required Uint8List hmacKey, String? id})
-    : _hmacKey = hmacKey,
-      _id = id ?? const Uuid().v4(),
+  PersistedRateLimiter({required this._hmacKey, String? id})
+    : _id = id ?? const Uuid().v4(),
       _initialised = false;
 
   /// Build a limiter against an id whose Rust-side slot is already

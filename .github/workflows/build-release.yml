@@ -112,7 +112,7 @@ jobs:
           # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
           # together. Sustains build reproducibility across
           # runner-image rotations.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           # Disabled, second time. The first round
           # (commit 58de515c) freed ~5 GB of cache budget and
           # let cargokit caches stop getting evicted every CI
@@ -295,15 +295,15 @@ jobs:
           path: ${{ runner.temp }}/flutter
           # Cache key carries the full SHA + OS + arch — bumping
           # FLUTTER_SHA below invalidates automatically.
-          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+          key: flutter-arm64-${{ runner.os }}-559ffa3f75e7402d65a8def9c28389a9b2e6fe42
 
       - name: Install Flutter SDK (git clone)
         if: steps.flutter-cache.outputs.cache-hit != 'true'
         env:
-          # `git rev-parse 3.41.9` against flutter/flutter — the
-          # framework HEAD of the 3.41.9 stable tag. Bump in
+          # `git rev-parse 3.44.0` against flutter/flutter — the
+          # framework HEAD of the 3.44.0 stable tag. Bump in
           # lockstep with a Flutter version roll.
-          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+          FLUTTER_SHA: 559ffa3f75e7402d65a8def9c28389a9b2e6fe42
         run: |
           git -c advice.detachedHead=false clone \
             --filter=blob:none \
@@ -458,7 +458,7 @@ jobs:
           # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
           # together. Sustains build reproducibility across
           # runner-image rotations.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           # Disabled, second time. The first round
           # (commit 58de515c) freed ~5 GB of cache budget and
           # let cargokit caches stop getting evicted every CI
@@ -595,13 +595,13 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: ${{ runner.temp }}/flutter
-          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+          key: flutter-arm64-${{ runner.os }}-559ffa3f75e7402d65a8def9c28389a9b2e6fe42
 
       - name: Install Flutter SDK (git clone)
         if: steps.flutter-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
-          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+          FLUTTER_SHA: 559ffa3f75e7402d65a8def9c28389a9b2e6fe42
         run: |
           git -c advice.detachedHead=false clone \
             --filter=blob:none \
@@ -621,7 +621,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows
-        # Flutter 3.41.9's `flutter build windows` does NOT accept
+        # Flutter 3.44.0's `flutter build windows` does NOT accept
         # `--target-platform` (that's an Android-build flag); it
         # picks arch automatically from
         # `_operatingSystemUtils.hostPlatform == HostPlatform.
@@ -754,7 +754,7 @@ jobs:
           # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
           # together. Sustains build reproducibility across
           # runner-image rotations.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           # Disabled, second time. The first round
           # (commit 58de515c) freed ~5 GB of cache budget and
           # let cargokit caches stop getting evicted every CI
@@ -917,7 +917,7 @@ jobs:
           # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
           # together. Sustains build reproducibility across
           # runner-image rotations.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           # Disabled, second time. The first round
           # (commit 58de515c) freed ~5 GB of cache budget and
           # let cargokit caches stop getting evicted every CI
@@ -1056,7 +1056,7 @@ jobs:
           # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
           # together. Sustains build reproducibility across
           # runner-image rotations.
-          flutter-version: 3.41.9
+          flutter-version: 3.44.0
           # Disabled, second time. The first round
           # (commit 58de515c) freed ~5 GB of cache budget and
           # let cargokit caches stop getting evicted every CI
@@ -1294,7 +1294,7 @@ jobs:
         # time, which silently rotates our trust-establishment
         # surface. Both pins update together when a security or
         # CVE fix demands; routine version bumps stay deliberate.
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: 'v3.0.6'
 

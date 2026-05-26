@@ -115,6 +115,7 @@ pub mod update;
 // `sftp` so neither consumer needs to dip into the other's
 // module tree to reach the transport.
 pub mod webdav;
+pub(crate) mod xml;
 
 pub use error::Error;
 

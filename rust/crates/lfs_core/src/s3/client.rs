@@ -748,7 +748,10 @@ fn extract_tag(body: &str, tag: &str) -> Option<String> {
     use quick_xml::events::Event;
     use quick_xml::Reader;
     let mut reader = Reader::from_str(body);
-    reader.config_mut().trim_text(true);
+    // No per-event trim: quick-xml emits entity references as their own
+    // events, so trimming each fragment would drop whitespace around an
+    // entity inside a value. The accumulated value is trimmed once on
+    // return; text outside the target tag is gated by `in_tag`.
     let mut buf: Option<String> = None;
     let mut in_tag = false;
     loop {
@@ -758,9 +761,15 @@ fn extract_tag(body: &str, tag: &str) -> Option<String> {
                 buf = Some(String::new());
             }
             Event::Text(t) if in_tag => {
-                let bytes = t.unescape().ok()?;
+                let bytes = t.decode().ok()?;
                 if let Some(out) = buf.as_mut() {
                     out.push_str(&bytes);
+                }
+            }
+            Event::GeneralRef(r) if in_tag => {
+                let resolved = crate::xml::resolve_general_ref(&r).ok()?;
+                if let Some(out) = buf.as_mut() {
+                    out.push_str(&resolved);
                 }
             }
             Event::CData(t) if in_tag => {
@@ -770,7 +779,7 @@ fn extract_tag(body: &str, tag: &str) -> Option<String> {
                 }
             }
             Event::End(e) if in_tag && local_name_matches(e.name().as_ref(), tag.as_bytes()) => {
-                return buf;
+                return buf.map(|s| s.trim().to_string());
             }
             Event::Eof => return None,
             _ => {}
@@ -803,7 +812,10 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
     use quick_xml::events::Event;
     use quick_xml::Reader;
     let mut reader = Reader::from_str(body);
-    reader.config_mut().trim_text(true);
+    // No per-event trim: entity references arrive as their own events, so
+    // trimming each text fragment would drop whitespace around an entity
+    // inside a key. Each element's accumulated text is trimmed once when
+    // consumed in the `End` handler.
 
     let mut objects: Vec<S3Object> = Vec::new();
     let mut next_token: Option<String> = None;
@@ -850,21 +862,29 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
                 current_text.clear();
             }
             Event::Text(text) => {
-                let unescaped = text
-                    .unescape()
+                let decoded = text
+                    .decode()
                     .map_err(|e| Error::S3(format!("ListObjectsV2 text decode: {e}")))?;
-                current_text.push_str(&unescaped);
+                current_text.push_str(&decoded);
+            }
+            Event::GeneralRef(r) => {
+                let resolved = crate::xml::resolve_general_ref(&r)
+                    .map_err(|e| Error::S3(format!("ListObjectsV2 xml entity: {e}")))?;
+                current_text.push_str(&resolved);
             }
             Event::End(end) => {
                 let name = String::from_utf8_lossy(end.name().as_ref()).into_owned();
+                // Trim the assembled value once (the reader no longer trims
+                // per event); inner spaces around a resolved entity survive.
+                let text = current_text.trim();
                 if in_contents {
                     match name.as_str() {
-                        "Key" => cur_obj.key = current_text.clone(),
-                        "Size" => cur_obj.size = current_text.parse().unwrap_or(0),
+                        "Key" => cur_obj.key = text.to_string(),
+                        "Size" => cur_obj.size = text.parse().unwrap_or(0),
                         "LastModified" => {
-                            cur_obj.last_modified_unix_ms = parse_iso8601_ms(&current_text);
+                            cur_obj.last_modified_unix_ms = parse_iso8601_ms(text);
                         }
-                        "ETag" => cur_obj.etag = current_text.trim_matches('"').to_string(),
+                        "ETag" => cur_obj.etag = text.trim_matches('"').to_string(),
                         "Contents" => {
                             objects.push(cur_obj.clone());
                             in_contents = false;
@@ -873,7 +893,7 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
                     }
                 } else if in_common_prefix {
                     match name.as_str() {
-                        "Prefix" => cur_obj.key = current_text.clone(),
+                        "Prefix" => cur_obj.key = text.to_string(),
                         "CommonPrefixes" => {
                             objects.push(cur_obj.clone());
                             in_common_prefix = false;
@@ -881,7 +901,7 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
                         _ => {}
                     }
                 } else if name == "NextContinuationToken" {
-                    next_token = Some(current_text.clone());
+                    next_token = Some(text.to_string());
                 }
                 current_text.clear();
                 cur_path.pop();
@@ -1058,6 +1078,24 @@ mod tests {
         assert!(p1 < p2 && p2 < p3);
         assert!(body.contains(r#"<ETag>"etag1"</ETag>"#));
         assert!(body.contains(r#"<ETag>"etag3"</ETag>"#));
+    }
+
+    #[test]
+    fn parse_list_objects_v2_resolves_entities_in_key() {
+        // quick-xml splits entity references out of the text run, so a key
+        // with `&` and surrounding spaces must reassemble exactly — no
+        // dropped spaces, no truncation at the entity.
+        let xml = r#"<?xml version="1.0"?>
+            <ListBucketResult>
+              <Contents>
+                <Key>My &amp; Files/q &#38; a.txt</Key>
+                <Size>7</Size>
+              </Contents>
+            </ListBucketResult>"#;
+        let page = parse_list_objects_v2(xml).unwrap();
+        assert_eq!(page.objects.len(), 1);
+        assert_eq!(page.objects[0].key, "My & Files/q & a.txt");
+        assert_eq!(page.objects[0].size, 7);
     }
 
     #[test]

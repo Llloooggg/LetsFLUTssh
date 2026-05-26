@@ -49,9 +49,8 @@ class SecureKeyStorage {
 
   SecureKeyStorage({
     LinuxKeychainMarker? marker,
-    bool probeSecretServiceReachability = true,
-  }) : _marker = marker ?? LinuxKeychainMarker.defaultInstance,
-       _probeSecretServiceReachability = probeSecretServiceReachability;
+    this._probeSecretServiceReachability = true,
+  }) : _marker = marker ?? LinuxKeychainMarker.defaultInstance;
 
   Future<bool> _linuxGatePass() async {
     if (!Platform.isLinux) return true;
