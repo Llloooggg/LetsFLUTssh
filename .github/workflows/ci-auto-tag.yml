@@ -1,11 +1,16 @@
 name: CI / Auto-Tag
 
-# Cancel superseded runs of the same workflow on the same ref. The
-# default GitHub behaviour stacks queued runs, which on a busy push
-# day for solo-maint repos burns runner minutes verifying SHAs that
-# the next push already obsoleted.
+# Dedupe runs per triggering commit, so a re-run of CI on the same SHA
+# cancels its own superseded auto-tag run. The key is the triggering
+# workflow_run's head SHA (falling back to github.sha for the manual
+# dispatch path) — NOT github.ref. On a workflow_run event github.ref
+# is always the default branch, so keying on it collapsed every CI
+# completion into one group: a burst of unrelated CI runs (e.g. a
+# Dependabot PR flood after a merge) then cancelled the legitimate
+# main-branch auto-tag before it could create the release tag. Keying
+# on the SHA keeps each commit's auto-tag independent.
 concurrency:
-  group: ci-auto-tag-${{ github.ref }}
+  group: ci-auto-tag-${{ github.event.workflow_run.head_sha || github.sha }}
   cancel-in-progress: true
 
 # Triggers after CI completes on main. Reads the version from
