@@ -26,7 +26,7 @@ use ssh_agent_lib::agent::Session;
 use ssh_agent_lib::error::AgentError;
 use ssh_agent_lib::proto::{
     AddIdentity, AddIdentityConstrained, AddSmartcardKeyConstrained, Extension, Identity,
-    KeyConstraint, RemoveIdentity, SignRequest, SmartcardKey,
+    KeyConstraint, PublicCredential, RemoveIdentity, SignRequest, SmartcardKey,
 };
 use ssh_key::public::KeyData;
 use ssh_key::{Algorithm, PublicKey, Signature};
@@ -199,7 +199,7 @@ impl Session for Endpoint {
                 continue;
             };
             out.push(Identity {
-                pubkey: pk.key_data().clone(),
+                credential: PublicCredential::Key(pk.key_data().clone()),
                 comment: row.label.clone(),
             });
         }
@@ -210,15 +210,12 @@ impl Session for Endpoint {
     /// confirm dialog (`agent_policy == Ask`), dispatch through
     /// the backend signer.
     ///
-    /// Cert-form `key_blob` never lands here — `ssh_agent_lib::SignRequest::decode`
-    /// can't represent a cert in its `KeyData` field
-    /// (`KeyData::Other(OpaquePublicKey)` injects an extra length
-    /// prefix that doesn't match the cert wire shape). The cert
-    /// path is intercepted in [`super::loop_runner`] and dispatches
-    /// through [`run_sign`](Self::run_sign) directly. This arm
-    /// handles bare-key requests only.
+    /// Cert-form requests never land here: the cert path is intercepted in
+    /// [`super::loop_runner`] and dispatches through [`run_sign`](Self::run_sign)
+    /// directly. This arm handles bare-key requests only, resolving the row by
+    /// the request credential's `KeyData`.
     async fn sign(&mut self, request: SignRequest) -> Result<Signature, AgentError> {
-        let row = Self::find_row_by_keydata(&request.pubkey)
+        let row = Self::find_row_by_keydata(request.credential.key_data())
             .map_err(|e| AgentError::Other(format!("ssh-agent: lookup row: {e}").into()))?
             .ok_or_else(|| AgentError::Other("ssh-agent: unknown key".into()))?;
         self.run_sign(row, &request.data, request.flags).await
@@ -731,12 +728,12 @@ mod tests {
     /// specific message.
     #[tokio::test]
     async fn endpoint_add_identity_constrained_rejects_destination_constraint() {
-        use ssh_agent_lib::proto::{Credential, KeyConstraint, Unparsed};
+        use ssh_agent_lib::proto::{KeyConstraint, PrivateCredential, Unparsed};
         use ssh_key::private::{Ed25519Keypair, KeypairData};
         let mut ep = Endpoint::default();
         let keypair = Ed25519Keypair::random(&mut ssh_key::rand_core::OsRng);
         let identity = AddIdentity {
-            credential: Credential::Key {
+            credential: PrivateCredential::Key {
                 privkey: KeypairData::Ed25519(keypair),
                 comment: "test".into(),
             },
@@ -768,12 +765,12 @@ mod tests {
     /// destination-specific arm just gives a better hint.
     #[tokio::test]
     async fn endpoint_add_identity_constrained_without_destination_uses_generic_refusal() {
-        use ssh_agent_lib::proto::{Credential, KeyConstraint};
+        use ssh_agent_lib::proto::{KeyConstraint, PrivateCredential};
         use ssh_key::private::{Ed25519Keypair, KeypairData};
         let mut ep = Endpoint::default();
         let keypair = Ed25519Keypair::random(&mut ssh_key::rand_core::OsRng);
         let identity = AddIdentity {
-            credential: Credential::Key {
+            credential: PrivateCredential::Key {
                 privkey: KeypairData::Ed25519(keypair),
                 comment: "test".into(),
             },

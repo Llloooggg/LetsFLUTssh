@@ -74,7 +74,7 @@ internal-russh-forked-ssh-key = { version = "=0.6.18", features = [
 # (OpenSSH-server default). Backs `lfs_core::sftp` — list / read /
 # write / stat / rename / mkdir / remove. Caret-pinned; major bumps
 # need manual review for protocol surface changes.
-russh-sftp = "2.1"
+russh-sftp = "2.3"
 # Typed error enum derive — used in lfs_core's `Error` to keep the
 # error-path well-shaped without manual `Display`/`From` boilerplate.
 thiserror = "2"
@@ -264,7 +264,7 @@ ctap-hid-fido2 = { version = "3", default-features = false, features = ["ring"] 
 # discover a host-local agent socket. Default feature set already
 # pulls the `agent` umbrella (futures + log + tokio + async-trait +
 # codec + service-binding) which is what the listener needs.
-ssh-agent-lib = "0.5.2"
+ssh-agent-lib = "0.6.0"
 # `ssh-key` 0.6 (RustCrypto crate, not the russh fork). ssh-agent-lib
 # uses `KeyData` / `Signature` from this crate; we re-parse the
 # OpenSSH public-key bytes stored in `ssh_keys.public_key` through
