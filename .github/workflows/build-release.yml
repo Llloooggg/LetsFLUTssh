@@ -637,6 +637,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path C:\t | Out-Null
           "TMP=C:\t" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "TEMP=C:\t" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # Relocate cargokit's cargo target dir to a short drive-root path
+          # (see rust_builder/cargokit/cmake/cargokit.cmake) so the cold
+          # vendored-OpenSSL source/output paths stay well under MAX_PATH.
+          "CARGOKIT_TEMP_DIR_OVERRIDE=C:\ck" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build Windows
         # Flutter 3.44.0's `flutter build windows` does NOT accept

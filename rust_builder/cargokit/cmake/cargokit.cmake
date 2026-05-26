@@ -25,7 +25,16 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
         set(OUTPUT_LIB "${CMAKE_CURRENT_BINARY_DIR}/${CARGOKIT_LIB_FULL_NAME}")
     endif()
-    set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    # Allow a short override for the cargo target dir. The default lives
+    # deep under the Flutter build tree; on windows-arm64 that path
+    # overruns MAX_PATH when SQLCipher's vendored OpenSSL is compiled cold
+    # (MSVC C1083 "Cannot open compiler generated file: ''"). The CI job
+    # sets CARGOKIT_TEMP_DIR_OVERRIDE to a short drive-root path.
+    if(DEFINED ENV{CARGOKIT_TEMP_DIR_OVERRIDE})
+        set(CARGOKIT_TEMP_DIR "$ENV{CARGOKIT_TEMP_DIR_OVERRIDE}")
+    else()
+        set(CARGOKIT_TEMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/cargokit_build")
+    endif()
 
     if (FLUTTER_TARGET_PLATFORM)
         set(CARGOKIT_TARGET_PLATFORM "${FLUTTER_TARGET_PLATFORM}")
