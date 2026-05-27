@@ -71,7 +71,8 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# never trip).
 	@# The `frb_global_store`-tagged files
 	@# (session_credential_cache_test, wipe_all_service_test,
-	@# session_workspace_db_test) each destructively mutate
+	@# session_workspace_db_test, known_hosts_db_test) each
+	@# destructively mutate
 	@# process-global Rust state every FRB test shares — the SecretStore
 	@# or the one in-memory DB (one Rust process across parallel
 	@# isolates). They can't even share a process *serially*: an async
