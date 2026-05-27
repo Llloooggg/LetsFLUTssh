@@ -30,6 +30,23 @@ void main() {
   });
 
   group('ConnectionStep', () {
+    test('equality: a step equals itself (identical short-circuit)', () {
+      const a = ConnectionStep(
+        phase: ConnectionPhase.authenticate,
+        status: StepStatus.success,
+      );
+      expect(a == a, isTrue);
+    });
+
+    test('equality: a step is not equal to an unrelated type', () {
+      const a = ConnectionStep(
+        phase: ConnectionPhase.authenticate,
+        status: StepStatus.success,
+      );
+      const Object other = 'not a ConnectionStep';
+      expect(a == other, isFalse);
+    });
+
     test('equality: identical fields are equal', () {
       const a = ConnectionStep(
         phase: ConnectionPhase.socketConnect,
