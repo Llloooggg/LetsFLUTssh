@@ -142,6 +142,40 @@ void main() {
         );
         expect(config.copyWith(), config);
       });
+
+      test('replaces verboseConnectionLog', () {
+        expect(
+          const SshDefaults()
+              .copyWith(verboseConnectionLog: true)
+              .verboseConnectionLog,
+          isTrue,
+        );
+      });
+    });
+
+    group('equality and hashCode', () {
+      test('equal SshDefaults hash equal', () {
+        const a = SshDefaults(keepAliveSec: 45, verboseConnectionLog: true);
+        const b = SshDefaults(keepAliveSec: 45, verboseConnectionLog: true);
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('each field flips equality independently', () {
+        const base = SshDefaults();
+        expect(base, isNot(equals(const SshDefaults(keepAliveSec: 99))));
+        expect(base, isNot(equals(const SshDefaults(defaultPort: 23))));
+        expect(base, isNot(equals(const SshDefaults(sshTimeoutSec: 99))));
+        expect(
+          base,
+          isNot(equals(const SshDefaults(verboseConnectionLog: true))),
+        );
+      });
+
+      test('not equal to a different type', () {
+        const Object other = 'ssh';
+        expect(const SshDefaults() == other, isFalse);
+      });
     });
 
     group('typed round-trip', () {
@@ -183,6 +217,43 @@ void main() {
         expect(copy.windowWidth, 1920);
         expect(copy.toastDurationMs, config.toastDurationMs);
         expect(copy.windowHeight, config.windowHeight);
+      });
+
+      test('replaces uiScale and showFolderSizes', () {
+        final copy = const UiConfig().copyWith(
+          uiScale: 1.5,
+          showFolderSizes: true,
+        );
+        expect(copy.uiScale, 1.5);
+        expect(copy.showFolderSizes, isTrue);
+      });
+
+      test('returns equal object when no arguments given', () {
+        const config = UiConfig(uiScale: 1.25, showFolderSizes: true);
+        expect(config.copyWith(), config);
+      });
+    });
+
+    group('equality and hashCode', () {
+      test('equal UiConfigs hash equal', () {
+        const a = UiConfig(uiScale: 1.25, showFolderSizes: true);
+        const b = UiConfig(uiScale: 1.25, showFolderSizes: true);
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('each field flips equality independently', () {
+        const base = UiConfig();
+        expect(base, isNot(equals(const UiConfig(toastDurationMs: 1))));
+        expect(base, isNot(equals(const UiConfig(windowWidth: 1))));
+        expect(base, isNot(equals(const UiConfig(windowHeight: 1))));
+        expect(base, isNot(equals(const UiConfig(uiScale: 2))));
+        expect(base, isNot(equals(const UiConfig(showFolderSizes: true))));
+      });
+
+      test('not equal to a different type', () {
+        const Object other = 'ui';
+        expect(const UiConfig() == other, isFalse);
       });
     });
 
@@ -228,6 +299,72 @@ void main() {
       const config = BehaviorConfig(skippedVersion: '1.0.0');
       final copy = config.copyWith(skippedVersion: null);
       expect(copy.skippedVersion, isNull);
+    });
+
+    test('copyWith preserves nullable logLevel when omitted (sentinel)', () {
+      // The `_unset` sentinel default distinguishes "not passed" from
+      // "passed null". Omitting logLevel must leave the current value
+      // — a regression to `logLevel ?? this.logLevel` would make
+      // clearing impossible; a regression the other way would wipe the
+      // value on any unrelated copyWith.
+      const config = BehaviorConfig(logLevel: LogLevel.error);
+      final copy = config.copyWith(checkUpdatesOnStart: false);
+      expect(copy.logLevel, LogLevel.error);
+    });
+
+    test('copyWith preserves nullable skippedVersion when omitted', () {
+      const config = BehaviorConfig(skippedVersion: '3.1.4');
+      final copy = config.copyWith(checkUpdatesOnStart: false);
+      expect(copy.skippedVersion, '3.1.4');
+    });
+
+    test('copyWith replaces fido2PreferDirectHid', () {
+      const config = BehaviorConfig();
+      expect(
+        config.copyWith(fido2PreferDirectHid: true).fido2PreferDirectHid,
+        isTrue,
+      );
+    });
+
+    test('copyWith with no args returns an equal config', () {
+      const config = BehaviorConfig(
+        logLevel: LogLevel.warn,
+        checkUpdatesOnStart: false,
+        skippedVersion: '1.2.3',
+        fido2PreferDirectHid: true,
+      );
+      expect(config.copyWith(), config);
+    });
+
+    group('equality and hashCode', () {
+      test('equal BehaviorConfigs hash equal', () {
+        const a = BehaviorConfig(logLevel: LogLevel.info, skippedVersion: 'v');
+        const b = BehaviorConfig(logLevel: LogLevel.info, skippedVersion: 'v');
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('each field flips equality independently', () {
+        const base = BehaviorConfig();
+        expect(
+          base,
+          isNot(equals(const BehaviorConfig(logLevel: LogLevel.info))),
+        );
+        expect(
+          base,
+          isNot(equals(const BehaviorConfig(checkUpdatesOnStart: false))),
+        );
+        expect(base, isNot(equals(const BehaviorConfig(skippedVersion: 'x'))));
+        expect(
+          base,
+          isNot(equals(const BehaviorConfig(fido2PreferDirectHid: true))),
+        );
+      });
+
+      test('not equal to a different type', () {
+        const Object other = 'behavior';
+        expect(const BehaviorConfig() == other, isFalse);
+      });
     });
 
     group('typed round-trip', () {
@@ -358,6 +495,30 @@ void main() {
         final copy = config.copyWith(transferWorkers: 4);
         expect(copy.locale, 'ja');
       });
+
+      test('replaces recordingsStorageCapBytes', () {
+        final copy = const AppConfig().copyWith(recordingsStorageCapBytes: 123);
+        expect(copy.recordingsStorageCapBytes, 123);
+      });
+
+      test('preserves security and securityProbeCache untouched', () {
+        // copyWith is the non-security axis — it must carry the
+        // security fields through verbatim so a preferences change
+        // never wipes the tier or the Rust-owned probe cache.
+        const config = AppConfig(
+          security: SecurityConfig(
+            tier: SecurityTier.paranoid,
+            modifiers: SecurityTierModifiers.defaults,
+          ),
+        );
+        final copy = config.copyWith(transferWorkers: 4);
+        expect(copy.security?.tier, SecurityTier.paranoid);
+      });
+
+      test('with no args returns an equal config', () {
+        const config = AppConfig(transferWorkers: 4, locale: 'de');
+        expect(config.copyWith(), config);
+      });
     });
 
     group('copyWithSecurity()', () {
@@ -395,6 +556,42 @@ void main() {
         );
         final copy = config.copyWithSecurity();
         expect(copy.security?.tier, SecurityTier.paranoid);
+      });
+
+      const probe = DbSecurityCapabilities(
+        keychainAvailable: true,
+        hardwareVaultAvailable: false,
+        biometricAvailable: false,
+        fprintdAvailable: false,
+        isLinuxHost: true,
+        keychainProbe: DbKeyringProbeResult.available,
+        hardwareProbeCode: 'ok',
+      );
+
+      test('replaces securityProbeCache with a value', () {
+        final copy = const AppConfig().copyWithSecurity(
+          securityProbeCache: probe,
+        );
+        expect(copy.securityProbeCache, probe);
+      });
+
+      test('clears securityProbeCache with explicit null', () {
+        const config = AppConfig(securityProbeCache: probe);
+        final copy = config.copyWithSecurity(securityProbeCache: null);
+        expect(copy.securityProbeCache, isNull);
+      });
+
+      test('preserves securityProbeCache when omitted', () {
+        const config = AppConfig(securityProbeCache: probe);
+        final copy = config.copyWithSecurity(security: null);
+        expect(copy.securityProbeCache, probe);
+      });
+
+      test('leaves the non-security axis untouched', () {
+        const config = AppConfig(transferWorkers: 7, locale: 'fr');
+        final copy = config.copyWithSecurity(security: null);
+        expect(copy.transferWorkers, 7);
+        expect(copy.locale, 'fr');
       });
     });
 
@@ -439,6 +636,48 @@ void main() {
         expect(
           const AppConfig(ssh: SshDefaults(defaultPort: 22)),
           isNot(equals(const AppConfig(ssh: SshDefaults(defaultPort: 2222)))),
+        );
+        expect(
+          const AppConfig(ui: UiConfig(uiScale: 1)),
+          isNot(equals(const AppConfig(ui: UiConfig(uiScale: 2)))),
+        );
+        expect(
+          const AppConfig(behavior: BehaviorConfig(logLevel: LogLevel.info)),
+          isNot(
+            equals(
+              const AppConfig(
+                behavior: BehaviorConfig(logLevel: LogLevel.warn),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('different security make unequal', () {
+        expect(
+          const AppConfig(
+            security: SecurityConfig(
+              tier: SecurityTier.keychain,
+              modifiers: SecurityTierModifiers.defaults,
+            ),
+          ),
+          isNot(
+            equals(
+              const AppConfig(
+                security: SecurityConfig(
+                  tier: SecurityTier.hardware,
+                  modifiers: SecurityTierModifiers.defaults,
+                ),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('different recordingsStorageCapBytes make unequal', () {
+        expect(
+          const AppConfig(recordingsStorageCapBytes: 1),
+          isNot(equals(const AppConfig(recordingsStorageCapBytes: 2))),
         );
       });
 

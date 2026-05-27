@@ -136,5 +136,190 @@ void main() {
       final sk = ref as rust_bus.BusConnectAuthRef_PubkeySk;
       expect(sk.pinSecretId, isNull);
     });
+
+    test('pubkeySkCert variant carries every FIDO2 + cert field', () {
+      final credentialId = Uint8List.fromList([0xDE, 0xAD]);
+      final ref = busAuthRef(
+        SshAuthPubkeySkCertRef(
+          publicOpenssh: 'sk-cert AAAA',
+          credentialId: credentialId,
+          application: 'ssh:',
+          certSecretId: 'cert.sk',
+          pinSecretId: 'pin.sk',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeySkCert;
+      expect(r.publicOpenssh, 'sk-cert AAAA');
+      expect(r.credentialId, equals(credentialId));
+      expect(r.application, 'ssh:');
+      expect(r.certSecretId, 'cert.sk');
+      expect(r.pinSecretId, 'pin.sk');
+    });
+
+    test('pubkeyPkcs11 variant carries module + token + CKA_ID', () {
+      final ckaId = Uint8List.fromList([0x01, 0x02]);
+      final ref = busAuthRef(
+        SshAuthPubkeyPkcs11Ref(
+          publicOpenssh: 'pkcs11 AAAA',
+          modulePath: '/usr/lib/opensc-pkcs11.so',
+          tokenSerial: 'serial-7',
+          ckaId: ckaId,
+          keyType: 'ecdsa-sha2-nistp256',
+          pinSecretId: 'pin.p11',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyPkcs11;
+      expect(r.publicOpenssh, 'pkcs11 AAAA');
+      expect(r.modulePath, '/usr/lib/opensc-pkcs11.so');
+      expect(r.tokenSerial, 'serial-7');
+      expect(r.ckaId, equals(ckaId));
+      expect(r.keyType, 'ecdsa-sha2-nistp256');
+      expect(r.pinSecretId, 'pin.p11');
+    });
+
+    test('pubkeyPkcs11 variant null pinSecretId passes through (PIN-pad)', () {
+      final ref = busAuthRef(
+        SshAuthPubkeyPkcs11Ref(
+          publicOpenssh: 'p',
+          modulePath: '/m',
+          tokenSerial: 's',
+          ckaId: Uint8List.fromList([0]),
+          keyType: 'k',
+        ),
+      );
+      expect(
+        (ref as rust_bus.BusConnectAuthRef_PubkeyPkcs11).pinSecretId,
+        isNull,
+      );
+    });
+
+    test('pubkeyEnclave variant carries the application tag', () {
+      final tag = Uint8List.fromList([0xAB, 0xCD]);
+      final ref = busAuthRef(
+        SshAuthPubkeyEnclaveRef(publicOpenssh: 'se AAAA', applicationTag: tag),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyEnclave;
+      expect(r.publicOpenssh, 'se AAAA');
+      expect(r.applicationTag, equals(tag));
+    });
+
+    test('pubkeyHello variant carries credential name + key type', () {
+      final ref = busAuthRef(
+        const SshAuthPubkeyHelloRef(
+          publicOpenssh: 'hello AAAA',
+          credentialName: 'cng-key-1',
+          keyType: 'ecdsa-sha2-nistp256',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyHello;
+      expect(r.publicOpenssh, 'hello AAAA');
+      expect(r.credentialName, 'cng-key-1');
+      expect(r.keyType, 'ecdsa-sha2-nistp256');
+    });
+
+    test('pubkeyTpm variant carries provider + blob + key type', () {
+      // Linux ESAPI shape — `blob` is the lookup surface, `cngKeyName`
+      // is null (that slot is the Windows PCP variant).
+      final blob = Uint8List.fromList([0x10, 0x20]);
+      final ref = busAuthRef(
+        SshAuthPubkeyTpmRef(
+          publicOpenssh: 'tpm AAAA',
+          provider: 'tss-esapi',
+          blob: blob,
+          keyType: 'ecdsa-sha2-nistp256',
+          pinSecretId: 'pin.tpm',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyTpm;
+      expect(r.publicOpenssh, 'tpm AAAA');
+      expect(r.provider, 'tss-esapi');
+      expect(r.blob, equals(blob));
+      expect(r.cngKeyName, isNull);
+      expect(r.keyType, 'ecdsa-sha2-nistp256');
+      expect(r.pinSecretId, 'pin.tpm');
+    });
+
+    test('pubkeyTpm variant carries the Windows PCP cngKeyName slot', () {
+      final ref = busAuthRef(
+        const SshAuthPubkeyTpmRef(
+          publicOpenssh: 'tpm AAAA',
+          provider: 'cng-pcp',
+          cngKeyName: 'pcp-key-9',
+          keyType: 'rsa-2048',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyTpm;
+      expect(r.provider, 'cng-pcp');
+      expect(r.cngKeyName, 'pcp-key-9');
+      expect(r.blob, isNull);
+      expect(r.pinSecretId, isNull);
+    });
+
+    test('pubkeyKeystore variant carries alias + key type', () {
+      final ref = busAuthRef(
+        const SshAuthPubkeyKeystoreRef(
+          publicOpenssh: 'ks AAAA',
+          keystoreAlias: 'android-alias',
+          keyType: 'ssh-ed25519',
+        ),
+      );
+      final r = ref as rust_bus.BusConnectAuthRef_PubkeyKeystore;
+      expect(r.publicOpenssh, 'ks AAAA');
+      expect(r.keystoreAlias, 'android-alias');
+      expect(r.keyType, 'ssh-ed25519');
+    });
+
+    test('every SshAuthMethod subtype maps to a BusConnectAuthRef', () {
+      // Exhaustiveness guard — `busAuthRef`'s switch is compile-time
+      // exhaustive, but enumerating every concrete subtype here makes
+      // a future unmapped variant fail as a clear test miss rather
+      // than only at the call site.
+      final methods = <SshAuthMethod>[
+        const SshAuthAgent(),
+        const SshAuthPasswordRef('p'),
+        const SshAuthPubkeyRef('k'),
+        const SshAuthPubkeyCertRef('k', 'c'),
+        SshAuthPubkeySkRef(
+          publicOpenssh: 'p',
+          credentialId: Uint8List.fromList([1]),
+          application: 'ssh:',
+        ),
+        SshAuthPubkeySkCertRef(
+          publicOpenssh: 'p',
+          credentialId: Uint8List.fromList([1]),
+          application: 'ssh:',
+          certSecretId: 'c',
+        ),
+        SshAuthPubkeyPkcs11Ref(
+          publicOpenssh: 'p',
+          modulePath: '/m',
+          tokenSerial: 's',
+          ckaId: Uint8List.fromList([1]),
+          keyType: 'k',
+        ),
+        SshAuthPubkeyEnclaveRef(
+          publicOpenssh: 'p',
+          applicationTag: Uint8List.fromList([1]),
+        ),
+        const SshAuthPubkeyHelloRef(
+          publicOpenssh: 'p',
+          credentialName: 'n',
+          keyType: 'k',
+        ),
+        const SshAuthPubkeyTpmRef(
+          publicOpenssh: 'p',
+          provider: 'tss-esapi',
+          keyType: 'k',
+        ),
+        const SshAuthPubkeyKeystoreRef(
+          publicOpenssh: 'p',
+          keystoreAlias: 'a',
+          keyType: 'k',
+        ),
+      ];
+      for (final m in methods) {
+        expect(busAuthRef(m), isA<rust_bus.BusConnectAuthRef>());
+      }
+    });
   });
 }
