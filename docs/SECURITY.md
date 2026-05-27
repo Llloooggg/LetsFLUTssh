@@ -830,6 +830,37 @@ the boundary.
   [OpenSSF Best Practices](https://www.bestpractices.dev/projects/12283)
   passing criteria.
 
+### Accepted Scorecard findings
+
+Three OpenSSF Scorecard warnings are accepted rather than "fixed",
+because each available fix would cost more than the finding is worth
+for a solo-maintained SSH client. They are recorded here for
+transparency:
+
+- **Branch-Protection — "require approvers" / "last push approval".**
+  Every other control on `main` is already at maximum (PRs required,
+  enforced on admins, status checks + up-to-date branch required,
+  CODEOWNER review, stale-review dismissal, no force-push, no
+  deletion). The two remaining warnings need a *second human*
+  reviewer; a single maintainer cannot approve their own PR, so
+  requiring approvers would make every change unmergeable. Inherent to
+  a one-person project.
+- **Vulnerabilities — RUSTSEC-2023-0071 (`rsa` Marvin timing attack).**
+  `rsa` is a transitive dependency of the core SSH crates (`ssh-key`,
+  `russh`) with no fixed release upstream. The advisory targets RSA
+  PKCS#1 v1.5 *decryption*; SSH uses RSA only for *signatures* (key
+  exchange is ECDH/DH), so the vulnerable code path is never reached
+  in this app. Removing it would mean dropping RSA SSH-key support
+  entirely. Already documented and ignored in `osv-scanner.toml`, so
+  the OSV gate stays green; Scorecard reports it independently.
+- **Pinned-Dependencies — `choco install strawberryperl` not pinned by
+  hash.** The Windows MSVC release build needs a working Perl for the
+  vendored-OpenSSL build script. Chocolatey has no hash-pin mechanism
+  (pinning a version would not satisfy Scorecard's hash requirement
+  and risks the build breaking if that version is delisted). All
+  GitHub Actions and container images *are* SHA-pinned; this one shell
+  install is the sole unpinnable build dependency.
+
 ## Reporting a vulnerability
 
 If you discover a security vulnerability in LetsFLUTssh, **please do
