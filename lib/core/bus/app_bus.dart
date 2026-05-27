@@ -155,49 +155,78 @@ Stream<T> busCoalescedSnapshots<T>({
   required rust_bus.BusTopic topic,
   required bool Function(rust_bus.BusEvent event) matches,
   required Future<T> Function() load,
-}) {
-  late final StreamController<T> controller;
-  StreamSubscription<rust_bus.BusEvent>? sub;
-  var loading = false;
-  var dirty = false;
+}) => _CoalescedSnapshotSource<T>(
+  topic: topic,
+  matches: matches,
+  load: load,
+).stream;
 
-  Future<void> drain() async {
-    // Single-flight: a reload requested mid-load just marks dirty; the
-    // loop below picks it up so no matching event is lost.
-    if (loading) {
-      dirty = true;
+/// Backing state for [busCoalescedSnapshots]. A class (not closures over
+/// locals) so the single-flight loader, the per-load emit, and the
+/// listen/cancel hooks are each their own method — keeping every one
+/// small instead of one deeply-nested closure.
+class _CoalescedSnapshotSource<T> {
+  _CoalescedSnapshotSource({
+    required this.topic,
+    required this.matches,
+    required this.load,
+  }) {
+    _controller = StreamController<T>(onListen: _onListen, onCancel: _onCancel);
+  }
+
+  final rust_bus.BusTopic topic;
+  final bool Function(rust_bus.BusEvent event) matches;
+  final Future<T> Function() load;
+
+  late final StreamController<T> _controller;
+  StreamSubscription<rust_bus.BusEvent>? _sub;
+  bool _loading = false;
+  bool _dirty = false;
+
+  Stream<T> get stream => _controller.stream;
+
+  void _onListen() {
+    _sub = AppBus.instance.subscribe(topic).listen(_onEvent);
+    _drain();
+  }
+
+  Future<void> _onCancel() async {
+    await _sub?.cancel();
+    _sub = null;
+    if (!_controller.isClosed) await _controller.close();
+  }
+
+  void _onEvent(rust_bus.BusEvent event) {
+    if (matches(event)) _drain();
+  }
+
+  /// Single-flight: a reload requested mid-load just marks dirty; the
+  /// loop re-reads once the in-flight load finishes so no matching
+  /// event is lost.
+  Future<void> _drain() async {
+    if (_loading) {
+      _dirty = true;
       return;
     }
-    loading = true;
+    _loading = true;
     try {
       do {
-        dirty = false;
-        try {
-          final value = await load();
-          if (!controller.isClosed) controller.add(value);
-        } catch (e, st) {
-          if (!controller.isClosed) controller.addError(e, st);
-        }
-      } while (dirty && !controller.isClosed);
+        _dirty = false;
+        await _emitOnce();
+      } while (_dirty && !_controller.isClosed);
     } finally {
-      loading = false;
+      _loading = false;
     }
   }
 
-  controller = StreamController<T>(
-    onListen: () {
-      sub = AppBus.instance.subscribe(topic).listen((event) {
-        if (matches(event)) drain();
-      });
-      drain();
-    },
-    onCancel: () async {
-      await sub?.cancel();
-      sub = null;
-      if (!controller.isClosed) await controller.close();
-    },
-  );
-  return controller.stream;
+  Future<void> _emitOnce() async {
+    try {
+      final value = await load();
+      if (!_controller.isClosed) _controller.add(value);
+    } catch (e, st) {
+      if (!_controller.isClosed) _controller.addError(e, st);
+    }
+  }
 }
 
 /// Per-topic broadcast pipe + the underlying FRB subscription that

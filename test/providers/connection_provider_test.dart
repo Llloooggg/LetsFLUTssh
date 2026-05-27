@@ -21,6 +21,22 @@ void main() {
       expect(container.read(knownHostsProvider), isEmpty);
     });
 
+    test('connectionActiveCountProvider seeds 0 before any event', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // The listen-based forwarder seeds 0 synchronously and subscribes
+      // to the connection bus topic; with no native bridge the bus
+      // never emits, so the stream stays at the seed. (The count-update
+      // path needs a real `ConnectionActiveCountChanged`, exercised by
+      // the connection integration suite.)
+      container.listen(
+        connectionActiveCountProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      expect(await container.read(connectionActiveCountProvider.future), 0);
+    });
+
     test('connectionsProvider exposes a ConnectionsNotifier', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
