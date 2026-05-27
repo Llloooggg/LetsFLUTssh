@@ -19,12 +19,13 @@
 /// bytes. So distinct/identical `publicKey` strings drive the
 /// insert-vs-dedup branches deterministically.
 ///
-/// Cadence note: each mutation is followed by a `waitForKeys` before
-/// the next, so the stream consumes each `KeysChanged` tick while the
-/// `_loadKeys` body is idle. Firing two writes back-to-back can race
-/// the broadcast bus (the second tick arrives mid-`_loadKeys` and the
-/// `await for` drops it until the next event) — a one-action-at-a-time
-/// cadence mirrors real usage and keeps the assertions deterministic.
+/// Cadence note: most tests wait for the stream after each mutation
+/// before the next purely to keep the per-step assertions crisp. The
+/// stream itself no longer drops a tick fired mid-reload —
+/// `sshKeysStreamProvider` routes through `busCoalescedSnapshots`,
+/// whose single-flight loader re-reads once more when an event lands
+/// during a load. The `rapid back-to-back writes` test pins that fix:
+/// two writes with no wait between still converge to the final list.
 ///
 /// Tagged `frb_global_store` for the same reason as
 /// `session_workspace_db_test`: they wipe and assert the exact contents
@@ -176,6 +177,22 @@ void main() {
         (l) => l.length == 1 && l.single.id == 'k2',
       );
       expect(keys.single.id, 'k2');
+    });
+
+    test('rapid back-to-back writes both converge into the stream', () async {
+      final c = makeContainer();
+      final mutator = c.read(sshKeysMutatorProvider);
+      // No wait between the writes: the second KeysChanged lands while
+      // the first's _loadKeys (two FRB hops) is still in flight. The
+      // coalescing loader must re-read so the stream ends on both keys,
+      // not stranded on the first. This is the regression guard for the
+      // dropped-broadcast-event race busCoalescedSnapshots closes.
+      await Future.wait([
+        mutator.save(makeEntry(id: 'b1', publicKey: 'ssh-ed25519 B1')),
+        mutator.save(makeEntry(id: 'b2', publicKey: 'ssh-ed25519 B2')),
+      ]);
+      final keys = await waitForKeys(c, (l) => l.length == 2);
+      expect(keys.map((e) => e.id), containsAll(['b1', 'b2']));
     });
 
     test('stream sorts keys by createdAt descending', () async {

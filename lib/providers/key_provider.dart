@@ -19,19 +19,21 @@ import '../utils/logger.dart';
 /// through FRB (`db_ssh_keys_*` / `db_ssh_key_certificate_*` and the
 /// per-backend `*_ssh_generate` / `*_ssh_delete` shims), Rust
 /// publishes `KeysChanged`, this stream re-fetches. No Dart-cached
-/// state.
+/// state. Re-fetches route through [busCoalescedSnapshots] so a burst
+/// of writes can't strand the stream on a stale listing — its load
+/// path is the widest (two FRB hops: metadata + certificate rows), so
+/// the dropped-event trap it closes bit this provider first.
 ///
 /// Cold-start: the first `_loadKeys` call runs lazily on first
 /// watch. Pre-FRB-init contexts catch the `StateError` and yield an
 /// empty list so the key manager / session-edit picker paint
 /// without crashing.
-final sshKeysStreamProvider = StreamProvider<List<SshKeyEntry>>((ref) async* {
-  yield await _loadKeys();
-  await for (final event in AppBus.instance.subscribe(rust_bus.BusTopic.keys)) {
-    if (event is rust_bus.BusEvent_KeysChanged) {
-      yield await _loadKeys();
-    }
-  }
+final sshKeysStreamProvider = StreamProvider<List<SshKeyEntry>>((ref) {
+  return busCoalescedSnapshots(
+    topic: rust_bus.BusTopic.keys,
+    matches: (event) => event is rust_bus.BusEvent_KeysChanged,
+    load: _loadKeys,
+  );
 });
 
 /// Synchronous view of the latest SSH-key listing. Yields an empty

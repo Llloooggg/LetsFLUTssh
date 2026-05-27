@@ -41,17 +41,29 @@ final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
 /// The Rust subscription is promoted later via
 /// `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` →
 /// `AppBus.retryFrbSubscriptions` once `_initRustCoreOrFatal`
-/// returns. `yield 0` paints the badge with a safe default until
-/// the first `ConnectionActiveCountChanged` event lands.
-final connectionActiveCountProvider = StreamProvider<int>((ref) async* {
-  yield 0;
-  await for (final event in AppBus.instance.subscribe(
-    rust_bus.BusTopic.connection,
-  )) {
-    if (event is rust_bus.BusEvent_ConnectionActiveCountChanged) {
-      yield event.count.toInt();
+/// returns. The seeded `0` paints the badge with a safe default
+/// until the first `ConnectionActiveCountChanged` event lands.
+final connectionActiveCountProvider = StreamProvider<int>((ref) {
+  // A `.listen` callback rather than `await for`: the latter pauses the
+  // broadcast subscription between yields, and a paused broadcast
+  // subscription drops events — a burst of connects/disconnects could
+  // leave the badge on a stale count until the next change. A listener
+  // is never paused, so every `ConnectionActiveCountChanged` lands.
+  final controller = StreamController<int>();
+  controller.add(0);
+  final sub = AppBus.instance.subscribe(rust_bus.BusTopic.connection).listen((
+    event,
+  ) {
+    if (event is rust_bus.BusEvent_ConnectionActiveCountChanged &&
+        !controller.isClosed) {
+      controller.add(event.count.toInt());
     }
-  }
+  });
+  ref.onDispose(() {
+    sub.cancel();
+    controller.close();
+  });
+  return controller.stream;
 });
 
 /// Side-effect listener that bridges the Rust active-count event

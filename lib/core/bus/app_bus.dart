@@ -131,6 +131,75 @@ class AppBus {
   }
 }
 
+/// Bus-driven snapshot stream that can't drop a coalesced event.
+///
+/// Emits an initial [load] result, then a fresh one after every event
+/// on [topic] that [matches]. The bus is consumed through a `.listen`
+/// callback rather than `await for`: a `.listen` callback is never
+/// paused, so an event that lands while a previous [load] is still in
+/// flight can't be dropped. Instead it marks the loader dirty and the
+/// single-flight loop re-reads once the in-flight load finishes — the
+/// final snapshot always reflects the latest state.
+///
+/// The trap this closes: `await for (event in subscribe(topic)) { yield
+/// await load(); }` pauses the broadcast subscription while the body
+/// awaits `load()`, and a broadcast stream drops events delivered to a
+/// paused subscription. Two rapid mutations (a multi-row delete, a
+/// bulk import) could then leave the stream stuck on the first one's
+/// snapshot until the next unrelated event — a transient stale list.
+///
+/// [load] owns its own failure handling (the snapshot providers degrade
+/// to an empty value); a throw is forwarded as a stream error so the
+/// `StreamProvider` surfaces it.
+Stream<T> busCoalescedSnapshots<T>({
+  required rust_bus.BusTopic topic,
+  required bool Function(rust_bus.BusEvent event) matches,
+  required Future<T> Function() load,
+}) {
+  late final StreamController<T> controller;
+  StreamSubscription<rust_bus.BusEvent>? sub;
+  var loading = false;
+  var dirty = false;
+
+  Future<void> drain() async {
+    // Single-flight: a reload requested mid-load just marks dirty; the
+    // loop below picks it up so no matching event is lost.
+    if (loading) {
+      dirty = true;
+      return;
+    }
+    loading = true;
+    try {
+      do {
+        dirty = false;
+        try {
+          final value = await load();
+          if (!controller.isClosed) controller.add(value);
+        } catch (e, st) {
+          if (!controller.isClosed) controller.addError(e, st);
+        }
+      } while (dirty && !controller.isClosed);
+    } finally {
+      loading = false;
+    }
+  }
+
+  controller = StreamController<T>(
+    onListen: () {
+      sub = AppBus.instance.subscribe(topic).listen((event) {
+        if (matches(event)) drain();
+      });
+      drain();
+    },
+    onCancel: () async {
+      await sub?.cancel();
+      sub = null;
+      if (!controller.isClosed) await controller.close();
+    },
+  );
+  return controller.stream;
+}
+
 /// Per-topic broadcast pipe + the underlying FRB subscription that
 /// feeds it. Lives for the AppBus singleton's lifetime (= process
 /// lifetime). FRB-unreachable contexts (flutter_test without the
