@@ -116,6 +116,104 @@ void main() {
     );
   });
 
+  group('KdfParams value-type contract', () {
+    test('equal params compare equal and hash equal', () {
+      const a = KdfParams.argon2id(
+        memoryKiB: 65536,
+        iterations: 3,
+        parallelism: 1,
+      );
+      const b = KdfParams.argon2id(
+        memoryKiB: 65536,
+        iterations: 3,
+        parallelism: 1,
+      );
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('identical short-circuit returns true', () {
+      const a = KdfParams.argon2id(memoryKiB: 8, iterations: 1, parallelism: 1);
+      expect(a == a, isTrue);
+    });
+
+    test('each field flips equality independently', () {
+      const base = KdfParams.argon2id(
+        memoryKiB: 65536,
+        iterations: 3,
+        parallelism: 1,
+      );
+      expect(
+        base,
+        isNot(
+          equals(
+            const KdfParams.argon2id(
+              memoryKiB: 32768,
+              iterations: 3,
+              parallelism: 1,
+            ),
+          ),
+        ),
+      );
+      expect(
+        base,
+        isNot(
+          equals(
+            const KdfParams.argon2id(
+              memoryKiB: 65536,
+              iterations: 4,
+              parallelism: 1,
+            ),
+          ),
+        ),
+      );
+      expect(
+        base,
+        isNot(
+          equals(
+            const KdfParams.argon2id(
+              memoryKiB: 65536,
+              iterations: 3,
+              parallelism: 2,
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('not equal to a different type', () {
+      const a = KdfParams.argon2id(memoryKiB: 8, iterations: 1, parallelism: 1);
+      const Object other = 'argon2id';
+      expect(a == other, isFalse);
+    });
+
+    test('argon2id constructor sets the algorithm field', () {
+      const a = KdfParams.argon2id(memoryKiB: 8, iterations: 1, parallelism: 1);
+      expect(a.algorithm, KdfAlgorithm.argon2id);
+    });
+
+    test('encodedLength for Argon2id is the fixed 10-byte block', () {
+      // File-format readers use this to locate the salt that follows
+      // the algorithm + params block. A drift here would mis-slice
+      // every `credentials.kdf` read.
+      const a = KdfParams.argon2id(memoryKiB: 8, iterations: 1, parallelism: 1);
+      expect(a.encodedLength, 10);
+    });
+
+    test('toString carries the cost parameters for triage logs', () {
+      const a = KdfParams.argon2id(
+        memoryKiB: 65536,
+        iterations: 3,
+        parallelism: 1,
+      );
+      final repr = a.toString();
+      expect(repr, contains('KdfParams'));
+      expect(repr, contains('65536'));
+      expect(repr, contains('t=3'));
+      expect(repr, contains('p=1'));
+    });
+  });
+
   group('KdfAlgorithm.fromId', () {
     test('recognises Argon2id', () {
       expect(

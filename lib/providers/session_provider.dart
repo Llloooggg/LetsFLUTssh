@@ -46,6 +46,9 @@ class SessionWorkspaceSnapshot {
 /// The Rust side is the single source of truth: every mutation goes
 /// through FRB (`db_sessions_*`, `db_folders_*`), Rust publishes
 /// `SessionsChanged`, this stream re-fetches. No Dart-cached state.
+/// Re-fetches route through [busCoalescedSnapshots] so a burst of
+/// mutations (multi-row delete, folder duplicate) can't strand the
+/// stream on a stale snapshot — see its doc for the dropped-event trap.
 ///
 /// Cold-start: the provider mounts on the first runApp frame, which
 /// sits between FRB init and `securityController.bootstrap` (DB
@@ -57,15 +60,12 @@ class SessionWorkspaceSnapshot {
 /// (flutter_test without the native lib loaded) catch the
 /// `StateError` through the same branch.
 final sessionsWorkspaceStreamProvider =
-    StreamProvider<SessionWorkspaceSnapshot>((ref) async* {
-      yield await _loadSnapshot();
-      await for (final event in AppBus.instance.subscribe(
-        rust_bus.BusTopic.sessions,
-      )) {
-        if (event is rust_bus.BusEvent_SessionsChanged) {
-          yield await _loadSnapshot();
-        }
-      }
+    StreamProvider<SessionWorkspaceSnapshot>((ref) {
+      return busCoalescedSnapshots(
+        topic: rust_bus.BusTopic.sessions,
+        matches: (event) => event is rust_bus.BusEvent_SessionsChanged,
+        load: _loadSnapshot,
+      );
     });
 
 /// Fetch the current snapshot from the Rust `sessions::Registry` view.

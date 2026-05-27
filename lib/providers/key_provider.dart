@@ -19,19 +19,21 @@ import '../utils/logger.dart';
 /// through FRB (`db_ssh_keys_*` / `db_ssh_key_certificate_*` and the
 /// per-backend `*_ssh_generate` / `*_ssh_delete` shims), Rust
 /// publishes `KeysChanged`, this stream re-fetches. No Dart-cached
-/// state.
+/// state. Re-fetches route through [busCoalescedSnapshots] so a burst
+/// of writes can't strand the stream on a stale listing — its load
+/// path is the widest (two FRB hops: metadata + certificate rows), so
+/// the dropped-event trap it closes bit this provider first.
 ///
 /// Cold-start: the first `_loadKeys` call runs lazily on first
 /// watch. Pre-FRB-init contexts catch the `StateError` and yield an
 /// empty list so the key manager / session-edit picker paint
 /// without crashing.
-final sshKeysStreamProvider = StreamProvider<List<SshKeyEntry>>((ref) async* {
-  yield await _loadKeys();
-  await for (final event in AppBus.instance.subscribe(rust_bus.BusTopic.keys)) {
-    if (event is rust_bus.BusEvent_KeysChanged) {
-      yield await _loadKeys();
-    }
-  }
+final sshKeysStreamProvider = StreamProvider<List<SshKeyEntry>>((ref) {
+  return busCoalescedSnapshots(
+    topic: rust_bus.BusTopic.keys,
+    matches: (event) => event is rust_bus.BusEvent_KeysChanged,
+    load: _loadKeys,
+  );
 });
 
 /// Synchronous view of the latest SSH-key listing. Yields an empty
@@ -161,11 +163,11 @@ class SshKeysMutator {
   /// - If a stored key has the same public-key fingerprint (or private-
   ///   key fingerprint as fallback), returns its id without writing
   ///   anything — no duplicates.
-  /// - Otherwise, inserts a new entry. The id is replaced with a fresh
-  ///   UUID to avoid colliding with an unrelated stored key that
-  ///   happens to share the imported id. If the label already exists, a
-  ///   "(copy)"/"(copy N)" suffix is appended — mirrors session
-  ///   duplication semantics.
+  /// - Otherwise, inserts a new entry under the proposed id — unless
+  ///   that id already belongs to an unrelated stored key, in which
+  ///   case a fresh random id is minted so the import can't clobber it.
+  ///   If the label already exists, a "(copy)"/"(copy N)" suffix is
+  ///   appended — mirrors session duplication semantics.
   ///
   /// Routes through `lfs_core::db::ssh_keys::import_key_for_merge`
   /// (FRB async) so the dedup-by-fingerprint + label-uniqueness +

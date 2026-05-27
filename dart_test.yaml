@@ -1,15 +1,20 @@
 # Test-runner configuration.
 #
-# `frb_global_store` marks the test files that destructively clear the
-# process-global `lfs_core::secrets::SecretStore` — the `evictAll` /
-# setUp clears in `session_credential_cache_test` and the `wipeAll`
-# sweep in `wipe_all_service_test`. `flutter test` runs files in
-# parallel isolates that share one Rust process (hence one global
-# store), and these can't even share a process serially (an async
-# clear from one crosses the suite boundary into another's
-# assertions). The `dart-test` Makefile target excludes the tag from
-# its parallel main pass, then runs each tagged file in its OWN
-# `flutter test` process (fresh Rust AppState). Declared here so
-# `--tags` / `--exclude-tags` don't warn about an unknown tag.
+# `frb_global_store` marks test files that depend on or destructively
+# mutate process-global Rust state — the `lfs_core::secrets::SecretStore`
+# (the `evictAll` / setUp clears in `session_credential_cache_test`, the
+# `wipeAll` sweep in `wipe_all_service_test`), the in-memory DB, or the
+# sync orchestrator, all behind the one shared `AppState`. The
+# `test/integration/*_db_test.dart` provider suites are the bulk: they
+# boot an unlocked `:memory:` DB and assert its exact contents.
+# `flutter test` runs files in parallel isolates that share one Rust
+# process (hence one global store and one DB), so a file that clears the
+# store or asserts the exact row set would see another isolate's rows.
+# They can't even share a process serially (an async clear from one
+# crosses the suite boundary into another's assertions). The `dart-test`
+# Makefile target excludes the tag from its parallel main pass, then
+# runs each tagged file in its OWN `flutter test` process (fresh Rust
+# AppState) — auto-discovered by tag so the list can't drift. Declared
+# here so `--tags` / `--exclude-tags` don't warn about an unknown tag.
 tags:
   frb_global_store:

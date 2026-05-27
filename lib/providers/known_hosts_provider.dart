@@ -21,7 +21,9 @@ import '../utils/logger.dart';
 /// / `db_known_hosts_import_from_string` /
 /// `db_known_hosts_import_from_path`), Rust publishes
 /// `KnownHostsChanged`, this stream re-fetches. No Dart-cached
-/// state.
+/// state. Re-fetches route through [busCoalescedSnapshots] so an
+/// import that upserts many rows in a burst can't strand the stream
+/// on a stale listing — see its doc for the dropped-event trap.
 ///
 /// Cold-start: the first `_loadEntries` call runs lazily on first
 /// watch and may race `db_init` (provider mounts between FRB init
@@ -30,17 +32,12 @@ import '../utils/logger.dart';
 /// `KnownHostsChanged` publish drives the first real load.
 /// Pre-FRB-init contexts (flutter_test without the native lib)
 /// catch the `StateError` through the same branch.
-final knownHostsStreamProvider = StreamProvider<Map<String, String>>((
-  ref,
-) async* {
-  yield await _loadEntries();
-  await for (final event in AppBus.instance.subscribe(
-    rust_bus.BusTopic.knownHosts,
-  )) {
-    if (event is rust_bus.BusEvent_KnownHostsChanged) {
-      yield await _loadEntries();
-    }
-  }
+final knownHostsStreamProvider = StreamProvider<Map<String, String>>((ref) {
+  return busCoalescedSnapshots(
+    topic: rust_bus.BusTopic.knownHosts,
+    matches: (event) => event is rust_bus.BusEvent_KnownHostsChanged,
+    load: _loadEntries,
+  );
 });
 
 /// Synchronous view of the latest known-hosts map. Yields an empty

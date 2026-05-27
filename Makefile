@@ -69,12 +69,14 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# behaviour: `make test` ran without the .so, and the bus-driven
 	@# integration tests this whole pipeline exists to enable would
 	@# never trip).
-	@# The `frb_global_store`-tagged files
-	@# (session_credential_cache_test, wipe_all_service_test) each
-	@# destructively clear the process-global SecretStore that every
-	@# FRB test shares (one Rust process across parallel isolates).
-	@# They can't even share a process *serially*: an async clear from
-	@# one crosses the suite boundary into another's assertions. So
+	@# The `frb_global_store`-tagged files (the secret-store suites
+	@# session_credential_cache_test / wipe_all_service_test, plus the
+	@# test/integration/*_db_test provider suites) each depend on or
+	@# destructively mutate process-global Rust state every FRB test
+	@# shares — the SecretStore, the one in-memory DB, or the sync
+	@# orchestrator (one Rust process across parallel isolates). They
+	@# can't even share a process *serially*: an async clear from one
+	@# crosses the suite boundary into another's assertions. So
 	@# the main pass excludes the tag (parallel) and each tagged file
 	@# then runs in its OWN `flutter test` process (fresh Rust
 	@# AppState) — auto-discovered by tag so the list can't drift.
@@ -83,7 +85,10 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@rm -f coverage/lcov.acc.info
 	$(FLUTTER) test --coverage --exclude-tags frb_global_store --timeout 30s
 	@cat coverage/lcov.info >> coverage/lcov.acc.info
-	@for f in $$(grep -rl frb_global_store test --include='*_test.dart'); do \
+	@# Match the tag annotation itself, not any mention of the tag name
+	@# — a `// no frb_global_store needed` comment must not pull a file
+	@# into the isolated pass (and make it run twice).
+	@for f in $$(grep -rlF "@Tags(['frb_global_store'])" test --include='*_test.dart'); do \
 	  echo "=== isolated global-store suite: $$f ==="; \
 	  $(FLUTTER) test --coverage "$$f" --timeout 30s || exit 1; \
 	  cat coverage/lcov.info >> coverage/lcov.acc.info; \

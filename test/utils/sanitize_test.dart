@@ -249,6 +249,15 @@ void main() {
       expect(sanitizeErrorMessage(input), input);
     });
 
+    test('does not mistake a pure-digit token for host:port', () {
+      // The host slot of the host:port branch requires at least one
+      // letter — a `12345:80` shape is line:col noise, not an
+      // endpoint, so the digits survive untouched.
+      final out = sanitizeErrorMessage('counter 12345:80 ticked');
+      expect(out, contains('12345:80'));
+      expect(out, isNot(contains('<port>')));
+    });
+
     test('redacts DBus errors without leaking paths', () {
       // Real Linux desktop error
       const input =
@@ -258,6 +267,120 @@ void main() {
       // DBus errors don't contain sensitive data, so should pass through unchanged
       expect(result, contains('DBus.Error.ServiceUnknown'));
       expect(result, contains('freedesktop.portal.Desktop'));
+    });
+  });
+
+  group('redactBidi', () {
+    test('returns the input unchanged when no bidi codepoint is present', () {
+      // Fast path — most strings carry no override; the function must
+      // return the exact same string (no allocation, no rewrite).
+      const input = 'a normal hostname.example.com';
+      expect(redactBidi(input), same(input));
+    });
+
+    test('returns empty string unchanged', () {
+      expect(redactBidi(''), '');
+    });
+
+    test('replaces a RIGHT-TO-LEFT OVERRIDE with its visible hex escape', () {
+      // U+202E flips the rendered suffix of a hostname; CVE-2021-42574.
+      // The codepoint must be rewritten to `\u{202e}` so the rendered
+      // text can no longer reorder visually but still shows what was
+      // present.
+      final rlo = String.fromCharCode(0x202E); // RIGHT-TO-LEFT OVERRIDE
+      final input = 'host${rlo}name';
+      final out = redactBidi(input);
+      expect(out, isNot(contains(rlo)));
+      expect(out, contains(r'\u{202e}'));
+      expect(out, contains('host'));
+      expect(out, contains('name'));
+    });
+
+    test('rewrites every distinct bidi-control codepoint', () {
+      // Each flagged codepoint must be escaped; none may survive into
+      // the rendered string.
+      const codepoints = <int>[
+        0x200E,
+        0x200F,
+        0x202A,
+        0x202B,
+        0x202C,
+        0x202D,
+        0x202E,
+        0x2066,
+        0x2067,
+        0x2068,
+        0x2069,
+      ];
+      for (final cp in codepoints) {
+        final input = 'x${String.fromCharCode(cp)}y';
+        final out = redactBidi(input);
+        expect(
+          out.contains(String.fromCharCode(cp)),
+          isFalse,
+          reason: 'U+${cp.toRadixString(16)} must be stripped',
+        );
+        expect(out, contains('x'));
+        expect(out, contains('y'));
+      }
+    });
+
+    test('leaves non-control characters in place around the escape', () {
+      final lrm = String.fromCharCode(0x200E); // LEFT-TO-RIGHT MARK
+      final out = redactBidi('safe${lrm}text');
+      expect(out, 'safe\\u{200e}text');
+    });
+  });
+
+  group('hostnameHasNonAscii', () {
+    test('false for a plain ASCII host', () {
+      expect(hostnameHasNonAscii('example.com'), isFalse);
+    });
+
+    test('false for an empty host', () {
+      expect(hostnameHasNonAscii(''), isFalse);
+    });
+
+    test('true when any codepoint is outside ASCII (homograph risk)', () {
+      // A Cyrillic 'а' (U+0430) renders identically to Latin 'a';
+      // the connect resolver sees the punycode form. The TOFU prompt
+      // layers a "verify by eye" hint when this trips.
+      expect(hostnameHasNonAscii('exаmple.com'), isTrue);
+    });
+
+    test('true for a host that is purely non-ASCII', () {
+      expect(hostnameHasNonAscii('über.de'), isTrue);
+    });
+  });
+
+  group('looksSensitive', () {
+    test('true for a PEM private-key block', () {
+      const pem =
+          '-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n'
+          '-----END OPENSSH PRIVATE KEY-----';
+      expect(looksSensitive(pem), isTrue);
+    });
+
+    test('true for a long base64 run (>= 200 chars)', () {
+      expect(looksSensitive('A' * 200), isTrue);
+    });
+
+    test('false for a short base64-looking snippet', () {
+      // Below the 200-char threshold and no PEM markers — ordinary
+      // text the clipboard auto-wipe must not touch.
+      expect(looksSensitive('AABBCCDD=='), isFalse);
+    });
+
+    test('false for ordinary prose', () {
+      expect(looksSensitive('connection refused'), isFalse);
+    });
+
+    test('false when only one of the two PEM markers is present', () {
+      // The fast-path substring check requires both `-----BEGIN` and
+      // `PRIVATE KEY` before declaring a PEM; a lone marker is not
+      // enough.
+      expect(looksSensitive('-----BEGIN CERTIFICATE-----'), isFalse);
+      expect(looksSensitive('this mentions a PRIVATE KEY in passing'), isFalse);
     });
   });
 }
