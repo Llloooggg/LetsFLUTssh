@@ -85,7 +85,10 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@rm -f coverage/lcov.acc.info
 	$(FLUTTER) test --coverage --exclude-tags frb_global_store --timeout 30s
 	@cat coverage/lcov.info >> coverage/lcov.acc.info
-	@for f in $$(grep -rl frb_global_store test --include='*_test.dart'); do \
+	@# Match the tag annotation itself, not any mention of the tag name
+	@# — a `// no frb_global_store needed` comment must not pull a file
+	@# into the isolated pass (and make it run twice).
+	@for f in $$(grep -rlF "@Tags(['frb_global_store'])" test --include='*_test.dart'); do \
 	  echo "=== isolated global-store suite: $$f ==="; \
 	  $(FLUTTER) test --coverage "$$f" --timeout 30s || exit 1; \
 	  cat coverage/lcov.info >> coverage/lcov.acc.info; \
