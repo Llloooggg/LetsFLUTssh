@@ -2124,12 +2124,12 @@ fn apply_one_port_forward_rule(
     if is_tombstone(v) {
         if mode.is_sync() {
             let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-            match port_forwards::apply_tombstone(conn, &id, deleted_at_ms) {
-                Ok(_) => outcome.port_forward_rules_applied += 1,
-                Err(e) => outcome
-                    .errors
-                    .push(format!("port_forward_rule {id} tombstone: {e}")),
-            }
+            record_pf_result(
+                port_forwards::apply_tombstone(conn, &id, deleted_at_ms),
+                &id,
+                "tombstone",
+                outcome,
+            );
         }
         return;
     }
@@ -2166,11 +2166,18 @@ fn apply_one_port_forward_rule(
     } else {
         port_forwards::upsert(conn, &row)
     };
+    record_pf_result(result, &id, "upsert", outcome);
+}
+
+/// Fold a port-forward DAO result into the outcome: bump the applied
+/// counter on success, push a `{op}`-labelled error otherwise. Shared
+/// by the tombstone and upsert paths.
+fn record_pf_result<T>(result: Result<T, Error>, id: &str, op: &str, outcome: &mut ApplyOutcome) {
     match result {
         Ok(_) => outcome.port_forward_rules_applied += 1,
         Err(e) => outcome
             .errors
-            .push(format!("port_forward_rule {id} upsert: {e}")),
+            .push(format!("port_forward_rule {id} {op}: {e}")),
     }
 }
 
