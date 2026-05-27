@@ -149,27 +149,34 @@ impl Pkcs11Uri {
         };
         let mut uri = Pkcs11Uri::default();
         if !path_part.is_empty() {
-            for segment in path_part.split(';') {
-                if segment.is_empty() {
-                    continue;
-                }
-                let (name, value) = split_attr(segment)?;
-                store_path_attribute(&mut uri, name, value)?;
-            }
+            parse_attr_list(path_part, ';', &mut uri, store_path_attribute)?;
         }
         if let Some(q) = query_part {
             if !q.is_empty() {
-                for segment in q.split('&') {
-                    if segment.is_empty() {
-                        continue;
-                    }
-                    let (name, value) = split_attr(segment)?;
-                    store_query_attribute(&mut uri, name, value)?;
-                }
+                parse_attr_list(q, '&', &mut uri, store_query_attribute)?;
             }
         }
         Ok(uri)
     }
+}
+
+/// Split `part` on `sep`, skip empty segments, parse each as a
+/// `name=value` attribute, and dispatch it through `store`. Shared
+/// by the path (`;`) and query (`&`) halves of [`Pkcs11Uri::parse`].
+fn parse_attr_list(
+    part: &str,
+    sep: char,
+    uri: &mut Pkcs11Uri,
+    store: impl Fn(&mut Pkcs11Uri, &str, &str) -> Result<(), UriError>,
+) -> Result<(), UriError> {
+    for segment in part.split(sep) {
+        if segment.is_empty() {
+            continue;
+        }
+        let (name, value) = split_attr(segment)?;
+        store(uri, name, value)?;
+    }
+    Ok(())
 }
 
 fn split_attr(segment: &str) -> Result<(&str, &str), UriError> {
@@ -271,12 +278,20 @@ fn is_attr_name_byte(b: u8) -> bool {
 impl fmt::Display for Pkcs11Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("pkcs11:")?;
+        self.fmt_path_attrs(f)?;
+        self.fmt_query_attrs(f)?;
+        Ok(())
+    }
+}
+
+impl Pkcs11Uri {
+    /// Emit the `;`-separated path attributes (after the `pkcs11:`
+    /// scheme). `id` is opaque CKA_ID binary so it is always fully
+    /// percent-encoded; the rest use the path safe-byte set.
+    fn fmt_path_attrs(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut first = true;
         let write_attr = |f: &mut fmt::Formatter<'_>, name: &str, value: &str, first: &mut bool| {
-            if !*first {
-                f.write_str(";")?;
-            }
-            *first = false;
+            write_path_attr_sep(f, first)?;
             f.write_str(name)?;
             f.write_str("=")?;
             write_percent(f, value.as_bytes(), is_unreserved_path)
@@ -307,10 +322,7 @@ impl fmt::Display for Pkcs11Uri {
         }
         if let Some(v) = &self.id {
             // CKA_ID payload is opaque binary; always percent-encode.
-            if !first {
-                f.write_str(";")?;
-            }
-            first = false;
+            write_path_attr_sep(f, &mut first)?;
             f.write_str("id=")?;
             write_percent(f, v, |_| false)?;
         }
@@ -320,6 +332,12 @@ impl fmt::Display for Pkcs11Uri {
         for (k, v) in &self.other_path {
             write_attr(f, k, v, &mut first)?;
         }
+        Ok(())
+    }
+
+    /// Emit the `?`/`&`-separated query attributes after the path
+    /// part. Uses the query safe-byte set.
+    fn fmt_query_attrs(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut query_first = true;
         let write_query =
             |f: &mut fmt::Formatter<'_>, name: &str, value: &str, qfirst: &mut bool| {
@@ -344,6 +362,16 @@ impl fmt::Display for Pkcs11Uri {
         }
         Ok(())
     }
+}
+
+/// Write the `;` separator before a path attribute when it is not the
+/// first one, and flip `first` off.
+fn write_path_attr_sep(f: &mut fmt::Formatter<'_>, first: &mut bool) -> fmt::Result {
+    if !*first {
+        f.write_str(";")?;
+    }
+    *first = false;
+    Ok(())
 }
 
 fn write_percent(f: &mut fmt::Formatter<'_>, bytes: &[u8], safe: fn(u8) -> bool) -> fmt::Result {

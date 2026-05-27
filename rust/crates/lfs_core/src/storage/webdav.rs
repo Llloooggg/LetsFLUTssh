@@ -139,19 +139,32 @@ async fn walk_dir_size(client: &WebDavClient, root: &str) -> Result<u64, Error> 
         let entries = client.propfind(&path, 1).await?;
         let listed_href = first_href(&entries);
         for entry in entries {
-            if let Some(root_href) = listed_href.as_deref() {
-                if entry.href == root_href {
-                    continue;
-                }
-            }
-            if entry.is_collection {
-                stack.push((entry.href, depth + 1));
-            } else {
-                total = total.saturating_add(entry.size_bytes.unwrap_or(0));
-            }
+            accumulate_propfind_entry(entry, listed_href.as_deref(), depth, &mut total, &mut stack);
         }
     }
     Ok(total)
+}
+
+/// Fold one PROPFIND entry into the running `dir_size` walk: skip
+/// the listing's own root href, push collections onto `stack` to
+/// descend, and add file byte counts to `total`.
+fn accumulate_propfind_entry(
+    entry: PropfindEntry,
+    root_href: Option<&str>,
+    depth: u32,
+    total: &mut u64,
+    stack: &mut Vec<(String, u32)>,
+) {
+    if let Some(root_href) = root_href {
+        if entry.href == root_href {
+            return;
+        }
+    }
+    if entry.is_collection {
+        stack.push((entry.href, depth + 1));
+    } else {
+        *total = total.saturating_add(entry.size_bytes.unwrap_or(0));
+    }
 }
 
 fn first_href(entries: &[PropfindEntry]) -> Option<String> {

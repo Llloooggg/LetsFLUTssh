@@ -109,38 +109,12 @@ async fn run_loop<S: CapabilitiesSink>(mut rx: tokio::sync::broadcast::Receiver<
     loop {
         match rx.recv().await {
             Ok(Event::SecurityCapabilitiesChanged { json }) => {
-                let caps = if json.is_empty() {
-                    None
-                } else {
-                    match serde_json::from_str::<serde_json::Value>(&json) {
-                        Ok(value) => match SecurityCapabilities::from_json_value(&value) {
-                            Some(caps) => Some(caps),
-                            None => {
-                                // A capabilities snapshot the
-                                // wire-format decoder rejects is a
-                                // contract drift between
-                                // `Cache::set` and the JSON shape —
-                                // log + skip rather than clear the
-                                // persisted slot, which would be a
-                                // false negative.
-                                crate::app_log_warn!(
-                                    "CapabilitiesPersister",
-                                    "rejected snapshot: SecurityCapabilities::from_json_value returned None"
-                                );
-                                continue;
-                            }
-                        },
-                        Err(e) => {
-                            crate::app_log_warn!(
-                                "CapabilitiesPersister",
-                                "rejected snapshot: parse: {}",
-                                e
-                            );
-                            continue;
-                        }
-                    }
-                };
-                sink.apply(caps);
+                match decode_capabilities_snapshot(&json) {
+                    Ok(caps) => sink.apply(caps),
+                    // Rejected snapshot already logged — skip rather
+                    // than clear the persisted slot.
+                    Err(()) => continue,
+                }
             }
             // Some other event landed on the same topic — ignore;
             // capabilities is the only variant on this topic
@@ -156,6 +130,32 @@ async fn run_loop<S: CapabilitiesSink>(mut rx: tokio::sync::broadcast::Receiver<
                 continue;
             }
             Err(RecvError::Closed) => break,
+        }
+    }
+}
+
+/// Decode a `SecurityCapabilitiesChanged` payload into the value to
+/// persist. An empty `json` clears the slot (`Ok(None)`); a valid
+/// snapshot yields `Ok(Some(caps))`. `Err(())` means the snapshot
+/// was rejected (unparsable JSON or a shape the wire-format decoder
+/// rejects — a contract drift between `Cache::set` and the JSON
+/// shape) and the caller should skip without clearing the slot,
+/// which would be a false negative. Logs the rejection reason here.
+fn decode_capabilities_snapshot(json: &str) -> Result<Option<SecurityCapabilities>, ()> {
+    if json.is_empty() {
+        return Ok(None);
+    }
+    let value = serde_json::from_str::<serde_json::Value>(json).map_err(|e| {
+        crate::app_log_warn!("CapabilitiesPersister", "rejected snapshot: parse: {}", e);
+    })?;
+    match SecurityCapabilities::from_json_value(&value) {
+        Some(caps) => Ok(Some(caps)),
+        None => {
+            crate::app_log_warn!(
+                "CapabilitiesPersister",
+                "rejected snapshot: SecurityCapabilities::from_json_value returned None"
+            );
+            Err(())
         }
     }
 }

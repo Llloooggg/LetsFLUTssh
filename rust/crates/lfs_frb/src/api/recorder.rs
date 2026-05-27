@@ -141,38 +141,8 @@ async fn recorder_open_for_playback_inner(
             .and_then(|e| e.to_str())
             .map(|s| s.eq_ignore_ascii_case("lfsr"))
             .unwrap_or(false);
-        // Encrypted recordings need the active DB key — the reader
-        // unwraps the per-file recording key from the file's v1
-        // header internally. Plaintext .cast files skip the secret-
-        // store probe entirely so playback works even on a tier
-        // with no in-memory key (e.g. plaintext-tier recordings).
-        let key_arr: [u8; 32] = if is_lfsr {
-            let app = lfs_core::app::instance();
-            match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
-                Some(db_key) if !db_key.is_empty() => match db_key.as_slice().try_into() {
-                    Ok(arr) => arr,
-                    Err(_) => {
-                        let _ = sink.add(DbPlaybackEvent {
-                            line: None,
-                            error: Some("active db key wrong length".to_string()),
-                        });
-                        return;
-                    }
-                },
-                _ => {
-                    let _ = sink.add(DbPlaybackEvent {
-                        line: None,
-                        error: Some(
-                            "no active DB key — encrypted recording cannot be opened".to_string(),
-                        ),
-                    });
-                    return;
-                }
-            }
-        } else {
-            // Plaintext path ignores the key — passing zeros keeps
-            // the open_for_playback signature uniform.
-            [0u8; 32]
+        let Some(key_arr) = resolve_playback_key(is_lfsr, &sink) else {
+            return;
         };
         let mut iter = match lfs_core::recorder::reader::open_for_playback_at(
             &path_buf,
@@ -182,10 +152,7 @@ async fn recorder_open_for_playback_inner(
         ) {
             Ok(it) => it,
             Err(e) => {
-                let _ = sink.add(DbPlaybackEvent {
-                    line: None,
-                    error: Some(e.to_string()),
-                });
+                emit_playback_error(&sink, &e.to_string());
                 return;
             }
         };
@@ -204,16 +171,54 @@ async fn recorder_open_for_playback_inner(
                     }
                 }
                 Err(e) => {
-                    let _ = sink.add(DbPlaybackEvent {
-                        line: None,
-                        error: Some(e.to_string()),
-                    });
+                    emit_playback_error(&sink, &e.to_string());
                     break;
                 }
             }
         }
     })
     .await;
+}
+
+/// Resolve the 32-byte recording key for playback. Encrypted `.lfsr`
+/// recordings need the active DB key (the reader unwraps the per-file
+/// recording key from the v1 header internally); plaintext `.cast`
+/// files skip the secret-store probe and get zeros so the
+/// `open_for_playback_at` signature stays uniform — playback then
+/// works even on a tier with no in-memory key. Returns None (after
+/// emitting the reason to `sink`) when an encrypted recording has no
+/// usable key.
+fn resolve_playback_key(
+    is_lfsr: bool,
+    sink: &crate::frb_generated::StreamSink<DbPlaybackEvent>,
+) -> Option<[u8; 32]> {
+    if !is_lfsr {
+        return Some([0u8; 32]);
+    }
+    let app = lfs_core::app::instance();
+    match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+        Some(db_key) if !db_key.is_empty() => match db_key.as_slice().try_into() {
+            Ok(arr) => Some(arr),
+            Err(_) => {
+                emit_playback_error(sink, "active db key wrong length");
+                None
+            }
+        },
+        _ => {
+            emit_playback_error(
+                sink,
+                "no active DB key — encrypted recording cannot be opened",
+            );
+            None
+        }
+    }
+}
+
+fn emit_playback_error(sink: &crate::frb_generated::StreamSink<DbPlaybackEvent>, message: &str) {
+    let _ = sink.add(DbPlaybackEvent {
+        line: None,
+        error: Some(message.to_string()),
+    });
 }
 
 /// FRB mirror of [`lfs_core::recorder::index_sidecar::SeekHit`].

@@ -135,67 +135,85 @@ pub fn decode(bytes: &[u8]) -> Result<TpmKey, Error> {
     }
     cursor = after_oid;
 
-    let mut empty_auth: Option<bool> = None;
-    let mut parent: Option<u32> = None;
-    let mut public: Option<Vec<u8>> = None;
-    let mut private: Option<Vec<u8>> = None;
-
+    let mut fields = TcgFields::default();
     while !cursor.is_empty() {
-        let tag = cursor[0];
-        match tag {
-            TAG_CONTEXT_0_EXPLICIT => {
-                let (inner, next) = read_tlv(cursor, TAG_CONTEXT_0_EXPLICIT)?;
-                let (bool_body, leftover) = read_tlv(inner, TAG_BOOLEAN)?;
-                if !leftover.is_empty() {
-                    return Err(Error::Crypto(
-                        "tcg-pem: trailing bytes in [0] EXPLICIT BOOLEAN".into(),
-                    ));
-                }
-                if bool_body.len() != 1 {
-                    return Err(Error::Crypto("tcg-pem: BOOLEAN length != 1".into()));
-                }
-                empty_auth = Some(bool_body[0] != 0);
-                cursor = next;
-            }
-            TAG_INTEGER => {
-                let (int_body, next) = read_tlv(cursor, TAG_INTEGER)?;
-                parent = Some(parse_unsigned_integer(int_body)?);
-                cursor = next;
-            }
-            TAG_OCTET_STRING => {
-                let (octet_body, next) = read_tlv(cursor, TAG_OCTET_STRING)?;
-                if public.is_none() {
-                    public = Some(octet_body.to_vec());
-                } else if private.is_none() {
-                    private = Some(octet_body.to_vec());
-                } else {
-                    return Err(Error::Crypto(
-                        "tcg-pem: too many OCTET STRING fields".into(),
-                    ));
-                }
-                cursor = next;
-            }
-            other => {
-                // Unknown context-specific arm — skip its TLV so the
-                // parser tolerates `.tpm` files written by external
-                // tools carrying optional draft fields.
-                let (_, next) = read_tlv(cursor, other)?;
-                cursor = next;
-            }
-        }
+        cursor = decode_field(cursor, &mut fields)?;
     }
 
-    let parent = parent.ok_or_else(|| Error::Crypto("tcg-pem: missing parent INTEGER".into()))?;
-    let public =
-        public.ok_or_else(|| Error::Crypto("tcg-pem: missing public OCTET STRING".into()))?;
-    let private =
-        private.ok_or_else(|| Error::Crypto("tcg-pem: missing private OCTET STRING".into()))?;
+    let parent = fields
+        .parent
+        .ok_or_else(|| Error::Crypto("tcg-pem: missing parent INTEGER".into()))?;
+    let public = fields
+        .public
+        .ok_or_else(|| Error::Crypto("tcg-pem: missing public OCTET STRING".into()))?;
+    let private = fields
+        .private
+        .ok_or_else(|| Error::Crypto("tcg-pem: missing private OCTET STRING".into()))?;
     Ok(TpmKey {
-        empty_auth,
+        empty_auth: fields.empty_auth,
         parent,
         public,
         private,
     })
+}
+
+/// Accumulator for the optional / ordered fields [`decode`] reads out
+/// of the TCG SEQUENCE body.
+#[derive(Default)]
+struct TcgFields {
+    empty_auth: Option<bool>,
+    parent: Option<u32>,
+    public: Option<Vec<u8>>,
+    private: Option<Vec<u8>>,
+}
+
+/// Decode one TLV at `cursor`, fold it into `fields`, and return the
+/// slice past it. The first OCTET STRING is `public`, the second
+/// `private`; a third is an error. Unknown context-specific arms are
+/// skipped so `.tpm` files carrying optional draft fields round-trip.
+fn decode_field<'a>(cursor: &'a [u8], fields: &mut TcgFields) -> Result<&'a [u8], Error> {
+    let tag = cursor[0];
+    match tag {
+        TAG_CONTEXT_0_EXPLICIT => {
+            let (inner, next) = read_tlv(cursor, TAG_CONTEXT_0_EXPLICIT)?;
+            let (bool_body, leftover) = read_tlv(inner, TAG_BOOLEAN)?;
+            if !leftover.is_empty() {
+                return Err(Error::Crypto(
+                    "tcg-pem: trailing bytes in [0] EXPLICIT BOOLEAN".into(),
+                ));
+            }
+            if bool_body.len() != 1 {
+                return Err(Error::Crypto("tcg-pem: BOOLEAN length != 1".into()));
+            }
+            fields.empty_auth = Some(bool_body[0] != 0);
+            Ok(next)
+        }
+        TAG_INTEGER => {
+            let (int_body, next) = read_tlv(cursor, TAG_INTEGER)?;
+            fields.parent = Some(parse_unsigned_integer(int_body)?);
+            Ok(next)
+        }
+        TAG_OCTET_STRING => {
+            let (octet_body, next) = read_tlv(cursor, TAG_OCTET_STRING)?;
+            if fields.public.is_none() {
+                fields.public = Some(octet_body.to_vec());
+            } else if fields.private.is_none() {
+                fields.private = Some(octet_body.to_vec());
+            } else {
+                return Err(Error::Crypto(
+                    "tcg-pem: too many OCTET STRING fields".into(),
+                ));
+            }
+            Ok(next)
+        }
+        other => {
+            // Unknown context-specific arm — skip its TLV so the
+            // parser tolerates `.tpm` files written by external
+            // tools carrying optional draft fields.
+            let (_, next) = read_tlv(cursor, other)?;
+            Ok(next)
+        }
+    }
 }
 
 // ── DER primitives ──────────────────────────────────────────────

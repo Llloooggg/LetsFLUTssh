@@ -57,41 +57,12 @@ pub fn render(template: &str, context: &BTreeMap<String, String>) -> RenderedSni
         }
         // Token start.
         if bytes.len() > i + 1 && bytes[i] == b'{' && bytes[i + 1] == b'{' {
-            // Find the matching `}}`. Search on byte slice; the
-            // template + tokens are ASCII in practice, but we'll
-            // recover the original chars via `from_utf8` on the
-            // span if a multi-byte codepoint slips into a key.
-            let after_open = i + 2;
-            if let Some(close_rel) = find_close(&bytes[after_open..]) {
-                let close = after_open + close_rel;
-                let raw = std::str::from_utf8(&bytes[after_open..close]).unwrap_or("");
-                let name = raw.trim();
-                if name.is_empty() {
-                    // `{{}}` is a typo, not a token. Keep it
-                    // literal so the user sees their own bad input.
-                    out.push_str(std::str::from_utf8(&bytes[i..close + 2]).unwrap_or_default());
-                    i = close + 2;
-                    continue;
-                }
-                if let Some(value) = context.get(name) {
-                    out.push_str(value);
-                } else {
-                    // Leave the token text in the output so the
-                    // prompt dialog can substitute it after the user
-                    // fills the value.
-                    out.push_str(std::str::from_utf8(&bytes[i..close + 2]).unwrap_or_default());
-                    if seen.insert(name.to_string()) {
-                        unresolved.push(name.to_string());
-                    }
-                }
-                i = close + 2;
-                continue;
-            } else {
-                // Unterminated `{{` — copy the remaining tail
-                // verbatim. Matches the Dart contract.
-                out.push_str(std::str::from_utf8(&bytes[i..]).unwrap_or(""));
-                break;
+            match scan_token(bytes, i, context, &mut out, &mut unresolved, &mut seen) {
+                Some(next) => i = next,
+                // Unterminated `{{` — the tail was copied verbatim.
+                None => break,
             }
+            continue;
         }
         // Plain byte. UTF-8 boundaries are preserved because we
         // only enter this branch outside of token / escape
@@ -105,6 +76,54 @@ pub fn render(template: &str, context: &BTreeMap<String, String>) -> RenderedSni
         rendered: out,
         unresolved,
     }
+}
+
+/// Handle a `{{…}}` token starting at byte `i` (caller has already
+/// confirmed `bytes[i..i+2] == "{{"`). Appends the substituted /
+/// literal text to `out` and records first-seen unknown names in
+/// `unresolved`. Returns the index to resume scanning from, or
+/// `None` for an unterminated `{{` (tail copied verbatim, caller
+/// stops).
+fn scan_token(
+    bytes: &[u8],
+    i: usize,
+    context: &BTreeMap<String, String>,
+    out: &mut String,
+    unresolved: &mut Vec<String>,
+    seen: &mut std::collections::HashSet<String>,
+) -> Option<usize> {
+    // Find the matching `}}`. Search on byte slice; the
+    // template + tokens are ASCII in practice, but we'll
+    // recover the original chars via `from_utf8` on the
+    // span if a multi-byte codepoint slips into a key.
+    let after_open = i + 2;
+    let Some(close_rel) = find_close(&bytes[after_open..]) else {
+        // Unterminated `{{` — copy the remaining tail
+        // verbatim. Matches the Dart contract.
+        out.push_str(std::str::from_utf8(&bytes[i..]).unwrap_or(""));
+        return None;
+    };
+    let close = after_open + close_rel;
+    let raw = std::str::from_utf8(&bytes[after_open..close]).unwrap_or("");
+    let name = raw.trim();
+    if name.is_empty() {
+        // `{{}}` is a typo, not a token. Keep it
+        // literal so the user sees their own bad input.
+        out.push_str(std::str::from_utf8(&bytes[i..close + 2]).unwrap_or_default());
+        return Some(close + 2);
+    }
+    if let Some(value) = context.get(name) {
+        out.push_str(value);
+    } else {
+        // Leave the token text in the output so the
+        // prompt dialog can substitute it after the user
+        // fills the value.
+        out.push_str(std::str::from_utf8(&bytes[i..close + 2]).unwrap_or_default());
+        if seen.insert(name.to_string()) {
+            unresolved.push(name.to_string());
+        }
+    }
+    Some(close + 2)
 }
 
 /// Substitute `values` for `{{name}}` tokens left behind by

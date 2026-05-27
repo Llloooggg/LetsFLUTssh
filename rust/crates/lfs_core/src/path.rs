@@ -103,36 +103,49 @@ pub fn is_safe_transfer_entry_name(name: &str) -> bool {
 pub fn parse_windows_attrib_output(output: &str) -> std::collections::HashSet<String> {
     let mut hidden: std::collections::HashSet<String> = std::collections::HashSet::new();
     for raw_line in output.split('\n') {
-        let trimmed = raw_line.trim_end();
-        if trimmed.is_empty() {
-            continue;
+        if let Some(bn) = parse_attrib_line(raw_line) {
+            hidden.insert(bn);
         }
-        // Find the last `[A-Z]  ` (capital letter followed by two
-        // spaces) — that's the boundary between the attribute run
-        // and the path. Walk right-to-left so paths containing
-        // capitals don't false-match.
-        let bytes = trimmed.as_bytes();
-        let mut attr_end: Option<usize> = None;
-        if bytes.len() >= 3 {
-            for i in (0..bytes.len() - 2).rev() {
-                let c = bytes[i];
-                if c.is_ascii_uppercase() && bytes[i + 1] == b' ' && bytes[i + 2] == b' ' {
-                    attr_end = Some(i);
-                    break;
-                }
-            }
-        }
-        let Some(idx) = attr_end else { continue };
-        let attrs = trimmed[..=idx].to_ascii_uppercase();
-        if !attrs.contains('H') && !attrs.contains('S') {
-            continue;
-        }
-        let full_path = trimmed[idx + 3..].trim();
-        // Windows basename — split on `\` then take the tail.
-        let bn = full_path.rsplit(['\\', '/']).next().unwrap_or(full_path);
-        hidden.insert(bn.to_lowercase());
     }
     hidden
+}
+
+/// Parse a single `attrib` output line. Returns the lowercase
+/// basename when the line carries a Hidden (`H`) or System (`S`)
+/// flag, or `None` for blank lines / lines without an attribute run
+/// / rows that are neither hidden nor system.
+fn parse_attrib_line(raw_line: &str) -> Option<String> {
+    let trimmed = raw_line.trim_end();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let idx = attr_run_end(trimmed)?;
+    let attrs = trimmed[..=idx].to_ascii_uppercase();
+    if !attrs.contains('H') && !attrs.contains('S') {
+        return None;
+    }
+    let full_path = trimmed[idx + 3..].trim();
+    // Windows basename — split on `\` then take the tail.
+    let bn = full_path.rsplit(['\\', '/']).next().unwrap_or(full_path);
+    Some(bn.to_lowercase())
+}
+
+/// Index of the last `[A-Z]  ` (capital letter followed by two
+/// spaces) in `trimmed` — the boundary between the attribute run
+/// and the path. Walk right-to-left so paths containing capitals
+/// don't false-match.
+fn attr_run_end(trimmed: &str) -> Option<usize> {
+    let bytes = trimmed.as_bytes();
+    if bytes.len() < 3 {
+        return None;
+    }
+    for i in (0..bytes.len() - 2).rev() {
+        let c = bytes[i];
+        if c.is_ascii_uppercase() && bytes[i + 1] == b' ' && bytes[i + 2] == b' ' {
+            return Some(i);
+        }
+    }
+    None
 }
 
 /// Separator family for [`parent`]. `Posix` forces `/`-only

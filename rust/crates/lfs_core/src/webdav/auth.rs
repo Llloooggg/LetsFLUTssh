@@ -152,55 +152,86 @@ fn parse_auth_pairs(input: &str) -> HashMap<String, String> {
     let bytes = input.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        // skip ws + leading commas
-        while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b',') {
-            i += 1;
-        }
+        i = skip_separators(bytes, i);
         if i >= bytes.len() {
             break;
         }
-        let key_start = i;
-        while i < bytes.len() && bytes[i] != b'=' && bytes[i] != b',' {
-            i += 1;
-        }
-        let key = input[key_start..i].trim().to_ascii_lowercase();
+        let (key, after_key) = scan_key(input, bytes, i);
+        i = after_key;
         if i >= bytes.len() || bytes[i] != b'=' {
             // bare key with no value — skip
             continue;
         }
         i += 1; // consume '='
-                // quoted or token?
-        let value = if i < bytes.len() && bytes[i] == b'"' {
-            i += 1;
-            let val_start = i;
-            // accept escaped quotes per RFC 7235 quoted-string rules
-            while i < bytes.len() {
-                if bytes[i] == b'\\' && i + 1 < bytes.len() {
-                    i += 2;
-                    continue;
-                }
-                if bytes[i] == b'"' {
-                    break;
-                }
-                i += 1;
-            }
-            let v = input[val_start..i].to_string();
-            if i < bytes.len() {
-                i += 1; // consume closing quote
-            }
-            v
-        } else {
-            let val_start = i;
-            while i < bytes.len() && bytes[i] != b',' {
-                i += 1;
-            }
-            input[val_start..i].trim().to_string()
-        };
+        let (value, after_value) = scan_value(input, bytes, i);
+        i = after_value;
         if !key.is_empty() {
             out.insert(key, value);
         }
     }
     out
+}
+
+/// Advance past leading whitespace and commas, returning the index
+/// of the first non-separator byte (or `bytes.len()`).
+fn skip_separators(bytes: &[u8], mut i: usize) -> usize {
+    while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b',') {
+        i += 1;
+    }
+    i
+}
+
+/// Read a lowercased, trimmed key starting at `i` up to the next
+/// `=` or `,`. Returns the key and the index of the terminator.
+fn scan_key(input: &str, bytes: &[u8], mut i: usize) -> (String, usize) {
+    let key_start = i;
+    while i < bytes.len() && bytes[i] != b'=' && bytes[i] != b',' {
+        i += 1;
+    }
+    (input[key_start..i].trim().to_ascii_lowercase(), i)
+}
+
+/// Read the value starting at `i` (just after `=`): a quoted string
+/// (RFC 7235 escape rules) or a bare token up to the next comma.
+/// Returns the value and the index to resume scanning from.
+fn scan_value(input: &str, bytes: &[u8], i: usize) -> (String, usize) {
+    if i < bytes.len() && bytes[i] == b'"' {
+        scan_quoted_value(input, bytes, i + 1)
+    } else {
+        scan_token_value(input, bytes, i)
+    }
+}
+
+/// Read a quoted-string value, `i` positioned just inside the
+/// opening quote. Honours `\`-escapes per RFC 7235. Returns the
+/// unescaped-span value and the index past the closing quote.
+fn scan_quoted_value(input: &str, bytes: &[u8], mut i: usize) -> (String, usize) {
+    let val_start = i;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            i += 2;
+            continue;
+        }
+        if bytes[i] == b'"' {
+            break;
+        }
+        i += 1;
+    }
+    let v = input[val_start..i].to_string();
+    if i < bytes.len() {
+        i += 1; // consume closing quote
+    }
+    (v, i)
+}
+
+/// Read a bare token value up to the next comma, trimming
+/// surrounding whitespace.
+fn scan_token_value(input: &str, bytes: &[u8], mut i: usize) -> (String, usize) {
+    let val_start = i;
+    while i < bytes.len() && bytes[i] != b',' {
+        i += 1;
+    }
+    (input[val_start..i].trim().to_string(), i)
 }
 
 /// Per-client digest state. Holds the latest challenge so

@@ -249,37 +249,7 @@ impl RecorderQueue {
                 Some(bufs.drain())
             } else {
                 if bufs.flush_task.is_none() {
-                    let buffers_for_task = buffers.clone();
-                    let sender_for_task = sender.clone();
-                    bufs.flush_task = Some(tokio::spawn(async move {
-                        tokio::time::sleep(FLUSH_DEADLINE).await;
-                        let drained = {
-                            let mut b = buffers_for_task.lock().unwrap_or_else(|p| p.into_inner());
-                            b.flush_task = None;
-                            b.drain()
-                        };
-                        for (k, bs) in drained {
-                            // The receiver only drops once the
-                            // worker is closing — surface the
-                            // first send-failure as a warn so a
-                            // race between the deadline-flush and
-                            // a `Close` entry is greppable in
-                            // support traces. Subsequent failures
-                            // in the same drain stay silent
-                            // (log-spam guard).
-                            if let Err(e) = sender_for_task
-                                .send(QueueEntry::Event { kind: k, bytes: bs })
-                                .await
-                            {
-                                crate::app_log_warn!(
-                                    "RecorderQueue",
-                                    "deadline-flush send failed (worker closed): {}",
-                                    e
-                                );
-                                break;
-                            }
-                        }
-                    }));
+                    bufs.flush_task = Some(spawn_deadline_flush(buffers.clone(), sender.clone()));
                 }
                 None
             }
@@ -362,6 +332,42 @@ fn publish_recorder_failure(
     });
 }
 
+/// Schedule the single deadline flush for a freshly non-empty
+/// buffer set: sleep [`FLUSH_DEADLINE`], drain, then forward each
+/// drained chunk to the worker mailbox. Clears its own
+/// `flush_task` slot before draining so the next chunk re-arms.
+fn spawn_deadline_flush(
+    buffers: Arc<StdMutex<EventBuffers>>,
+    sender: mpsc::Sender<QueueEntry>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        tokio::time::sleep(FLUSH_DEADLINE).await;
+        let drained = {
+            let mut b = buffers.lock().unwrap_or_else(|p| p.into_inner());
+            b.flush_task = None;
+            b.drain()
+        };
+        for (k, bs) in drained {
+            // The receiver only drops once the
+            // worker is closing — surface the
+            // first send-failure as a warn so a
+            // race between the deadline-flush and
+            // a `Close` entry is greppable in
+            // support traces. Subsequent failures
+            // in the same drain stay silent
+            // (log-spam guard).
+            if let Err(e) = sender.send(QueueEntry::Event { kind: k, bytes: bs }).await {
+                crate::app_log_warn!(
+                    "RecorderQueue",
+                    "deadline-flush send failed (worker closed): {}",
+                    e
+                );
+                break;
+            }
+        }
+    })
+}
+
 async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
     // Snapshot the singleton AppState handle once. The worker keeps
     // a strong Arc; AppState lives for the process so this never
@@ -375,86 +381,15 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
                 width,
                 height,
                 shell_label,
-            } => {
-                let result = tokio::task::spawn_blocking({
-                    let app = app.clone();
-                    let id = id.clone();
-                    move || {
-                        app.recorders
-                            .record_header(&id, width, height, &shell_label, &app.bus)
-                    }
-                })
-                .await;
-                match result {
-                    Ok(Ok(_)) => {}
-                    Ok(Err(e)) => publish_recorder_failure(&app, &id, "header", e.to_string()),
-                    Err(join_err) => {
-                        publish_recorder_failure(&app, &id, "header", join_err.to_string())
-                    }
-                }
-            }
+            } => handle_header(&app, &id, width, height, shell_label).await,
             QueueEntry::Event { kind, bytes } => {
-                let result = tokio::task::spawn_blocking({
-                    let app = app.clone();
-                    let id = id.clone();
-                    move || app.recorders.record_event(&id, kind, &bytes, &app.bus)
-                })
-                .await;
-                let total_after = match result {
-                    Ok(Ok(total)) => Some(total),
-                    Ok(Err(e)) => {
-                        publish_recorder_failure(&app, &id, "event", e.to_string());
-                        None
-                    }
-                    Err(join_err) => {
-                        publish_recorder_failure(&app, &id, "event", join_err.to_string());
-                        None
-                    }
-                };
-                if !rotate_requested {
-                    if let Some(total) = total_after {
-                        if total > MAX_FILE_BYTES {
-                            rotate_requested = true;
-                            app.bus.publish(Event::RecorderRotateRequested {
-                                id: id.clone(),
-                                bytes_written: total,
-                            });
-                        }
-                    }
-                }
+                handle_event(&app, &id, kind, bytes, &mut rotate_requested).await
             }
             QueueEntry::Rotate { new_path } => {
-                let result = tokio::task::spawn_blocking({
-                    let app = app.clone();
-                    let id = id.clone();
-                    move || app.recorders.rotate_to(&id, new_path, &app.bus)
-                })
-                .await;
-                match result {
-                    Ok(Ok(_)) => {}
-                    Ok(Err(e)) => publish_recorder_failure(&app, &id, "rotate", e.to_string()),
-                    Err(join_err) => {
-                        publish_recorder_failure(&app, &id, "rotate", join_err.to_string())
-                    }
-                }
-                // Reset the latched flag so the next over-cap write
-                // can request another rotation.
-                rotate_requested = false;
+                handle_rotate(&app, &id, new_path, &mut rotate_requested).await
             }
             QueueEntry::Close => {
-                let result = tokio::task::spawn_blocking({
-                    let app = app.clone();
-                    let id = id.clone();
-                    move || app.recorders.close_with_io(&id, &app.bus)
-                })
-                .await;
-                match result {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => publish_recorder_failure(&app, &id, "close", e.to_string()),
-                    Err(join_err) => {
-                        publish_recorder_failure(&app, &id, "close", join_err.to_string())
-                    }
-                }
+                handle_close(&app, &id).await;
                 // Slot is dropped by the higher-level `drop_worker`
                 // call so the WorkerHandle's `_join` does not point
                 // back at us during the unwind.
@@ -464,17 +399,104 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
         }
     }
     // Channel closed without an explicit Close — best-effort flush.
+    handle_close(&app, &id).await;
+}
+
+/// Resolve a `spawn_blocking` join result for a recorder op, routing
+/// both the inner `Error` and the `JoinError` through
+/// [`publish_recorder_failure`] under `kind`. Returns the op's value
+/// on success or `None` on either failure.
+fn resolve_blocking_result<T>(
+    app: &Arc<crate::app::AppState>,
+    id: &RecorderId,
+    kind: &str,
+    result: Result<Result<T, Error>, tokio::task::JoinError>,
+) -> Option<T> {
+    match result {
+        Ok(Ok(v)) => Some(v),
+        Ok(Err(e)) => {
+            publish_recorder_failure(app, id, kind, e.to_string());
+            None
+        }
+        Err(join_err) => {
+            publish_recorder_failure(app, id, kind, join_err.to_string());
+            None
+        }
+    }
+}
+
+async fn handle_header(
+    app: &Arc<crate::app::AppState>,
+    id: &RecorderId,
+    width: u32,
+    height: u32,
+    shell_label: String,
+) {
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let id = id.clone();
+        move || {
+            app.recorders
+                .record_header(&id, width, height, &shell_label, &app.bus)
+        }
+    })
+    .await;
+    resolve_blocking_result(app, id, "header", result);
+}
+
+async fn handle_event(
+    app: &Arc<crate::app::AppState>,
+    id: &RecorderId,
+    kind: RecordDirection,
+    bytes: Vec<u8>,
+    rotate_requested: &mut bool,
+) {
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let id = id.clone();
+        move || app.recorders.record_event(&id, kind, &bytes, &app.bus)
+    })
+    .await;
+    let total_after = resolve_blocking_result(app, id, "event", result);
+    if !*rotate_requested {
+        if let Some(total) = total_after {
+            if total > MAX_FILE_BYTES {
+                *rotate_requested = true;
+                app.bus.publish(Event::RecorderRotateRequested {
+                    id: id.clone(),
+                    bytes_written: total,
+                });
+            }
+        }
+    }
+}
+
+async fn handle_rotate(
+    app: &Arc<crate::app::AppState>,
+    id: &RecorderId,
+    new_path: String,
+    rotate_requested: &mut bool,
+) {
+    let result = tokio::task::spawn_blocking({
+        let app = app.clone();
+        let id = id.clone();
+        move || app.recorders.rotate_to(&id, new_path, &app.bus)
+    })
+    .await;
+    resolve_blocking_result(app, id, "rotate", result);
+    // Reset the latched flag so the next over-cap write
+    // can request another rotation.
+    *rotate_requested = false;
+}
+
+async fn handle_close(app: &Arc<crate::app::AppState>, id: &RecorderId) {
     let result = tokio::task::spawn_blocking({
         let app = app.clone();
         let id = id.clone();
         move || app.recorders.close_with_io(&id, &app.bus)
     })
     .await;
-    match result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => publish_recorder_failure(&app, &id, "close", e.to_string()),
-        Err(join_err) => publish_recorder_failure(&app, &id, "close", join_err.to_string()),
-    }
+    resolve_blocking_result(app, id, "close", result);
 }
 
 #[cfg(test)]

@@ -920,35 +920,52 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         ..
     } = args;
 
-    // ProxyJump bastion path — look up parent actor and grab its
-    // live `Arc<Session>`. If the parent is still `Connecting`,
-    // wait for it to settle (Connected → proceed; Disconnected →
-    // fail the child) up to [`PARENT_READY_TIMEOUT`]. The wait
-    // lives Rust-side so the FRB call surfaces the wait + the
-    // parent-failed branch in one place rather than splitting
-    // it across the Dart connect orchestrator.
-    let bastion_session = match bastion_id.as_deref() {
-        None => None,
-        Some(id) => {
-            wait_for_parent_ready(id).await?;
-            let app = crate::app::instance();
-            let handle = app
-                .connections
-                .get(id)
-                .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
-            let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
-            if actor.state != ConnectionState::Connected {
-                return Err(Error::Transport(format!(
-                    "ProxyJump parent '{id}' not yet connected (state {:?})",
-                    actor.state
-                )));
-            }
-            Some(actor.clone_session().ok_or_else(|| {
-                Error::Transport(format!("ProxyJump parent '{id}' has no live session"))
-            })?)
-        }
-    };
+    let bastion_session = resolve_bastion_session(bastion_id.as_deref()).await?;
 
+    dispatch_connect(host, port, user, auth, bastion_session).await
+}
+
+/// Resolve the ProxyJump bastion's live `Arc<Session>` for a child
+/// connect, or `None` when this connect has no bastion.
+///
+/// Looks up the parent actor and grabs its live session. If the
+/// parent is still `Connecting`, waits for it to settle (Connected
+/// → proceed; Disconnected → fail the child) up to
+/// [`PARENT_READY_TIMEOUT`]. The wait lives Rust-side so the FRB
+/// call surfaces the wait + the parent-failed branch in one place
+/// rather than splitting it across the Dart connect orchestrator.
+async fn resolve_bastion_session(bastion_id: Option<&str>) -> Result<Option<Arc<Session>>, Error> {
+    let Some(id) = bastion_id else {
+        return Ok(None);
+    };
+    wait_for_parent_ready(id).await?;
+    let app = crate::app::instance();
+    let handle = app
+        .connections
+        .get(id)
+        .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
+    let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
+    if actor.state != ConnectionState::Connected {
+        return Err(Error::Transport(format!(
+            "ProxyJump parent '{id}' not yet connected (state {:?})",
+            actor.state
+        )));
+    }
+    Ok(Some(actor.clone_session().ok_or_else(|| {
+        Error::Transport(format!("ProxyJump parent '{id}' has no live session"))
+    })?))
+}
+
+/// Dispatch the connect to the matching `Session::connect_*` entry
+/// point, choosing the bastion (`_via_proxy`) or direct variant
+/// based on `bastion_session`.
+async fn dispatch_connect(
+    host: String,
+    port: u16,
+    user: String,
+    auth: ConnectAuthRef,
+    bastion_session: Option<Arc<Session>>,
+) -> Result<Session, Error> {
     // Owned-arg `_owned` variants — `Session::connect_*_with_secret_owned`
     // (and `_via_proxy_with_secret_owned`) take `String`/`Arc<Session>`
     // by value so the resulting future is `Send + 'static` without

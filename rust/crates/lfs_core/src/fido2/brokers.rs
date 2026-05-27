@@ -152,26 +152,40 @@ pub fn select_transport(av: Availability) -> Transport {
                 Transport::None
             }
         }
-        Os::Windows | Os::Macos => {
-            if av.prefer_direct_hid && av.direct_hid {
-                Transport::DirectHid
-            } else if av.broker {
-                Transport::Broker
-            } else if av.direct_hid {
-                Transport::DirectHid
-            } else {
-                Transport::None
-            }
-        }
-        Os::Other => {
-            if av.direct_hid {
-                Transport::DirectHid
-            } else if av.broker {
-                Transport::Broker
-            } else {
-                Transport::None
-            }
-        }
+        Os::Windows | Os::Macos => select_desktop_transport(&av),
+        Os::Other => direct_hid_then_broker(&av),
+    }
+}
+
+/// Desktop preference order — honour the user's "prefer direct HID"
+/// toggle first, then fall back to broker, then any HID.
+fn select_desktop_transport(av: &Availability) -> Transport {
+    if av.prefer_direct_hid && av.direct_hid {
+        Transport::DirectHid
+    } else {
+        broker_then_direct_hid(av)
+    }
+}
+
+/// Broker first, then direct HID, then none.
+fn broker_then_direct_hid(av: &Availability) -> Transport {
+    if av.broker {
+        Transport::Broker
+    } else if av.direct_hid {
+        Transport::DirectHid
+    } else {
+        Transport::None
+    }
+}
+
+/// Direct HID first, then broker, then none.
+fn direct_hid_then_broker(av: &Availability) -> Transport {
+    if av.direct_hid {
+        Transport::DirectHid
+    } else if av.broker {
+        Transport::Broker
+    } else {
+        Transport::None
     }
 }
 

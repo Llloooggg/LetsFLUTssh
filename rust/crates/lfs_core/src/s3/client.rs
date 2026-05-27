@@ -63,7 +63,7 @@ const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 /// is true when the entry came from `<CommonPrefixes>` (S3's
 /// virtual-directory marker); files have an explicit key + size +
 /// last-modified.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct S3Object {
     pub key: String,
     pub size: u64,
@@ -817,20 +817,7 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
     // inside a key. Each element's accumulated text is trimmed once when
     // consumed in the `End` handler.
 
-    let mut objects: Vec<S3Object> = Vec::new();
-    let mut next_token: Option<String> = None;
-
-    let mut current_text = String::new();
-    let mut in_contents = false;
-    let mut in_common_prefix = false;
-    let mut cur_obj = S3Object {
-        key: String::new(),
-        size: 0,
-        last_modified_unix_ms: None,
-        etag: String::new(),
-        is_dir: false,
-    };
-    let mut cur_path: Vec<String> = Vec::new();
+    let mut state = ListParseState::default();
 
     loop {
         let event = reader
@@ -839,81 +826,113 @@ fn parse_list_objects_v2(body: &str) -> Result<S3ObjectPage, Error> {
         match event {
             Event::Start(start) => {
                 let name = String::from_utf8_lossy(start.name().as_ref()).into_owned();
-                cur_path.push(name.clone());
-                if name == "Contents" {
-                    in_contents = true;
-                    cur_obj = S3Object {
-                        key: String::new(),
-                        size: 0,
-                        last_modified_unix_ms: None,
-                        etag: String::new(),
-                        is_dir: false,
-                    };
-                } else if name == "CommonPrefixes" {
-                    in_common_prefix = true;
-                    cur_obj = S3Object {
-                        key: String::new(),
-                        size: 0,
-                        last_modified_unix_ms: None,
-                        etag: String::new(),
-                        is_dir: true,
-                    };
-                }
-                current_text.clear();
+                state.on_start(name);
             }
             Event::Text(text) => {
                 let decoded = text
                     .decode()
                     .map_err(|e| Error::S3(format!("ListObjectsV2 text decode: {e}")))?;
-                current_text.push_str(&decoded);
+                state.current_text.push_str(&decoded);
             }
             Event::GeneralRef(r) => {
                 let resolved = crate::xml::resolve_general_ref(&r)
                     .map_err(|e| Error::S3(format!("ListObjectsV2 xml entity: {e}")))?;
-                current_text.push_str(&resolved);
+                state.current_text.push_str(&resolved);
             }
             Event::End(end) => {
                 let name = String::from_utf8_lossy(end.name().as_ref()).into_owned();
-                // Trim the assembled value once (the reader no longer trims
-                // per event); inner spaces around a resolved entity survive.
-                let text = current_text.trim();
-                if in_contents {
-                    match name.as_str() {
-                        "Key" => cur_obj.key = text.to_string(),
-                        "Size" => cur_obj.size = text.parse().unwrap_or(0),
-                        "LastModified" => {
-                            cur_obj.last_modified_unix_ms = parse_iso8601_ms(text);
-                        }
-                        "ETag" => cur_obj.etag = text.trim_matches('"').to_string(),
-                        "Contents" => {
-                            objects.push(cur_obj.clone());
-                            in_contents = false;
-                        }
-                        _ => {}
-                    }
-                } else if in_common_prefix {
-                    match name.as_str() {
-                        "Prefix" => cur_obj.key = text.to_string(),
-                        "CommonPrefixes" => {
-                            objects.push(cur_obj.clone());
-                            in_common_prefix = false;
-                        }
-                        _ => {}
-                    }
-                } else if name == "NextContinuationToken" {
-                    next_token = Some(text.to_string());
-                }
-                current_text.clear();
-                cur_path.pop();
+                state.on_end(&name);
             }
             Event::Eof => break,
             _ => {}
         }
     }
     Ok(S3ObjectPage {
-        objects,
-        next_continuation_token: next_token,
+        objects: state.objects,
+        next_continuation_token: state.next_token,
     })
+}
+
+/// Mutable accumulator for [`parse_list_objects_v2`]. Tracks whether
+/// the cursor is inside a `<Contents>` (file) or `<CommonPrefixes>`
+/// (directory) element and assembles the current object's fields
+/// from the surrounding text events.
+#[derive(Default)]
+struct ListParseState {
+    objects: Vec<S3Object>,
+    next_token: Option<String>,
+    current_text: String,
+    in_contents: bool,
+    in_common_prefix: bool,
+    cur_obj: S3Object,
+    cur_path: Vec<String>,
+}
+
+impl ListParseState {
+    /// Handle a `Start` element: push the path segment, open a fresh
+    /// object on `Contents` / `CommonPrefixes`, and reset the text
+    /// accumulator.
+    fn on_start(&mut self, name: String) {
+        self.cur_path.push(name.clone());
+        if name == "Contents" {
+            self.in_contents = true;
+            self.cur_obj = S3Object {
+                is_dir: false,
+                ..S3Object::default()
+            };
+        } else if name == "CommonPrefixes" {
+            self.in_common_prefix = true;
+            self.cur_obj = S3Object {
+                is_dir: true,
+                ..S3Object::default()
+            };
+        }
+        self.current_text.clear();
+    }
+
+    /// Handle an `End` element: consume the accumulated text into the
+    /// matching field, close out a finished object, and pop the path.
+    fn on_end(&mut self, name: &str) {
+        // Trim the assembled value once (the reader no longer trims
+        // per event); inner spaces around a resolved entity survive.
+        let text = self.current_text.trim().to_string();
+        if self.in_contents {
+            self.on_end_in_contents(name, &text);
+        } else if self.in_common_prefix {
+            self.on_end_in_common_prefix(name, &text);
+        } else if name == "NextContinuationToken" {
+            self.next_token = Some(text);
+        }
+        self.current_text.clear();
+        self.cur_path.pop();
+    }
+
+    fn on_end_in_contents(&mut self, name: &str, text: &str) {
+        match name {
+            "Key" => self.cur_obj.key = text.to_string(),
+            "Size" => self.cur_obj.size = text.parse().unwrap_or(0),
+            "LastModified" => {
+                self.cur_obj.last_modified_unix_ms = parse_iso8601_ms(text);
+            }
+            "ETag" => self.cur_obj.etag = text.trim_matches('"').to_string(),
+            "Contents" => {
+                self.objects.push(self.cur_obj.clone());
+                self.in_contents = false;
+            }
+            _ => {}
+        }
+    }
+
+    fn on_end_in_common_prefix(&mut self, name: &str, text: &str) {
+        match name {
+            "Prefix" => self.cur_obj.key = text.to_string(),
+            "CommonPrefixes" => {
+                self.objects.push(self.cur_obj.clone());
+                self.in_common_prefix = false;
+            }
+            _ => {}
+        }
+    }
 }
 
 /// ISO-8601 → unix epoch ms. S3 timestamps come as

@@ -366,39 +366,55 @@ fn expand_includes(
     );
     let mut buf = String::new();
     for raw_line in content.lines() {
-        let stripped = strip_comment(raw_line);
-        let line = stripped.trim();
-        let mut expanded = false;
-        if !line.is_empty() {
-            if let Some((kw, value)) = split_keyword_value(line) {
-                if kw.eq_ignore_ascii_case("include") {
-                    for token in split_host_patterns(&value) {
-                        for resolved in resolve_include_paths(&token, base_dir) {
-                            if !visited.insert(resolved.clone()) {
-                                continue;
-                            }
-                            if let Some(included) = reader(&resolved) {
-                                buf.push_str(&expand_includes(
-                                    &included,
-                                    reader,
-                                    base_dir,
-                                    remaining - 1,
-                                    visited,
-                                ));
-                                buf.push('\n');
-                            }
-                        }
-                    }
-                    expanded = true;
-                }
-            }
-        }
-        if !expanded {
+        if !expand_include_line(raw_line, reader, base_dir, remaining, visited, &mut buf) {
             buf.push_str(raw_line);
             buf.push('\n');
         }
     }
     buf
+}
+
+/// Expand a single config line when it is an `Include` directive,
+/// appending the recursively-expanded contents to `buf`. Returns true
+/// when the line was an include (consumed); false means the caller
+/// emits the raw line verbatim.
+fn expand_include_line(
+    raw_line: &str,
+    reader: IncludeReader<'_>,
+    base_dir: &str,
+    remaining: usize,
+    visited: &mut std::collections::HashSet<String>,
+    buf: &mut String,
+) -> bool {
+    let stripped = strip_comment(raw_line);
+    let line = stripped.trim();
+    let Some((kw, value)) = (!line.is_empty())
+        .then(|| split_keyword_value(line))
+        .flatten()
+    else {
+        return false;
+    };
+    if !kw.eq_ignore_ascii_case("include") {
+        return false;
+    }
+    for token in split_host_patterns(&value) {
+        for resolved in resolve_include_paths(&token, base_dir) {
+            if !visited.insert(resolved.clone()) {
+                continue;
+            }
+            if let Some(included) = reader(&resolved) {
+                buf.push_str(&expand_includes(
+                    &included,
+                    reader,
+                    base_dir,
+                    remaining - 1,
+                    visited,
+                ));
+                buf.push('\n');
+            }
+        }
+    }
+    true
 }
 
 /// Real-filesystem variant of [`expand_includes`]. Walks the
@@ -426,38 +442,53 @@ fn expand_includes_with_fs(
     );
     let mut buf = String::new();
     for raw_line in content.lines() {
-        let stripped = strip_comment(raw_line);
-        let line = stripped.trim();
-        let mut expanded = false;
-        if !line.is_empty() {
-            if let Some((kw, value)) = split_keyword_value(line) {
-                if kw.eq_ignore_ascii_case("include") {
-                    for token in split_host_patterns(&value) {
-                        for resolved in resolve_include_paths_with_fs(&token, base_dir) {
-                            if !visited.insert(resolved.clone()) {
-                                continue;
-                            }
-                            if let Some(included) = read_include_file(&resolved) {
-                                buf.push_str(&expand_includes_with_fs(
-                                    &included,
-                                    base_dir,
-                                    remaining - 1,
-                                    visited,
-                                ));
-                                buf.push('\n');
-                            }
-                        }
-                    }
-                    expanded = true;
-                }
-            }
-        }
-        if !expanded {
+        if !expand_include_line_with_fs(raw_line, base_dir, remaining, visited, &mut buf) {
             buf.push_str(raw_line);
             buf.push('\n');
         }
     }
     buf
+}
+
+/// Real-filesystem counterpart to [`expand_include_line`]: resolves
+/// glob tokens against the real parent directory and reads each
+/// matched file from disk. Returns true when the line was an
+/// `Include` (consumed); false means the caller emits the raw line.
+fn expand_include_line_with_fs(
+    raw_line: &str,
+    base_dir: &str,
+    remaining: usize,
+    visited: &mut std::collections::HashSet<String>,
+    buf: &mut String,
+) -> bool {
+    let stripped = strip_comment(raw_line);
+    let line = stripped.trim();
+    let Some((kw, value)) = (!line.is_empty())
+        .then(|| split_keyword_value(line))
+        .flatten()
+    else {
+        return false;
+    };
+    if !kw.eq_ignore_ascii_case("include") {
+        return false;
+    }
+    for token in split_host_patterns(&value) {
+        for resolved in resolve_include_paths_with_fs(&token, base_dir) {
+            if !visited.insert(resolved.clone()) {
+                continue;
+            }
+            if let Some(included) = read_include_file(&resolved) {
+                buf.push_str(&expand_includes_with_fs(
+                    &included,
+                    base_dir,
+                    remaining - 1,
+                    visited,
+                ));
+                buf.push('\n');
+            }
+        }
+    }
+    true
 }
 
 /// Resolve one include token — possibly containing `*` / `?` —

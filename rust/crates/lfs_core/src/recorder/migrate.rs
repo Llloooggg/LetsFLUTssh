@@ -318,44 +318,14 @@ fn convert_one_cast_to_lfsr(cast_path: &Path, new_db_key: &[u8; 32]) -> Result<b
             if buf.iter().all(|b| matches!(b, b'\r' | b'\n')) {
                 continue;
             }
-            // Frame layout: [len(4 LE)][nonce(12)][ct+tag(payload+16)].
-            // AAD = frame_index_u64_le, same as the writer.
-            let payload = &buf[..];
-            let mut nonce = [0u8; NONCE_LEN];
-            rand::rng().fill_bytes(&mut nonce);
-            let aad = frame_index.to_le_bytes();
-            let ct = crate::crypto::aes_gcm_encrypt_raw(&recording_key[..], &nonce, payload, &aad)?;
-            // Pre-claim the offset BEFORE writing — sidecar maps
-            // a target timestamp into the byte offset the frame
-            // started at on disk.
-            let frame_offset = bytes_written;
-            let pt_len = u32::try_from(payload.len()).map_err(|_| {
-                Error::Recorder("cast frame payload exceeds u32 length".to_string())
-            })?;
-            out.write_all(&pt_len.to_le_bytes())
-                .and_then(|_| out.write_all(&nonce))
-                .and_then(|_| out.write_all(&ct))
-                .map_err(|e| Error::Recorder(format!("cast→lfsr frame write: {e}")))?;
-            bytes_written += 4 + NONCE_LEN as u64 + ct.len() as u64;
-
-            // Append a sidecar entry per event (not per header line).
-            // The first line in an asciinema cast is the header
-            // object; events start at line 2. We treat every line
-            // the same — the cap reader skips the header at
-            // playback time so a few unreachable sidecar entries
-            // are harmless.
-            if let Some(ts_ms) = parse_event_timestamp_ms(payload) {
-                let entry = index_sidecar::IndexEntry {
-                    offset: frame_offset,
-                    timestamp_ms: ts_ms,
-                };
-                if let Err(e) = sidecar.append(entry) {
-                    crate::app_log_warn!(
-                        "Recorder",
-                        "convert cast→lfsr sidecar append failed (best-effort): {e}"
-                    );
-                }
-            }
+            bytes_written += encode_cast_frame(
+                &buf,
+                frame_index,
+                bytes_written,
+                &recording_key,
+                &mut out,
+                &mut sidecar,
+            )?;
             frame_index = frame_index.saturating_add(1);
         }
         out.sync_all()
@@ -404,6 +374,56 @@ fn convert_one_cast_to_lfsr(cast_path: &Path, new_db_key: &[u8; 32]) -> Result<b
         let _ = fs::remove_file(&cast_sidecar);
     }
     Ok(true)
+}
+
+/// Encrypt and write one `.cast` line as an `.lfsr` frame, appending
+/// a best-effort sidecar entry. `frame_offset` is the byte offset
+/// the frame starts at on disk (`bytes_written` before this call),
+/// which the sidecar maps a target timestamp into. Returns the
+/// number of bytes written for this frame so the caller can advance
+/// its running offset.
+///
+/// Frame layout: `[len(4 LE)][nonce(12)][ct+tag(payload+16)]`.
+/// AAD = `frame_index` as little-endian u64, same as the writer.
+fn encode_cast_frame(
+    payload: &[u8],
+    frame_index: u64,
+    frame_offset: u64,
+    recording_key: &[u8; 32],
+    out: &mut fs::File,
+    sidecar: &mut index_sidecar::IndexWriter,
+) -> Result<u64, Error> {
+    use rand::Rng;
+    let mut nonce = [0u8; NONCE_LEN];
+    rand::rng().fill_bytes(&mut nonce);
+    let aad = frame_index.to_le_bytes();
+    let ct = crate::crypto::aes_gcm_encrypt_raw(&recording_key[..], &nonce, payload, &aad)?;
+    let pt_len = u32::try_from(payload.len())
+        .map_err(|_| Error::Recorder("cast frame payload exceeds u32 length".to_string()))?;
+    out.write_all(&pt_len.to_le_bytes())
+        .and_then(|_| out.write_all(&nonce))
+        .and_then(|_| out.write_all(&ct))
+        .map_err(|e| Error::Recorder(format!("cast→lfsr frame write: {e}")))?;
+
+    // Append a sidecar entry per event (not per header line).
+    // The first line in an asciinema cast is the header
+    // object; events start at line 2. We treat every line
+    // the same — the cap reader skips the header at
+    // playback time so a few unreachable sidecar entries
+    // are harmless.
+    if let Some(ts_ms) = parse_event_timestamp_ms(payload) {
+        let entry = index_sidecar::IndexEntry {
+            offset: frame_offset,
+            timestamp_ms: ts_ms,
+        };
+        if let Err(e) = sidecar.append(entry) {
+            crate::app_log_warn!(
+                "Recorder",
+                "convert cast→lfsr sidecar append failed (best-effort): {e}"
+            );
+        }
+    }
+    Ok(4 + NONCE_LEN as u64 + ct.len() as u64)
 }
 
 /// Demote one `.lfsr` recording to plaintext `.cast`. Reads the
@@ -516,38 +536,47 @@ fn for_each_file_with_ext<F: FnMut(&Path) -> Result<(), Error>>(
         Err(_) => return Ok(()),
     };
     for session_entry in entries.flatten() {
-        let session_path = session_entry.path();
-        let ty = match session_entry.file_type() {
-            Ok(t) => t,
-            Err(_) => continue,
-        };
-        if !ty.is_dir() {
+        if !session_entry
+            .file_type()
+            .map(|t| t.is_dir())
+            .unwrap_or(false)
+        {
             continue;
         }
-        let inner = match fs::read_dir(&session_path) {
-            Ok(it) => it,
-            Err(_) => continue,
-        };
-        for file_entry in inner.flatten() {
-            let file_path = file_entry.path();
-            let ft = match file_entry.file_type() {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
-            // Skip symlinks + directories at the file layer.
-            if !ft.is_file() {
-                continue;
-            }
-            let matches = file_path
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|s| s.eq_ignore_ascii_case(ext))
-                .unwrap_or(false);
-            if !matches {
-                continue;
-            }
-            op(&file_path)?;
+        apply_in_session_dir(&session_entry.path(), ext, &mut op)?;
+    }
+    Ok(())
+}
+
+/// Apply `op` to every file directly under `session_path` whose
+/// extension matches `ext` (ASCII-case-insensitive). Symlinks and
+/// nested directories at the file layer are skipped; an unreadable
+/// session directory is silently ignored (the caller already
+/// filtered to directories).
+fn apply_in_session_dir<F: FnMut(&Path) -> Result<(), Error>>(
+    session_path: &Path,
+    ext: &str,
+    op: &mut F,
+) -> Result<(), Error> {
+    let inner = match fs::read_dir(session_path) {
+        Ok(it) => it,
+        Err(_) => return Ok(()),
+    };
+    for file_entry in inner.flatten() {
+        let file_path = file_entry.path();
+        // Skip symlinks + directories at the file layer.
+        if !file_entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
         }
+        let matches = file_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.eq_ignore_ascii_case(ext))
+            .unwrap_or(false);
+        if !matches {
+            continue;
+        }
+        op(&file_path)?;
     }
     Ok(())
 }

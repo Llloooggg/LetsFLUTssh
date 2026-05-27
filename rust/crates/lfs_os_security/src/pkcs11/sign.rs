@@ -26,7 +26,8 @@
 
 use cryptoki::mechanism::eddsa::{EddsaParams, EddsaSignatureScheme};
 use cryptoki::mechanism::Mechanism;
-use cryptoki::object::{Attribute, AttributeType, KeyType, ObjectClass};
+use cryptoki::object::{Attribute, AttributeType, KeyType, ObjectClass, ObjectHandle};
+use cryptoki::session::Session as CkSession;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 
 use super::error::Error;
@@ -92,78 +93,104 @@ pub fn sign_with_pkcs11(req: SignRequest<'_>) -> Result<SignOutput, Error> {
 
         // Pre-hash + mechanism selection per the table in the plan.
         if kt == KeyType::EC_EDWARDS {
-            // Ed25519 — raw, no pre-hash; mechanism CKM_EDDSA with the
-            // `Pure` scheme. Output is the raw 64-byte signature.
-            let mechanism = Mechanism::Eddsa(EddsaParams::new(EddsaSignatureScheme::Pure));
-            let raw = ck
-                .sign(&mechanism, key_handle, req.to_sign)
-                .map_err(map_sign_err)?;
-            if raw.len() != 64 {
-                return Err(Error::SignRefused(format!(
-                    "ed25519 token returned {} bytes; expected 64",
-                    raw.len()
-                )));
-            }
-            // SSH wire: `string(sig)` — one length prefix.
-            let mut out = Vec::with_capacity(raw.len() + 4);
-            push_string(&mut out, &raw);
-            return Ok(SignOutput { ssh_sig_body: out });
+            return sign_ed25519(ck, key_handle, req.to_sign);
         }
         if kt == KeyType::EC {
-            // ECDSA — pre-hash by the SSH algorithm string. CKM_ECDSA
-            // wants the hash digest as input; the token signs the
-            // digest and returns raw `r || s` concatenated.
-            let digest = match req.algorithm {
-                "ecdsa-sha2-nistp256" => sha256(req.to_sign),
-                "ecdsa-sha2-nistp384" => sha384(req.to_sign),
-                "ecdsa-sha2-nistp521" => sha512(req.to_sign),
-                other => {
-                    return Err(Error::SignRefused(format!(
-                        "ecdsa algorithm {other:?} not recognised"
-                    )));
-                }
-            };
-            let raw = ck
-                .sign(&Mechanism::Ecdsa, key_handle, &digest)
-                .map_err(map_sign_err)?;
-            if raw.is_empty() || raw.len() % 2 != 0 {
-                return Err(Error::SignRefused(format!(
-                    "ecdsa token returned odd-length raw signature ({} bytes)",
-                    raw.len()
-                )));
-            }
-            let half = raw.len() / 2;
-            let mut out = Vec::with_capacity(raw.len() + 16);
-            push_mpint(&mut out, &raw[..half]);
-            push_mpint(&mut out, &raw[half..]);
-            return Ok(SignOutput { ssh_sig_body: out });
+            return sign_ecdsa(ck, key_handle, req.algorithm, req.to_sign);
         }
         if kt == KeyType::RSA {
-            // RSA-PKCS#1 v1.5 — token expects the DigestInfo prefix
-            // baked in. We pre-build it client-side and call the
-            // raw `CKM_RSA_PKCS` mechanism. Old `ssh-rsa` (SHA-1)
-            // is server-deprecated; we never offer it.
-            let (digest_info, _expected_hashbytes) = match req.algorithm {
-                "rsa-sha2-256" => (rsa_digestinfo_sha256(req.to_sign), 32),
-                "rsa-sha2-512" => (rsa_digestinfo_sha512(req.to_sign), 64),
-                other => {
-                    return Err(Error::SignRefused(format!(
-                        "rsa algorithm {other:?} not recognised (old ssh-rsa SHA-1 is refused)"
-                    )));
-                }
-            };
-            let raw = ck
-                .sign(&Mechanism::RsaPkcs, key_handle, &digest_info)
-                .map_err(map_sign_err)?;
-            let mut out = Vec::with_capacity(raw.len() + 4);
-            push_string(&mut out, &raw);
-            return Ok(SignOutput { ssh_sig_body: out });
+            return sign_rsa(ck, key_handle, req.algorithm, req.to_sign);
         }
         Err(Error::UnsupportedKeyType(format!(
             "CKK {} cannot be signed for SSH",
             *kt
         )))
     })
+}
+
+/// Ed25519 — raw, no pre-hash; mechanism CKM_EDDSA with the `Pure`
+/// scheme. Output is the raw 64-byte signature wrapped as SSH wire
+/// `string(sig)` (one length prefix).
+fn sign_ed25519(
+    ck: &CkSession,
+    key_handle: ObjectHandle,
+    to_sign: &[u8],
+) -> Result<SignOutput, Error> {
+    let mechanism = Mechanism::Eddsa(EddsaParams::new(EddsaSignatureScheme::Pure));
+    let raw = ck
+        .sign(&mechanism, key_handle, to_sign)
+        .map_err(map_sign_err)?;
+    if raw.len() != 64 {
+        return Err(Error::SignRefused(format!(
+            "ed25519 token returned {} bytes; expected 64",
+            raw.len()
+        )));
+    }
+    let mut out = Vec::with_capacity(raw.len() + 4);
+    push_string(&mut out, &raw);
+    Ok(SignOutput { ssh_sig_body: out })
+}
+
+/// ECDSA — pre-hash by the SSH algorithm string. CKM_ECDSA wants the
+/// hash digest as input; the token signs the digest and returns raw
+/// `r || s` concatenated, which we re-encode as two SSH mpints.
+fn sign_ecdsa(
+    ck: &CkSession,
+    key_handle: ObjectHandle,
+    algorithm: &str,
+    to_sign: &[u8],
+) -> Result<SignOutput, Error> {
+    let digest = match algorithm {
+        "ecdsa-sha2-nistp256" => sha256(to_sign),
+        "ecdsa-sha2-nistp384" => sha384(to_sign),
+        "ecdsa-sha2-nistp521" => sha512(to_sign),
+        other => {
+            return Err(Error::SignRefused(format!(
+                "ecdsa algorithm {other:?} not recognised"
+            )));
+        }
+    };
+    let raw = ck
+        .sign(&Mechanism::Ecdsa, key_handle, &digest)
+        .map_err(map_sign_err)?;
+    if raw.is_empty() || raw.len() % 2 != 0 {
+        return Err(Error::SignRefused(format!(
+            "ecdsa token returned odd-length raw signature ({} bytes)",
+            raw.len()
+        )));
+    }
+    let half = raw.len() / 2;
+    let mut out = Vec::with_capacity(raw.len() + 16);
+    push_mpint(&mut out, &raw[..half]);
+    push_mpint(&mut out, &raw[half..]);
+    Ok(SignOutput { ssh_sig_body: out })
+}
+
+/// RSA-PKCS#1 v1.5 — the token expects the DigestInfo prefix baked
+/// in. We pre-build it client-side and call the raw `CKM_RSA_PKCS`
+/// mechanism. Old `ssh-rsa` (SHA-1) is server-deprecated; we never
+/// offer it.
+fn sign_rsa(
+    ck: &CkSession,
+    key_handle: ObjectHandle,
+    algorithm: &str,
+    to_sign: &[u8],
+) -> Result<SignOutput, Error> {
+    let (digest_info, _expected_hashbytes) = match algorithm {
+        "rsa-sha2-256" => (rsa_digestinfo_sha256(to_sign), 32),
+        "rsa-sha2-512" => (rsa_digestinfo_sha512(to_sign), 64),
+        other => {
+            return Err(Error::SignRefused(format!(
+                "rsa algorithm {other:?} not recognised (old ssh-rsa SHA-1 is refused)"
+            )));
+        }
+    };
+    let raw = ck
+        .sign(&Mechanism::RsaPkcs, key_handle, &digest_info)
+        .map_err(map_sign_err)?;
+    let mut out = Vec::with_capacity(raw.len() + 4);
+    push_string(&mut out, &raw);
+    Ok(SignOutput { ssh_sig_body: out })
 }
 
 /// Map the SSH algorithm string to the [`KeyClass`] the public-key
