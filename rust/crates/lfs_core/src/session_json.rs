@@ -226,15 +226,34 @@ pub fn encode_canonical_json(input: &SessionJsonInput) -> Result<String, String>
     obj.insert("key_path".into(), json!(input.key_path));
     obj.insert("created_at".into(), json!(input.created_at_iso));
     obj.insert("updated_at".into(), json!(input.updated_at_iso));
-    if !input.extras_json.is_empty() {
-        let parsed: Value = serde_json::from_str(&input.extras_json)
-            .map_err(|e| format!("extras_json parse: {e}"))?;
-        if let Some(map) = parsed.as_object() {
-            if !map.is_empty() {
-                obj.insert("extras".into(), parsed);
-            }
+    insert_extras(&mut obj, input)?;
+    insert_via(&mut obj, input);
+    insert_optional_scalars(&mut obj, input);
+    insert_credentials(&mut obj, input);
+    serde_json::to_string(&Value::Object(obj))
+        .map_err(|e| format!("session_canonical_json serialise: {e}"))
+}
+
+/// Insert the `extras` object when `extras_json` parses to a
+/// non-empty JSON object. An empty / absent `extras_json` is
+/// omitted; a malformed one is a hard error.
+fn insert_extras(obj: &mut Map<String, Value>, input: &SessionJsonInput) -> Result<(), String> {
+    if input.extras_json.is_empty() {
+        return Ok(());
+    }
+    let parsed: Value =
+        serde_json::from_str(&input.extras_json).map_err(|e| format!("extras_json parse: {e}"))?;
+    if let Some(map) = parsed.as_object() {
+        if !map.is_empty() {
+            obj.insert("extras".into(), parsed);
         }
     }
+    Ok(())
+}
+
+/// Insert the ProxyJump keys — `via_session_id` (only when set and
+/// non-empty) and `via_override` (the host/port/user triple).
+fn insert_via(obj: &mut Map<String, Value>, input: &SessionJsonInput) {
     if let Some(via) = input.via_session_id.as_deref() {
         if !via.is_empty() {
             obj.insert("via_session_id".into(), json!(via));
@@ -246,6 +265,12 @@ pub fn encode_canonical_json(input: &SessionJsonInput) -> Result<String, String>
             json!({"host": over.host, "port": over.port, "user": over.user}),
         );
     }
+}
+
+/// Insert the conditionally-omitted scalar keys — `notes`,
+/// `sort_order`, `last_connected_at_ms` — only when they carry a
+/// non-default value.
+fn insert_optional_scalars(obj: &mut Map<String, Value>, input: &SessionJsonInput) {
     if !input.notes.is_empty() {
         obj.insert("notes".into(), json!(input.notes));
     }
@@ -255,13 +280,16 @@ pub fn encode_canonical_json(input: &SessionJsonInput) -> Result<String, String>
     if let Some(ms) = input.last_connected_at_ms {
         obj.insert("last_connected_at_ms".into(), json!(ms));
     }
+}
+
+/// Insert the secret-bearing keys only when the caller opted in via
+/// `include_credentials`.
+fn insert_credentials(obj: &mut Map<String, Value>, input: &SessionJsonInput) {
     if input.include_credentials {
         obj.insert("password".into(), json!(input.password));
         obj.insert("key_data".into(), json!(input.key_data));
         obj.insert("passphrase".into(), json!(input.passphrase));
     }
-    serde_json::to_string(&Value::Object(obj))
-        .map_err(|e| format!("session_canonical_json serialise: {e}"))
 }
 
 /// Parse a canonical JSON payload into a [`SessionJsonOutput`].

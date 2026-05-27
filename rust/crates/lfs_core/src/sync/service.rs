@@ -321,26 +321,8 @@ async fn pull_with_client(
     // pull's payload after a server-side ETag rotation) skips
     // the decrypt + merge work.
     let body_sha256 = sha256_hex(&body_vec);
-    let matches_pushed =
-        !cfg.last_pushed_sha256.is_empty() && body_sha256 == cfg.last_pushed_sha256;
-    let matches_pulled =
-        !cfg.last_pulled_sha256.is_empty() && body_sha256 == cfg.last_pulled_sha256;
-    if matches_pushed || matches_pulled {
-        // Body is identical to a side we've already merged — only
-        // the server-rotated ETag needs persisting so the next
-        // conditional GET hits 304.
-        let mut updated = cfg.clone();
-        let cfg_changed = if !remote_etag.is_empty() && remote_etag != updated.last_pulled_etag {
-            updated.last_pulled_etag = remote_etag;
-            updated.last_pulled_sha256 = body_sha256;
-            true
-        } else {
-            false
-        };
-        return Ok(PullOutcome {
-            result: SyncResult::UpToDate,
-            updated_cfg: if cfg_changed { Some(updated) } else { None },
-        });
+    if let Some(outcome) = sha_match_outcome(cfg, &remote_etag, &body_sha256) {
+        return Ok(outcome);
     }
 
     // Decrypt + parse against the user's sync passphrase.
@@ -348,30 +330,9 @@ async fn pull_with_client(
     // check pipeline `read_archive_to_pending` enforces for
     // user-driven imports.
     let pending = parse_archive_bytes(&body_vec, passphrase)?;
-    if let Some(origin) = parse_sync_origin(&pending) {
-        // Manifest's origin starts with our own install id ⇒ the
-        // archive we just pulled is one we pushed (server
-        // round-tripped without a peer touching it). Persist the
-        // observed ETag + body hash so the next conditional GET
-        // can short-circuit at 304 even when the local
-        // `last_pushed_etag` rotated server-side.
-        if origin.starts_with(&format!("{install_id}:")) {
-            let mut updated = cfg.clone();
-            let cfg_changed = if !remote_etag.is_empty()
-                && (remote_etag != updated.last_pulled_etag
-                    || body_sha256 != updated.last_pulled_sha256)
-            {
-                updated.last_pulled_etag = remote_etag;
-                updated.last_pulled_sha256 = body_sha256;
-                true
-            } else {
-                false
-            };
-            return Ok(PullOutcome {
-                result: SyncResult::UpToDate,
-                updated_cfg: if cfg_changed { Some(updated) } else { None },
-            });
-        }
+    if let Some(outcome) = own_origin_outcome(cfg, &pending, install_id, &remote_etag, &body_sha256)
+    {
+        return Ok(outcome);
     }
 
     let merge_outcome =
@@ -397,6 +358,71 @@ async fn pull_with_client(
             bookmarks_merged: merge_outcome.bookmarks_merged,
         },
         updated_cfg: Some(updated),
+    })
+}
+
+/// Short-circuit when the fetched body's SHA matches a side we've
+/// already merged (our last push or last pull). The body is
+/// identical to merged state, so only a server-rotated ETag needs
+/// persisting (so the next conditional GET hits 304). Returns the
+/// `UpToDate` outcome, or `None` when neither cached hash matches.
+fn sha_match_outcome(
+    cfg: &SyncConfig,
+    remote_etag: &str,
+    body_sha256: &str,
+) -> Option<PullOutcome> {
+    let matches_pushed =
+        !cfg.last_pushed_sha256.is_empty() && body_sha256 == cfg.last_pushed_sha256;
+    let matches_pulled =
+        !cfg.last_pulled_sha256.is_empty() && body_sha256 == cfg.last_pulled_sha256;
+    if !(matches_pushed || matches_pulled) {
+        return None;
+    }
+    let mut updated = cfg.clone();
+    let cfg_changed = if !remote_etag.is_empty() && remote_etag != updated.last_pulled_etag {
+        updated.last_pulled_etag = remote_etag.to_string();
+        updated.last_pulled_sha256 = body_sha256.to_string();
+        true
+    } else {
+        false
+    };
+    Some(PullOutcome {
+        result: SyncResult::UpToDate,
+        updated_cfg: if cfg_changed { Some(updated) } else { None },
+    })
+}
+
+/// Short-circuit when the decrypted archive's manifest origin starts
+/// with our own install id ⇒ the archive we just pulled is one we
+/// pushed (the server round-tripped it without a peer touching it).
+/// Persist the observed ETag + body hash so the next conditional GET
+/// can short-circuit at 304 even when the local `last_pushed_etag`
+/// rotated server-side. Returns `None` when the origin is a peer's
+/// (the caller proceeds to merge).
+fn own_origin_outcome(
+    cfg: &SyncConfig,
+    pending: &PendingImport,
+    install_id: &str,
+    remote_etag: &str,
+    body_sha256: &str,
+) -> Option<PullOutcome> {
+    let origin = parse_sync_origin(pending)?;
+    if !origin.starts_with(&format!("{install_id}:")) {
+        return None;
+    }
+    let mut updated = cfg.clone();
+    let cfg_changed = if !remote_etag.is_empty()
+        && (remote_etag != updated.last_pulled_etag || body_sha256 != updated.last_pulled_sha256)
+    {
+        updated.last_pulled_etag = remote_etag.to_string();
+        updated.last_pulled_sha256 = body_sha256.to_string();
+        true
+    } else {
+        false
+    };
+    Some(PullOutcome {
+        result: SyncResult::UpToDate,
+        updated_cfg: if cfg_changed { Some(updated) } else { None },
     })
 }
 

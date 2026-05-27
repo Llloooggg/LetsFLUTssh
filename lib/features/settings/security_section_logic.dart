@@ -11,6 +11,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
+
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
@@ -82,13 +84,7 @@ String? autoLockDisabledReason({
 BiometricModifierSpec? biometricSpecFor({
   required S l10n,
   required SecurityTier tier,
-  required SecurityTier currentLevel,
-  required SecurityTierModifiers currentModifiers,
-  required bool tierAvailable,
-  required String? tierUnavailableReason,
-  required BiometricAvailability availability,
-  required bool probed,
-  required bool biometricEnabled,
+  required BiometricSpecEnv env,
 }) {
   if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
     return null;
@@ -96,37 +92,37 @@ BiometricModifierSpec? biometricSpecFor({
   // T1+pw is `keychain` + `modifiers.password=true`, not a
   // dedicated tier value, so `tier == currentLevel` covers the
   // "current is T1+pw" case directly without a special case.
-  final isCurrent = tier == currentLevel;
+  final isCurrent = tier == env.currentLevel;
 
   final platformReason = biometricPlatformReason(
     l10n: l10n,
-    availability: availability,
-    probed: probed,
+    availability: env.availability,
+    probed: env.probed,
   );
   if (platformReason != null) {
     return BiometricModifierSpec(
       enabled: false,
-      value: biometricEnabled,
+      value: env.biometricEnabled,
       onChanged: (_) {},
       disabledReason: platformReason,
     );
   }
 
-  if (tierAvailable && !isCurrent) {
+  if (env.tierAvailable && !isCurrent) {
     return BiometricModifierSpec(
       enabled: false,
-      value: biometricEnabled,
+      value: env.biometricEnabled,
       onChanged: (_) {},
       disabledReason: l10n.biometricRequiresActiveTier,
     );
   }
 
-  if (!tierAvailable) {
+  if (!env.tierAvailable) {
     return BiometricModifierSpec(
       enabled: false,
-      value: biometricEnabled,
+      value: env.biometricEnabled,
       onChanged: (_) {},
-      disabledReason: tierUnavailableReason,
+      disabledReason: env.tierUnavailableReason,
     );
   }
 
@@ -134,22 +130,47 @@ BiometricModifierSpec? biometricSpecFor({
   // a password-gated keychain is just `currentModifiers.password`
   // on the keychain tier, not a dedicated tier.
   final hasPassword =
-      currentLevel == SecurityTier.paranoid || currentModifiers.password;
+      env.currentLevel == SecurityTier.paranoid ||
+      env.currentModifiers.password;
   if (!hasPassword) {
     return BiometricModifierSpec(
       enabled: false,
-      value: biometricEnabled,
+      value: env.biometricEnabled,
       onChanged: (_) {},
       disabledReason: l10n.biometricRequiresPassword,
     );
   }
 
   return BiometricModifierSpec(
-    enabled: probed,
-    value: biometricEnabled,
+    enabled: env.probed,
+    value: env.biometricEnabled,
     onChanged: (_) {},
     disabledReason: null,
   );
+}
+
+/// Ambient inputs to [biometricSpecFor] other than `l10n` and the tier
+/// being rendered: the currently-applied tier + modifiers, the per-tier
+/// availability, the platform probe state, and the toggle's stored value.
+@immutable
+class BiometricSpecEnv {
+  const BiometricSpecEnv({
+    required this.currentLevel,
+    required this.currentModifiers,
+    required this.tierAvailable,
+    required this.tierUnavailableReason,
+    required this.availability,
+    required this.probed,
+    required this.biometricEnabled,
+  });
+
+  final SecurityTier currentLevel;
+  final SecurityTierModifiers currentModifiers;
+  final bool tierAvailable;
+  final String? tierUnavailableReason;
+  final BiometricAvailability availability;
+  final bool probed;
+  final bool biometricEnabled;
 }
 
 /// True when the [current] → [next] transition drops a *verifiable*
@@ -603,22 +624,7 @@ Future<void> applyParanoidTier({
 Future<void> applyKeychainWithPasswordTier({
   required String? shortPassword,
   required SecurityTierModifiers modifiers,
-  required Future<void> Function(Uint8List pw) gateSetPassword,
-  required Future<void> Function() gateClear,
-  required String Function() stageRandomKey,
-  required Future<bool> Function(String secretId) keychainWriteFromSecret,
-  required Future<void> Function(
-    String secretId,
-    SecurityTier level,
-    SecurityTierModifiers mods,
-  )
-  applyAlwaysRekeyFromSecret,
-  required void Function(String secretId) dropStaged,
-  required Future<void> Function(
-    SecurityTier target,
-    SecurityTierModifiers modifiers,
-  )
-  runClearPlan,
+  required KeychainTierSeams seams,
 }) async {
   if (shortPassword == null || shortPassword.isEmpty) {
     throw StateError('short password missing');
@@ -626,19 +632,56 @@ Future<void> applyKeychainWithPasswordTier({
   // Convert here so the gate seam — which lands on the FRB
   // `Vec<u8>` boundary — never sees the typed `String`.
   final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
-  await gateSetPassword(passwordBytes);
-  final secretId = stageRandomKey();
-  final stored = await keychainWriteFromSecret(secretId);
+  await seams.gateSetPassword(passwordBytes);
+  final secretId = seams.stageRandomKey();
+  final stored = await seams.keychainWriteFromSecret(secretId);
   if (!stored) {
-    dropStaged(secretId);
-    await gateClear();
+    seams.dropStaged(secretId);
+    await seams.gateClear();
     throw StateError('keychain write failed');
   }
   // Bank-style: T1+password is `keychain` + `modifiers
   // .password=true`; the rekey + clear-plan dispatch both bind on
   // the same tier value as plain keychain.
-  await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);
-  await runClearPlan(SecurityTier.keychain, modifiers);
+  await seams.applyAlwaysRekeyFromSecret(
+    secretId,
+    SecurityTier.keychain,
+    modifiers,
+  );
+  await seams.runClearPlan(SecurityTier.keychain, modifiers);
+}
+
+/// Injected dependencies for [applyKeychainWithPasswordTier]. Each field
+/// is the provider method the production caller wires in; tests pass
+/// recording lambdas so the rollback path is exercised without Riverpod.
+@immutable
+class KeychainTierSeams {
+  const KeychainTierSeams({
+    required this.gateSetPassword,
+    required this.gateClear,
+    required this.stageRandomKey,
+    required this.keychainWriteFromSecret,
+    required this.applyAlwaysRekeyFromSecret,
+    required this.dropStaged,
+    required this.runClearPlan,
+  });
+
+  final Future<void> Function(Uint8List pw) gateSetPassword;
+  final Future<void> Function() gateClear;
+  final String Function() stageRandomKey;
+  final Future<bool> Function(String secretId) keychainWriteFromSecret;
+  final Future<void> Function(
+    String secretId,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekeyFromSecret;
+  final void Function(String secretId) dropStaged;
+  final Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan;
 }
 
 /// Outcome of [confirmCurrentPasswordIfDropping]. Distinguishes the
@@ -683,10 +726,7 @@ Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   required SecurityTierModifiers currentModifiers,
   required SecurityTier targetTier,
   required SecurityTierModifiers targetModifiers,
-  required Future<String?> Function() promptCurrentPassword,
-  required Future<bool> Function(Uint8List) verifyMaster,
-  required Future<bool> Function(Uint8List) verifyKeychainGate,
-  required Future<bool> Function(String) verifyHardwareVault,
+  required PasswordVerifierSeams verifiers,
 }) async {
   if (!isVerifiablePasswordDrop(
     currentTier: currentTier,
@@ -696,23 +736,43 @@ Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   )) {
     return ConfirmPasswordResult.notRequired;
   }
-  final entered = await promptCurrentPassword();
+  final entered = await verifiers.promptCurrentPassword();
   if (entered == null) return ConfirmPasswordResult.cancelled;
   final ok = switch (passwordVerifierKindFor(currentTier)) {
     // Master + keychain verifiers marshal Uint8List over FRB —
     // convert here so the typed `String` from the dialog stays in
     // this scope only.
-    PasswordVerifierKind.masterPassword => await verifyMaster(
+    PasswordVerifierKind.masterPassword => await verifiers.verifyMaster(
       Uint8List.fromList(utf8.encode(entered)),
     ),
-    PasswordVerifierKind.keychainGate => await verifyKeychainGate(
+    PasswordVerifierKind.keychainGate => await verifiers.verifyKeychainGate(
       Uint8List.fromList(utf8.encode(entered)),
     ),
     // Hardware unseal takes the String directly — the HMAC is
     // computed Rust-side from the typed bytes + per-install salt.
-    PasswordVerifierKind.hardwareVault => await verifyHardwareVault(entered),
+    PasswordVerifierKind.hardwareVault => await verifiers.verifyHardwareVault(
+      entered,
+    ),
   };
   return ok ? ConfirmPasswordResult.ok : ConfirmPasswordResult.wrongPassword;
+}
+
+/// Injected verifiers for [confirmCurrentPasswordIfDropping]. The prompt
+/// seam surfaces the inline current-password dialog; each `verify*` seam
+/// is the provider method matching one [PasswordVerifierKind].
+@immutable
+class PasswordVerifierSeams {
+  const PasswordVerifierSeams({
+    required this.promptCurrentPassword,
+    required this.verifyMaster,
+    required this.verifyKeychainGate,
+    required this.verifyHardwareVault,
+  });
+
+  final Future<String?> Function() promptCurrentPassword;
+  final Future<bool> Function(Uint8List) verifyMaster;
+  final Future<bool> Function(Uint8List) verifyKeychainGate;
+  final Future<bool> Function(String) verifyHardwareVault;
 }
 
 /// Run the [plan] decided by [tierVaultClearPlanFor] through the

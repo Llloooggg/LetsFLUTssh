@@ -230,260 +230,303 @@ pub fn prepare_auth(
     let mut transients: Vec<String> = Vec::new();
     let mut session_passphrase_id: Option<String> = None;
 
-    // 1. Saved-session path.
-    if let Some(session_id) = &input.session_id {
-        if let Some(staged) = sessions::stage_secrets_into_store(conn, session_id)? {
-            if staged.has_passphrase {
-                session_passphrase_id = Some(format!("sess.passphrase.{session_id}"));
-            }
-            if staged.has_key_data {
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::Pubkey {
-                        key_secret_id: format!("sess.key.{session_id}"),
-                        passphrase_secret_id: session_passphrase_id,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            if staged.has_password {
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::Password {
-                        secret_id: format!("sess.password.{session_id}"),
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-        }
+    if let Some(prepared) =
+        try_saved_session(conn, input, &mut transients, &mut session_passphrase_id)?
+    {
+        return Ok(prepared);
+    }
+    if let Some(prepared) = try_manager_key(conn, input, &mut transients, &session_passphrase_id)? {
+        return Ok(prepared);
+    }
+    Ok(quick_connect_fallback(
+        input,
+        transients,
+        session_passphrase_id,
+    ))
+}
+
+/// Precedence 1 — saved-session secrets staged into the store. Sets
+/// `session_passphrase_id` for downstream paths even when it falls
+/// through (no key / password staged).
+fn try_saved_session(
+    conn: &impl crate::db::DbAccess,
+    input: &PrepareAuthInput,
+    transients: &mut Vec<String>,
+    session_passphrase_id: &mut Option<String>,
+) -> Result<Option<PreparedAuth>, Error> {
+    let Some(session_id) = &input.session_id else {
+        return Ok(None);
+    };
+    let Some(staged) = sessions::stage_secrets_into_store(conn, session_id)? else {
+        return Ok(None);
+    };
+    if staged.has_passphrase {
+        *session_passphrase_id = Some(format!("sess.passphrase.{session_id}"));
+    }
+    if staged.has_key_data {
+        return Ok(Some(PreparedAuth {
+            auth: PreparedAuthRef::Pubkey {
+                key_secret_id: format!("sess.key.{session_id}"),
+                passphrase_secret_id: session_passphrase_id.clone(),
+            },
+            transient_secret_ids: std::mem::take(transients),
+        }));
+    }
+    if staged.has_password {
+        return Ok(Some(PreparedAuth {
+            auth: PreparedAuthRef::Password {
+                secret_id: format!("sess.password.{session_id}"),
+            },
+            transient_secret_ids: std::mem::take(transients),
+        }));
+    }
+    Ok(None)
+}
+
+/// Precedence 2 — manager-key path. Hardware backends
+/// (Enclave / Hello / TPM / Keystore / PKCS#11) short-circuit ahead
+/// of the FIDO2 `sk-*` and software-pubkey paths because their
+/// `private_key` column is empty by design. Cert-paired variants are
+/// picked over the plain pubkey: the CA-signed cert is strictly
+/// stronger. Returns None to fall through to the quick-connect path.
+fn try_manager_key(
+    conn: &impl crate::db::DbAccess,
+    input: &PrepareAuthInput,
+    transients: &mut Vec<String>,
+    session_passphrase_id: &Option<String>,
+) -> Result<Option<PreparedAuth>, Error> {
+    if input.key_id.is_empty() {
+        return Ok(None);
+    }
+    let Some(row) = ssh_keys::get(conn, &input.key_id)? else {
+        return Ok(None);
+    };
+
+    let hardware_ref = match row.backend {
+        ssh_keys::KeyBackend::Enclave => Some(enclave_ref(&row)?),
+        ssh_keys::KeyBackend::Hello => Some(hello_ref(&row)?),
+        ssh_keys::KeyBackend::Tpm => Some(tpm_ref(&row, input, transients)?),
+        ssh_keys::KeyBackend::Keystore => Some(keystore_ref(&row)?),
+        ssh_keys::KeyBackend::Pkcs11 => Some(pkcs11_ref(&row, input, transients)?),
+        _ => None,
+    };
+    if let Some(auth) = hardware_ref {
+        return Ok(Some(PreparedAuth {
+            auth,
+            transient_secret_ids: std::mem::take(transients),
+        }));
     }
 
-    // 2. Manager-key path. Three sub-paths in precedence order:
-    //    a) FIDO2 hardware-bound `sk-*` key — `credential_id IS NOT
-    //       NULL` on the row. The PEM is the SSH wire-format public
-    //       key body, not a usable private key, so this branch
-    //       short-circuits ahead of any private-key staging.
-    //    b) cert-paired software key — the cert is strictly stronger
-    //       (CA-signed) than the plain pubkey it pairs with.
-    //    c) plain software pubkey.
-    if !input.key_id.is_empty() {
-        if let Some(row) = ssh_keys::get(conn, &input.key_id)? {
-            // Apple Secure Enclave sub-branch — takes precedence
-            // over every software-key path because the row's
-            // `private_key` column is empty by design (on-chip)
-            // and the OS handles its own auth prompt inside
-            // SecKeyCreateSignature; no Dart-side PIN dialog
-            // pre-staging is needed.
-            if row.backend == ssh_keys::KeyBackend::Enclave {
-                let application_tag = row
-                    .enclave_tag
-                    .clone()
-                    .ok_or_else(|| Error::Auth("enclave row missing enclave_tag".into()))?;
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeyEnclave {
-                        public_openssh: row.public_key.clone(),
-                        application_tag,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            // Windows Hello sub-branch — same shape as the Enclave
-            // arm above: row's `private_key` column is empty by
-            // design (TPM-bound) and the Hello prompt fires inside
-            // `NCryptSignHash` at the OS layer, no Dart-side PIN
-            // pre-staging.
-            if row.backend == ssh_keys::KeyBackend::Hello {
-                let credential_name = row
-                    .hello_credential_name
-                    .clone()
-                    .ok_or_else(|| Error::Auth("hello row missing hello_credential_name".into()))?;
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeyHello {
-                        public_openssh: row.public_key.clone(),
-                        credential_name,
-                        key_type: row.key_type.clone(),
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            // TPM 2.0 sub-branch — `private_key` is empty by design;
-            // the connect path reaches the wrapped blob bytes
-            // (`tss-esapi`) or CNG name (`cng-pcp`) via the
-            // PreparedAuthRef and signs through
-            // `Session::connect_pubkey_tpm_owned`. PIN-bound rows
-            // stage the PIN under `tpm.pin.<key_id>` so the signer
-            // resolves it without crossing FRB on every sign.
-            if row.backend == ssh_keys::KeyBackend::Tpm {
-                let provider = row
-                    .tpm_provider
-                    .clone()
-                    .ok_or_else(|| Error::Auth("tpm row missing tpm_provider".into()))?;
-                let pin_secret_id = if row.tpm_pin_required && !input.pin.is_empty() {
-                    let id = format!("tpm.pin.{}", input.key_id);
-                    crate::app::instance()
-                        .secrets
-                        .put(&id, input.pin.as_bytes());
-                    transients.push(id.clone());
-                    Some(id)
-                } else {
-                    None
-                };
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeyTpm {
-                        public_openssh: row.public_key.clone(),
-                        provider,
-                        blob: row.tpm_blob.clone(),
-                        cng_key_name: row.cng_key_name.clone(),
-                        key_type: row.key_type.clone(),
-                        pin_secret_id,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            // Android Hardware Keystore sub-branch — `private_key` is
-            // empty by design (the AndroidKeyStore holds the key);
-            // every sign hops through
-            // `Session::connect_pubkey_keystore_owned` which fires
-            // `BiometricPrompt.CryptoObject` for the per-op auth.
-            // No Dart-side PIN staging — the OS handles its own
-            // biometric / device-unlock prompt inside the signer.
-            if row.backend == ssh_keys::KeyBackend::Keystore {
-                let keystore_alias = row
-                    .keystore_alias
-                    .clone()
-                    .ok_or_else(|| Error::Auth("keystore row missing keystore_alias".into()))?;
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeyKeystore {
-                        public_openssh: row.public_key.clone(),
-                        keystore_alias,
-                        key_type: row.key_type.clone(),
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            // PKCS#11 sub-branch — the row's `backend = 'pkcs11'`
-            // takes precedence over the FIDO2 / cert / plain-pubkey
-            // branches because the `private_key` column is empty
-            // by design (hardware-bound) and falling through would
-            // try to stage zero bytes for the connect.
-            if row.backend == ssh_keys::KeyBackend::Pkcs11 {
-                let module_path = row
-                    .pkcs11_module_path
-                    .clone()
-                    .ok_or_else(|| Error::Auth("pkcs11 row missing module_path".into()))?;
-                let token_serial = row
-                    .pkcs11_token_serial
-                    .clone()
-                    .ok_or_else(|| Error::Auth("pkcs11 row missing token_serial".into()))?;
-                let cka_id = row
-                    .pkcs11_object_id
-                    .clone()
-                    .ok_or_else(|| Error::Auth("pkcs11 row missing object_id".into()))?;
-                let pin_secret_id = if !input.pin.is_empty() {
-                    let id = format!("pkcs11.pin.{}", input.key_id);
-                    crate::app::instance()
-                        .secrets
-                        .put(&id, input.pin.as_bytes());
-                    transients.push(id.clone());
-                    Some(id)
-                } else {
-                    None
-                };
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeyPkcs11 {
-                        public_openssh: row.public_key.clone(),
-                        module_path,
-                        token_serial,
-                        cka_id,
-                        key_type: row.key_type.clone(),
-                        pin_secret_id,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            if let (Some(credential_id), Some(application)) =
-                (&row.credential_id, &row.application_string)
-            {
-                // sk-* row. `public_key` carries the captured
-                // `id_*.pub` body the connect path re-parses to
-                // recover the SSH `Algorithm`. PIN staging is
-                // transient under `key.pin.<id>` so the bytes do
-                // not survive the connect handshake. Cert pairing
-                // gets the same precedence treatment as the
-                // software path — when a cert is attached the
-                // composer picks the cert-bearing variant so the
-                // user authenticates with the strictly stronger
-                // CA-signed credential.
-                let pin_secret_id = if row.has_user_verification && !input.pin.is_empty() {
-                    let id = format!("key.pin.{}", input.key_id);
-                    crate::app::instance()
-                        .secrets
-                        .put(&id, input.pin.as_bytes());
-                    transients.push(id.clone());
-                    Some(id)
-                } else {
-                    None
-                };
-                if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
-                    return Ok(PreparedAuth {
-                        auth: PreparedAuthRef::PubkeySkCert {
-                            public_openssh: row.public_key.clone(),
-                            credential_id: credential_id.clone(),
-                            application: application.clone(),
-                            has_user_verification: row.has_user_verification,
-                            cert_secret_id: ssh_key_certificates::certificate_secret_id(
-                                &input.key_id,
-                            ),
-                            pin_secret_id,
-                        },
-                        transient_secret_ids: transients,
-                    });
-                }
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::PubkeySk {
-                        public_openssh: row.public_key.clone(),
-                        credential_id: credential_id.clone(),
-                        application: application.clone(),
-                        has_user_verification: row.has_user_verification,
-                        pin_secret_id,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-            if ssh_keys::stage_secret_into_store(conn, &input.key_id)? {
-                let mut passphrase_secret_id = session_passphrase_id.clone();
-                if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
-                    let id = format!("key.passphrase.{}", input.key_id);
-                    crate::app::instance()
-                        .secrets
-                        .put(&id, input.passphrase.as_bytes());
-                    transients.push(id.clone());
-                    passphrase_secret_id = Some(id);
-                }
-                let key_secret_id = format!("key.priv.{}", input.key_id);
-                if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
-                    return Ok(PreparedAuth {
-                        auth: PreparedAuthRef::PubkeyCert {
-                            key_secret_id,
-                            cert_secret_id: ssh_key_certificates::certificate_secret_id(
-                                &input.key_id,
-                            ),
-                            passphrase_secret_id,
-                        },
-                        transient_secret_ids: transients,
-                    });
-                }
-                return Ok(PreparedAuth {
-                    auth: PreparedAuthRef::Pubkey {
-                        key_secret_id,
-                        passphrase_secret_id,
-                    },
-                    transient_secret_ids: transients,
-                });
-            }
-        }
+    if let (Some(credential_id), Some(application)) = (&row.credential_id, &row.application_string)
+    {
+        let auth = sk_ref(conn, input, &row, credential_id, application, transients)?;
+        return Ok(Some(PreparedAuth {
+            auth,
+            transient_secret_ids: std::mem::take(transients),
+        }));
     }
 
-    // 3. Quick-connect fallback. Every id under `conn.*` is
-    //    transient — caller drops them after the dial settles.
+    software_pubkey_auth(conn, input, transients, session_passphrase_id)
+}
+
+// Apple Secure Enclave — `private_key` is empty (on-chip); the OS
+// handles its own prompt inside SecKeyCreateSignature, so no Dart-
+// side PIN pre-staging.
+fn enclave_ref(row: &ssh_keys::SshKeyRow) -> Result<PreparedAuthRef, Error> {
+    let application_tag = row
+        .enclave_tag
+        .clone()
+        .ok_or_else(|| Error::Auth("enclave row missing enclave_tag".into()))?;
+    Ok(PreparedAuthRef::PubkeyEnclave {
+        public_openssh: row.public_key.clone(),
+        application_tag,
+    })
+}
+
+// Windows Hello — `private_key` is empty (TPM-bound); the Hello
+// prompt fires inside `NCryptSignHash` at the OS layer.
+fn hello_ref(row: &ssh_keys::SshKeyRow) -> Result<PreparedAuthRef, Error> {
+    let credential_name = row
+        .hello_credential_name
+        .clone()
+        .ok_or_else(|| Error::Auth("hello row missing hello_credential_name".into()))?;
+    Ok(PreparedAuthRef::PubkeyHello {
+        public_openssh: row.public_key.clone(),
+        credential_name,
+        key_type: row.key_type.clone(),
+    })
+}
+
+// TPM 2.0 — the connect path reaches the wrapped blob (`tss-esapi`)
+// or CNG name (`cng-pcp`) and signs through
+// `Session::connect_pubkey_tpm_owned`. PIN-bound rows stage the PIN
+// under `tpm.pin.<key_id>` so the signer resolves it without crossing
+// FRB on every sign.
+fn tpm_ref(
+    row: &ssh_keys::SshKeyRow,
+    input: &PrepareAuthInput,
+    transients: &mut Vec<String>,
+) -> Result<PreparedAuthRef, Error> {
+    let provider = row
+        .tpm_provider
+        .clone()
+        .ok_or_else(|| Error::Auth("tpm row missing tpm_provider".into()))?;
+    let pin_secret_id = if row.tpm_pin_required && !input.pin.is_empty() {
+        Some(stage_pin(transients, "tpm.pin", &input.key_id, &input.pin))
+    } else {
+        None
+    };
+    Ok(PreparedAuthRef::PubkeyTpm {
+        public_openssh: row.public_key.clone(),
+        provider,
+        blob: row.tpm_blob.clone(),
+        cng_key_name: row.cng_key_name.clone(),
+        key_type: row.key_type.clone(),
+        pin_secret_id,
+    })
+}
+
+// Android Hardware Keystore — `private_key` is empty (the
+// AndroidKeyStore holds the key); every sign hops through
+// `Session::connect_pubkey_keystore_owned`, which fires
+// `BiometricPrompt.CryptoObject` for the per-op auth.
+fn keystore_ref(row: &ssh_keys::SshKeyRow) -> Result<PreparedAuthRef, Error> {
+    let keystore_alias = row
+        .keystore_alias
+        .clone()
+        .ok_or_else(|| Error::Auth("keystore row missing keystore_alias".into()))?;
+    Ok(PreparedAuthRef::PubkeyKeystore {
+        public_openssh: row.public_key.clone(),
+        keystore_alias,
+        key_type: row.key_type.clone(),
+    })
+}
+
+// PKCS#11 — `private_key` is empty (hardware-bound); falling through
+// would try to stage zero bytes for the connect.
+fn pkcs11_ref(
+    row: &ssh_keys::SshKeyRow,
+    input: &PrepareAuthInput,
+    transients: &mut Vec<String>,
+) -> Result<PreparedAuthRef, Error> {
+    let module_path = row
+        .pkcs11_module_path
+        .clone()
+        .ok_or_else(|| Error::Auth("pkcs11 row missing module_path".into()))?;
+    let token_serial = row
+        .pkcs11_token_serial
+        .clone()
+        .ok_or_else(|| Error::Auth("pkcs11 row missing token_serial".into()))?;
+    let cka_id = row
+        .pkcs11_object_id
+        .clone()
+        .ok_or_else(|| Error::Auth("pkcs11 row missing object_id".into()))?;
+    let pin_secret_id = if !input.pin.is_empty() {
+        Some(stage_pin(
+            transients,
+            "pkcs11.pin",
+            &input.key_id,
+            &input.pin,
+        ))
+    } else {
+        None
+    };
+    Ok(PreparedAuthRef::PubkeyPkcs11 {
+        public_openssh: row.public_key.clone(),
+        module_path,
+        token_serial,
+        cka_id,
+        key_type: row.key_type.clone(),
+        pin_secret_id,
+    })
+}
+
+// FIDO2 `sk-*` row. `public_key` carries the captured `id_*.pub`
+// body the connect path re-parses to recover the SSH `Algorithm`.
+// PIN staging is transient under `key.pin.<id>`. A paired cert wins
+// over the plain credential — the CA-signed credential is stronger.
+fn sk_ref(
+    conn: &impl crate::db::DbAccess,
+    input: &PrepareAuthInput,
+    row: &ssh_keys::SshKeyRow,
+    credential_id: &[u8],
+    application: &str,
+    transients: &mut Vec<String>,
+) -> Result<PreparedAuthRef, Error> {
+    let pin_secret_id = if row.has_user_verification && !input.pin.is_empty() {
+        Some(stage_pin(transients, "key.pin", &input.key_id, &input.pin))
+    } else {
+        None
+    };
+    if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
+        return Ok(PreparedAuthRef::PubkeySkCert {
+            public_openssh: row.public_key.clone(),
+            credential_id: credential_id.to_vec(),
+            application: application.to_string(),
+            has_user_verification: row.has_user_verification,
+            cert_secret_id: ssh_key_certificates::certificate_secret_id(&input.key_id),
+            pin_secret_id,
+        });
+    }
+    Ok(PreparedAuthRef::PubkeySk {
+        public_openssh: row.public_key.clone(),
+        credential_id: credential_id.to_vec(),
+        application: application.to_string(),
+        has_user_verification: row.has_user_verification,
+        pin_secret_id,
+    })
+}
+
+// Software pubkey — stages the private-key bytes (and passphrase, if
+// not already carried from the session). Returns None when no key
+// bytes stage, so the caller falls through to quick-connect.
+fn software_pubkey_auth(
+    conn: &impl crate::db::DbAccess,
+    input: &PrepareAuthInput,
+    transients: &mut Vec<String>,
+    session_passphrase_id: &Option<String>,
+) -> Result<Option<PreparedAuth>, Error> {
+    if !ssh_keys::stage_secret_into_store(conn, &input.key_id)? {
+        return Ok(None);
+    }
+    let mut passphrase_secret_id = session_passphrase_id.clone();
+    if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
+        let id = format!("key.passphrase.{}", input.key_id);
+        crate::app::instance()
+            .secrets
+            .put(&id, input.passphrase.as_bytes());
+        transients.push(id.clone());
+        passphrase_secret_id = Some(id);
+    }
+    let key_secret_id = format!("key.priv.{}", input.key_id);
+    let auth = if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
+        PreparedAuthRef::PubkeyCert {
+            key_secret_id,
+            cert_secret_id: ssh_key_certificates::certificate_secret_id(&input.key_id),
+            passphrase_secret_id,
+        }
+    } else {
+        PreparedAuthRef::Pubkey {
+            key_secret_id,
+            passphrase_secret_id,
+        }
+    };
+    Ok(Some(PreparedAuth {
+        auth,
+        transient_secret_ids: std::mem::take(transients),
+    }))
+}
+
+// Precedence 3 — quick-connect fallback. Every id under `conn.*` is
+// transient; the caller drops them after the dial settles. Empty
+// auth still stages an empty password so the actor receives a
+// Ref-shaped variant — russh surfaces "no credentials" naturally and
+// no alternate plaintext code path leaks through the bus.
+fn quick_connect_fallback(
+    input: &PrepareAuthInput,
+    mut transients: Vec<String>,
+    session_passphrase_id: Option<String>,
+) -> PreparedAuth {
     let transient_id = crate::id::random_handle_hex_32();
     let store = &crate::app::instance().secrets;
 
@@ -491,44 +534,49 @@ pub fn prepare_auth(
         let key_secret_id = format!("conn.key.{transient_id}");
         store.put(&key_secret_id, input.key_data.as_bytes());
         transients.push(key_secret_id.clone());
-        let mut passphrase_secret_id = session_passphrase_id.clone();
+        let mut passphrase_secret_id = session_passphrase_id;
         if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
             let id = format!("conn.passphrase.{transient_id}");
             store.put(&id, input.passphrase.as_bytes());
             transients.push(id.clone());
             passphrase_secret_id = Some(id);
         }
-        return Ok(PreparedAuth {
+        return PreparedAuth {
             auth: PreparedAuthRef::Pubkey {
                 key_secret_id,
                 passphrase_secret_id,
             },
             transient_secret_ids: transients,
-        });
+        };
     }
 
     if !input.password.is_empty() {
         let id = format!("conn.password.{transient_id}");
         store.put(&id, input.password.as_bytes());
         transients.push(id.clone());
-        return Ok(PreparedAuth {
+        return PreparedAuth {
             auth: PreparedAuthRef::Password { secret_id: id },
             transient_secret_ids: transients,
-        });
+        };
     }
 
-    // Empty auth — stage an empty password as a transient so the
-    // actor still receives a Ref-shaped variant. russh surfaces
-    // "no credentials" naturally; pushing the bytes via SecretStore
-    // avoids leaking an alternate plaintext code path through the
-    // bus.
     let id = format!("conn.password.{transient_id}");
     store.put(&id, b"");
     transients.push(id.clone());
-    Ok(PreparedAuth {
+    PreparedAuth {
         auth: PreparedAuthRef::Password { secret_id: id },
         transient_secret_ids: transients,
-    })
+    }
+}
+
+/// Stage a PIN under `<prefix>.<key_id>` in the secret store, record
+/// it as transient, and return the id. Shared by the TPM / PKCS#11 /
+/// `sk-*` paths, which differ only in the id prefix.
+fn stage_pin(transients: &mut Vec<String>, prefix: &str, key_id: &str, pin: &str) -> String {
+    let id = format!("{prefix}.{key_id}");
+    crate::app::instance().secrets.put(&id, pin.as_bytes());
+    transients.push(id.clone());
+    id
 }
 
 #[cfg(test)]

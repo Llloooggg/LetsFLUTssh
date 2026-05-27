@@ -80,42 +80,7 @@ impl Sftp {
     /// round-trips pay one channel turnaround each — one FRB hop
     /// regardless of tree depth.
     pub async fn dir_size_recursive(&self, path: &str, max_depth: u32) -> Result<u64, Error> {
-        // Async recursion in Rust requires indirection — use a
-        // Box::pin'd inner future. Mirrors the pattern in
-        // `lfs_core::fs::local::copy_recursive_no_symlinks`.
-        fn walk<'a>(
-            sftp: &'a Sftp,
-            path: &'a str,
-            depth: u32,
-            max_depth: u32,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<u64, Error>> + Send + 'a>>
-        {
-            Box::pin(async move {
-                let entries = sftp.list(path).await?;
-                let mut total: u64 = 0;
-                for entry in entries {
-                    if entry.is_symlink {
-                        continue;
-                    }
-                    if entry.is_dir {
-                        if depth >= max_depth {
-                            continue;
-                        }
-                        let child = if path.ends_with('/') {
-                            format!("{path}{}", entry.name)
-                        } else {
-                            format!("{path}/{}", entry.name)
-                        };
-                        total =
-                            total.saturating_add(walk(sftp, &child, depth + 1, max_depth).await?);
-                    } else {
-                        total = total.saturating_add(entry.size);
-                    }
-                }
-                Ok(total)
-            })
-        }
-        walk(self, path, 0, max_depth).await
+        dir_size_walk(self, path, 0, max_depth).await
     }
 
     /// Recursively enumerate every leaf (non-directory) file under
@@ -137,51 +102,8 @@ impl Sftp {
         path: &str,
         max_depth: u32,
     ) -> Result<Vec<FlatRemoteFile>, Error> {
-        fn walk<'a>(
-            sftp: &'a Sftp,
-            path: &'a str,
-            rel_prefix: String,
-            depth: u32,
-            max_depth: u32,
-            out: &'a mut Vec<FlatRemoteFile>,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>>
-        {
-            Box::pin(async move {
-                if depth >= max_depth {
-                    return Ok(());
-                }
-                let entries = sftp.list(path).await?;
-                for entry in entries {
-                    if entry.name == "." || entry.name == ".." || entry.is_symlink {
-                        continue;
-                    }
-                    if !crate::path::is_safe_transfer_entry_name(&entry.name) {
-                        continue;
-                    }
-                    let child_path = if path.ends_with('/') {
-                        format!("{path}{}", entry.name)
-                    } else {
-                        format!("{path}/{}", entry.name)
-                    };
-                    let child_rel = if rel_prefix.is_empty() {
-                        entry.name.clone()
-                    } else {
-                        format!("{rel_prefix}/{}", entry.name)
-                    };
-                    if entry.is_dir {
-                        walk(sftp, &child_path, child_rel, depth + 1, max_depth, out).await?;
-                    } else {
-                        out.push(FlatRemoteFile {
-                            rel_path: child_rel,
-                            size: entry.size,
-                        });
-                    }
-                }
-                Ok(())
-            })
-        }
         let mut out = Vec::new();
-        walk(self, path, String::new(), 0, max_depth, &mut out).await?;
+        flat_walk(self, path, String::new(), 0, max_depth, &mut out).await?;
         Ok(out)
     }
 
@@ -359,6 +281,93 @@ fn remove_dir_recursive_inner<'a>(
             }
         }
         sftp.remove_dir(path).await?;
+        Ok(())
+    })
+}
+
+/// Join a remote child `name` onto `parent`, inserting a `/` only
+/// when `parent` does not already end with one.
+fn join_remote_child(parent: &str, name: &str) -> String {
+    if parent.ends_with('/') {
+        format!("{parent}{name}")
+    } else {
+        format!("{parent}/{name}")
+    }
+}
+
+/// Recursive byte-size walk backing [`Sftp::dir_size_recursive`].
+/// Async recursion in Rust requires indirection — a `Box::pin`'d
+/// inner future. Mirrors the pattern in
+/// `lfs_core::fs::local::copy_recursive_no_symlinks`. Symlinks are
+/// skipped; subdirectories recurse up to `max_depth`.
+fn dir_size_walk<'a>(
+    sftp: &'a Sftp,
+    path: &'a str,
+    depth: u32,
+    max_depth: u32,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<u64, Error>> + Send + 'a>> {
+    Box::pin(async move {
+        let entries = sftp.list(path).await?;
+        let mut total: u64 = 0;
+        for entry in entries {
+            if entry.is_symlink {
+                continue;
+            }
+            if entry.is_dir {
+                if depth >= max_depth {
+                    continue;
+                }
+                let child = join_remote_child(path, &entry.name);
+                total =
+                    total.saturating_add(dir_size_walk(sftp, &child, depth + 1, max_depth).await?);
+            } else {
+                total = total.saturating_add(entry.size);
+            }
+        }
+        Ok(total)
+    })
+}
+
+/// Recursive leaf-file walk backing [`Sftp::flat_walk_files`].
+/// Skips `.`/`..` and symlinks, validates each server-supplied name
+/// through [`crate::path::is_safe_transfer_entry_name`], and pushes
+/// every leaf with its `/`-joined relative path. Stops descending at
+/// `max_depth`.
+fn flat_walk<'a>(
+    sftp: &'a Sftp,
+    path: &'a str,
+    rel_prefix: String,
+    depth: u32,
+    max_depth: u32,
+    out: &'a mut Vec<FlatRemoteFile>,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= max_depth {
+            return Ok(());
+        }
+        let entries = sftp.list(path).await?;
+        for entry in entries {
+            if entry.name == "." || entry.name == ".." || entry.is_symlink {
+                continue;
+            }
+            if !crate::path::is_safe_transfer_entry_name(&entry.name) {
+                continue;
+            }
+            let child_path = join_remote_child(path, &entry.name);
+            let child_rel = if rel_prefix.is_empty() {
+                entry.name.clone()
+            } else {
+                format!("{rel_prefix}/{}", entry.name)
+            };
+            if entry.is_dir {
+                flat_walk(sftp, &child_path, child_rel, depth + 1, max_depth, out).await?;
+            } else {
+                out.push(FlatRemoteFile {
+                    rel_path: child_rel,
+                    size: entry.size,
+                });
+            }
+        }
         Ok(())
     })
 }

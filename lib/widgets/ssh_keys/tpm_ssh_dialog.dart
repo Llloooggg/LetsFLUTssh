@@ -237,22 +237,11 @@ class _TpmSshDialogState extends State<TpmSshDialog>
         ),
         if (disabled) ...[
           const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppTheme.red.withValues(alpha: 0.08),
-              borderRadius: AppTheme.radiusSm,
-              border: Border.all(color: AppTheme.red.withValues(alpha: 0.3)),
-            ),
-            child: AppSelectionArea(
-              child: Text(
-                reason,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.sm,
-                  color: AppTheme.red,
-                ),
-              ),
-            ),
+          _warningBanner(
+            message: reason,
+            color: AppTheme.red,
+            fontSize: AppFonts.sm,
+            borderAlpha: 0.3,
           ),
         ],
         // Silent-warning banner on Windows — the silent variant signs
@@ -260,22 +249,11 @@ class _TpmSshDialogState extends State<TpmSshDialog>
         // this before opting in.
         if (!disabled && _isWindows) ...[
           const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppTheme.orange.withValues(alpha: 0.08),
-              borderRadius: AppTheme.radiusSm,
-              border: Border.all(color: AppTheme.orange.withValues(alpha: 0.4)),
-            ),
-            child: AppSelectionArea(
-              child: Text(
-                s.tpmSshSilentWarning,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.orange,
-                ),
-              ),
-            ),
+          _warningBanner(
+            message: s.tpmSshSilentWarning,
+            color: AppTheme.orange,
+            fontSize: AppFonts.xs,
+            borderAlpha: 0.4,
           ),
         ],
         const SizedBox(height: AppSpacing.lg),
@@ -287,129 +265,11 @@ class _TpmSshDialogState extends State<TpmSshDialog>
           decoration: InputDecoration(labelText: s.tpmSshLabel),
         ),
         const SizedBox(height: AppSpacing.lg),
-        RadioGroup<rust_tpm.DbTpmSshAlgorithm>(
-          groupValue: _algo,
-          onChanged: (rust_tpm.DbTpmSshAlgorithm? v) {
-            if (disabled || v == null) return;
-            setState(() => _algo = v);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<rust_tpm.DbTpmSshAlgorithm>(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                value: rust_tpm.DbTpmSshAlgorithm.ecdsaP256,
-                title: Text(
-                  s.tpmSshAlgEcdsa,
-                  style: AppFonts.mono(fontSize: AppFonts.sm),
-                ),
-              ),
-              RadioListTile<rust_tpm.DbTpmSshAlgorithm>(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                value: rust_tpm.DbTpmSshAlgorithm.rsa2048,
-                title: Text(
-                  s.tpmSshAlgRsa,
-                  style: AppFonts.mono(fontSize: AppFonts.sm),
-                ),
-              ),
-            ],
-          ),
-        ),
+        _buildAlgorithmSelector(s, disabled),
         // PIN policy — Linux only. Windows silent variant has no PIN
         // concept; the Hello-gated wizard handles the PIN-on-every-sign
         // case via its own dialog.
-        if (_isLinux) ...[
-          const SizedBox(height: AppSpacing.lg),
-          CheckboxListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              s.tpmSshPinProtect,
-              style: AppFonts.inter(fontSize: AppFonts.sm),
-            ),
-            value: _protectWithPin,
-            onChanged: disabled
-                ? null
-                : (v) => setState(() => _protectWithPin = v ?? false),
-          ),
-          if (_protectWithPin) ...[
-            TextField(
-              controller: _pinCtrl,
-              obscureText: true,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(labelText: s.tpmSshPinProtect),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _pinConfirmCtrl,
-              obscureText: true,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(labelText: s.tpmSshPinProtect),
-            ),
-            if (!_pinValid &&
-                _pinCtrl.text.isNotEmpty &&
-                _pinConfirmCtrl.text.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                s.tpmSshPinMismatch,
-                style: AppFonts.inter(
-                  fontSize: AppFonts.xs,
-                  color: AppTheme.red,
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              s.tpmSshPinLockoutWarning,
-              style: AppFonts.inter(
-                fontSize: AppFonts.xs,
-                color: AppTheme.orange,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          // Storage policy radio — Linux only. Windows CNG always uses
-          // the PCP persistent store.
-          RadioGroup<rust_tpm.DbTpmSshStorageMode>(
-            groupValue: _storage,
-            onChanged: (v) {
-              if (disabled || v == null) return;
-              setState(() => _storage = v);
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<rust_tpm.DbTpmSshStorageMode>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: rust_tpm.DbTpmSshStorageMode.blob,
-                  title: Text(
-                    s.tpmSshStorageBlob,
-                    style: AppFonts.inter(fontSize: AppFonts.sm),
-                  ),
-                ),
-                RadioListTile<rust_tpm.DbTpmSshStorageMode>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: rust_tpm.DbTpmSshStorageMode.persistentHandle,
-                  title: Text(
-                    s.tpmSshStorageHandle,
-                    style: AppFonts.inter(fontSize: AppFonts.sm),
-                  ),
-                  subtitle: Text(
-                    s.tpmSshStorageHandleHelp,
-                    style: AppFonts.inter(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        if (_isLinux) _buildLinuxOptions(s, disabled),
         if (generateError != null) ...[
           const SizedBox(height: AppSpacing.sm),
           AppSelectionArea(
@@ -419,6 +279,155 @@ class _TpmSshDialogState extends State<TpmSshDialog>
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _warningBanner({
+    required String message,
+    required Color color,
+    required double fontSize,
+    required double borderAlpha,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: color.withValues(alpha: borderAlpha)),
+      ),
+      child: AppSelectionArea(
+        child: Text(
+          message,
+          style: AppFonts.inter(fontSize: fontSize, color: color),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlgorithmSelector(S s, bool disabled) {
+    return RadioGroup<rust_tpm.DbTpmSshAlgorithm>(
+      groupValue: _algo,
+      onChanged: (rust_tpm.DbTpmSshAlgorithm? v) {
+        if (disabled || v == null) return;
+        setState(() => _algo = v);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RadioListTile<rust_tpm.DbTpmSshAlgorithm>(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: rust_tpm.DbTpmSshAlgorithm.ecdsaP256,
+            title: Text(
+              s.tpmSshAlgEcdsa,
+              style: AppFonts.mono(fontSize: AppFonts.sm),
+            ),
+          ),
+          RadioListTile<rust_tpm.DbTpmSshAlgorithm>(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: rust_tpm.DbTpmSshAlgorithm.rsa2048,
+            title: Text(
+              s.tpmSshAlgRsa,
+              style: AppFonts.mono(fontSize: AppFonts.sm),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Linux-only PIN policy + storage radio. Windows CNG has no PIN
+  // concept and always uses the PCP persistent store.
+  Widget _buildLinuxOptions(S s, bool disabled) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AppSpacing.lg),
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            s.tpmSshPinProtect,
+            style: AppFonts.inter(fontSize: AppFonts.sm),
+          ),
+          value: _protectWithPin,
+          onChanged: disabled
+              ? null
+              : (v) => setState(() => _protectWithPin = v ?? false),
+        ),
+        if (_protectWithPin) ...[
+          TextField(
+            controller: _pinCtrl,
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(labelText: s.tpmSshPinProtect),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _pinConfirmCtrl,
+            obscureText: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(labelText: s.tpmSshPinProtect),
+          ),
+          if (!_pinValid &&
+              _pinCtrl.text.isNotEmpty &&
+              _pinConfirmCtrl.text.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              s.tpmSshPinMismatch,
+              style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.red),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            s.tpmSshPinLockoutWarning,
+            style: AppFonts.inter(
+              fontSize: AppFonts.xs,
+              color: AppTheme.orange,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        RadioGroup<rust_tpm.DbTpmSshStorageMode>(
+          groupValue: _storage,
+          onChanged: (v) {
+            if (disabled || v == null) return;
+            setState(() => _storage = v);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<rust_tpm.DbTpmSshStorageMode>(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: rust_tpm.DbTpmSshStorageMode.blob,
+                title: Text(
+                  s.tpmSshStorageBlob,
+                  style: AppFonts.inter(fontSize: AppFonts.sm),
+                ),
+              ),
+              RadioListTile<rust_tpm.DbTpmSshStorageMode>(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: rust_tpm.DbTpmSshStorageMode.persistentHandle,
+                title: Text(
+                  s.tpmSshStorageHandle,
+                  style: AppFonts.inter(fontSize: AppFonts.sm),
+                ),
+                subtitle: Text(
+                  s.tpmSshStorageHandleHelp,
+                  style: AppFonts.inter(
+                    fontSize: AppFonts.xs,
+                    color: AppTheme.fgDim,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

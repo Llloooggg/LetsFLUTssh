@@ -40,10 +40,21 @@ void main() {
   late Directory sftpRoot;
   late ProviderContainer container;
   late Connection conn;
+  late _TerminalWatcher watcher;
 
   setUpAll(() async {
     await requireFrbLoaded();
     await rust_app.dbInit(path: ':memory:', key: const []);
+
+    // Subscribe to terminal-state events *before* any task is
+    // enqueued. A tiny upload on localhost loopback can settle in
+    // `completed` between `enqueueUpload` returning and a per-call
+    // `.listen()` attaching — the terminal event would be lost and
+    // the wait would sit out its full timeout. A single long-lived
+    // subscription that buffers terminal states per task id closes
+    // that window: a wait either finds the state already recorded
+    // or is woken by the event when it arrives.
+    watcher = _TerminalWatcher()..start();
 
     serverInfo = await rust_test.testSshServerStart();
     sftpRoot = Directory(serverInfo.sftpRoot);
@@ -74,6 +85,7 @@ void main() {
   });
 
   tearDownAll(() async {
+    await watcher.stop();
     container.read(connectionsProvider.notifier).disconnect(conn.id);
     container.dispose();
     rust_test.testSshServerStopAll();
@@ -94,38 +106,14 @@ void main() {
     rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 0);
   });
 
-  /// Wait for the per-task `BusEvent::TransferTaskState` to hit a
-  /// terminal state (`completed` / `failed` / `cancelled`). Mirrors
-  /// what `TransfersNotifier` does internally to update the UI;
-  /// reaches for the bus directly so the assertion does not depend
-  /// on a Riverpod selector firing in lockstep with the bus event.
+  /// Wait for a task to reach a terminal state (`completed` /
+  /// `failed` / `cancelled`). Delegates to the long-lived
+  /// `_TerminalWatcher` so a state that already fired before this
+  /// call cannot be missed.
   Future<rust_bus.BusTaskState> waitForTaskTerminal(
     String taskId, {
     Duration timeout = const Duration(seconds: 30),
-  }) {
-    final completer = Completer<rust_bus.BusTaskState>();
-    late StreamSubscription<rust_bus.BusEvent> sub;
-    sub = AppBus.instance.subscribe(rust_bus.BusTopic.transfer).listen((event) {
-      if (event is rust_bus.BusEvent_TransferTaskState && event.id == taskId) {
-        if (event.state == rust_bus.BusTaskState.completed ||
-            event.state == rust_bus.BusTaskState.failed ||
-            event.state == rust_bus.BusTaskState.cancelled) {
-          if (!completer.isCompleted) completer.complete(event.state);
-          sub.cancel();
-        }
-      }
-    });
-    return completer.future.timeout(
-      timeout,
-      onTimeout: () {
-        sub.cancel();
-        throw TimeoutException(
-          'transfer $taskId did not reach a terminal state within '
-          '${timeout.inSeconds}s',
-        );
-      },
-    );
-  }
+  }) => watcher.wait(taskId, timeout: timeout);
 
   group('Transfer queue', () {
     test('single upload completes + remote file lands on disk', () async {
@@ -273,4 +261,64 @@ void main() {
       );
     });
   });
+}
+
+/// Buffers terminal `BusEvent::TransferTaskState` events per task id
+/// from a single subscription opened before the first enqueue.
+/// `wait` resolves immediately when the state was already recorded,
+/// otherwise it parks a completer the listener fulfils on arrival —
+/// so no terminal event can slip through between enqueue and wait.
+/// Mirrors what `TransfersNotifier` does internally to update the
+/// UI; reaches for the bus directly so the assertion does not depend
+/// on a Riverpod selector firing in lockstep with the bus event.
+class _TerminalWatcher {
+  final Map<String, rust_bus.BusTaskState> _states = {};
+  final Map<String, Completer<rust_bus.BusTaskState>> _waiters = {};
+  StreamSubscription<rust_bus.BusEvent>? _sub;
+
+  void start() {
+    _sub = AppBus.instance.subscribe(rust_bus.BusTopic.transfer).listen((
+      event,
+    ) {
+      if (event is! rust_bus.BusEvent_TransferTaskState ||
+          !_isTerminal(event.state)) {
+        return;
+      }
+      _states[event.id] = event.state;
+      final waiter = _waiters.remove(event.id);
+      if (waiter != null && !waiter.isCompleted) waiter.complete(event.state);
+    });
+  }
+
+  Future<rust_bus.BusTaskState> wait(
+    String taskId, {
+    Duration timeout = const Duration(seconds: 30),
+  }) {
+    final recorded = _states[taskId];
+    if (recorded != null) return Future.value(recorded);
+    final completer = _waiters.putIfAbsent(
+      taskId,
+      Completer<rust_bus.BusTaskState>.new,
+    );
+    return completer.future.timeout(
+      timeout,
+      onTimeout: () {
+        _waiters.remove(taskId);
+        throw TimeoutException(
+          'transfer $taskId did not reach a terminal state within '
+          '${timeout.inSeconds}s',
+        );
+      },
+    );
+  }
+
+  Future<void> stop() async {
+    await _sub?.cancel();
+    _sub = null;
+  }
+
+  static bool _isTerminal(rust_bus.BusTaskState state) =>
+      state == rust_bus.BusTaskState.completed ||
+      state == rust_bus.BusTaskState.failed ||
+      state == rust_bus.BusTaskState.cancelled;
 }

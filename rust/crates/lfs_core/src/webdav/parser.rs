@@ -170,13 +170,7 @@ fn parse_response<R: std::io::BufRead>(
     reader: &mut Reader<R>,
 ) -> Result<Option<PropfindEntry>, Error> {
     let mut href = String::new();
-    let mut display_name = None;
-    let mut size_bytes = None;
-    let mut last_modified_unix_ms = None;
-    let mut etag = None;
-    let mut content_type = None;
-    let mut is_collection = false;
-    let mut any_2xx_propstat = false;
+    let mut acc = ResponseAccum::default();
 
     let mut buf = Vec::new();
     loop {
@@ -191,28 +185,7 @@ fn parse_response<R: std::io::BufRead>(
                         href = read_text(reader)?;
                     }
                     "propstat" => {
-                        let parsed = parse_propstat(reader)?;
-                        if parsed.status_2xx {
-                            any_2xx_propstat = true;
-                            if let Some(v) = parsed.display_name {
-                                display_name.get_or_insert(v);
-                            }
-                            if let Some(v) = parsed.size_bytes {
-                                size_bytes.get_or_insert(v);
-                            }
-                            if let Some(v) = parsed.last_modified_unix_ms {
-                                last_modified_unix_ms.get_or_insert(v);
-                            }
-                            if let Some(v) = parsed.etag {
-                                etag.get_or_insert(v);
-                            }
-                            if let Some(v) = parsed.content_type {
-                                content_type.get_or_insert(v);
-                            }
-                            if parsed.is_collection {
-                                is_collection = true;
-                            }
-                        }
+                        acc.merge_propstat(parse_propstat(reader)?);
                     }
                     _ => {}
                 }
@@ -225,18 +198,60 @@ fn parse_response<R: std::io::BufRead>(
         }
         buf.clear();
     }
-    if href.is_empty() || !any_2xx_propstat {
+    if href.is_empty() || !acc.any_2xx_propstat {
         return Ok(None);
     }
     Ok(Some(PropfindEntry {
         href,
-        display_name,
-        size_bytes,
-        last_modified_unix_ms,
-        etag,
-        content_type,
-        is_collection,
+        display_name: acc.display_name,
+        size_bytes: acc.size_bytes,
+        last_modified_unix_ms: acc.last_modified_unix_ms,
+        etag: acc.etag,
+        content_type: acc.content_type,
+        is_collection: acc.is_collection,
     }))
+}
+
+/// Accumulates the first 2xx value seen for each property across a
+/// response's `<propstat>` blocks. A WebDAV server may split props
+/// across multiple propstat groups (e.g. one 200 block, one 404
+/// block); only 2xx values are kept, first-writer-wins per field.
+#[derive(Default)]
+struct ResponseAccum {
+    display_name: Option<String>,
+    size_bytes: Option<u64>,
+    last_modified_unix_ms: Option<i64>,
+    etag: Option<String>,
+    content_type: Option<String>,
+    is_collection: bool,
+    any_2xx_propstat: bool,
+}
+
+impl ResponseAccum {
+    fn merge_propstat(&mut self, parsed: PropstatParsed) {
+        if !parsed.status_2xx {
+            return;
+        }
+        self.any_2xx_propstat = true;
+        if let Some(v) = parsed.display_name {
+            self.display_name.get_or_insert(v);
+        }
+        if let Some(v) = parsed.size_bytes {
+            self.size_bytes.get_or_insert(v);
+        }
+        if let Some(v) = parsed.last_modified_unix_ms {
+            self.last_modified_unix_ms.get_or_insert(v);
+        }
+        if let Some(v) = parsed.etag {
+            self.etag.get_or_insert(v);
+        }
+        if let Some(v) = parsed.content_type {
+            self.content_type.get_or_insert(v);
+        }
+        if parsed.is_collection {
+            self.is_collection = true;
+        }
+    }
 }
 
 #[derive(Default)]
@@ -294,43 +309,7 @@ fn parse_prop<R: std::io::BufRead>(
         {
             Event::Start(e) => {
                 let local = local_name_lowercase(e.name().as_ref());
-                match local.as_str() {
-                    "displayname" => {
-                        let v = read_text(reader)?;
-                        if !v.is_empty() {
-                            out.display_name = Some(v);
-                        }
-                    }
-                    "getcontentlength" => {
-                        let v = read_text(reader)?;
-                        if let Ok(n) = v.trim().parse::<u64>() {
-                            out.size_bytes = Some(n);
-                        }
-                    }
-                    "getlastmodified" => {
-                        let v = read_text(reader)?;
-                        out.last_modified_unix_ms = parse_http_date_ms(&v);
-                    }
-                    "getetag" => {
-                        let v = read_text(reader)?;
-                        out.etag = Some(normalise_etag(&v));
-                    }
-                    "getcontenttype" => {
-                        let v = read_text(reader)?;
-                        if !v.is_empty() {
-                            out.content_type = Some(v);
-                        }
-                    }
-                    "resourcetype" => {
-                        out.is_collection = resourcetype_has_collection(reader)?;
-                    }
-                    _ => {
-                        // Unknown prop — skip its body so the
-                        // reader cursor doesn't leak into a
-                        // following sibling.
-                        skip_to_end(reader, e.name().as_ref())?;
-                    }
-                }
+                handle_prop_element(&local, e.name().as_ref(), reader, out)?;
             }
             Event::Empty(e) => {
                 // Self-closed elements like `<resourcetype/>` or
@@ -346,6 +325,52 @@ fn parse_prop<R: std::io::BufRead>(
             _ => {}
         }
         buf.clear();
+    }
+    Ok(())
+}
+
+/// Dispatch a single `<prop>` child element into `out`. `name` is the
+/// raw element name, used to skip the body of an unrecognised prop so
+/// the reader cursor doesn't leak into a following sibling.
+fn handle_prop_element<R: std::io::BufRead>(
+    local: &str,
+    name: &[u8],
+    reader: &mut Reader<R>,
+    out: &mut PropstatParsed,
+) -> Result<(), Error> {
+    match local {
+        "displayname" => {
+            let v = read_text(reader)?;
+            if !v.is_empty() {
+                out.display_name = Some(v);
+            }
+        }
+        "getcontentlength" => {
+            let v = read_text(reader)?;
+            if let Ok(n) = v.trim().parse::<u64>() {
+                out.size_bytes = Some(n);
+            }
+        }
+        "getlastmodified" => {
+            let v = read_text(reader)?;
+            out.last_modified_unix_ms = parse_http_date_ms(&v);
+        }
+        "getetag" => {
+            let v = read_text(reader)?;
+            out.etag = Some(normalise_etag(&v));
+        }
+        "getcontenttype" => {
+            let v = read_text(reader)?;
+            if !v.is_empty() {
+                out.content_type = Some(v);
+            }
+        }
+        "resourcetype" => {
+            out.is_collection = resourcetype_has_collection(reader)?;
+        }
+        _ => {
+            skip_to_end(reader, name)?;
+        }
     }
     Ok(())
 }

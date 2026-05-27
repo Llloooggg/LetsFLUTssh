@@ -63,65 +63,68 @@ class AppIconButton extends StatelessWidget {
 
     Widget button = HoverRegion(
       onTap: onTap,
-      builder: (hovered) {
-        final Color bg;
-        if (active) {
-          bg = AppTheme.active;
-        } else if (hovered && onTap != null) {
-          bg = hoverColor ?? AppTheme.hover;
-        } else {
-          bg = backgroundColor ?? Colors.transparent;
-        }
-        return Container(
-          width: effectiveBox,
-          height: effectiveBox,
-          decoration: BoxDecoration(color: bg, borderRadius: borderRadius),
-          child: Icon(
-            icon,
-            size: effectiveIcon,
-            color: onTap != null ? iconColor : disabledColor,
-          ),
-        );
-      },
+      builder: (hovered) => Container(
+        width: effectiveBox,
+        height: effectiveBox,
+        decoration: BoxDecoration(
+          color: _backgroundColor(hovered),
+          borderRadius: borderRadius,
+        ),
+        child: Icon(
+          icon,
+          size: effectiveIcon,
+          color: onTap != null ? iconColor : disabledColor,
+        ),
+      ),
     );
 
     // Keyboard reachability: wrap the pointer-only HoverRegion in
     // a Focus that maps Enter / Space to onTap so Tab traversal
-    // reaches every icon-button in the app — every callsite
-    // routes through this widget, so applying once here covers
-    // the whole surface.
+    // reaches every icon-button in the app — every callsite routes
+    // through this widget, so applying once here covers the whole
+    // surface.
     if (onTap != null) {
       button = Focus(
         canRequestFocus: true,
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          if (event.logicalKey == LogicalKeyboardKey.enter ||
-              event.logicalKey == LogicalKeyboardKey.numpadEnter ||
-              event.logicalKey == LogicalKeyboardKey.space) {
-            onTap!();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
+        onKeyEvent: _handleKeyActivation,
         child: button,
       );
     }
 
-    // Semantics: every clickable icon-button surfaces a label —
-    // either the explicit tooltip (rendered separately by
-    // `Tooltip`'s own semantic surface) or a fallback derived from
-    // the icon's MaterialIcons name. Without this a screen-reader
-    // user gets "button" with no label on every tooltip-less site.
-    final fallbackLabel =
-        tooltip ?? (icon.codePoint.toString() == '0xe5cd' ? 'close' : null);
-    if (tooltip != null) {
-      button = Tooltip(message: tooltip!, child: button);
-    } else if (fallbackLabel != null) {
-      button = Semantics(button: true, label: fallbackLabel, child: button);
-    } else {
-      button = Semantics(button: true, child: button);
-    }
+    return _withSemanticsLabel(button);
+  }
 
-    return button;
+  Color _backgroundColor(bool hovered) {
+    if (active) return AppTheme.active;
+    if (hovered && onTap != null) return hoverColor ?? AppTheme.hover;
+    return backgroundColor ?? Colors.transparent;
+  }
+
+  KeyEventResult _handleKeyActivation(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+        event.logicalKey == LogicalKeyboardKey.space) {
+      onTap?.call();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  // Every clickable icon-button surfaces a label — either the
+  // explicit tooltip (which carries its own semantic surface) or a
+  // fallback derived from the icon's MaterialIcons name. Without
+  // this a screen-reader user gets "button" with no label on every
+  // tooltip-less site.
+  Widget _withSemanticsLabel(Widget child) {
+    final message = tooltip;
+    if (message != null) return Tooltip(message: message, child: child);
+    final fallbackLabel = icon.codePoint.toString() == '0xe5cd'
+        ? 'close'
+        : null;
+    if (fallbackLabel != null) {
+      return Semantics(button: true, label: fallbackLabel, child: child);
+    }
+    return Semantics(button: true, child: child);
   }
 }

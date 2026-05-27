@@ -415,11 +415,26 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   /// side at userauth time. A mismatched cert would simply fail the
   /// next connect attempt with an auth error.
   Future<void> _importCertificate(SshKeyMetadata entry) async {
+    final path = await _pickSingleFile(S.of(context).certImportPickerTitle);
+    if (path == null || !mounted) return;
+    final bytes = await _readCertBytes(path);
+    if (bytes == null || !mounted) return;
+    final summary = _parseCert(bytes);
+    if (summary == null) return;
+    if (!_certPairMatches(bytes, entry)) return;
+    if (!await _upsertCert(entry, bytes, summary)) return;
+    await _reload?.call();
+  }
+
+  /// Open the system file picker for a single file under [dialogTitle].
+  /// Returns null on cancel, a missing picker plugin, or a path-less
+  /// pick. Shared by the certificate and hardware-key import flows.
+  Future<String?> _pickSingleFile(String dialogTitle) async {
     final s = S.of(context);
     final FilePickerResult? picked;
     try {
       picked = await FilePicker.pickFiles(
-        dialogTitle: s.certImportPickerTitle,
+        dialogTitle: dialogTitle,
         allowMultiple: false,
         type: FileType.any,
       );
@@ -428,32 +443,20 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         'File picker missing on ${Platform.operatingSystem}: $e',
         name: 'KeyManager',
       );
-      if (mounted) {
-        Toast.show(
-          context,
-          message: s.filePickerUnavailable,
-          level: ToastLevel.error,
-        );
-      }
-      return;
+      _toastError(s.filePickerUnavailable);
+      return null;
     } catch (e) {
       AppLogger.instance.log('File picker failed: $e', name: 'KeyManager');
-      if (mounted) {
-        Toast.show(
-          context,
-          message: s.filePickerUnavailable,
-          level: ToastLevel.error,
-        );
-      }
-      return;
+      _toastError(s.filePickerUnavailable);
+      return null;
     }
-    if (!mounted || picked == null) return;
-    final path = picked.files.single.path;
-    if (path == null) return;
+    if (!mounted || picked == null) return null;
+    return picked.files.single.path;
+  }
 
-    Uint8List bytes;
+  Future<Uint8List?> _readCertBytes(String path) async {
     try {
-      bytes = Uint8List.fromList(
+      return Uint8List.fromList(
         await rust_keys.keysReadCertBytesForImport(path: path),
       );
     } catch (e) {
@@ -462,39 +465,33 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         name: 'KeyManager',
         error: e,
       );
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: s.errCertParse(e.toString()),
-        level: ToastLevel.error,
-      );
-      return;
+      _toastCertParseError(e);
+      return null;
     }
+  }
 
-    rust_keys.DbCertSummary summary;
+  rust_keys.DbCertSummary? _parseCert(Uint8List bytes) {
     try {
-      summary = rust_keys.keysParseOpensshCert(bytes: bytes);
+      return rust_keys.keysParseOpensshCert(bytes: bytes);
     } catch (e) {
       AppLogger.instance.log(
         'Cert parse failed for <label>',
         name: 'KeyManager',
         error: e,
       );
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: s.errCertParse(e.toString()),
-        level: ToastLevel.error,
-      );
-      return;
+      _toastCertParseError(e);
+      return null;
     }
+  }
 
-    // Cert/key pair gate — server would surface a mismatch as a
-    // generic auth failure at connect-time. Catching it on import
-    // produces a tailored "wrong key" toast and avoids persisting
-    // a cert that can never authenticate. Parse failure on either
-    // side falls through to the generic `errCertParse` branch.
-    bool matches;
+  /// Cert/key pair gate — the server would surface a mismatch as a
+  /// generic auth failure at connect-time. Catching it on import
+  /// produces a tailored "wrong key" toast and avoids persisting a
+  /// cert that can never authenticate. Parse failure on either side
+  /// falls through to the generic `errCertParse` branch. Returns
+  /// false (abort) on mismatch or a probe error.
+  bool _certPairMatches(Uint8List bytes, SshKeyMetadata entry) {
+    final bool matches;
     try {
       matches = rust_keys.keysCertMatchesKey(
         certBytes: bytes,
@@ -506,24 +503,24 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         name: 'KeyManager',
         error: e,
       );
-      if (!mounted) return;
+      _toastCertParseError(e);
+      return false;
+    }
+    if (!matches && mounted) {
       Toast.show(
         context,
-        message: s.errCertParse(e.toString()),
+        message: S.of(context).errCertPairFingerprintMismatch,
         level: ToastLevel.error,
       );
-      return;
     }
-    if (!matches) {
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: s.errCertPairFingerprintMismatch,
-        level: ToastLevel.error,
-      );
-      return;
-    }
+    return matches;
+  }
 
+  Future<bool> _upsertCert(
+    SshKeyMetadata entry,
+    Uint8List bytes,
+    rust_keys.DbCertSummary summary,
+  ) async {
     try {
       await rust_db.dbSshKeyCertificateUpsert(
         rec: rust_db.DbSshKeyCertificate(
@@ -536,22 +533,26 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           fingerprint: summary.fingerprint,
         ),
       );
+      return true;
     } catch (e) {
       AppLogger.instance.log(
         'Cert upsert failed for <label>',
         name: 'KeyManager',
         error: e,
       );
-      if (!mounted) return;
-      Toast.show(
-        context,
-        message: s.errCertParse(e.toString()),
-        level: ToastLevel.error,
-      );
-      return;
+      _toastCertParseError(e);
+      return false;
     }
+  }
 
-    await _reload?.call();
+  void _toastError(String message) {
+    if (!mounted) return;
+    Toast.show(context, message: message, level: ToastLevel.error);
+  }
+
+  void _toastCertParseError(Object e) {
+    if (!mounted) return;
+    _toastError(S.of(context).errCertParse(e.toString()));
   }
 
   Future<void> _removeCertificate(SshKeyMetadata entry) async {
@@ -689,72 +690,46 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   /// application + user-verification flag the connect path needs to
   /// route through `lfs_core::fido2::get_assertion`.
   Future<void> _importHardwareKey() async {
-    final s = S.of(context);
-    final FilePickerResult? picked;
-    try {
-      picked = await FilePicker.pickFiles(
-        dialogTitle: s.hardwareKeyImport,
-        allowMultiple: false,
-        type: FileType.any,
-      );
-    } on MissingPluginException catch (e) {
-      AppLogger.instance.log(
-        'File picker missing on ${Platform.operatingSystem}: $e',
-        name: 'KeyManager',
-      );
-      if (mounted) {
-        Toast.show(
-          context,
-          message: s.filePickerUnavailable,
-          level: ToastLevel.error,
-        );
-      }
-      return;
-    } catch (e) {
-      AppLogger.instance.log('File picker failed: $e', name: 'KeyManager');
-      if (mounted) {
-        Toast.show(
-          context,
-          message: s.filePickerUnavailable,
-          level: ToastLevel.error,
-        );
-      }
-      return;
-    }
-    if (!mounted || picked == null) return;
-    final path = picked.files.single.path;
-    if (path == null) return;
+    final path = await _pickSingleFile(S.of(context).hardwareKeyImport);
+    if (path == null || !mounted) return;
+    final pem = await _readHardwareKeyPem(path);
+    if (pem == null || !mounted) return;
+    final meta = _parseSkKey(pem);
+    if (meta == null || !mounted) return;
+    await _saveHardwareKey(path, pem, meta);
+  }
 
-    String pem;
+  Future<String?> _readHardwareKeyPem(String path) async {
+    final s = S.of(context);
     try {
-      pem = await rust_keys.keysReadTextForManualImport(path: path);
+      return await rust_keys.keysReadTextForManualImport(path: path);
     } catch (e) {
       AppLogger.instance.log(
         'Hardware key read failed: $e',
         name: 'KeyManager',
       );
-      if (mounted) {
-        Toast.show(context, message: s.invalidPem, level: ToastLevel.error);
-      }
-      return;
+      _toastError(s.invalidPem);
+      return null;
     }
+  }
 
-    final rust_keys.DbSkKeyMetadata meta;
+  rust_keys.DbSkKeyMetadata? _parseSkKey(String pem) {
+    final s = S.of(context);
     try {
-      meta = rust_keys.keysParseSkPrivateKey(pem: pem);
+      return rust_keys.keysParseSkPrivateKey(pem: pem);
     } catch (e) {
       AppLogger.instance.log('sk-* parse failed: $e', name: 'KeyManager');
-      if (mounted) {
-        Toast.show(
-          context,
-          message: localizeError(s, e),
-          level: ToastLevel.error,
-        );
-      }
-      return;
+      _toastError(localizeError(s, e));
+      return null;
     }
-    if (!mounted) return;
+  }
 
+  Future<void> _saveHardwareKey(
+    String path,
+    String pem,
+    rust_keys.DbSkKeyMetadata meta,
+  ) async {
+    final s = S.of(context);
     final fileName = path.split(Platform.pathSeparator).last;
     final entry = SshKeyEntry(
       id: const Uuid().v4(),
@@ -787,13 +762,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
         'Hardware key save failed: $e',
         name: 'KeyManager',
       );
-      if (mounted) {
-        Toast.show(
-          context,
-          message: localizeError(s, e),
-          level: ToastLevel.error,
-        );
-      }
+      _toastError(localizeError(s, e));
     }
   }
 

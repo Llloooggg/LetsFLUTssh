@@ -53,19 +53,21 @@ extension _TierApply on _SecuritySectionState {
       currentModifiers: currentModifiers,
       targetTier: next,
       targetModifiers: nextModifiers,
-      promptCurrentPassword: _promptCurrentPasswordWithWipe,
-      verifyMaster: ref.read(masterPasswordProvider).verify,
-      verifyKeychainGate: ref.read(keychainPasswordGateProvider).verify,
-      verifyHardwareVault: (entered) async {
-        // The hw-vault unseal returns the DB key on a correct
-        // password and null on a mismatch — non-null is the
-        // verifier. The returned bytes are discarded; the apply
-        // pipeline reseals under whatever the next tier wants.
-        final unsealed = await ref
-            .read(hardwareTierVaultProvider)
-            .read(entered);
-        return unsealed != null;
-      },
+      verifiers: PasswordVerifierSeams(
+        promptCurrentPassword: _promptCurrentPasswordWithWipe,
+        verifyMaster: ref.read(masterPasswordProvider).verify,
+        verifyKeychainGate: ref.read(keychainPasswordGateProvider).verify,
+        verifyHardwareVault: (entered) async {
+          // The hw-vault unseal returns the DB key on a correct
+          // password and null on a mismatch — non-null is the
+          // verifier. The returned bytes are discarded; the apply
+          // pipeline reseals under whatever the next tier wants.
+          final unsealed = await ref
+              .read(hardwareTierVaultProvider)
+              .read(entered);
+          return unsealed != null;
+        },
+      ),
     );
     switch (result) {
       case ConfirmPasswordResult.notRequired:
@@ -153,13 +155,15 @@ extension _TierApply on _SecuritySectionState {
     await applyKeychainWithPasswordTier(
       shortPassword: result.takeShortPassword(),
       modifiers: result.modifiers,
-      gateSetPassword: gate.setPassword,
-      gateClear: gate.clear,
-      stageRandomKey: _stageRandomKey,
-      keychainWriteFromSecret: keyStorage.writeKeyFromSecret,
-      applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
-      dropStaged: _dropStaged,
-      runClearPlan: _runVaultClearPlan,
+      seams: KeychainTierSeams(
+        gateSetPassword: gate.setPassword,
+        gateClear: gate.clear,
+        stageRandomKey: _stageRandomKey,
+        keychainWriteFromSecret: keyStorage.writeKeyFromSecret,
+        applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
+        dropStaged: _dropStaged,
+        runClearPlan: _runVaultClearPlan,
+      ),
     );
   }
 

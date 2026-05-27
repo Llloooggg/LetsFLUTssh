@@ -308,14 +308,42 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _keyPathCtrl = TextEditingController(text: s?.keyPath ?? '');
     _keyDataCtrl = TextEditingController();
     _passphraseCtrl = TextEditingController();
-    // Mark each secret slot dirty the first time the user touches
-    // it. Save consults these to decide whether the corresponding
-    // column is part of the partial-update DB write — leaving a
-    // field blank on edit therefore preserves the stored secret
-    // instead of clearing it. The `_disposing` guard short-circuits
-    // the listener once `dispose()` starts wiping the controllers
-    // (`wipeAndClear` mutates `text` which fires this listener after
-    // the framework has already torn down the State).
+    _initSecretListeners();
+    // Auto-expand the inline-PEM section on edit when the saved
+    // session is keyData-bearing — we never see the bytes themselves
+    // (controller stays empty), but the per-slot flag tells us the
+    // user picked the inline-key path last time. Legacy callers
+    // (and tests) still pass populated `keyData` plaintext directly,
+    // so accept that too.
+    _showKeyText =
+        (s?.auth.hasStoredKeyData ?? false) || (s?.keyData.isNotEmpty ?? false);
+    _selectedKeyId = s?.keyId ?? '';
+    if (_selectedKeyId.isNotEmpty) {
+      _resolveKeyLabel();
+    }
+    _useAgent = s?.auth.authType == AuthType.agent;
+    _initProxyState(s);
+    _recordEnabled = s?.extrasBool('record') ?? false;
+    _kind = s?.kind ?? SessionKind.ssh;
+    _baseUrlCtrl = TextEditingController();
+    _trustedCertPemCtrl = TextEditingController();
+    _accessKeyIdCtrl = TextEditingController();
+    _regionCtrl = TextEditingController();
+    _endpointCtrl = TextEditingController();
+    _defaultBucketCtrl = TextEditingController();
+    _defaultPrefixCtrl = TextEditingController();
+    _hydrateFromSession(s);
+  }
+
+  // Mark each secret slot dirty the first time the user touches it.
+  // Save consults these to decide whether the corresponding column is
+  // part of the partial-update DB write — leaving a field blank on
+  // edit therefore preserves the stored secret instead of clearing
+  // it. The `_disposing` guard short-circuits the listener once
+  // `dispose()` starts wiping the controllers (`wipeAndClear` mutates
+  // `text`, which fires this listener after the framework has already
+  // torn down the State).
+  void _initSecretListeners() {
     _passwordListener = () {
       if (_disposing || _passwordDirty) return;
       setState(() => _passwordDirty = true);
@@ -331,22 +359,12 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _passwordCtrl.addListener(_passwordListener!);
     _keyDataCtrl.addListener(_keyDataListener!);
     _passphraseCtrl.addListener(_passphraseListener!);
-    // Auto-expand the inline-PEM section on edit when the saved
-    // session is keyData-bearing — we never see the bytes themselves
-    // (controller stays empty), but the per-slot flag tells us the
-    // user picked the inline-key path last time. Legacy callers
-    // (and tests) still pass populated `keyData` plaintext directly,
-    // so accept that too.
-    _showKeyText =
-        (s?.auth.hasStoredKeyData ?? false) || (s?.keyData.isNotEmpty ?? false);
-    _selectedKeyId = s?.keyId ?? '';
-    if (_selectedKeyId.isNotEmpty) {
-      _resolveKeyLabel();
-    }
-    _useAgent = s?.auth.authType == AuthType.agent;
-    // ProxyJump editor state — initialise mode + controllers from the
-    // session being edited, falling back to "none" / empty for new
-    // sessions.
+  }
+
+  // ProxyJump editor state — initialise mode + controllers from the
+  // session being edited, falling back to "none" / empty for new
+  // sessions.
+  void _initProxyState(Session? s) {
     _proxyHostCtrl = TextEditingController(text: s?.viaOverride?.host ?? '');
     _proxyPortCtrl = TextEditingController(
       text: s?.viaOverride != null ? '${s!.viaOverride!.port}' : '22',
@@ -369,30 +387,24 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     } else if (s?.viaOverride != null) {
       _proxyMode = _ProxyMode.custom;
     }
-    _recordEnabled = s?.extrasBool('record') ?? false;
-    _kind = s?.kind ?? SessionKind.ssh;
-    _baseUrlCtrl = TextEditingController();
-    _trustedCertPemCtrl = TextEditingController();
-    _accessKeyIdCtrl = TextEditingController();
-    _regionCtrl = TextEditingController();
-    _endpointCtrl = TextEditingController();
-    _defaultBucketCtrl = TextEditingController();
-    _defaultPrefixCtrl = TextEditingController();
-    if (s != null) {
-      _loadForwards(s.id);
-      _loadInitialTags(s.id);
-      if (s.kind == SessionKind.webdav) {
-        _loadingWebDav = true;
-        _loadWebDavDetails(s.id);
-      }
-      if (s.kind == SessionKind.s3) {
-        _loadingS3 = true;
-        _loadS3Details(s.id);
-      }
-    } else {
-      // New session — no DB row to hydrate from, the picker can
-      // render immediately against an empty selection.
+  }
+
+  void _hydrateFromSession(Session? s) {
+    if (s == null) {
+      // New session — no DB row to hydrate from, the picker can render
+      // immediately against an empty selection.
       _pendingTagsLoaded = true;
+      return;
+    }
+    _loadForwards(s.id);
+    _loadInitialTags(s.id);
+    if (s.kind == SessionKind.webdav) {
+      _loadingWebDav = true;
+      _loadWebDavDetails(s.id);
+    }
+    if (s.kind == SessionKind.s3) {
+      _loadingS3 = true;
+      _loadS3Details(s.id);
     }
   }
 

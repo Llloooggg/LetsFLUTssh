@@ -287,34 +287,7 @@ extension _ConnectionSection on _SessionEditDialogState {
 
   Widget _buildProxyJumpSection() {
     final l10n = S.of(context);
-    final allSessions = ref.watch(sessionProvider);
-    final myId = widget.session?.id;
-    // Snapshot of the saved-session proxy graph driven into the
-    // Rust cycle probe. Every session ships its `viaSessionId` so a
-    // candidate's chain can be walked forward to spot a loop back
-    // to the seed without an extra DB roundtrip.
-    final chain = [
-      for (final s in allSessions)
-        rust_sessions.DbSessionProxyRef(
-          sessionId: s.id,
-          viaSessionId: s.viaSessionId,
-        ),
-    ];
-    // Filter out direct self-reference plus any candidate whose
-    // saved-session chain walks back to the seed. The Rust probe
-    // owns the decision so the dialog and the connect path share
-    // one cycle-detection truth (the connect path catches orphan
-    // loops at dial time — same algorithm, different entry point).
-    final candidates = [
-      for (final s in allSessions)
-        if (s.id != myId &&
-            !rust_sessions.sessionsDetectProxyCycle(
-              seedId: myId,
-              candidateId: s.id,
-              chain: chain,
-            ))
-          s,
-    ];
+    final candidates = _proxyCandidates();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -329,99 +302,142 @@ extension _ConnectionSection on _SessionEditDialogState {
             _proxyModeChip(_ProxyMode.custom, l10n.proxyJumpCustom),
           ],
         ),
-        if (_proxyMode == _ProxyMode.saved) ...[
-          const SizedBox(height: AppSpacing.sm),
-          DropdownButtonFormField<String>(
-            initialValue: candidates.any((s) => s.id == _proxyViaSessionId)
-                ? _proxyViaSessionId
-                : null,
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: AppTheme.bg3,
-              border: OutlineInputBorder(
-                borderRadius: AppTheme.radiusSm,
-                borderSide: BorderSide(color: AppTheme.borderLight),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
+        if (_proxyMode == _ProxyMode.saved)
+          _buildSavedSessionDropdown(candidates, l10n),
+        if (_proxyMode == _ProxyMode.custom) _buildCustomProxyFields(l10n),
+      ],
+    );
+  }
+
+  /// Saved-session ProxyJump candidates: every session except a
+  /// direct self-reference and any whose saved-session chain walks
+  /// back to the seed. The Rust probe owns the decision so the dialog
+  /// and the connect path share one cycle-detection truth (the
+  /// connect path catches orphan loops at dial time — same algorithm,
+  /// different entry point). Each session ships its `viaSessionId` so
+  /// the probe can walk the chain forward without an extra DB
+  /// roundtrip.
+  List<Session> _proxyCandidates() {
+    final allSessions = ref.watch(sessionProvider);
+    final myId = widget.session?.id;
+    final chain = [
+      for (final s in allSessions)
+        rust_sessions.DbSessionProxyRef(
+          sessionId: s.id,
+          viaSessionId: s.viaSessionId,
+        ),
+    ];
+    return [
+      for (final s in allSessions)
+        if (s.id != myId &&
+            !rust_sessions.sessionsDetectProxyCycle(
+              seedId: myId,
+              candidateId: s.id,
+              chain: chain,
+            ))
+          s,
+    ];
+  }
+
+  Widget _buildSavedSessionDropdown(List<Session> candidates, S l10n) {
+    final selected = candidates.any((s) => s.id == _proxyViaSessionId)
+        ? _proxyViaSessionId
+        : null;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: DropdownButtonFormField<String>(
+        initialValue: selected,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppTheme.bg3,
+          border: OutlineInputBorder(
+            borderRadius: AppTheme.radiusSm,
+            borderSide: BorderSide(color: AppTheme.borderLight),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+        ),
+        items: [
+          for (final s in candidates)
+            DropdownMenuItem(
+              value: s.id,
+              child: Text(
+                s.label.isNotEmpty ? s.label : s.displayName,
+                style: TextStyle(
+                  color: AppTheme.fg,
+                  fontFamily: AppFonts.interFamily,
+                  fontSize: AppFonts.sm,
+                ),
               ),
             ),
-            items: [
-              for (final s in candidates)
-                DropdownMenuItem(
-                  value: s.id,
-                  child: Text(
-                    s.label.isNotEmpty ? s.label : s.displayName,
-                    style: TextStyle(
-                      color: AppTheme.fg,
-                      fontFamily: AppFonts.interFamily,
-                      fontSize: AppFonts.sm,
-                    ),
-                  ),
-                ),
-            ],
-            onChanged: (v) => rebuild(() => _proxyViaSessionId = v),
-            // "Saved session" mode without a selection would silently
-            // collapse to no-ProxyJump on save (`viaSessionId = null`).
-            // The required-field check forces the user to either pick
-            // a bastion or flip the mode to `None`.
-            validator: (v) => v == null || v.isEmpty ? l10n.required : null,
-          ),
         ],
-        if (_proxyMode == _ProxyMode.custom) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: StyledFormField(
-                  label: l10n.hostRequired,
-                  controller: _proxyHostCtrl,
-                  hint: 'bastion.example.com',
-                  // Match the main host field's required check —
-                  // the `Host *` label promises a required input,
-                  // the form must enforce it on Save.
-                  validator: _requiredValidator,
-                ),
+        onChanged: (v) => rebuild(() => _proxyViaSessionId = v),
+        // "Saved session" mode without a selection would silently
+        // collapse to no-ProxyJump on save (`viaSessionId = null`).
+        // The required-field check forces the user to either pick a
+        // bastion or flip the mode to `None`.
+        validator: (v) => v == null || v.isEmpty ? l10n.required : null,
+      ),
+    );
+  }
+
+  Widget _buildCustomProxyFields(S l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: StyledFormField(
+                label: l10n.hostRequired,
+                controller: _proxyHostCtrl,
+                hint: 'bastion.example.com',
+                // Match the main host field's required check — the
+                // `Host *` label promises a required input, the form
+                // must enforce it on Save.
+                validator: _requiredValidator,
               ),
-              const SizedBox(width: AppSpacing.md),
-              SizedBox(
-                width: 80,
-                child: StyledFormField(
-                  label: l10n.port,
-                  controller: _proxyPortCtrl,
-                  hint: '22',
-                  keyboardType: TextInputType.number,
-                  // Same 1..65535 envelope as the main SSH port —
-                  // a stray empty / out-of-range value would land in
-                  // `via_port` and surface as a russh handshake error
-                  // long after Save.
-                  validator: (v) =>
-                      isValidConnectionPort(v) ? null : l10n.portRange,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          StyledFormField(
-            label: l10n.usernameRequired,
-            controller: _proxyUserCtrl,
-            hint: l10n.hintUsername,
-            // Match the main username field — the label is starred,
-            // the form must enforce.
-            validator: _requiredValidator,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            l10n.proxyJumpCustomNote,
-            style: TextStyle(
-              color: AppTheme.fgFaint,
-              fontFamily: AppFonts.interFamily,
-              fontSize: AppFonts.xs,
             ),
+            const SizedBox(width: AppSpacing.md),
+            SizedBox(
+              width: 80,
+              child: StyledFormField(
+                label: l10n.port,
+                controller: _proxyPortCtrl,
+                hint: '22',
+                keyboardType: TextInputType.number,
+                // Same 1..65535 envelope as the main SSH port — a
+                // stray empty / out-of-range value would land in
+                // `via_port` and surface as a russh handshake error
+                // long after Save.
+                validator: (v) =>
+                    isValidConnectionPort(v) ? null : l10n.portRange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        StyledFormField(
+          label: l10n.usernameRequired,
+          controller: _proxyUserCtrl,
+          hint: l10n.hintUsername,
+          // Match the main username field — the label is starred, the
+          // form must enforce.
+          validator: _requiredValidator,
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          l10n.proxyJumpCustomNote,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontFamily: AppFonts.interFamily,
+            fontSize: AppFonts.xs,
           ),
-        ],
+        ),
       ],
     );
   }

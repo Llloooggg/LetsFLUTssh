@@ -138,33 +138,39 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
         S.of(context).deleteNSessionsAndFolders(parts.join(' and ')),
       ),
     );
-    if (confirmed) {
-      final mutator = ref.read(sessionMutatorProvider);
-      if (_ctrl.selectedIds.isNotEmpty) {
-        // Drop WebDAV SecretStore entries first so a same-id session
-        // recreated afterwards starts from a clean slot. The DB row
-        // delete that follows cascades the `webdav_session_details`
-        // join row via the FK; secrets have no FK so the cleanup is
-        // explicit.
-        final byId = {for (final s in ref.read(sessionProvider)) s.id: s};
-        for (final id in _ctrl.selectedIds) {
-          final match = byId[id];
-          if (match != null && match.isWebDav) {
-            rust_app.secretsDrop(
-              id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: id),
-            );
-          }
-        }
-        await mutator.deleteMultiple(Set.of(_ctrl.selectedIds));
+    if (!confirmed) return;
+    final mutator = ref.read(sessionMutatorProvider);
+    if (_ctrl.selectedIds.isNotEmpty) {
+      _dropWebdavSecretsForSelection();
+      await mutator.deleteMultiple(Set.of(_ctrl.selectedIds));
+    }
+    for (final folderPath in _ctrl.selectedFolderPaths) {
+      await mutator.deleteFolder(folderPath);
+    }
+    _resetSelectionAfterDelete();
+  }
+
+  // Drop WebDAV SecretStore entries before the row delete so a
+  // same-id session recreated afterwards starts from a clean slot.
+  // The DB row delete cascades the `webdav_session_details` join row
+  // via the FK; secrets have no FK so the cleanup is explicit.
+  void _dropWebdavSecretsForSelection() {
+    final byId = {for (final s in ref.read(sessionProvider)) s.id: s};
+    for (final id in _ctrl.selectedIds) {
+      final match = byId[id];
+      if (match != null && match.isWebDav) {
+        rust_app.secretsDrop(
+          id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: id),
+        );
       }
-      for (final folderPath in _ctrl.selectedFolderPaths) {
-        await mutator.deleteFolder(folderPath);
-      }
-      if (_ctrl.selectMode) {
-        _ctrl.exitSelectMode();
-      } else {
-        _ctrl.clearDesktopSelection();
-      }
+    }
+  }
+
+  void _resetSelectionAfterDelete() {
+    if (_ctrl.selectMode) {
+      _ctrl.exitSelectMode();
+    } else {
+      _ctrl.clearDesktopSelection();
     }
   }
 

@@ -60,33 +60,7 @@ pub fn import_from_string(
     let mut summary = ImportSummary::default();
     db.with_conn(|conn| {
         for raw_line in content.split('\n') {
-            let entries = known_hosts_parser::parse_line(raw_line);
-            if entries.is_empty() {
-                if known_hosts_parser::is_hashed_hosts_line(raw_line) {
-                    summary.skipped_hashed += 1;
-                }
-                continue;
-            }
-            for entry in entries {
-                let (host, port) = match split_host_port(&entry.host_port) {
-                    Some(hp) => hp,
-                    None => continue,
-                };
-                let existing = crate::db::known_hosts::get_by_host_port(conn, &host, port)?;
-                if existing.is_some() {
-                    summary.skipped_existing += 1;
-                    continue;
-                }
-                crate::db::known_hosts::upsert_by_host_port(
-                    conn,
-                    &host,
-                    port,
-                    &entry.key_type,
-                    &entry.key_base64,
-                    now_ms,
-                )?;
-                summary.added += 1;
-            }
+            import_line(conn, raw_line, now_ms, &mut summary)?;
         }
         Ok::<(), Error>(())
     })?;
@@ -94,6 +68,59 @@ pub fn import_from_string(
         bus.publish(Event::KnownHostsChanged);
     }
     Ok(summary)
+}
+
+/// Import a single known_hosts line, updating `summary`. A line
+/// that parses to no entries is counted as `skipped_hashed` when
+/// it is a hashed-hostname row we cannot reverse, and otherwise
+/// ignored. Each parsed entry is delegated to [`import_entry`].
+fn import_line(
+    conn: &impl crate::db::DbAccess,
+    raw_line: &str,
+    now_ms: i64,
+    summary: &mut ImportSummary,
+) -> Result<(), Error> {
+    let entries = known_hosts_parser::parse_line(raw_line);
+    if entries.is_empty() {
+        if known_hosts_parser::is_hashed_hosts_line(raw_line) {
+            summary.skipped_hashed += 1;
+        }
+        return Ok(());
+    }
+    for entry in entries {
+        import_entry(conn, &entry, now_ms, summary)?;
+    }
+    Ok(())
+}
+
+/// Upsert one parsed entry. Skips entries whose `host_port` cannot
+/// be split, and entries already present for `(host, port)` —
+/// import is additive and never overwrites a TOFU-accepted row.
+fn import_entry(
+    conn: &impl crate::db::DbAccess,
+    entry: &known_hosts_parser::ParsedHostEntry,
+    now_ms: i64,
+    summary: &mut ImportSummary,
+) -> Result<(), Error> {
+    let (host, port) = match split_host_port(&entry.host_port) {
+        Some(hp) => hp,
+        None => return Ok(()),
+    };
+    let existing = crate::db::known_hosts::get_by_host_port(conn, &host, port)?;
+    if existing.is_some() {
+        summary.skipped_existing += 1;
+        return Ok(());
+    }
+    crate::db::known_hosts::upsert_by_host_port(
+        conn,
+        &host,
+        port,
+        &entry.key_type,
+        &entry.key_base64,
+        now_ms,
+    )?;
+    summary.added += 1;
+    Ok(())
 }
 
 /// Render every known-hosts row to the LetsFLUTssh wire format

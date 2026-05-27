@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/archive_stage.dart' as rust_stage;
 import '../../src/rust/api/config.dart' as rust_config;
@@ -46,6 +48,29 @@ class ImportSummary {
   });
 }
 
+/// Per-entity apply toggles from the import preview dialog. Each flag
+/// gates whether the apply driver touches the corresponding pending
+/// list; in replace mode a `true` flag with an empty list still wipes
+/// the local data of that type.
+@immutable
+class ImportSelection {
+  const ImportSelection({
+    required this.sessions,
+    required this.keys,
+    required this.tags,
+    required this.snippets,
+    required this.knownHosts,
+    required this.recordings,
+  });
+
+  final bool sessions;
+  final bool keys;
+  final bool tags;
+  final bool snippets;
+  final bool knownHosts;
+  final bool recordings;
+}
+
 /// Apply an [ImportResult] entirely through the Rust core
 /// (`lfs_core::archive::apply_pending_import`). Collisions, replace-mode
 /// snapshot/rollback, junction inserts, and folder hierarchy reconstruction
@@ -76,18 +101,20 @@ Future<rust_archive.DbApplyResult> applyResultViaRust(
   return _applyHandle(
     handleId: handleId,
     mode: result.mode,
-    applySessions: result.sessions.isNotEmpty || result.emptyFolders.isNotEmpty,
-    applyKeys: result.managerKeys.isNotEmpty,
-    applyTags: result.tags.isNotEmpty,
-    applySnippets: result.snippets.isNotEmpty,
-    applyKnownHosts:
-        result.knownHostsContent != null &&
-        result.knownHostsContent!.isNotEmpty,
-    // Staged-import callers (QR / paste-link / OpenSSH) ship the
-    // bandwidth-bound subset — recordings never travel through
-    // their pipeline; pass `false` so the apply driver does not
-    // even check the (empty) pending.recordings list.
-    applyRecordings: false,
+    selection: ImportSelection(
+      sessions: result.sessions.isNotEmpty || result.emptyFolders.isNotEmpty,
+      keys: result.managerKeys.isNotEmpty,
+      tags: result.tags.isNotEmpty,
+      snippets: result.snippets.isNotEmpty,
+      knownHosts:
+          result.knownHostsContent != null &&
+          result.knownHostsContent!.isNotEmpty,
+      // Staged-import callers (QR / paste-link / OpenSSH) ship the
+      // bandwidth-bound subset — recordings never travel through
+      // their pipeline; pass `false` so the apply driver does not
+      // even check the (empty) pending.recordings list.
+      recordings: false,
+    ),
     refreshAfterImport: refreshAfterImport,
   );
 }
@@ -100,23 +127,13 @@ Future<rust_archive.DbApplyResult> applyResultViaRust(
 Future<rust_archive.DbApplyResult> applyOpenedHandle({
   required String handleId,
   required ImportMode mode,
-  required bool applySessions,
-  required bool applyKeys,
-  required bool applyTags,
-  required bool applySnippets,
-  required bool applyKnownHosts,
-  required bool applyRecordings,
+  required ImportSelection selection,
   Future<void> Function()? refreshAfterImport,
 }) {
   return _applyHandle(
     handleId: handleId,
     mode: mode,
-    applySessions: applySessions,
-    applyKeys: applyKeys,
-    applyTags: applyTags,
-    applySnippets: applySnippets,
-    applyKnownHosts: applyKnownHosts,
-    applyRecordings: applyRecordings,
+    selection: selection,
     refreshAfterImport: refreshAfterImport,
   );
 }
@@ -124,12 +141,7 @@ Future<rust_archive.DbApplyResult> applyOpenedHandle({
 Future<rust_archive.DbApplyResult> _applyHandle({
   required String handleId,
   required ImportMode mode,
-  required bool applySessions,
-  required bool applyKeys,
-  required bool applyTags,
-  required bool applySnippets,
-  required bool applyKnownHosts,
-  required bool applyRecordings,
+  required ImportSelection selection,
   Future<void> Function()? refreshAfterImport,
 }) async {
   try {
@@ -139,12 +151,12 @@ Future<rust_archive.DbApplyResult> _applyHandle({
         mode: mode == ImportMode.replace
             ? rust_archive.DbImportMode.replace
             : rust_archive.DbImportMode.merge,
-        applySessions: applySessions,
-        applyKeys: applyKeys,
-        applyTags: applyTags,
-        applySnippets: applySnippets,
-        applyKnownHosts: applyKnownHosts,
-        applyRecordings: applyRecordings,
+        applySessions: selection.sessions,
+        applyKeys: selection.keys,
+        applyTags: selection.tags,
+        applySnippets: selection.snippets,
+        applyKnownHosts: selection.knownHosts,
+        applyRecordings: selection.recordings,
       ),
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
     );

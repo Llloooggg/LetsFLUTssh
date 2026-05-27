@@ -24,10 +24,18 @@ jobs:
   sonarcloud:
     name: SonarCloud scan
     runs-on: ubuntu-latest
+    # Trunk-only: scan after a successful `push` CI run on main. CI
+    # also runs for `pull_request` events (head_branch = the PR's
+    # source branch, e.g. dev), and those completions trigger this
+    # workflow too — but PR runs deliberately don't upload the
+    # `sonar-source` / coverage artefacts, so gate on the CI run's
+    # originating event being `push` to avoid launching a scan that
+    # can only die on the missing artefact.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'dev') &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.id == github.event.repository.id)
     permissions:
       actions: read

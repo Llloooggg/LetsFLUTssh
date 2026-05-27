@@ -331,12 +331,14 @@ class _ExportImportTile extends ConsumerWidget {
           : <String>[];
       final config = ref.read(configProvider);
       await ExportImport.exportViaRust(
-        masterPassword: password,
-        outputPath: outputPath,
-        options: exportResult.options,
-        selectedSessionIds: selectedIds,
-        selectedEmptyFolders: emptyFolders,
-        config: exportResult.options.includeConfig ? config : null,
+        request: ExportRequest(
+          masterPassword: password,
+          outputPath: outputPath,
+          options: exportResult.options,
+          selectedSessionIds: selectedIds,
+          selectedEmptyFolders: emptyFolders,
+          config: exportResult.options.includeConfig ? config : null,
+        ),
         progress: reporter,
         encryptingLabel: l10n.progressEncrypting,
         writingArchiveLabel: l10n.progressWritingArchive,
@@ -577,18 +579,20 @@ class _ExportImportTile extends ConsumerWidget {
       final apply = await applyOpenedHandle(
         handleId: handleId,
         mode: mode,
-        applySessions: options.includeSessions,
-        // Honor either key flag — "all manager keys" and "session-linked
-        // keys" share one Rust-side `apply_keys` gate (see import_flow).
-        applyKeys: options.hasManagerKeys,
-        applyTags: options.includeTags,
-        applySnippets: options.includeSnippets,
-        applyKnownHosts: options.includeKnownHosts,
-        // The LFS preview dialog has no recordings checkbox (the
-        // receiver gets whatever the archive carries), so gate on the
-        // archive's own recording count rather than the unsettable
-        // option flag — mirrors the drag-drop path in import_flow.
-        applyRecordings: recordingCount > 0,
+        selection: ImportSelection(
+          sessions: options.includeSessions,
+          // Honor either key flag — "all manager keys" and "session-linked
+          // keys" share one Rust-side `apply_keys` gate (see import_flow).
+          keys: options.hasManagerKeys,
+          tags: options.includeTags,
+          snippets: options.includeSnippets,
+          knownHosts: options.includeKnownHosts,
+          // The LFS preview dialog has no recordings checkbox (the
+          // receiver gets whatever the archive carries), so gate on the
+          // archive's own recording count rather than the unsettable
+          // option flag — mirrors the drag-drop path in import_flow.
+          recordings: recordingCount > 0,
+        ),
         refreshAfterImport: () async {
           // Sessions ride the workspace stream — the Rust apply
           // publishes `SessionsChanged` and the stream re-fetches.

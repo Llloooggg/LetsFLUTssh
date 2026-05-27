@@ -194,118 +194,24 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
     let sync_mode = input.sync_origin.as_deref().is_some_and(|s| !s.is_empty());
 
     if input.options.include_sessions {
-        let folder_paths = build_folder_paths(conn)?;
-        let sessions_value =
-            build_sessions_value(conn, &input.selected_session_ids, &folder_paths, sync_mode)?;
-        write_json_entry(&mut zw, opts, "sessions.json", &sessions_value)?;
-        if !input.selected_empty_folders.is_empty() {
-            let value = Value::Array(
-                input
-                    .selected_empty_folders
-                    .iter()
-                    .map(|s| Value::String(s.clone()))
-                    .collect(),
-            );
-            write_json_entry(&mut zw, opts, "empty_folders.json", &value)?;
-        }
+        write_sessions_entries(&mut zw, opts, conn, input, sync_mode)?;
     }
-
     if input.options.has_manager_keys {
-        let keys_value = build_manager_keys_value(
-            conn,
-            &input.selected_session_ids,
-            input.options.include_all_manager_keys,
-            sync_mode,
-        )?;
-        if let Some(value) = keys_value {
-            write_json_entry(&mut zw, opts, "keys.json", &value)?;
-        }
+        write_keys_entry(&mut zw, opts, conn, input, sync_mode)?;
     }
-
     if input.options.include_config && !input.config_json.is_empty() {
         write_text_entry(&mut zw, opts, "config.json", &input.config_json)?;
     }
-
     if input.options.include_known_hosts {
-        let kh = build_known_hosts(conn)?;
-        if !kh.is_empty() {
-            // Entry name must match `parse_pending_import`'s reader
-            // (`archive/mod.rs::parse_pending_import` keys on
-            // `"known_hosts.txt"`); writing the bare name silently
-            // dropped every known-hosts payload at import time.
-            write_text_entry(&mut zw, opts, "known_hosts.txt", &kh)?;
-        }
+        write_known_hosts_entry(&mut zw, opts, conn)?;
     }
-
     if input.options.include_tags {
-        if let Some(tags_value) = build_tags_value(conn, sync_mode)? {
-            write_json_entry(&mut zw, opts, "tags.json", &tags_value)?;
-
-            if let Some(session_tags) = build_session_tags_value(conn, &input.selected_session_ids)?
-            {
-                write_json_entry(&mut zw, opts, "session_tags.json", &session_tags)?;
-            }
-
-            if let Some(folder_tags) = build_folder_tags_value(conn)? {
-                write_json_entry(&mut zw, opts, "folder_tags.json", &folder_tags)?;
-            }
-        }
+        write_tags_entries(&mut zw, opts, conn, input, sync_mode)?;
     }
-
     if input.options.include_snippets {
-        if let Some(snippets_value) = build_snippets_value(conn, sync_mode)? {
-            write_json_entry(&mut zw, opts, "snippets.json", &snippets_value)?;
-            if let Some(session_snippets) =
-                build_session_snippets_value(conn, &input.selected_session_ids)?
-            {
-                write_json_entry(&mut zw, opts, "session_snippets.json", &session_snippets)?;
-            }
-        }
+        write_snippets_entries(&mut zw, opts, conn, input, sync_mode)?;
     }
-
-    // v3 child-table entries. Each piggy-backs on an existing
-    // include toggle so the user does not need a separate checkbox
-    // for every newly-portable table:
-    // - `ssh_key_certificates` follows `has_manager_keys` (a cert
-    //   without its parent key is meaningless).
-    // - `webdav_session_details`, `s3_session_details`,
-    //   `sftp_bookmarks`, `port_forward_rules` follow `include_sessions`
-    //   (each row is keyed by `session_id`).
-    if input.options.has_manager_keys {
-        if let Some(value) = build_ssh_key_certificates_value(
-            conn,
-            &input.selected_session_ids,
-            input.options.include_all_manager_keys,
-        )? {
-            write_json_entry(&mut zw, opts, "ssh_key_certificates.json", &value)?;
-        }
-    }
-    // `sync_mode` (computed above) keeps tombstone emission off the
-    // archive-import applier even when the user-facing dialog reuses
-    // the same composer — manual exports leave `sync_origin` absent.
-    if input.options.include_sessions {
-        if let Some(value) =
-            build_webdav_session_details_value(conn, &input.selected_session_ids, sync_mode)?
-        {
-            write_json_entry(&mut zw, opts, "webdav_session_details.json", &value)?;
-        }
-        if let Some(value) =
-            build_s3_session_details_value(conn, &input.selected_session_ids, sync_mode)?
-        {
-            write_json_entry(&mut zw, opts, "s3_session_details.json", &value)?;
-        }
-        if let Some(value) =
-            build_sftp_bookmarks_value(conn, &input.selected_session_ids, sync_mode)?
-        {
-            write_json_entry(&mut zw, opts, "sftp_bookmarks.json", &value)?;
-        }
-        if let Some(value) =
-            build_port_forward_rules_value(conn, &input.selected_session_ids, sync_mode)?
-        {
-            write_json_entry(&mut zw, opts, "port_forward_rules.json", &value)?;
-        }
-    }
-
+    write_child_table_entries(&mut zw, opts, conn, input, sync_mode)?;
     if input.options.include_recordings {
         if let Some(root) = input.recordings_root.as_deref() {
             write_recordings_entries(&mut zw, opts, root, input.recording_db_key.as_ref())?;
@@ -315,6 +221,170 @@ fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec
     zw.finish()
         .map_err(|e| Error::Archive(format!("zip finish: {e}")))?;
     Ok(buf.into_inner())
+}
+
+/// Type alias for the in-memory zip writer threaded through the
+/// per-section entry writers below.
+type ArchiveZipWriter<'a> = zip::ZipWriter<&'a mut Cursor<Vec<u8>>>;
+
+/// Write `sessions.json` plus the optional `empty_folders.json`
+/// sidecar.
+fn write_sessions_entries(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+    sync_mode: bool,
+) -> Result<(), Error> {
+    let folder_paths = build_folder_paths(conn)?;
+    let sessions_value =
+        build_sessions_value(conn, &input.selected_session_ids, &folder_paths, sync_mode)?;
+    write_json_entry(zw, opts, "sessions.json", &sessions_value)?;
+    if !input.selected_empty_folders.is_empty() {
+        let value = Value::Array(
+            input
+                .selected_empty_folders
+                .iter()
+                .map(|s| Value::String(s.clone()))
+                .collect(),
+        );
+        write_json_entry(zw, opts, "empty_folders.json", &value)?;
+    }
+    Ok(())
+}
+
+/// Write `keys.json` when the selection resolves to at least one
+/// manager key.
+fn write_keys_entry(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+    sync_mode: bool,
+) -> Result<(), Error> {
+    let keys_value = build_manager_keys_value(
+        conn,
+        &input.selected_session_ids,
+        input.options.include_all_manager_keys,
+        sync_mode,
+    )?;
+    if let Some(value) = keys_value {
+        write_json_entry(zw, opts, "keys.json", &value)?;
+    }
+    Ok(())
+}
+
+/// Write `known_hosts.txt` when the host store is non-empty.
+fn write_known_hosts_entry(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+) -> Result<(), Error> {
+    let kh = build_known_hosts(conn)?;
+    if !kh.is_empty() {
+        // Entry name must match `parse_pending_import`'s reader
+        // (`archive/mod.rs::parse_pending_import` keys on
+        // `"known_hosts.txt"`); writing the bare name silently
+        // dropped every known-hosts payload at import time.
+        write_text_entry(zw, opts, "known_hosts.txt", &kh)?;
+    }
+    Ok(())
+}
+
+/// Write `tags.json` plus the `session_tags.json` / `folder_tags.json`
+/// junction sidecars (only when there are tags to carry them).
+fn write_tags_entries(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+    sync_mode: bool,
+) -> Result<(), Error> {
+    if let Some(tags_value) = build_tags_value(conn, sync_mode)? {
+        write_json_entry(zw, opts, "tags.json", &tags_value)?;
+
+        if let Some(session_tags) = build_session_tags_value(conn, &input.selected_session_ids)? {
+            write_json_entry(zw, opts, "session_tags.json", &session_tags)?;
+        }
+
+        if let Some(folder_tags) = build_folder_tags_value(conn)? {
+            write_json_entry(zw, opts, "folder_tags.json", &folder_tags)?;
+        }
+    }
+    Ok(())
+}
+
+/// Write `snippets.json` plus the `session_snippets.json` junction
+/// sidecar.
+fn write_snippets_entries(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+    sync_mode: bool,
+) -> Result<(), Error> {
+    if let Some(snippets_value) = build_snippets_value(conn, sync_mode)? {
+        write_json_entry(zw, opts, "snippets.json", &snippets_value)?;
+        if let Some(session_snippets) =
+            build_session_snippets_value(conn, &input.selected_session_ids)?
+        {
+            write_json_entry(zw, opts, "session_snippets.json", &session_snippets)?;
+        }
+    }
+    Ok(())
+}
+
+/// Write the v3 child-table entries. Each piggy-backs on an existing
+/// include toggle so the user does not need a separate checkbox for
+/// every newly-portable table:
+/// - `ssh_key_certificates` follows `has_manager_keys` (a cert
+///   without its parent key is meaningless).
+/// - `webdav_session_details`, `s3_session_details`, `sftp_bookmarks`,
+///   `port_forward_rules` follow `include_sessions` (each row is keyed
+///   by `session_id`).
+///
+/// `sync_mode` keeps tombstone emission off the archive-import applier
+/// even when the user-facing dialog reuses the same composer — manual
+/// exports leave `sync_origin` absent.
+fn write_child_table_entries(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+    sync_mode: bool,
+) -> Result<(), Error> {
+    if input.options.has_manager_keys {
+        if let Some(value) = build_ssh_key_certificates_value(
+            conn,
+            &input.selected_session_ids,
+            input.options.include_all_manager_keys,
+        )? {
+            write_json_entry(zw, opts, "ssh_key_certificates.json", &value)?;
+        }
+    }
+    if input.options.include_sessions {
+        if let Some(value) =
+            build_webdav_session_details_value(conn, &input.selected_session_ids, sync_mode)?
+        {
+            write_json_entry(zw, opts, "webdav_session_details.json", &value)?;
+        }
+        if let Some(value) =
+            build_s3_session_details_value(conn, &input.selected_session_ids, sync_mode)?
+        {
+            write_json_entry(zw, opts, "s3_session_details.json", &value)?;
+        }
+        if let Some(value) =
+            build_sftp_bookmarks_value(conn, &input.selected_session_ids, sync_mode)?
+        {
+            write_json_entry(zw, opts, "sftp_bookmarks.json", &value)?;
+        }
+        if let Some(value) =
+            build_port_forward_rules_value(conn, &input.selected_session_ids, sync_mode)?
+        {
+            write_json_entry(zw, opts, "port_forward_rules.json", &value)?;
+        }
+    }
+    Ok(())
 }
 
 /// Walk `<root>/<session_id>/<file>.{cast,lfsr}` and bundle every
@@ -359,57 +429,83 @@ fn write_recordings_entries(
             Ok(it) => it,
             Err(_) => continue,
         };
-        for file_entry in inner.flatten() {
-            let file_path = file_entry.path();
-            let ft = match file_entry.file_type() {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
-            if !ft.is_file() {
-                continue;
-            }
-            let Some(file_name) = file_path.file_name().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let ext = file_path
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|s| s.to_ascii_lowercase());
-            let cast_bytes: Option<Vec<u8>> = match ext.as_deref() {
-                Some("cast") => std::fs::read(&file_path).ok(),
-                Some("lfsr") => match db_key {
-                    None => {
-                        crate::app_log_warn!(
-                            "ArchiveExport",
-                            "skip encrypted recording {}: no DB key available",
-                            file_path.display()
-                        );
-                        None
-                    }
-                    Some(k) => decrypt_lfsr_to_cast_bytes(&file_path, k).ok(),
-                },
-                // `.idx` sidecars + any stray extension: skip.
-                _ => None,
-            };
-            let Some(bytes) = cast_bytes else {
-                continue;
-            };
-            let base = file_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or(file_name);
-            let entry_name = format!("recordings/{session_id}/{base}.cast");
-            // Same `Stored` compression the rest of `build_zip` uses
-            // — keeps the outer LFSE envelope deterministic without
-            // reaching for an extra compression feature from the
-            // `zip` crate's default feature set.
-            zw.start_file::<_, ()>(entry_name.clone(), opts)
-                .map_err(|e| Error::Archive(format!("recording start {entry_name}: {e}")))?;
-            std::io::Write::write_all(zw, &bytes)
-                .map_err(|e| Error::Archive(format!("recording write {entry_name}: {e}")))?;
-        }
+        write_session_recordings(zw, opts, session_id, inner, db_key)?;
     }
     Ok(())
+}
+
+/// Bundle one session directory's recordings into the archive. Each
+/// `.cast` / `.lfsr` file resolves to plaintext cast bytes (see
+/// [`resolve_recording_cast_bytes`]) and lands under
+/// `recordings/<session_id>/<base>.cast`. Non-recording entries are
+/// skipped.
+fn write_session_recordings(
+    zw: &mut ArchiveZipWriter,
+    opts: SimpleFileOptions,
+    session_id: &str,
+    inner: std::fs::ReadDir,
+    db_key: Option<&[u8; 32]>,
+) -> Result<(), Error> {
+    for file_entry in inner.flatten() {
+        let file_path = file_entry.path();
+        let ft = match file_entry.file_type() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if !ft.is_file() {
+            continue;
+        }
+        let Some(file_name) = file_path.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        let Some(bytes) = resolve_recording_cast_bytes(&file_path, db_key) else {
+            continue;
+        };
+        let base = file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(file_name);
+        let entry_name = format!("recordings/{session_id}/{base}.cast");
+        // Same `Stored` compression the rest of `build_zip` uses
+        // — keeps the outer LFSE envelope deterministic without
+        // reaching for an extra compression feature from the
+        // `zip` crate's default feature set.
+        zw.start_file::<_, ()>(entry_name.clone(), opts)
+            .map_err(|e| Error::Archive(format!("recording start {entry_name}: {e}")))?;
+        std::io::Write::write_all(zw, &bytes)
+            .map_err(|e| Error::Archive(format!("recording write {entry_name}: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Resolve a recording file to plaintext `.cast` bytes. `.cast` reads
+/// straight through; `.lfsr` decrypts under `db_key` (a `None` key
+/// skips with a warn since the receiver could not play it anyway).
+/// `.idx` sidecars and any stray extension yield `None`.
+fn resolve_recording_cast_bytes(
+    file_path: &std::path::Path,
+    db_key: Option<&[u8; 32]>,
+) -> Option<Vec<u8>> {
+    let ext = file_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_ascii_lowercase());
+    match ext.as_deref() {
+        Some("cast") => std::fs::read(file_path).ok(),
+        Some("lfsr") => match db_key {
+            None => {
+                crate::app_log_warn!(
+                    "ArchiveExport",
+                    "skip encrypted recording {}: no DB key available",
+                    file_path.display()
+                );
+                None
+            }
+            Some(k) => decrypt_lfsr_to_cast_bytes(file_path, k).ok(),
+        },
+        // `.idx` sidecars + any stray extension: skip.
+        _ => None,
+    }
 }
 
 /// Stream-decrypt a `.lfsr` file under `db_key` and reassemble the
@@ -534,33 +630,8 @@ fn session_row_to_json(
         json!(format_iso8601_utc(r.updated_at_ms)),
     );
 
-    // `extras` is stored as a JSON string in the DB. Emit only when
-    // it parses to a non-empty object (matches Dart's
-    // `if (extras.isNotEmpty)` branch).
-    if !r.extras.is_empty() {
-        if let Ok(parsed) = serde_json::from_str::<Value>(&r.extras) {
-            if let Some(obj_extras) = parsed.as_object() {
-                if !obj_extras.is_empty() {
-                    obj.insert("extras".into(), parsed);
-                }
-            }
-        }
-    }
-
-    if let Some(via) = r.via_session_id.as_deref() {
-        if !via.is_empty() {
-            obj.insert("via_session_id".into(), json!(via));
-        }
-    }
-    if let (Some(h), Some(p), Some(u)) = (r.via_host.as_deref(), r.via_port, r.via_user.as_deref())
-    {
-        if !h.is_empty() && !u.is_empty() {
-            obj.insert(
-                "via_override".into(),
-                json!({"host": h, "port": p, "user": u}),
-            );
-        }
-    }
+    insert_session_extras(&mut obj, r);
+    insert_session_via(&mut obj, r);
 
     // Credentials — always written, mirroring `toJsonWithCredentials`.
     obj.insert("password".into(), json!(r.password));
@@ -586,6 +657,41 @@ fn session_row_to_json(
     }
 
     Ok(Value::Object(obj))
+}
+
+/// Emit `extras` only when the stored JSON string parses to a
+/// non-empty object (matches Dart's `if (extras.isNotEmpty)` branch).
+fn insert_session_extras(obj: &mut serde_json::Map<String, Value>, r: &sessions::SessionRow) {
+    if r.extras.is_empty() {
+        return;
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(&r.extras) {
+        if let Some(obj_extras) = parsed.as_object() {
+            if !obj_extras.is_empty() {
+                obj.insert("extras".into(), parsed);
+            }
+        }
+    }
+}
+
+/// Emit the jump-host fields: `via_session_id` (non-empty) and the
+/// `via_override` host/port/user trio when all three are present and
+/// host + user are non-empty.
+fn insert_session_via(obj: &mut serde_json::Map<String, Value>, r: &sessions::SessionRow) {
+    if let Some(via) = r.via_session_id.as_deref() {
+        if !via.is_empty() {
+            obj.insert("via_session_id".into(), json!(via));
+        }
+    }
+    if let (Some(h), Some(p), Some(u)) = (r.via_host.as_deref(), r.via_port, r.via_user.as_deref())
+    {
+        if !h.is_empty() && !u.is_empty() {
+            obj.insert(
+                "via_override".into(),
+                json!({"host": h, "port": p, "user": u}),
+            );
+        }
+    }
 }
 
 fn build_manager_keys_value(

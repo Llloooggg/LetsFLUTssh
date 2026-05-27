@@ -150,52 +150,62 @@ fn rest_re() -> &'static Regex {
 /// named capture matched.
 pub fn sanitize_error_message(input: &str) -> String {
     let after_ip = ip_re().replace_all(input, "<ip>");
+    let haystack = after_ip.as_ref();
     rest_re()
         .replace_all(&after_ip, |c: &regex::Captures<'_>| {
-            if c.name("userhost").is_some() {
-                let host = c.name("userhost_host").map_or("<host>", |m| m.as_str());
-                if c.name("userhost_port").is_some() {
-                    return format!("<user>@{host}:<port>");
-                }
-                return format!("<user>@{host}");
-            }
-            if c.name("asuser").is_some() {
-                return "as <user>".to_string();
-            }
-            if c.name("usereq").is_some() {
-                let key = c.name("usereq_key").map_or("user", |m| m.as_str());
-                return format!("{key}=<user>");
-            }
-            if let Some(m) = c.name("hostport") {
-                // Manual lookahead — Dart writes `(?!:\d)` in the regex,
-                // Rust's `regex` crate has no lookaround so we check
-                // here. If the byte AFTER the match is `:` followed by
-                // a digit, the candidate is a `LINE:COL` continuation
-                // of a `file.dart:LINE:COL` stack-trace fragment and
-                // we must NOT redact it. Returning the match's literal
-                // span preserves the source unchanged.
-                let tail = after_ip.as_bytes();
-                let end = m.end();
-                if matches!(tail.get(end), Some(b':'))
-                    && tail.get(end + 1).is_some_and(|b| b.is_ascii_digit())
-                {
-                    return m.as_str().to_string();
-                }
-                let host = c.name("hostport_host").map_or("<host>", |m| m.as_str());
-                return format!("{host}:<port>");
-            }
-            if c.name("winpath").is_some() {
-                return "<path>".to_string();
-            }
-            if c.name("unixpath").is_some() {
-                return "/<user>".to_string();
-            }
-            // Unreachable — every branch above is named and one of
-            // them must have matched. Preserve the original span if
-            // a future regex-vs-dispatch drift slips through.
-            c.get(0).map_or(String::new(), |m| m.as_str().to_string())
+            replace_rest_match(c, haystack)
         })
         .into_owned()
+}
+
+/// Dispatch one match of [`rest_re`] to its redacted replacement,
+/// keyed on which named capture fired. `haystack` is the pass-1
+/// output the captures index into — needed for the `hostport`
+/// manual look-ahead. Returns the original span for the
+/// (compile-time unreachable) no-branch-matched case.
+fn replace_rest_match(c: &regex::Captures<'_>, haystack: &str) -> String {
+    if c.name("userhost").is_some() {
+        let host = c.name("userhost_host").map_or("<host>", |m| m.as_str());
+        if c.name("userhost_port").is_some() {
+            return format!("<user>@{host}:<port>");
+        }
+        return format!("<user>@{host}");
+    }
+    if c.name("asuser").is_some() {
+        return "as <user>".to_string();
+    }
+    if c.name("usereq").is_some() {
+        let key = c.name("usereq_key").map_or("user", |m| m.as_str());
+        return format!("{key}=<user>");
+    }
+    if let Some(m) = c.name("hostport") {
+        // Manual lookahead — Dart writes `(?!:\d)` in the regex,
+        // Rust's `regex` crate has no lookaround so we check
+        // here. If the byte AFTER the match is `:` followed by
+        // a digit, the candidate is a `LINE:COL` continuation
+        // of a `file.dart:LINE:COL` stack-trace fragment and
+        // we must NOT redact it. Returning the match's literal
+        // span preserves the source unchanged.
+        let tail = haystack.as_bytes();
+        let end = m.end();
+        if matches!(tail.get(end), Some(b':'))
+            && tail.get(end + 1).is_some_and(|b| b.is_ascii_digit())
+        {
+            return m.as_str().to_string();
+        }
+        let host = c.name("hostport_host").map_or("<host>", |m| m.as_str());
+        return format!("{host}:<port>");
+    }
+    if c.name("winpath").is_some() {
+        return "<path>".to_string();
+    }
+    if c.name("unixpath").is_some() {
+        return "/<user>".to_string();
+    }
+    // Unreachable — every branch above is named and one of
+    // them must have matched. Preserve the original span if
+    // a future regex-vs-dispatch drift slips through.
+    c.get(0).map_or(String::new(), |m| m.as_str().to_string())
 }
 
 #[cfg(test)]

@@ -294,39 +294,14 @@ mod platform_impl {
                     Some(a) => a,
                     None => return Err(BrokerError::Other("null assertion pointer".into())),
                 };
-                // Guard each pointer before slicing — `from_raw_parts`
-                // on a null pointer is UB even at length 0. A
-                // well-formed assertion always carries signature +
-                // authenticator data, but matching the `pbUserId`
-                // guard below (and the sibling assertion path) keeps a
-                // malformed callback from tripping UB.
-                let signature = if assertion.cbSignature > 0 && !assertion.pbSignature.is_null() {
-                    std::slice::from_raw_parts(
-                        assertion.pbSignature,
-                        assertion.cbSignature as usize,
-                    )
-                    .to_vec()
-                } else {
-                    Vec::new()
-                };
-                let authenticator_data = if assertion.cbAuthenticatorData > 0
-                    && !assertion.pbAuthenticatorData.is_null()
-                {
-                    std::slice::from_raw_parts(
-                        assertion.pbAuthenticatorData,
-                        assertion.cbAuthenticatorData as usize,
-                    )
-                    .to_vec()
-                } else {
-                    Vec::new()
-                };
-                let user_handle = if assertion.cbUserId > 0 && !assertion.pbUserId.is_null() {
-                    Some(
-                        std::slice::from_raw_parts(assertion.pbUserId, assertion.cbUserId as usize)
-                            .to_vec(),
-                    )
-                } else {
+                let signature = ptr_len_to_vec(assertion.pbSignature, assertion.cbSignature);
+                let authenticator_data =
+                    ptr_len_to_vec(assertion.pbAuthenticatorData, assertion.cbAuthenticatorData);
+                let user_id = ptr_len_to_vec(assertion.pbUserId, assertion.cbUserId);
+                let user_handle = if user_id.is_empty() {
                     None
+                } else {
+                    Some(user_id)
                 };
                 WebAuthNFreeAssertion(assertion_ptr);
                 Ok(BrokerAssertion {
@@ -336,6 +311,26 @@ mod platform_impl {
                 })
             },
             Err(e) => Err(map_hresult(e)),
+        }
+    }
+
+    /// Copy a `(ptr, len)` FFI buffer into an owned `Vec`, returning
+    /// an empty `Vec` when the pointer is null or the length is zero.
+    ///
+    /// Guards the pointer before slicing — `from_raw_parts` on a null
+    /// pointer is UB even at length 0. A well-formed assertion always
+    /// carries signature + authenticator data, but the same guard
+    /// keeps a malformed callback from tripping UB.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must either be null or point to at least `len` readable
+    /// bytes owned by the calling FFI for the duration of this call.
+    unsafe fn ptr_len_to_vec(ptr: *const u8, len: u32) -> Vec<u8> {
+        if len > 0 && !ptr.is_null() {
+            std::slice::from_raw_parts(ptr, len as usize).to_vec()
+        } else {
+            Vec::new()
         }
     }
 
@@ -494,29 +489,14 @@ mod platform_impl {
         message_ptr: *const c_char,
     ) {
         let outcome = match status {
-            // SAFETY: `slice::from_raw_parts` constructs a slice from a pointer + length; the
-            // pointer is owned by the calling FFI and valid for the slice length for the borrow's
-            // duration.
+            // SAFETY: every buffer pointer is owned by the calling
+            // Swift FFI and valid for its paired length for the
+            // duration of this callback.
             0 => unsafe {
-                let signature = if signature_len > 0 && !signature_ptr.is_null() {
-                    std::slice::from_raw_parts(signature_ptr, signature_len).to_vec()
-                } else {
-                    Vec::new()
-                };
-                let authenticator_data = if auth_data_len > 0 && !auth_data_ptr.is_null() {
-                    std::slice::from_raw_parts(auth_data_ptr, auth_data_len).to_vec()
-                } else {
-                    Vec::new()
-                };
-                let user_handle = if user_handle_len > 0 && !user_handle_ptr.is_null() {
-                    Some(std::slice::from_raw_parts(user_handle_ptr, user_handle_len).to_vec())
-                } else {
-                    None
-                };
                 Ok(BrokerAssertion {
-                    signature,
-                    authenticator_data,
-                    user_handle,
+                    signature: opt_ptr_to_vec(signature_ptr, signature_len),
+                    authenticator_data: opt_ptr_to_vec(auth_data_ptr, auth_data_len),
+                    user_handle: opt_ptr_to_opt_vec(user_handle_ptr, user_handle_len),
                 })
             },
             1 => Err(BrokerError::Cancelled),
@@ -524,25 +504,58 @@ mod platform_impl {
             3 => Err(BrokerError::WrongPin),
             4 => Err(BrokerError::NoMatchingCredential),
             5 => Err(BrokerError::Transport),
-            _ => {
-                let msg = if message_ptr.is_null() {
-                    String::from("apple broker error")
-                } else {
-                    // SAFETY: pointer is a null-terminated UTF-8
-                    // C string owned by the Swift caller for the
-                    // duration of this callback.
-                    unsafe { std::ffi::CStr::from_ptr(message_ptr) }
-                        .to_string_lossy()
-                        .into_owned()
-                };
-                Err(BrokerError::Other(msg))
-            }
+            _ => Err(BrokerError::Other(read_error_message(message_ptr))),
         };
         if let Ok(mut map) = pending().lock() {
             if let Some(tx) = map.remove(&tag) {
                 let _ = tx.send(outcome);
             }
         }
+    }
+
+    /// Copy a `(ptr, len)` FFI buffer into an owned `Vec`, returning
+    /// an empty `Vec` when the pointer is null or the length is zero.
+    /// Guards the pointer because `from_raw_parts` on null is UB even
+    /// at length 0.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be null or point to at least `len` readable bytes
+    /// owned by the Swift caller for the duration of the callback.
+    unsafe fn opt_ptr_to_vec(ptr: *const u8, len: usize) -> Vec<u8> {
+        if len > 0 && !ptr.is_null() {
+            std::slice::from_raw_parts(ptr, len).to_vec()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// As [`opt_ptr_to_vec`] but distinguishes an absent buffer
+    /// (`None`) from a present empty one — the user handle is optional
+    /// in the assertion contract.
+    ///
+    /// # Safety
+    ///
+    /// Same contract as [`opt_ptr_to_vec`].
+    unsafe fn opt_ptr_to_opt_vec(ptr: *const u8, len: usize) -> Option<Vec<u8>> {
+        if len > 0 && !ptr.is_null() {
+            Some(std::slice::from_raw_parts(ptr, len).to_vec())
+        } else {
+            None
+        }
+    }
+
+    /// Read the Swift-supplied error message, falling back to a
+    /// generic label when the pointer is null.
+    fn read_error_message(message_ptr: *const c_char) -> String {
+        if message_ptr.is_null() {
+            return String::from("apple broker error");
+        }
+        // SAFETY: pointer is a null-terminated UTF-8 C string owned by
+        // the Swift caller for the duration of this callback.
+        unsafe { std::ffi::CStr::from_ptr(message_ptr) }
+            .to_string_lossy()
+            .into_owned()
     }
 
     pub(super) async fn get_assertion(
