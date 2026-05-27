@@ -2,13 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/session_credential_cache.dart';
 
-/// Container-scoped per-session credential cache.
+/// Per-session credential cache over the process-global
+/// `lfs_core::secrets::SecretStore`.
 ///
-/// Scoped to the Riverpod container so test harnesses using
-/// `ProviderContainer` + dispose get a clean slate, and so the app's
-/// container teardown (app shutdown) drops every cached SecretStore
-/// slot via [SessionCredentialCache.evictAll] — the Rust side zeros
-/// the bytes inside `lfs_core::secrets::SecretStore` on each evict.
+/// Secret RAM is zeroed at explicit security boundaries, never as a
+/// side effect of container teardown: per-session [evict] on
+/// disconnect (`ConnectionsNotifier`), and [evictAll] on lock
+/// (auto-lock action), background (lifecycle → lock), wipe-all, and
+/// forgot-password / reset (`security_init_controller`). Disposal
+/// does NOT call [evictAll]: the `SecretStore` is process-global, so a
+/// container-scoped dispose firing a global clear is the wrong layer —
+/// it is unreliable in production (skipped when the process is killed,
+/// and the lifecycle-background lock already cleared) and, with the
+/// parallel test runner sharing one Rust process, it wiped secrets out
+/// from under concurrently-running tests.
 ///
 /// Consumed by:
 ///   * `ConnectionsNotifier` — populate on successful auth, evict on
@@ -18,12 +25,5 @@ import '../core/security/session_credential_cache.dart';
 ///   * `WipeAllService` — `evictAll` at the start of `wipeAll()` so a
 ///     reset never leaves stale credentials for now-gone sessions.
 final sessionCredentialCacheProvider = Provider<SessionCredentialCache>((ref) {
-  final cache = SessionCredentialCache();
-  // evictAll is async; wrap in a void closure so onDispose accepts
-  // it. Errors are swallowed — provider teardown can't propagate
-  // failures and the FRB call is best-effort anyway.
-  ref.onDispose(() {
-    cache.evictAll().catchError((Object _) {});
-  });
-  return cache;
+  return SessionCredentialCache();
 });

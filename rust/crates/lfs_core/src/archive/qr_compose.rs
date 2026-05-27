@@ -276,31 +276,53 @@ fn build_manager_meta(
 ) -> Result<HashMap<String, (String, String, String)>, Error> {
     let mut manager_meta: HashMap<String, (String, String, String)> = HashMap::new();
     if input.options.include_all_manager_keys {
-        for k in ssh_keys::list_all(conn)? {
-            if k.private_key.is_empty() {
-                continue;
-            }
-            let short = dedup.short_for(&k.private_key);
-            dedup.manager_shorts.insert(short.clone());
-            manager_meta.insert(short, (k.label, k.key_type, k.public_key));
-        }
+        fold_all_manager_keys(conn, dedup, &mut manager_meta)?;
     } else if input.options.include_manager_keys {
-        let by_pem: HashMap<String, ssh_keys::SshKeyRow> = ssh_keys::list_all(conn)?
-            .into_iter()
-            .map(|k| (k.private_key.clone(), k))
-            .collect();
-        for short in &dedup.manager_shorts {
-            if let Some((pem, _)) = dedup.key_to_short.iter().find(|(_, v)| *v == short) {
-                if let Some(k) = by_pem.get(pem) {
-                    manager_meta.insert(
-                        short.clone(),
-                        (k.label.clone(), k.key_type.clone(), k.public_key.clone()),
-                    );
-                }
-            }
-        }
+        fill_referenced_manager_meta(conn, dedup, &mut manager_meta)?;
     }
     Ok(manager_meta)
+}
+
+/// Fold every stored key into the dedup map + metadata, so the
+/// receiver imports the full key manager.
+fn fold_all_manager_keys(
+    conn: &impl crate::db::DbAccess,
+    dedup: &mut KeyDedup,
+    manager_meta: &mut HashMap<String, (String, String, String)>,
+) -> Result<(), Error> {
+    for k in ssh_keys::list_all(conn)? {
+        if k.private_key.is_empty() {
+            continue;
+        }
+        let short = dedup.short_for(&k.private_key);
+        dedup.manager_shorts.insert(short.clone());
+        manager_meta.insert(short, (k.label, k.key_type, k.public_key));
+    }
+    Ok(())
+}
+
+/// Fill metadata only for shorts already referenced by a session.
+fn fill_referenced_manager_meta(
+    conn: &impl crate::db::DbAccess,
+    dedup: &KeyDedup,
+    manager_meta: &mut HashMap<String, (String, String, String)>,
+) -> Result<(), Error> {
+    let by_pem: HashMap<String, ssh_keys::SshKeyRow> = ssh_keys::list_all(conn)?
+        .into_iter()
+        .map(|k| (k.private_key.clone(), k))
+        .collect();
+    for short in &dedup.manager_shorts {
+        let Some((pem, _)) = dedup.key_to_short.iter().find(|(_, v)| *v == short) else {
+            continue;
+        };
+        if let Some(k) = by_pem.get(pem) {
+            manager_meta.insert(
+                short.clone(),
+                (k.label.clone(), k.key_type.clone(), k.public_key.clone()),
+            );
+        }
+    }
+    Ok(())
 }
 
 fn insert_key_maps(
