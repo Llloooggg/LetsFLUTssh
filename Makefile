@@ -70,11 +70,13 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# integration tests this whole pipeline exists to enable would
 	@# never trip).
 	@# The `frb_global_store`-tagged files
-	@# (session_credential_cache_test, wipe_all_service_test) each
-	@# destructively clear the process-global SecretStore that every
-	@# FRB test shares (one Rust process across parallel isolates).
-	@# They can't even share a process *serially*: an async clear from
-	@# one crosses the suite boundary into another's assertions. So
+	@# (session_credential_cache_test, wipe_all_service_test,
+	@# session_workspace_db_test) each destructively mutate
+	@# process-global Rust state every FRB test shares — the SecretStore
+	@# or the one in-memory DB (one Rust process across parallel
+	@# isolates). They can't even share a process *serially*: an async
+	@# clear from one crosses the suite boundary into another's
+	@# assertions. So
 	@# the main pass excludes the tag (parallel) and each tagged file
 	@# then runs in its OWN `flutter test` process (fresh Rust
 	@# AppState) — auto-discovered by tag so the list can't drift.

@@ -317,6 +317,16 @@ make dart-format         # Format Dart only
 make dart-format-check   # Verify Dart formatting
 ```
 
+> **Tests that mutate process-global Rust state.** `flutter test` runs
+> test files in parallel isolates that share a single Rust process — so
+> one `AppState`, one `SecretStore`, one in-memory DB. A test that wipes
+> the secret store or asserts the *exact* session list would otherwise
+> race another isolate's data. Tag such a file `@Tags(['frb_global_store'])`
+> (with `library;` on the next line) and declare nothing else: `make
+> dart-test` excludes the tag from its parallel pass, then runs each
+> tagged file alone in its own process with a fresh `AppState`. See
+> `dart_test.yaml` for the full rationale.
+
 > **First clone:** run `make setup` once. It installs pub deps, git
 > hooks, and pinned cargo plugins (`cargo-machete`, `cargo-llvm-cov`)
 > used by `make check` / `make rust-coverage`.
