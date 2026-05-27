@@ -203,13 +203,15 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
   }) => biometricSpecFor(
     l10n: l10n,
     tier: tier,
-    currentLevel: currentLevel,
-    currentModifiers: currentModifiers,
-    tierAvailable: tierAvailable,
-    tierUnavailableReason: tierUnavailableReason,
-    availability: _biometricUnavailable,
-    probed: _biometricProbed,
-    biometricEnabled: _biometricEnabled == true,
+    env: BiometricSpecEnv(
+      currentLevel: currentLevel,
+      currentModifiers: currentModifiers,
+      tierAvailable: tierAvailable,
+      tierUnavailableReason: tierUnavailableReason,
+      availability: _biometricUnavailable,
+      probed: _biometricProbed,
+      biometricEnabled: _biometricEnabled == true,
+    ),
   );
 
   // `_activeTierExtras` used to carry biometric + auto-lock rows

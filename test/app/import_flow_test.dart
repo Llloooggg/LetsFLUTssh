@@ -118,23 +118,18 @@ ImportFlowSeams _seams({
         ({
           required handleId,
           required mode,
-          required applySessions,
-          required applyKeys,
-          required applyTags,
-          required applySnippets,
-          required applyKnownHosts,
-          required applyRecordings,
+          required selection,
           refreshAfterImport,
         }) async {
           log.applyCalls.add((
             handleId: handleId,
             mode: mode,
-            applySessions: applySessions,
-            applyKeys: applyKeys,
-            applyTags: applyTags,
-            applySnippets: applySnippets,
-            applyKnownHosts: applyKnownHosts,
-            applyRecordings: applyRecordings,
+            applySessions: selection.sessions,
+            applyKeys: selection.keys,
+            applyTags: selection.tags,
+            applySnippets: selection.snippets,
+            applyKnownHosts: selection.knownHosts,
+            applyRecordings: selection.recordings,
             refreshProvided: refreshAfterImport != null,
           ));
           if (applyThrows != null) throw applyThrows;

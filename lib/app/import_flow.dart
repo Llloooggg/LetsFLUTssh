@@ -64,12 +64,7 @@ class ImportFlowSeams {
   final Future<rust_archive.DbApplyResult> Function({
     required String handleId,
     required ImportMode mode,
-    required bool applySessions,
-    required bool applyKeys,
-    required bool applyTags,
-    required bool applySnippets,
-    required bool applyKnownHosts,
-    required bool applyRecordings,
+    required ImportSelection selection,
     Future<void> Function()? refreshAfterImport,
   })
   applyHandle;
@@ -189,19 +184,21 @@ Future<ImportSummary> _applyRustQrSource({
   final apply = await _seams.applyHandle(
     handleId: rust.handleId,
     mode: choice.mode,
-    applySessions: choice.options.includeSessions,
-    // Both "session-linked keys" and "all manager keys" land in the
-    // payload's `mk`/`km` blocks and share the single Rust-side
-    // `apply_keys` gate, so the apply toggle must honor either flag —
-    // the default "Full import" preset sets only `includeAllManagerKeys`.
-    applyKeys: choice.options.hasManagerKeys,
-    applyTags: choice.options.includeTags,
-    applySnippets: choice.options.includeSnippets,
-    applyKnownHosts: choice.options.includeKnownHosts,
-    // QR / paste-link payloads never carry a recordings tree —
-    // only the `.lfs` composer bundles them. Pass false so the
-    // Rust side skips the filesystem-apply step entirely.
-    applyRecordings: false,
+    selection: ImportSelection(
+      sessions: choice.options.includeSessions,
+      // Both "session-linked keys" and "all manager keys" land in the
+      // payload's `mk`/`km` blocks and share the single Rust-side
+      // `apply_keys` gate, so the apply toggle must honor either flag —
+      // the default "Full import" preset sets only `includeAllManagerKeys`.
+      keys: choice.options.hasManagerKeys,
+      tags: choice.options.includeTags,
+      snippets: choice.options.includeSnippets,
+      knownHosts: choice.options.includeKnownHosts,
+      // QR / paste-link payloads never carry a recordings tree —
+      // only the `.lfs` composer bundles them. Pass false so the
+      // Rust side skips the filesystem-apply step entirely.
+      recordings: false,
+    ),
     refreshAfterImport: () => _refreshStores(ref),
   );
   // Config restore stays Dart-side — `lfs_core::archive::apply`
@@ -332,16 +329,18 @@ Future<void> _applyLfsImport(
     final apply = await _seams.applyHandle(
       handleId: handleId,
       mode: result.mode,
-      applySessions: true,
-      applyKeys: true,
-      applyTags: true,
-      applySnippets: true,
-      applyKnownHosts: opened.preview.hasKnownHosts,
-      // `.lfs` archive may carry a `recordings/` tree; let the
-      // Rust apply step extract it after the DB transaction
-      // commits. The LFS import dialog has no per-component
-      // toggles today — receiver gets everything in the archive.
-      applyRecordings: opened.preview.recordingCount > 0,
+      selection: ImportSelection(
+        sessions: true,
+        keys: true,
+        tags: true,
+        snippets: true,
+        knownHosts: opened.preview.hasKnownHosts,
+        // `.lfs` archive may carry a `recordings/` tree; let the
+        // Rust apply step extract it after the DB transaction
+        // commits. The LFS import dialog has no per-component
+        // toggles today — receiver gets everything in the archive.
+        recordings: opened.preview.recordingCount > 0,
+      ),
       refreshAfterImport: () => _refreshStores(ref),
     );
     handleId = null; // consumed by apply on success

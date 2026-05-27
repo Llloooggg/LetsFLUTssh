@@ -166,13 +166,15 @@ void main() {
         biometricSpecFor(
           l10n: l10n,
           tier: SecurityTier.plaintext,
-          currentLevel: SecurityTier.plaintext,
-          currentModifiers: baseModifiers,
-          tierAvailable: true,
-          tierUnavailableReason: null,
-          availability: null,
-          probed: true,
-          biometricEnabled: false,
+          env: const BiometricSpecEnv(
+            currentLevel: SecurityTier.plaintext,
+            currentModifiers: baseModifiers,
+            tierAvailable: true,
+            tierUnavailableReason: null,
+            availability: null,
+            probed: true,
+            biometricEnabled: false,
+          ),
         ),
         isNull,
       );
@@ -180,13 +182,15 @@ void main() {
         biometricSpecFor(
           l10n: l10n,
           tier: SecurityTier.paranoid,
-          currentLevel: SecurityTier.paranoid,
-          currentModifiers: baseModifiers,
-          tierAvailable: true,
-          tierUnavailableReason: null,
-          availability: null,
-          probed: true,
-          biometricEnabled: false,
+          env: const BiometricSpecEnv(
+            currentLevel: SecurityTier.paranoid,
+            currentModifiers: baseModifiers,
+            tierAvailable: true,
+            tierUnavailableReason: null,
+            availability: null,
+            probed: true,
+            biometricEnabled: false,
+          ),
         ),
         isNull,
       );
@@ -198,13 +202,15 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.keychain,
-        currentLevel: SecurityTier.keychain,
-        currentModifiers: const SecurityTierModifiers(password: true),
-        tierAvailable: true,
-        tierUnavailableReason: null,
-        availability: BiometricUnavailableReason.noSensor,
-        probed: true,
-        biometricEnabled: true,
+        env: const BiometricSpecEnv(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: SecurityTierModifiers(password: true),
+          tierAvailable: true,
+          tierUnavailableReason: null,
+          availability: BiometricUnavailableReason.noSensor,
+          probed: true,
+          biometricEnabled: true,
+        ),
       )!;
       expect(spec.enabled, isFalse);
       expect(spec.disabledReason, l10n.biometricSensorNotAvailable);
@@ -217,13 +223,15 @@ void main() {
         final spec = biometricSpecFor(
           l10n: l10n,
           tier: SecurityTier.hardware,
-          currentLevel: SecurityTier.keychain,
-          currentModifiers: const SecurityTierModifiers(password: true),
-          tierAvailable: true,
-          tierUnavailableReason: null,
-          availability: null,
-          probed: true,
-          biometricEnabled: false,
+          env: const BiometricSpecEnv(
+            currentLevel: SecurityTier.keychain,
+            currentModifiers: SecurityTierModifiers(password: true),
+            tierAvailable: true,
+            tierUnavailableReason: null,
+            availability: null,
+            probed: true,
+            biometricEnabled: false,
+          ),
         )!;
         expect(spec.enabled, isFalse);
         expect(spec.disabledReason, l10n.biometricRequiresActiveTier);
@@ -236,13 +244,15 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.keychain,
-        currentLevel: SecurityTier.keychain,
-        currentModifiers: const SecurityTierModifiers(password: true),
-        tierAvailable: true,
-        tierUnavailableReason: null,
-        availability: null,
-        probed: true,
-        biometricEnabled: true,
+        env: const BiometricSpecEnv(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: SecurityTierModifiers(password: true),
+          tierAvailable: true,
+          tierUnavailableReason: null,
+          availability: null,
+          probed: true,
+          biometricEnabled: true,
+        ),
       )!;
       expect(spec.enabled, isTrue);
       expect(spec.disabledReason, isNull);
@@ -256,13 +266,15 @@ void main() {
         final spec = biometricSpecFor(
           l10n: l10n,
           tier: SecurityTier.hardware,
-          currentLevel: SecurityTier.plaintext,
-          currentModifiers: baseModifiers,
-          tierAvailable: false,
-          tierUnavailableReason: reason,
-          availability: null,
-          probed: true,
-          biometricEnabled: false,
+          env: const BiometricSpecEnv(
+            currentLevel: SecurityTier.plaintext,
+            currentModifiers: baseModifiers,
+            tierAvailable: false,
+            tierUnavailableReason: reason,
+            availability: null,
+            probed: true,
+            biometricEnabled: false,
+          ),
         )!;
         expect(spec.enabled, isFalse);
         expect(spec.disabledReason, reason);
@@ -279,13 +291,15 @@ void main() {
         final spec = biometricSpecFor(
           l10n: l10n,
           tier: SecurityTier.keychain,
-          currentLevel: SecurityTier.keychain,
-          currentModifiers: const SecurityTierModifiers(),
-          tierAvailable: true,
-          tierUnavailableReason: null,
-          availability: null,
-          probed: true,
-          biometricEnabled: false,
+          env: const BiometricSpecEnv(
+            currentLevel: SecurityTier.keychain,
+            currentModifiers: SecurityTierModifiers(),
+            tierAvailable: true,
+            tierUnavailableReason: null,
+            availability: null,
+            probed: true,
+            biometricEnabled: false,
+          ),
         )!;
         expect(spec.enabled, isFalse);
         expect(spec.disabledReason, l10n.biometricRequiresPassword);
@@ -296,13 +310,15 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.hardware,
-        currentLevel: SecurityTier.hardware,
-        currentModifiers: const SecurityTierModifiers(password: true),
-        tierAvailable: true,
-        tierUnavailableReason: null,
-        availability: null,
-        probed: true,
-        biometricEnabled: true,
+        env: const BiometricSpecEnv(
+          currentLevel: SecurityTier.hardware,
+          currentModifiers: SecurityTierModifiers(password: true),
+          tierAvailable: true,
+          tierUnavailableReason: null,
+          availability: null,
+          probed: true,
+          biometricEnabled: true,
+        ),
       )!;
       expect(spec.enabled, isTrue);
       expect(spec.value, isTrue);
@@ -315,13 +331,15 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.hardware,
-        currentLevel: SecurityTier.hardware,
-        currentModifiers: const SecurityTierModifiers(password: true),
-        tierAvailable: true,
-        tierUnavailableReason: null,
-        availability: null,
-        probed: false,
-        biometricEnabled: false,
+        env: const BiometricSpecEnv(
+          currentLevel: SecurityTier.hardware,
+          currentModifiers: SecurityTierModifiers(password: true),
+          tierAvailable: true,
+          tierUnavailableReason: null,
+          availability: null,
+          probed: false,
+          biometricEnabled: false,
+        ),
       )!;
       expect(spec.enabled, isFalse);
       expect(spec.disabledReason, isNull);
@@ -1080,29 +1098,31 @@ void main() {
         await applyKeychainWithPasswordTier(
           shortPassword: short,
           modifiers: const SecurityTierModifiers(password: true),
-          gateSetPassword: (pw) async {
-            // Decode for the assertion log so the test still reads
-            // human-friendly; the FRB call sees the bytes directly.
-            calls.add('gate.set(${utf8.decode(pw)})');
-          },
-          gateClear: () async {
-            calls.add('gate.clear');
-          },
-          stageRandomKey: () {
-            calls.add('stage');
-            return 'fake-id';
-          },
-          keychainWriteFromSecret: (id) async {
-            calls.add('keychainWrite($id)');
-            return writeOk;
-          },
-          applyAlwaysRekeyFromSecret: (id, level, mods) async {
-            calls.add('rekey($level,$id)');
-          },
-          dropStaged: (id) => calls.add('drop($id)'),
-          runClearPlan: (target, _) async {
-            calls.add('clearPlan($target)');
-          },
+          seams: KeychainTierSeams(
+            gateSetPassword: (pw) async {
+              // Decode for the assertion log so the test still reads
+              // human-friendly; the FRB call sees the bytes directly.
+              calls.add('gate.set(${utf8.decode(pw)})');
+            },
+            gateClear: () async {
+              calls.add('gate.clear');
+            },
+            stageRandomKey: () {
+              calls.add('stage');
+              return 'fake-id';
+            },
+            keychainWriteFromSecret: (id) async {
+              calls.add('keychainWrite($id)');
+              return writeOk;
+            },
+            applyAlwaysRekeyFromSecret: (id, level, mods) async {
+              calls.add('rekey($level,$id)');
+            },
+            dropStaged: (id) => calls.add('drop($id)'),
+            runClearPlan: (target, _) async {
+              calls.add('clearPlan($target)');
+            },
+          ),
         );
       } catch (_) {
         // Tests assert on the call sequence + (separately) the throw.
@@ -1132,13 +1152,15 @@ void main() {
         applyKeychainWithPasswordTier(
           shortPassword: null,
           modifiers: const SecurityTierModifiers(password: true),
-          gateSetPassword: (_) async {},
-          gateClear: () async {},
-          stageRandomKey: () => 'fake-id',
-          keychainWriteFromSecret: (_) async => true,
-          applyAlwaysRekeyFromSecret: (_, _, _) async {},
-          dropStaged: (_) {},
-          runClearPlan: (_, _) async {},
+          seams: KeychainTierSeams(
+            gateSetPassword: (_) async {},
+            gateClear: () async {},
+            stageRandomKey: () => 'fake-id',
+            keychainWriteFromSecret: (_) async => true,
+            applyAlwaysRekeyFromSecret: (_, _, _) async {},
+            dropStaged: (_) {},
+            runClearPlan: (_, _) async {},
+          ),
         ),
         throwsA(
           isA<StateError>().having(
@@ -1172,13 +1194,15 @@ void main() {
           applyKeychainWithPasswordTier(
             shortPassword: 'pw-1',
             modifiers: const SecurityTierModifiers(password: true),
-            gateSetPassword: (_) async {},
-            gateClear: () async {},
-            stageRandomKey: () => 'fake-id',
-            keychainWriteFromSecret: (_) async => false,
-            applyAlwaysRekeyFromSecret: (_, _, _) async {},
-            dropStaged: (_) {},
-            runClearPlan: (_, _) async {},
+            seams: KeychainTierSeams(
+              gateSetPassword: (_) async {},
+              gateClear: () async {},
+              stageRandomKey: () => 'fake-id',
+              keychainWriteFromSecret: (_) async => false,
+              applyAlwaysRekeyFromSecret: (_, _, _) async {},
+              dropStaged: (_) {},
+              runClearPlan: (_, _) async {},
+            ),
           ),
           throwsA(
             isA<StateError>().having(
@@ -1217,10 +1241,12 @@ void main() {
         currentModifiers: currentModifiers,
         targetTier: next,
         targetModifiers: nextModifiers,
-        promptCurrentPassword: prompt,
-        verifyMaster: (_) async => masterAccepts,
-        verifyKeychainGate: (_) async => gateAccepts,
-        verifyHardwareVault: (_) async => hardwareAccepts,
+        verifiers: PasswordVerifierSeams(
+          promptCurrentPassword: prompt,
+          verifyMaster: (_) async => masterAccepts,
+          verifyKeychainGate: (_) async => gateAccepts,
+          verifyHardwareVault: (_) async => hardwareAccepts,
+        ),
       );
     }
 
@@ -1303,13 +1329,15 @@ void main() {
         currentModifiers: const SecurityTierModifiers(password: true),
         targetTier: SecurityTier.plaintext,
         targetModifiers: const SecurityTierModifiers(),
-        promptCurrentPassword: () async => 'pw',
-        verifyMaster: (_) async => true,
-        verifyKeychainGate: (_) async {
-          gateCalled++;
-          return false;
-        },
-        verifyHardwareVault: (_) async => false,
+        verifiers: PasswordVerifierSeams(
+          promptCurrentPassword: () async => 'pw',
+          verifyMaster: (_) async => true,
+          verifyKeychainGate: (_) async {
+            gateCalled++;
+            return false;
+          },
+          verifyHardwareVault: (_) async => false,
+        ),
       );
       expect(gateCalled, 0);
     });
@@ -1325,13 +1353,15 @@ void main() {
         currentModifiers: const SecurityTierModifiers(password: true),
         targetTier: SecurityTier.plaintext,
         targetModifiers: const SecurityTierModifiers(),
-        promptCurrentPassword: () async => 'pw',
-        verifyMaster: (_) async => true,
-        verifyKeychainGate: (_) async {
-          gateCalled++;
-          return true;
-        },
-        verifyHardwareVault: (_) async => false,
+        verifiers: PasswordVerifierSeams(
+          promptCurrentPassword: () async => 'pw',
+          verifyMaster: (_) async => true,
+          verifyKeychainGate: (_) async {
+            gateCalled++;
+            return true;
+          },
+          verifyHardwareVault: (_) async => false,
+        ),
       );
       expect(r, ConfirmPasswordResult.wrongPassword);
       expect(gateCalled, 0);
@@ -1343,10 +1373,12 @@ void main() {
         currentModifiers: const SecurityTierModifiers(password: true),
         targetTier: SecurityTier.plaintext,
         targetModifiers: const SecurityTierModifiers(),
-        promptCurrentPassword: () async => 'pw',
-        verifyMaster: (_) async => false,
-        verifyKeychainGate: (_) async => false,
-        verifyHardwareVault: (_) async => true,
+        verifiers: PasswordVerifierSeams(
+          promptCurrentPassword: () async => 'pw',
+          verifyMaster: (_) async => false,
+          verifyKeychainGate: (_) async => false,
+          verifyHardwareVault: (_) async => true,
+        ),
       );
       expect(r, ConfirmPasswordResult.ok);
     });

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 
-import 'package:meta/meta.dart' show visibleForTesting;
+import 'package:meta/meta.dart' show immutable, visibleForTesting;
 
 import '../config/app_config.dart';
 import '../progress/progress_reporter.dart';
@@ -113,20 +113,15 @@ class ExportImport {
   ///
   /// Returns the file path of the created archive.
   static Future<String> exportViaRust({
-    required String masterPassword,
-    required String outputPath,
-    required ExportOptions options,
-    required List<String> selectedSessionIds,
-    List<String> selectedEmptyFolders = const [],
-    AppConfig? config,
+    required ExportRequest request,
     ProgressReporter? progress,
     String encryptingLabel = 'Encrypting…',
     String writingArchiveLabel = 'Writing archive…',
-    KdfParams? kdfParams,
-    String? appVersion,
   }) async {
     progress?.phase(encryptingLabel);
-    final params = kdfParams ?? defaultKdfParams;
+    final params = request.kdfParams ?? defaultKdfParams;
+    final config = request.config;
+    final options = request.options;
     // Strip per-host security + sync slots Rust-side via the typed
     // FRB shim so the Dart code never re-implements the strip-list.
     final configJson = config != null
@@ -147,25 +142,52 @@ class ExportImport {
           hasManagerKeys: options.hasManagerKeys,
           includeRecordings: options.includeRecordings,
         ),
-        selectedSessionIds: selectedSessionIds,
-        selectedEmptyFolders: selectedEmptyFolders,
+        selectedSessionIds: request.selectedSessionIds,
+        selectedEmptyFolders: request.selectedEmptyFolders,
         configJson: configJson,
         schemaVersion: currentSchemaVersion,
-        appVersion: appVersion,
-        masterPassword: Uint8List.fromList(utf8.encode(masterPassword)),
+        appVersion: request.appVersion,
+        masterPassword: Uint8List.fromList(utf8.encode(request.masterPassword)),
         kdfMemoryKib: params.memoryKiB,
         kdfIterations: params.iterations,
         kdfParallelism: params.parallelism,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
-      outputPath: outputPath,
+      outputPath: request.outputPath,
     );
     AppLogger.instance.log(
-      'Export: Rust orchestrator wrote $byteCount bytes to $outputPath',
+      'Export: Rust orchestrator wrote $byteCount bytes to ${request.outputPath}',
       name: 'ExportImport',
     );
-    return outputPath;
+    return request.outputPath;
   }
+}
+
+/// Inputs to [ExportImport.exportViaRust]. Bundles the master password,
+/// destination, selection, and the optional config / KDF / version
+/// metadata into one value object so the export entry point stays under
+/// the parameter-count limit.
+@immutable
+class ExportRequest {
+  const ExportRequest({
+    required this.masterPassword,
+    required this.outputPath,
+    required this.options,
+    required this.selectedSessionIds,
+    this.selectedEmptyFolders = const [],
+    this.config,
+    this.kdfParams,
+    this.appVersion,
+  });
+
+  final String masterPassword;
+  final String outputPath;
+  final ExportOptions options;
+  final List<String> selectedSessionIds;
+  final List<String> selectedEmptyFolders;
+  final AppConfig? config;
+  final KdfParams? kdfParams;
+  final String? appVersion;
 }
 
 /// Manifest metadata returned by the Rust import preview.
