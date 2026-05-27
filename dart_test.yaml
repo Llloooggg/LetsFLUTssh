@@ -1,0 +1,14 @@
+# Test-runner configuration.
+#
+# `frb_global_store` marks the test files that destructively clear the
+# process-global `lfs_core::secrets::SecretStore` — the `evictAll` /
+# setUp clears in `session_credential_cache_test` and the `wipeAll`
+# sweep in `wipe_all_service_test`. `flutter test` runs files in
+# parallel isolates that share one Rust process (hence one global
+# store), so these must not run alongside tests that stage + assert
+# secrets. The `dart-test` Makefile target runs them in a serial
+# second pass with `--tags frb_global_store --concurrency=1`; the
+# parallel first pass excludes the tag. Declared here so `--tags` /
+# `--exclude-tags` don't warn about an unknown tag.
+tags:
+  frb_global_store:

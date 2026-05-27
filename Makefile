@@ -69,7 +69,19 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# behaviour: `make test` ran without the .so, and the bus-driven
 	@# integration tests this whole pipeline exists to enable would
 	@# never trip).
-	$(FLUTTER) test --coverage --timeout 30s
+	@# Two passes. The `frb_global_store`-tagged files
+	@# (session_credential_cache_test, wipe_all_service_test)
+	@# destructively clear the process-global SecretStore that every
+	@# FRB test shares (one Rust process, parallel isolates), so they
+	@# run alone in a serial second pass; the parallel first pass
+	@# excludes them. Coverage from both passes is concatenated (lcov
+	@# records sum per file in the consumers) before filtering. See
+	@# dart_test.yaml for the tag rationale.
+	$(FLUTTER) test --coverage --exclude-tags frb_global_store --timeout 30s
+	@cp coverage/lcov.info coverage/lcov.parallel.info
+	$(FLUTTER) test --coverage --tags frb_global_store --concurrency=1 --timeout 30s
+	@cat coverage/lcov.parallel.info >> coverage/lcov.info
+	@rm -f coverage/lcov.parallel.info
 	@# Post-process lcov.info to drop generated + localisation files
 	@# from the coverage denominator. Must mirror
 	@# `sonar.coverage.exclusions` in sonar-project.properties so the
