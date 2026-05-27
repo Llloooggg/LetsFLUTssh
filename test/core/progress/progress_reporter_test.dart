@@ -49,6 +49,28 @@ void main() {
       expect(reporter.current.percent, 0.0);
     });
 
+    test('step() with a negative current clamps the ratio up to 0.0', () {
+      // A nonsensical negative numerator must not surface a negative
+      // percent to the bar; the clamp pins the floor at 0.0.
+      final reporter = ProgressReporter('work');
+      addTearDown(reporter.dispose);
+
+      reporter.step('underflow', -3, 10);
+      expect(reporter.current.percent, 0.0);
+    });
+
+    test('after dispose, step() updates current but does not throw', () {
+      // `_emit` guards on `_controller.isClosed`, so a late update
+      // after dispose still refreshes `current` (a late frame seed)
+      // without adding to a closed stream and crashing.
+      final reporter = ProgressReporter('A');
+      reporter.dispose();
+
+      expect(() => reporter.step('late', 1, 2), returnsNormally);
+      expect(reporter.current.label, 'late');
+      expect(reporter.current.percent, closeTo(0.5, 1e-6));
+    });
+
     test('stream emits on every transition', () async {
       final reporter = ProgressReporter('A');
       addTearDown(reporter.dispose);
@@ -64,6 +86,32 @@ void main() {
       await sub.cancel();
 
       expect(observed, ['B', 'C', 'D']);
+    });
+  });
+
+  group('ProgressState', () {
+    test('default constructor carries an explicit percent + step counts', () {
+      // The step-based constructor path: a measurable phase populates
+      // percent within [0,1] plus the current/total step counters the
+      // dialog renders as "3 of 12".
+      const state = ProgressState(
+        label: 'Importing',
+        percent: 0.25,
+        current: 3,
+        total: 12,
+      );
+      expect(state.label, 'Importing');
+      expect(state.percent, 0.25);
+      expect(state.current, 3);
+      expect(state.total, 12);
+    });
+
+    test('indeterminate constructor nulls out percent + step counts', () {
+      const state = ProgressState.indeterminate('Hashing');
+      expect(state.label, 'Hashing');
+      expect(state.percent, isNull);
+      expect(state.current, isNull);
+      expect(state.total, isNull);
     });
   });
 }

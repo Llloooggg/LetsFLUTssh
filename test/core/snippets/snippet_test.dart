@@ -66,6 +66,29 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
+    test('equality: a snippet equals itself (identical short-circuit)', () {
+      final a = Snippet(id: '1', title: 'T', command: 'C');
+      expect(a == a, isTrue);
+    });
+
+    test('inequality: differing id breaks equality even with same text', () {
+      final a = Snippet(id: '1', title: 'T', command: 'C');
+      final b = Snippet(id: '2', title: 'T', command: 'C');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('inequality: differing title breaks equality', () {
+      final a = Snippet(id: '1', title: 'A', command: 'C');
+      final b = Snippet(id: '1', title: 'B', command: 'C');
+      expect(a, isNot(equals(b)));
+    });
+
+    test('a snippet is not equal to an unrelated type', () {
+      final a = Snippet(id: '1', title: 'T', command: 'C');
+      const Object other = 'not a Snippet';
+      expect(a == other, isFalse);
+    });
+
     test('two snippets get different ids', () {
       final a = Snippet(title: 'A', command: 'a');
       final b = Snippet(title: 'B', command: 'b');
@@ -80,6 +103,35 @@ void main() {
       final updated = original.copyWith(command: 'new');
       expect(updated.title, 'Kept');
       expect(updated.command, 'new');
+    });
+
+    test('copyWith without description keeps the original description', () {
+      // Pins `description: description ?? this.description` — a refactor
+      // that dropped the fallback would wipe descriptions on title-only
+      // edits.
+      final original = Snippet(
+        id: 'x',
+        title: 'T',
+        command: 'C',
+        description: 'kept',
+      );
+      final updated = original.copyWith(title: 'New');
+      expect(updated.description, 'kept');
+    });
+
+    test('copyWith preserves createdAt across an edit', () {
+      // The original creation time must survive an edit; only
+      // updatedAt advances.
+      final created = DateTime.utc(2020, 1, 1);
+      final original = Snippet(
+        id: 'x',
+        title: 'T',
+        command: 'C',
+        createdAt: created,
+        updatedAt: created,
+      );
+      final updated = original.copyWith(command: 'C2');
+      expect(updated.createdAt, created);
     });
 
     test('toString surfaces id + title for log + dev-tools triage', () {

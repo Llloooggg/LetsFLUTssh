@@ -52,6 +52,17 @@ void main() {
       expect(entries.single.level, LogLevel.error);
     });
 
+    test('an empty trailing message parses to an empty message string', () {
+      // The `(.*)` message group matches the empty string, so a line
+      // with a tag and nothing after it yields a parsed entry whose
+      // message is '' (not a header, not dropped).
+      final entries = parseLogEntries('12:34:56 I [Boot] ');
+      expect(entries, hasLength(1));
+      expect(entries.single.isHeader, isFalse);
+      expect(entries.single.tag, 'Boot');
+      expect(entries.single.message, '');
+    });
+
     test(
       'message preserves brackets — tag stops at the first close-bracket',
       () {

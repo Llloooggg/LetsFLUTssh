@@ -145,6 +145,85 @@ void main() {
       expect(notified, isTrue);
     });
 
+    test('applyFilter exposes the active query + visible levels', () {
+      final s = LogStore.instance;
+      s.applyFilter(
+        visibleLevels: {LogLevel.warn, LogLevel.error},
+        query: 'db',
+      );
+      expect(s.query, 'db');
+      expect(s.visibleLevels, {LogLevel.warn, LogLevel.error});
+    });
+
+    test('visibleLevels is an unmodifiable snapshot', () {
+      // The getter must not hand callers a mutable handle into the
+      // store's internal filter set.
+      final s = LogStore.instance;
+      expect(() => s.visibleLevels.add(LogLevel.info), throwsUnsupportedError);
+    });
+
+    test('allEntries is an unmodifiable snapshot', () {
+      final s = LogStore.instance;
+      s.debugInject(routine('a'));
+      expect(() => s.allEntries.add(routine('b')), throwsUnsupportedError);
+    });
+
+    test('buffer trims the oldest entries past the 50k soft cap', () {
+      // The buffer is bounded; once it exceeds the cap the oldest rows
+      // fall out FIFO so a long-lived session does not grow without
+      // limit. Cap is 50_000; push one past and assert the head moved.
+      final s = LogStore.instance;
+      const cap = 50000;
+      for (var i = 0; i <= cap; i++) {
+        s.debugInject(routine('m$i'));
+      }
+      expect(s.allEntries, hasLength(cap));
+      // The very first entry ('m0') must have been evicted; the new
+      // head is 'm1'.
+      expect(s.allEntries.first.message, 'm1');
+      expect(s.allEntries.last.message, 'm$cap');
+    });
+
+    test('a live banner after a non-banner entry appends (no collapse)', () {
+      // Collapse only fires banner-on-banner. A banner that lands
+      // after ordinary content marks a real new session and must be
+      // kept as its own row.
+      final s = LogStore.instance;
+      s.debugInject(routine('work'));
+      s.debugInject(
+        const LogEntry(
+          message: '--- Log started 2026-05-07 ---',
+          isHeader: true,
+        ),
+      );
+      expect(s.allEntries.map((e) => e.message), [
+        'work',
+        '--- Log started 2026-05-07 ---',
+      ]);
+    });
+
+    test('dispose closes the change stream so listeners complete', () async {
+      final s = LogStore.instance;
+      var done = false;
+      final sub = s.changes.listen((_) {}, onDone: () => done = true);
+
+      await s.dispose();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(done, isTrue, reason: 'stream should close on dispose');
+      await sub.cancel();
+    });
+
+    test('mutations after dispose do not throw on the closed stream', () async {
+      // `_emitChange` guards on `_changes.isClosed`; a stray mutation
+      // after dispose must be a silent no-op, not a "Cannot add to a
+      // closed stream" crash.
+      final s = LogStore.instance;
+      await s.dispose();
+      expect(() => s.clearAll(), returnsNormally);
+      expect(() => s.debugInject(routine('a')), returnsNormally);
+    });
+
     test(
       'listener fires on every append + on filter change + on clear',
       () async {

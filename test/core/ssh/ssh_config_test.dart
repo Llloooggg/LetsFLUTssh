@@ -80,8 +80,8 @@ void main() {
 
     test('inequality — different type', () {
       const a = ServerAddress(host: 'h', user: 'u');
-      // ignore: unrelated_type_equality_checks
-      expect(a == 'not a ServerAddress', isFalse);
+      const Object other = 'not a ServerAddress';
+      expect(a == other, isFalse);
     });
 
     test('hashCode — equal objects have equal hashCode', () {
@@ -134,6 +134,32 @@ void main() {
       expect(auth.hasAuth, isFalse);
     });
 
+    test('hasAuth is true with keyId — staged-from-store path', () {
+      // The connect path stages PEM bytes from Rust by keyId, so a row
+      // reference alone counts as configured auth even with no inline
+      // password / keyData.
+      const auth = SshAuth(keyId: 'row-42');
+      expect(auth.hasAuth, isTrue);
+    });
+
+    test('hasAuth is true with useAgent — agent defers every signature', () {
+      // An agent session populates no key / password column; the flag
+      // alone must satisfy hasAuth or the connect path would reject a
+      // valid agent config as "no auth configured".
+      const auth = SshAuth(useAgent: true);
+      expect(auth.hasAuth, isTrue);
+    });
+
+    test('useAgent defaults to false', () {
+      const auth = SshAuth();
+      expect(auth.useAgent, isFalse);
+    });
+
+    test('keyId defaults to empty string', () {
+      const auth = SshAuth();
+      expect(auth.keyId, '');
+    });
+
     test('SshAuth.copyWith replaces fields', () {
       const original = SshAuth(password: 'p', keyPath: 'k');
       final copy = original.copyWith(password: 'new', passphrase: 'pp');
@@ -147,6 +173,28 @@ void main() {
       const original = SshAuth(password: 'p');
       final copy = original.copyWith();
       expect(copy, original);
+    });
+
+    test('SshAuth.copyWith replaces keyId, preserving others', () {
+      const original = SshAuth(password: 'p', keyId: 'old');
+      final copy = original.copyWith(keyId: 'new');
+      expect(copy.keyId, 'new');
+      expect(copy.password, 'p');
+    });
+
+    test('SshAuth.copyWith replaces useAgent, preserving others', () {
+      const original = SshAuth(password: 'p');
+      final copy = original.copyWith(useAgent: true);
+      expect(copy.useAgent, isTrue);
+      expect(copy.password, 'p');
+    });
+
+    test('SshAuth.copyWith can flip useAgent back to false', () {
+      // `useAgent ?? this.useAgent` must honour an explicit `false`,
+      // not fall through to the original `true`.
+      const original = SshAuth(useAgent: true);
+      final copy = original.copyWith(useAgent: false);
+      expect(copy.useAgent, isFalse);
     });
 
     test('SshAuth equality — same fields are equal', () {
@@ -184,10 +232,22 @@ void main() {
       expect(a, isNot(b));
     });
 
+    test('inequality — different keyId', () {
+      const a = SshAuth(keyId: 'a');
+      const b = SshAuth(keyId: 'b');
+      expect(a, isNot(b));
+    });
+
+    test('inequality — different useAgent', () {
+      const a = SshAuth(useAgent: true);
+      const b = SshAuth(useAgent: false);
+      expect(a, isNot(b));
+    });
+
     test('inequality — different type', () {
       const a = SshAuth();
-      // ignore: unrelated_type_equality_checks
-      expect(a == 'not SshAuth', isFalse);
+      const Object other = 'not SshAuth';
+      expect(a == other, isFalse);
     });
 
     test('hashCode — equal objects have equal hashCode', () {
@@ -199,6 +259,18 @@ void main() {
     test('hashCode — different objects likely have different hashCode', () {
       const a = SshAuth(password: 'a');
       const b = SshAuth(password: 'b');
+      expect(a.hashCode, isNot(b.hashCode));
+    });
+
+    test('hashCode folds in keyId', () {
+      const a = SshAuth(keyId: 'a');
+      const b = SshAuth(keyId: 'b');
+      expect(a.hashCode, isNot(b.hashCode));
+    });
+
+    test('hashCode folds in useAgent', () {
+      const a = SshAuth(useAgent: true);
+      const b = SshAuth(useAgent: false);
       expect(a.hashCode, isNot(b.hashCode));
     });
   });
@@ -351,8 +423,8 @@ void main() {
 
       test('different type not equal', () {
         const a = SSHConfig(server: server);
-        // ignore: unrelated_type_equality_checks
-        expect(a == 'not SSHConfig', isFalse);
+        const Object other = 'not SSHConfig';
+        expect(a == other, isFalse);
       });
     });
 

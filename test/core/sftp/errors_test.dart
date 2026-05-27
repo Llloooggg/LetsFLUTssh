@@ -76,4 +76,41 @@ void main() {
       expect(outer.userMessage, 'outer fail (inner fail)');
     });
   });
+
+  group('SFTPError — _rootCauseMessage prefix stripping', () {
+    // The Rust transport surfaces russh-sftp errors as strings carrying
+    // a type prefix; the userMessage strips a known prefix so the UI
+    // shows the bare detail. Each branch is exercised with a
+    // string-typed cause that begins with that prefix.
+
+    test('strips SftpStatusError: prefix', () {
+      const error = SFTPError(
+        'op failed',
+        cause: 'SftpStatusError: no such file',
+      );
+      expect(error.userMessage, 'op failed (no such file)');
+    });
+
+    test('strips SftpError: prefix', () {
+      const error = SFTPError('op failed', cause: 'SftpError: protocol error');
+      expect(error.userMessage, 'op failed (protocol error)');
+    });
+
+    test('strips SftpAbortError: prefix', () {
+      const error = SFTPError('op failed', cause: 'SftpAbortError: cancelled');
+      expect(error.userMessage, 'op failed (cancelled)');
+    });
+
+    test('non-prefixed string cause passes through verbatim', () {
+      const error = SFTPError('op failed', cause: 'plain detail');
+      expect(error.userMessage, 'op failed (plain detail)');
+    });
+
+    test('userMessage drops an empty-string cause', () {
+      // The `causeStr.isNotEmpty` guard keeps an empty cause from
+      // producing a bare "message ()".
+      const error = SFTPError('op failed', cause: '');
+      expect(error.userMessage, 'op failed');
+    });
+  });
 }

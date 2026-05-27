@@ -5,10 +5,11 @@
 # setUp clears in `session_credential_cache_test` and the `wipeAll`
 # sweep in `wipe_all_service_test`. `flutter test` runs files in
 # parallel isolates that share one Rust process (hence one global
-# store), so these must not run alongside tests that stage + assert
-# secrets. The `dart-test` Makefile target runs them in a serial
-# second pass with `--tags frb_global_store --concurrency=1`; the
-# parallel first pass excludes the tag. Declared here so `--tags` /
-# `--exclude-tags` don't warn about an unknown tag.
+# store), and these can't even share a process serially (an async
+# clear from one crosses the suite boundary into another's
+# assertions). The `dart-test` Makefile target excludes the tag from
+# its parallel main pass, then runs each tagged file in its OWN
+# `flutter test` process (fresh Rust AppState). Declared here so
+# `--tags` / `--exclude-tags` don't warn about an unknown tag.
 tags:
   frb_global_store:

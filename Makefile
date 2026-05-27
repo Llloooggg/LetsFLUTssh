@@ -69,19 +69,26 @@ dart-test: rust-build ## Run Dart tests with coverage
 	@# behaviour: `make test` ran without the .so, and the bus-driven
 	@# integration tests this whole pipeline exists to enable would
 	@# never trip).
-	@# Two passes. The `frb_global_store`-tagged files
-	@# (session_credential_cache_test, wipe_all_service_test)
+	@# The `frb_global_store`-tagged files
+	@# (session_credential_cache_test, wipe_all_service_test) each
 	@# destructively clear the process-global SecretStore that every
-	@# FRB test shares (one Rust process, parallel isolates), so they
-	@# run alone in a serial second pass; the parallel first pass
-	@# excludes them. Coverage from both passes is concatenated (lcov
-	@# records sum per file in the consumers) before filtering. See
-	@# dart_test.yaml for the tag rationale.
+	@# FRB test shares (one Rust process across parallel isolates).
+	@# They can't even share a process *serially*: an async clear from
+	@# one crosses the suite boundary into another's assertions. So
+	@# the main pass excludes the tag (parallel) and each tagged file
+	@# then runs in its OWN `flutter test` process (fresh Rust
+	@# AppState) — auto-discovered by tag so the list can't drift.
+	@# Coverage from every pass is concatenated (lcov records sum per
+	@# file in the consumers) before filtering. See dart_test.yaml.
+	@rm -f coverage/lcov.acc.info
 	$(FLUTTER) test --coverage --exclude-tags frb_global_store --timeout 30s
-	@cp coverage/lcov.info coverage/lcov.parallel.info
-	$(FLUTTER) test --coverage --tags frb_global_store --concurrency=1 --timeout 30s
-	@cat coverage/lcov.parallel.info >> coverage/lcov.info
-	@rm -f coverage/lcov.parallel.info
+	@cat coverage/lcov.info >> coverage/lcov.acc.info
+	@for f in $$(grep -rl frb_global_store test --include='*_test.dart'); do \
+	  echo "=== isolated global-store suite: $$f ==="; \
+	  $(FLUTTER) test --coverage "$$f" --timeout 30s || exit 1; \
+	  cat coverage/lcov.info >> coverage/lcov.acc.info; \
+	done
+	@mv coverage/lcov.acc.info coverage/lcov.info
 	@# Post-process lcov.info to drop generated + localisation files
 	@# from the coverage denominator. Must mirror
 	@# `sonar.coverage.exclusions` in sonar-project.properties so the

@@ -95,6 +95,14 @@ void main() {
       const outer = ConnectError('connection failed', inner);
       expect(outer.userMessage, 'connection failed (bad key)');
     });
+
+    test('userMessage drops an empty-string cause rather than show "( )"', () {
+      // A cause whose stringification is empty must not produce a bare
+      // "message ()" — the `causeStr.isNotEmpty` guard keeps the output
+      // to the message alone.
+      const error = SSHError('outer', '');
+      expect(error.userMessage, 'outer');
+    });
   });
 
   group('HostKeyError', () {
@@ -191,6 +199,28 @@ void main() {
       const inner = ConnectError('refused');
       final err = ProxyJumpBastionError('b', inner);
       expect(err.userMessage, contains('refused'));
+    });
+  });
+
+  group('HardwareKeyPromptCancelled', () {
+    test('carries the supplied message and is an SSHError', () {
+      // The connect-progress UI shows this as a deliberate user
+      // dismissal, not a fault — message passes through verbatim and
+      // the type stays in the SSHError hierarchy so existing catch
+      // clauses still see it.
+      const error = HardwareKeyPromptCancelled('PIN prompt cancelled');
+      expect(error.message, 'PIN prompt cancelled');
+      expect(error, isA<SSHError>());
+    });
+
+    test('toString uses the HardwareKeyPromptCancelled prefix', () {
+      const error = HardwareKeyPromptCancelled('cancelled');
+      expect(error.toString(), 'HardwareKeyPromptCancelled: cancelled');
+    });
+
+    test('userMessage with no cause is just the message', () {
+      const error = HardwareKeyPromptCancelled('user dismissed');
+      expect(error.userMessage, 'user dismissed');
     });
   });
 }
