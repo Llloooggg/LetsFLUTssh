@@ -5,8 +5,8 @@
 # (the `evictAll` / setUp clears in `session_credential_cache_test`, the
 # `wipeAll` sweep in `wipe_all_service_test`) or the in-memory DB behind
 # the one shared `AppState` (the wipe-and-assert-exact-snapshot flows in
-# `session_workspace_db_test` and `known_hosts_db_test`). `flutter test`
-# runs files in parallel
+# `session_workspace_db_test`, `known_hosts_db_test` and
+# `ssh_keys_db_test`). `flutter test` runs files in parallel
 # isolates that share one Rust process (hence one global store and one
 # DB), so a file that clears the store or asserts the exact session set
 # would see another isolate's rows. They can't even share a process

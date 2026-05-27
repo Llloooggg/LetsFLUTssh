@@ -161,11 +161,11 @@ class SshKeysMutator {
   /// - If a stored key has the same public-key fingerprint (or private-
   ///   key fingerprint as fallback), returns its id without writing
   ///   anything — no duplicates.
-  /// - Otherwise, inserts a new entry. The id is replaced with a fresh
-  ///   UUID to avoid colliding with an unrelated stored key that
-  ///   happens to share the imported id. If the label already exists, a
-  ///   "(copy)"/"(copy N)" suffix is appended — mirrors session
-  ///   duplication semantics.
+  /// - Otherwise, inserts a new entry under the proposed id — unless
+  ///   that id already belongs to an unrelated stored key, in which
+  ///   case a fresh random id is minted so the import can't clobber it.
+  ///   If the label already exists, a "(copy)"/"(copy N)" suffix is
+  ///   appended — mirrors session duplication semantics.
   ///
   /// Routes through `lfs_core::db::ssh_keys::import_key_for_merge`
   /// (FRB async) so the dedup-by-fingerprint + label-uniqueness +
