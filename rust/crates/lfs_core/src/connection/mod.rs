@@ -1042,8 +1042,10 @@ async fn dispatch_connect(
             credential_id,
             application,
             pin_secret_id,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::Sk,
                 Session::connect_pubkey_sk_owned(crate::ssh::ConnectPubkeySkOwnedArgs {
                     host,
                     port,
@@ -1052,19 +1054,20 @@ async fn dispatch_connect(
                     credential_id,
                     application,
                     pin_secret_id,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::Sk)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeySkCert {
             public_openssh,
             credential_id,
             application,
             cert_secret_id,
             pin_secret_id,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::SkCert,
                 Session::connect_pubkey_sk_cert_owned(crate::ssh::ConnectPubkeySkCertOwnedArgs {
                     host,
                     port,
@@ -1074,11 +1077,10 @@ async fn dispatch_connect(
                     application,
                     cert_secret_id,
                     pin_secret_id,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::SkCert)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeyPkcs11 {
             public_openssh,
             module_path,
@@ -1086,8 +1088,10 @@ async fn dispatch_connect(
             cka_id,
             key_type,
             pin_secret_id,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::Pkcs11,
                 Session::connect_pubkey_pkcs11_owned(crate::ssh::ConnectPubkeyPkcs11OwnedArgs {
                     host,
                     port,
@@ -1098,33 +1102,35 @@ async fn dispatch_connect(
                     cka_id,
                     key_type,
                     pin_secret_id,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::Pkcs11)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeyEnclave {
             public_openssh,
             application_tag,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::Enclave,
                 Session::connect_pubkey_enclave_owned(crate::ssh::ConnectPubkeyEnclaveOwnedArgs {
                     host,
                     port,
                     user,
                     public_openssh,
                     application_tag,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::Enclave)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeyHello {
             public_openssh,
             credential_name,
             key_type,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::Hello,
                 Session::connect_pubkey_hello_owned(crate::ssh::ConnectPubkeyHelloOwnedArgs {
                     host,
                     port,
@@ -1132,11 +1138,10 @@ async fn dispatch_connect(
                     public_openssh,
                     credential_name,
                     key_type,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::Hello)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeyTpm {
             public_openssh,
             provider,
@@ -1144,8 +1149,10 @@ async fn dispatch_connect(
             cng_key_name,
             key_type,
             pin_secret_id,
-        } => match bastion_session {
-            None => {
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
+                HardwareSigner::Tpm,
                 Session::connect_pubkey_tpm_owned(crate::ssh::ConnectPubkeyTpmOwnedArgs {
                     host,
                     port,
@@ -1156,35 +1163,51 @@ async fn dispatch_connect(
                     cng_key_name,
                     key_type,
                     pin_secret_id,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(HardwareSigner::Tpm)),
-        },
+                }),
+            )
+            .await
+        }
         ConnectAuthRef::PubkeyKeystore {
             public_openssh,
             keystore_alias,
             key_type,
-        } => match bastion_session {
-            None => {
-                Session::connect_pubkey_keystore_owned(crate::ssh::ConnectPubkeyKeystoreOwnedArgs {
-                    host,
-                    port,
-                    user,
-                    public_openssh,
-                    keystore_alias,
-                    key_type,
-                })
-                .await
-            }
-            Some(_) => Err(hardware_over_proxyjump_unsupported(
+        } => {
+            direct_or_reject_hardware(
+                bastion_session,
                 HardwareSigner::Keystore,
-            )),
-        },
+                Session::connect_pubkey_keystore_owned(
+                    crate::ssh::ConnectPubkeyKeystoreOwnedArgs {
+                        host,
+                        port,
+                        user,
+                        public_openssh,
+                        keystore_alias,
+                        key_type,
+                    },
+                ),
+            )
+            .await
+        }
         ConnectAuthRef::Agent => match bastion_session {
             None => Session::connect_agent_owned(host, port, user).await,
             Some(parent) => Session::connect_agent_via_proxy_owned(parent, host, port, user).await,
         },
+    }
+}
+
+/// Route a hardware-bound signer: run the direct-connect future when
+/// there is no bastion, else reject with the signer-specific
+/// "ProxyJump unsupported" error. The `direct` future is built eagerly
+/// by the caller (constructing an async future runs no code) and is
+/// simply dropped unrun on the bastion path.
+async fn direct_or_reject_hardware(
+    bastion_session: Option<Arc<Session>>,
+    signer: HardwareSigner,
+    direct: impl std::future::Future<Output = Result<Session, Error>>,
+) -> Result<Session, Error> {
+    match bastion_session {
+        None => direct.await,
+        Some(_) => Err(hardware_over_proxyjump_unsupported(signer)),
     }
 }
 

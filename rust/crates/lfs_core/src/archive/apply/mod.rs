@@ -354,6 +354,31 @@ pub fn apply_pending_to_db(
     }
 }
 
+/// Per-kind apply toggles resolved from the optional [`ApplyOptions`].
+/// Sync ignores `options` — the orchestrator always ships every entry
+/// the peer carried — so every flag defaults to `true`. Archive-import
+/// callers gate per-kind through the toggle set.
+#[derive(Debug, Clone, Copy)]
+struct WantFlags {
+    keys: bool,
+    sessions: bool,
+    tags: bool,
+    snippets: bool,
+    known_hosts: bool,
+}
+
+impl WantFlags {
+    fn from_options(options: Option<&ApplyOptions>) -> Self {
+        WantFlags {
+            keys: options.is_none_or(|o| o.apply_keys),
+            sessions: options.is_none_or(|o| o.apply_sessions),
+            tags: options.is_none_or(|o| o.apply_tags),
+            snippets: options.is_none_or(|o| o.apply_snippets),
+            known_hosts: options.is_none_or(|o| o.apply_known_hosts),
+        }
+    }
+}
+
 fn run_apply(
     conn: &impl crate::db::DbAccess,
     pending: &PendingImport,
@@ -362,16 +387,9 @@ fn run_apply(
     now_ms: i64,
     outcome: &mut ApplyOutcome,
 ) {
-    // Sync ignores `options` — the orchestrator always ships every
-    // entry the peer carried. Archive-import callers gate per-kind
-    // through the toggle set.
-    let want_keys = options.is_none_or(|o| o.apply_keys);
-    let want_sessions = options.is_none_or(|o| o.apply_sessions);
-    let want_tags = options.is_none_or(|o| o.apply_tags);
-    let want_snippets = options.is_none_or(|o| o.apply_snippets);
-    let want_known_hosts = options.is_none_or(|o| o.apply_known_hosts);
+    let want = WantFlags::from_options(options);
 
-    if want_keys {
+    if want.keys {
         if let Some(json) = pending.keys_json.as_deref() {
             apply_keys(conn, json, mode, now_ms, outcome);
         }
@@ -380,31 +398,18 @@ fn run_apply(
     // resolves through the imported folder tree; the resulting
     // path → id map feeds the folder-tag arm below.
     let folder_path_to_id =
-        apply_sessions_phase(conn, pending, mode, want_sessions, now_ms, outcome);
-    if want_tags {
-        if let Some(json) = pending.tags_json.as_deref() {
-            apply_tags(conn, json, mode, now_ms, outcome);
-        }
-    }
-    if want_sessions && want_tags {
-        if let Some(json) = pending.session_tags_json.as_deref() {
-            apply_session_tags(conn, json, outcome);
-        }
-        if let Some(json) = pending.folder_tags_json.as_deref() {
-            apply_folder_tags(conn, json, &folder_path_to_id, outcome);
-        }
-    }
-    if want_snippets {
-        if let Some(json) = pending.snippets_json.as_deref() {
-            apply_snippets(conn, json, mode, now_ms, outcome);
-        }
-    }
-    if want_sessions && want_snippets {
-        if let Some(json) = pending.session_snippets_json.as_deref() {
-            apply_session_snippets(conn, json, outcome);
-        }
-    }
-    if want_known_hosts {
+        apply_sessions_phase(conn, pending, mode, want.sessions, now_ms, outcome);
+    apply_tags_phase(
+        conn,
+        pending,
+        mode,
+        want,
+        &folder_path_to_id,
+        now_ms,
+        outcome,
+    );
+    apply_snippets_phase(conn, pending, mode, want, now_ms, outcome);
+    if want.known_hosts {
         if let Some(text) = pending.known_hosts_text.as_deref() {
             apply_known_hosts(conn, text, now_ms, outcome);
         }
@@ -413,11 +418,61 @@ fn run_apply(
         conn,
         pending,
         mode,
-        want_keys,
-        want_sessions,
+        want.keys,
+        want.sessions,
         now_ms,
         outcome,
     );
+}
+
+/// Apply tags, then the session-tag and folder-tag join tables. The
+/// join arms only run when both sessions and tags were requested, so a
+/// session-less or tag-less import leaves the link tables untouched.
+fn apply_tags_phase(
+    conn: &impl crate::db::DbAccess,
+    pending: &PendingImport,
+    mode: ApplyMode,
+    want: WantFlags,
+    folder_path_to_id: &HashMap<String, String>,
+    now_ms: i64,
+    outcome: &mut ApplyOutcome,
+) {
+    if want.tags {
+        if let Some(json) = pending.tags_json.as_deref() {
+            apply_tags(conn, json, mode, now_ms, outcome);
+        }
+    }
+    if !(want.sessions && want.tags) {
+        return;
+    }
+    if let Some(json) = pending.session_tags_json.as_deref() {
+        apply_session_tags(conn, json, outcome);
+    }
+    if let Some(json) = pending.folder_tags_json.as_deref() {
+        apply_folder_tags(conn, json, folder_path_to_id, outcome);
+    }
+}
+
+/// Apply snippets, then the session-snippet join table. The join arm
+/// only runs when both sessions and snippets were requested.
+fn apply_snippets_phase(
+    conn: &impl crate::db::DbAccess,
+    pending: &PendingImport,
+    mode: ApplyMode,
+    want: WantFlags,
+    now_ms: i64,
+    outcome: &mut ApplyOutcome,
+) {
+    if want.snippets {
+        if let Some(json) = pending.snippets_json.as_deref() {
+            apply_snippets(conn, json, mode, now_ms, outcome);
+        }
+    }
+    if want.sessions && want.snippets {
+        if let Some(json) = pending.session_snippets_json.as_deref() {
+            apply_session_snippets(conn, json, outcome);
+        }
+    }
 }
 
 /// Apply the folder tree, sessions, and empty folders, returning the
@@ -902,21 +957,16 @@ fn apply_one_session(
         }
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    // Archive imports never carry tombstones — they're a sync-
-    // protocol concern. Drop the row silently rather than apply
-    // it as a fake revival.
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match sessions::apply_tombstone(conn, &id, deleted_at_ms) {
-            Ok(_) => outcome.sessions_applied += 1,
-            Err(e) => outcome.errors.push(format!("session {id} tombstone: {e}")),
+    if is_tombstone(v) {
+        // Archive imports never carry tombstones — they're a sync-
+        // protocol concern. Drop the row silently rather than apply
+        // it as a fake revival.
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match sessions::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.sessions_applied += 1,
+                Err(e) => outcome.errors.push(format!("session {id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -929,15 +979,10 @@ fn apply_one_session(
     } else {
         now_ms
     };
-    if mode.is_sync() {
-        if let Some(local_row) = local.get(&id) {
-            // Strict-greater so a tie keeps local state; the
-            // local row's tombstone counts as part of the LWW
-            // timestamp via `updated_at_ms`.
-            if peer_updated_at <= local_row.updated_at_ms {
-                return;
-            }
-        }
+    // The local row's tombstone counts as part of the LWW timestamp
+    // via `updated_at_ms`.
+    if mode.is_sync() && lww_peer_loses(peer_updated_at, local.get(&id).map(|r| r.updated_at_ms)) {
+        return;
     }
     let row = build_session_row(v, mode, folder_path_to_id, id, peer_updated_at, now_ms);
     match sessions::upsert(conn, &row) {
@@ -1044,6 +1089,22 @@ fn build_session_row(
 
 fn json_i64_opt(v: &Value, key: &str) -> Option<i64> {
     v.get(key).and_then(|x| x.as_i64())
+}
+
+/// Whether a staged row carries the sync `tombstone` flag. Defaults
+/// to `false` when the field is absent or non-boolean.
+fn is_tombstone(v: &Value) -> bool {
+    v.get("tombstone")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false)
+}
+
+/// Sync LWW gate: the peer row loses when a local stamp is present and
+/// at least as fresh. Strict-greater wins, so a tie keeps local state.
+/// `None` local stamp means no local row exists — the peer always
+/// applies.
+fn lww_peer_loses(peer_ts: i64, local_ts: Option<i64>) -> bool {
+    matches!(local_ts, Some(local) if peer_ts <= local)
 }
 
 fn apply_keys(
@@ -1347,24 +1408,16 @@ fn apply_one_tag(
 ) {
     let id = json_string(v, "id");
     let name = json_string(v, "name");
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    // Archive imports never carry tombstones; drop silently. A
-    // tag deletion on a peer must not resurrect here, so the
-    // sync path routes through the DAO's LWW-gated tombstone.
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        if id.is_empty() {
-            return;
-        }
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match tags::apply_tombstone(conn, &id, deleted_at_ms) {
-            Ok(_) => outcome.tags_applied += 1,
-            Err(e) => outcome.errors.push(format!("tag {id} tombstone: {e}")),
+    if is_tombstone(v) {
+        // Archive imports never carry tombstones; drop silently. A
+        // tag deletion on a peer must not resurrect here, so the
+        // sync path routes through the DAO's LWW-gated tombstone.
+        if mode.is_sync() && !id.is_empty() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match tags::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.tags_applied += 1,
+                Err(e) => outcome.errors.push(format!("tag {id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -1374,19 +1427,13 @@ fn apply_one_tag(
     // than win via `now`.
     let peer_ts = parse_iso8601_opt(v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""))
         .unwrap_or(if mode.is_sync() { 0 } else { now_ms });
-    if id.is_empty() || (!mode.is_sync() && name.is_empty()) {
+    // A tag needs both id and name; the empty case is skipped in
+    // either mode.
+    if id.is_empty() || name.is_empty() {
         return;
     }
-    // Sync also requires name; the empty case is just skipped.
-    if mode.is_sync() && name.is_empty() {
+    if mode.is_sync() && lww_peer_loses(peer_ts, local.get(&id).map(|r| r.created_at_ms)) {
         return;
-    }
-    if mode.is_sync() {
-        if let Some(local_row) = local.get(&id) {
-            if peer_ts <= local_row.created_at_ms {
-                return;
-            }
-        }
     }
     let row = tags::TagRow {
         id,
@@ -1452,21 +1499,16 @@ fn apply_one_snippet(
     if id.is_empty() {
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    // Archive imports never carry tombstones; drop silently. A
-    // snippet deletion on a peer routes through the DAO's
-    // LWW-gated tombstone so it can't resurrect.
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match snippets::apply_tombstone(conn, &id, deleted_at_ms) {
-            Ok(_) => outcome.snippets_applied += 1,
-            Err(e) => outcome.errors.push(format!("snippet {id} tombstone: {e}")),
+    if is_tombstone(v) {
+        // Archive imports never carry tombstones; drop silently. A
+        // snippet deletion on a peer routes through the DAO's
+        // LWW-gated tombstone so it can't resurrect.
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match snippets::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.snippets_applied += 1,
+                Err(e) => outcome.errors.push(format!("snippet {id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -1479,12 +1521,8 @@ fn apply_one_snippet(
     // winning via `now_ms`.
     let peer_updated =
         parse_iso8601_opt(v.get("updated_at").and_then(|x| x.as_str()).unwrap_or("")).unwrap_or(0);
-    if mode.is_sync() {
-        if let Some(local_row) = local.get(&id) {
-            if peer_updated <= local_row.updated_at_ms {
-                return;
-            }
-        }
+    if mode.is_sync() && lww_peer_loses(peer_updated, local.get(&id).map(|r| r.updated_at_ms)) {
+        return;
     }
     let row = snippets::SnippetRow {
         id: id.clone(),
@@ -1712,23 +1750,18 @@ fn apply_one_webdav_session_detail(
     if session_id.is_empty() {
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    // Archive imports never carry tombstones — they're a sync-
-    // protocol concern. Drop the row silently rather than apply
-    // it as a fake revival.
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match webdav_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
-            Ok(_) => outcome.webdav_session_details_applied += 1,
-            Err(e) => outcome.errors.push(format!(
-                "webdav_session_details {session_id} tombstone: {e}"
-            )),
+    if is_tombstone(v) {
+        // Archive imports never carry tombstones — they're a sync-
+        // protocol concern. Drop the row silently rather than apply
+        // it as a fake revival.
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match webdav_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
+                Ok(_) => outcome.webdav_session_details_applied += 1,
+                Err(e) => outcome.errors.push(format!(
+                    "webdav_session_details {session_id} tombstone: {e}"
+                )),
+            }
         }
         return;
     }
@@ -1739,17 +1772,15 @@ fn apply_one_webdav_session_detail(
         return;
     }
     if mode.is_sync() {
-        let peer_updated_at = json_i64_opt(v, "updated_at_ms").unwrap_or(0);
         // LWW gate: skip when the local stamp is at least as
         // fresh as the peer's. The tombstone branch above uses
         // its own gate inside `apply_tombstone`.
-        if let Some(local_updated) = webdav_sessions::get_updated_at(conn, &session_id)
+        let peer_updated_at = json_i64_opt(v, "updated_at_ms").unwrap_or(0);
+        let local_updated = webdav_sessions::get_updated_at(conn, &session_id)
             .ok()
-            .flatten()
-        {
-            if peer_updated_at <= local_updated {
-                return;
-            }
+            .flatten();
+        if lww_peer_loses(peer_updated_at, local_updated) {
+            return;
         }
     }
     let row = webdav_sessions::WebDavSessionRow {
@@ -1829,20 +1860,15 @@ fn apply_one_s3_session_detail(
     if session_id.is_empty() {
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match s3_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
-            Ok(_) => outcome.s3_session_details_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("s3_session_details {session_id} tombstone: {e}")),
+    if is_tombstone(v) {
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match s3_sessions::apply_tombstone(conn, &session_id, deleted_at_ms) {
+                Ok(_) => outcome.s3_session_details_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("s3_session_details {session_id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -1854,13 +1880,11 @@ fn apply_one_s3_session_detail(
     }
     if mode.is_sync() {
         let peer_updated_at = json_i64_opt(v, "updated_at_ms").unwrap_or(0);
-        if let Some(local_updated) = s3_sessions::get_updated_at(conn, &session_id)
+        let local_updated = s3_sessions::get_updated_at(conn, &session_id)
             .ok()
-            .flatten()
-        {
-            if peer_updated_at <= local_updated {
-                return;
-            }
+            .flatten();
+        if lww_peer_loses(peer_updated_at, local_updated) {
+            return;
         }
     }
     let row = s3_sessions::S3SessionRow {
@@ -1975,23 +1999,18 @@ fn apply_one_sftp_bookmark(
     if id.is_empty() || session_id.is_empty() {
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    // Archive imports never carry tombstones; drop silently. A
-    // bookmark deletion on a peer routes through the DAO's
-    // LWW-gated tombstone so it can't resurrect.
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match sftp_bookmarks::apply_tombstone(conn, &id, deleted_at_ms) {
-            Ok(_) => outcome.sftp_bookmarks_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("sftp_bookmark {id} tombstone: {e}")),
+    if is_tombstone(v) {
+        // Archive imports never carry tombstones; drop silently. A
+        // bookmark deletion on a peer routes through the DAO's
+        // LWW-gated tombstone so it can't resurrect.
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match sftp_bookmarks::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.sftp_bookmarks_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("sftp_bookmark {id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -2005,16 +2024,11 @@ fn apply_one_sftp_bookmark(
         v.get("created_at").and_then(|x| x.as_str()).unwrap_or(""),
         now_ms,
     );
-    if mode.is_sync() {
-        // Strict-greater so a tie keeps local state; a peer's
-        // stale live row must not revive a freshly-tombstoned
-        // local bookmark (the tombstone's `deleted_at` is
-        // recorded as a later `created_at` would have to beat).
-        if let Some(local_created) = local_created_at.get(&id) {
-            if created_at_ms <= *local_created {
-                return;
-            }
-        }
+    // A peer's stale live row must not revive a freshly-tombstoned
+    // local bookmark (the tombstone's `deleted_at` is recorded as a
+    // later `created_at` would have to beat).
+    if mode.is_sync() && lww_peer_loses(created_at_ms, local_created_at.get(&id).copied()) {
+        return;
     }
     let row = sftp_bookmarks::SftpBookmarkRow {
         id: id.clone(),
@@ -2107,20 +2121,15 @@ fn apply_one_port_forward_rule(
     if id.is_empty() || session_id.is_empty() {
         return;
     }
-    let is_tombstone = v
-        .get("tombstone")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false);
-    if is_tombstone && mode.is_archive() {
-        return;
-    }
-    if is_tombstone {
-        let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
-        match port_forwards::apply_tombstone(conn, &id, deleted_at_ms) {
-            Ok(_) => outcome.port_forward_rules_applied += 1,
-            Err(e) => outcome
-                .errors
-                .push(format!("port_forward_rule {id} tombstone: {e}")),
+    if is_tombstone(v) {
+        if mode.is_sync() {
+            let deleted_at_ms = json_i64_opt(v, "deleted_at_ms").unwrap_or(0);
+            match port_forwards::apply_tombstone(conn, &id, deleted_at_ms) {
+                Ok(_) => outcome.port_forward_rules_applied += 1,
+                Err(e) => outcome
+                    .errors
+                    .push(format!("port_forward_rule {id} tombstone: {e}")),
+            }
         }
         return;
     }
@@ -2135,12 +2144,8 @@ fn apply_one_port_forward_rule(
     } else {
         now_ms
     };
-    if mode.is_sync() {
-        if let Some(local) = local_updated_at.get(&id) {
-            if peer_updated_at <= *local {
-                return;
-            }
-        }
+    if mode.is_sync() && lww_peer_loses(peer_updated_at, local_updated_at.get(&id).copied()) {
+        return;
     }
     let row = port_forwards::PortForwardRuleRow {
         id: id.clone(),
