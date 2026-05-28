@@ -816,6 +816,92 @@ void main() {
         const e = SocketException('x', osError: OSError('loc', 10064));
         expect(localizeError(l10n, e), isNotEmpty);
       });
+
+      // Codes whose lambda bodies were uncovered by the original sweep:
+      // each entry's `localized(l10n)` accessor only fires when
+      // `localizeError` itself is invoked with that errno. The pure
+      // `sanitizeError` tests above route through `_errnoEnglishOf`
+      // and skip the localized lambda.
+      test('errno 9 — Bad file descriptor', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 9));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 11 — Resource temporarily unavailable', () {
+        const e = SocketException('x', osError: OSError('loc', 11));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 104 — Connection reset by peer', () {
+        const e = SocketException('x', osError: OSError('loc', 104));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 110 — Connection timed out (Linux)', () {
+        const e = SocketException('x', osError: OSError('loc', 110));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 113 — No route to host (Linux)', () {
+        const e = SocketException('x', osError: OSError('loc', 113));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10060 — Connection timed out (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10060));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10061 — Connection refused (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10061));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10065 — No route to host (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10065));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+    });
+
+    group('plain-string FRB error keys', () {
+      // `lfs_core::fs::local` returns these as flat strings (no JSON
+      // envelope) so they bypass `_localizeFrbKind` and are matched
+      // by exact-equals in `localizeError` directly.
+      test("'no_such_file_or_directory' → localized ENOENT message", () {
+        final out = localizeError(l10n, 'no_such_file_or_directory');
+        expect(out, isNotEmpty);
+        expect(out, isNot(equals('no_such_file_or_directory')));
+      });
+      test("'permission_denied' → localized EACCES message", () {
+        final out = localizeError(l10n, 'permission_denied');
+        expect(out, isNotEmpty);
+        expect(out, isNot(equals('permission_denied')));
+      });
+      test('plain string that is not a pinned key → passthrough', () {
+        // Spec: only the two pinned tokens get re-routed; other plain
+        // strings fall through to the OS-error path which returns
+        // the redacted toString unchanged.
+        expect(localizeError(l10n, 'unrecognized_token'), 'unrecognized_token');
+      });
+    });
+
+    group('release-update exceptions', () {
+      test(
+        'ReleaseManifestUnavailableException → fixed user-facing string',
+        () {
+          // Spec: the localized message must NOT leak the reason field
+          // (which can contain manifest URLs / HTTP status / response
+          // body). The user sees a single "update check failed" line.
+          const e = ReleaseManifestUnavailableException(
+            'HTTP 503 from https://releases.example.com/manifest.json',
+          );
+          final msg = localizeError(l10n, e);
+          expect(msg, isNotEmpty);
+          expect(msg, isNot(contains('https://')));
+          expect(msg, isNot(contains('503')));
+        },
+      );
+    });
+
+    group('LfsArchiveTruncatedException', () {
+      test('returns the localized truncated-archive message', () {
+        const e = LfsArchiveTruncatedException();
+        final msg = localizeError(l10n, e);
+        expect(msg, isNotEmpty);
+      });
     });
 
     group('sanitizeError — errno English coverage', () {
