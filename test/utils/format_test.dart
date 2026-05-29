@@ -816,6 +816,175 @@ void main() {
         const e = SocketException('x', osError: OSError('loc', 10064));
         expect(localizeError(l10n, e), isNotEmpty);
       });
+
+      // Codes whose lambda bodies were uncovered by the original sweep:
+      // each entry's `localized(l10n)` accessor only fires when
+      // `localizeError` itself is invoked with that errno. The pure
+      // `sanitizeError` tests above route through `_errnoEnglishOf`
+      // and skip the localized lambda.
+      test('errno 9 — Bad file descriptor', () {
+        const e = FileSystemException('x', '/f', OSError('loc', 9));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 11 — Resource temporarily unavailable', () {
+        const e = SocketException('x', osError: OSError('loc', 11));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 104 — Connection reset by peer', () {
+        const e = SocketException('x', osError: OSError('loc', 104));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 110 — Connection timed out (Linux)', () {
+        const e = SocketException('x', osError: OSError('loc', 110));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 113 — No route to host (Linux)', () {
+        const e = SocketException('x', osError: OSError('loc', 113));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10060 — Connection timed out (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10060));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10061 — Connection refused (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10061));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+      test('errno 10065 — No route to host (Windows)', () {
+        const e = SocketException('x', osError: OSError('loc', 10065));
+        expect(localizeError(l10n, e), isNotEmpty);
+      });
+    });
+
+    group('plain-string FRB error keys', () {
+      // `lfs_core::fs::local` returns these as flat strings (no JSON
+      // envelope) so they bypass `_localizeFrbKind` and are matched
+      // by exact-equals in `localizeError` directly.
+      test("'no_such_file_or_directory' → localized ENOENT message", () {
+        final out = localizeError(l10n, 'no_such_file_or_directory');
+        expect(out, isNotEmpty);
+        expect(out, isNot(equals('no_such_file_or_directory')));
+      });
+      test("'permission_denied' → localized EACCES message", () {
+        final out = localizeError(l10n, 'permission_denied');
+        expect(out, isNotEmpty);
+        expect(out, isNot(equals('permission_denied')));
+      });
+      test('plain string that is not a pinned key → passthrough', () {
+        // Spec: only the two pinned tokens get re-routed; other plain
+        // strings fall through to the OS-error path which returns
+        // the redacted toString unchanged.
+        expect(localizeError(l10n, 'unrecognized_token'), 'unrecognized_token');
+      });
+    });
+
+    group('release-update exceptions', () {
+      test(
+        'ReleaseManifestUnavailableException → fixed user-facing string',
+        () {
+          // Spec: the localized message must NOT leak the reason field
+          // (which can contain manifest URLs / HTTP status / response
+          // body). The user sees a single "update check failed" line.
+          const e = ReleaseManifestUnavailableException(
+            'HTTP 503 from https://releases.example.com/manifest.json',
+          );
+          final msg = localizeError(l10n, e);
+          expect(msg, isNotEmpty);
+          expect(msg, isNot(contains('https://')));
+          expect(msg, isNot(contains('503')));
+        },
+      );
+    });
+
+    group('LfsArchiveTruncatedException', () {
+      test('returns the localized truncated-archive message', () {
+        const e = LfsArchiveTruncatedException();
+        final msg = localizeError(l10n, e);
+        expect(msg, isNotEmpty);
+      });
+    });
+
+    group('FRB typed-envelope routing', () {
+      // _localizeFrbKind matches strings that start with '{'; passes
+      // them through frbErrorFromWire and switches on the typed kind.
+      // The three kinds with dedicated templates (authFailed,
+      // hostKeyRejected, timeout) emit a localised string; every other
+      // kind falls through to null and the OS-error path returns the
+      // raw redacted envelope.
+      test('authFailed wire envelope → localized ssh-auth-failed message', () {
+        final out = localizeError(
+          l10n,
+          '{"kind":"auth_failed","detail":"server refused"}',
+        );
+        // Uses placeholders for user/host because the wire shape
+        // doesn't carry them at this layer.
+        expect(out, contains('?'));
+        expect(out, isNot(contains('auth_failed')));
+      });
+      test('hostKeyRejected wire envelope → localized message', () {
+        final out = localizeError(
+          l10n,
+          '{"kind":"host_key_rejected","detail":"unknown fingerprint"}',
+        );
+        expect(out, isNot(contains('host_key_rejected')));
+      });
+      test('timeout wire envelope → localized connection-timed-out', () {
+        final out = localizeError(l10n, '{"kind":"timeout","detail":"30s"}');
+        expect(out, isNotEmpty);
+        expect(out, isNot(contains('timeout')));
+      });
+
+      // The other kinds all fall through to null inside
+      // _localizeFrbKind, so localizeError walks the rest of the chain
+      // and the OS-error path returns the raw redacted envelope text.
+      // We just verify the function doesn't throw on any kind.
+      const otherKinds = <String>[
+        'generic',
+        'connect',
+        'handshake',
+        'auth_other',
+        'key_parse',
+        'passphrase_required',
+        'passphrase_incorrect',
+        'io',
+        'db',
+        'sftp',
+        'session_unavailable',
+        'recorder',
+        'archive',
+        'transport',
+        'vault',
+        'vault_corrupt',
+        'vault_platform_unsupported',
+        'update',
+        'platform',
+        'crypto',
+        'cancelled',
+        'archive_future_version',
+        'webdav',
+        's3',
+        'fido2',
+        'pkcs11',
+        'enclave',
+        'hello',
+        'tpm',
+        'keystore',
+        'unsupported',
+      ];
+      for (final kind in otherKinds) {
+        test('$kind wire envelope falls through to OS-error path', () {
+          final out = localizeError(l10n, '{"kind":"$kind","detail":"x"}');
+          expect(out, isNotEmpty);
+        });
+      }
+
+      test('malformed JSON envelope still surfaces a string', () {
+        // Starts with `{` so _localizeFrbKind routes through
+        // frbErrorFromWire, which falls back to Generic + raw detail
+        // when the JSON is unparseable.
+        final out = localizeError(l10n, '{not-valid-json}');
+        expect(out, isNotEmpty);
+      });
     });
 
     group('sanitizeError — errno English coverage', () {

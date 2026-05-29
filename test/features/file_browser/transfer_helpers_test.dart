@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
+import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
 import 'package:letsflutssh/features/file_browser/transfer_helpers.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
+
+import '../../helpers/frb_bootstrap.dart';
 
 /// In-memory `FileSystem` stub that records the calls
 /// `TransferHelpers` makes — the regression test below pins that
@@ -108,6 +111,7 @@ class _CapturingTransfersNotifier extends TransfersNotifier {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   // The download-directory walk rejects unsafe SFTP-supplied entry
   // names before joining them onto the user-chosen destination. That
   // safety predicate is owned by Rust
@@ -174,5 +178,159 @@ void main() {
         expect(manager.downloads.first['sizeBytes'], 8192);
       },
     );
+  });
+
+  group('TransferHelpers — conflict resolution', () {
+    // BatchConflictResolver wraps a Rust-side state registry; FRB has
+    // to be loaded so the constructor + `transfer_conflict_*` shims
+    // work. The conflict UI shape itself is pure Dart and lives in
+    // `_resolveUploadConflict` / `_resolveDownloadConflict`.
+    setUpAll(requireFrbLoaded);
+
+    FileEntry mkEntry(String name, {int size = 100}) => FileEntry(
+      name: name,
+      path: '/local/$name',
+      size: size,
+      modTime: DateTime(2026, 5, 16),
+      isDir: false,
+    );
+
+    test('upload-conflict skip → returns false, no enqueue', () async {
+      // Spec: when the resolver returns skip, the helper must
+      // short-circuit before touching the transfer manager. A regression
+      // would silently overwrite the remote file the user chose to keep.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs(existing: {'/uploads/dup.txt'});
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.skip),
+      );
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: mkEntry('dup.txt'),
+        remoteDirPath: '/uploads',
+        remoteCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.uploads, isEmpty);
+    });
+
+    test('upload-conflict cancel → returns false, no enqueue', () async {
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs(existing: {'/uploads/dup.txt'});
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.cancel),
+      );
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: mkEntry('dup.txt'),
+        remoteDirPath: '/uploads',
+        remoteCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.uploads, isEmpty);
+    });
+
+    test('upload-conflict replace → enqueue with original path', () async {
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs(existing: {'/uploads/dup.txt'});
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.replace),
+      );
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: mkEntry('dup.txt'),
+        remoteDirPath: '/uploads',
+        remoteCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      expect(manager.uploads, hasLength(1));
+      expect(manager.uploads.first['remotePath'], '/uploads/dup.txt');
+    });
+
+    test('upload-conflict keepBoth → enqueue with a renamed sibling', () async {
+      // Spec: keepBoth walks `uniqueSiblingName` against `fs.exists` to
+      // pick the next free name. The original collides; the resolver
+      // chooses keepBoth; the enqueued path must NOT be the original.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs(existing: {'/uploads/dup.txt'});
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.keepBoth),
+      );
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: mkEntry('dup.txt'),
+        remoteDirPath: '/uploads',
+        remoteCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      expect(manager.uploads, hasLength(1));
+      // Renamed: starts with `/uploads/dup` but is not the colliding
+      // path. The exact suffix is owned by `uniqueSiblingName` and
+      // tested separately.
+      final remote = manager.uploads.first['remotePath']! as String;
+      expect(remote, startsWith('/uploads/dup'));
+      expect(remote, isNot(equals('/uploads/dup.txt')));
+    });
+
+    test('upload with no collision → resolver is bypassed, original path '
+        'lands', () async {
+      // Spec: `_resolveUploadConflict` early-returns the target when
+      // `fs.exists(target)` is false, so the resolver is never
+      // consulted. Surfaces a non-trivial branch: the conflict
+      // resolver is wired but the path is free.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs(); // empty `existing` → no collision
+      var resolverCalls = 0;
+      final resolver = BatchConflictResolver((
+        path, {
+        bool isRemote = false,
+      }) async {
+        resolverCalls++;
+        return const ConflictDecision(ConflictAction.skip);
+      });
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: mkEntry('fresh.txt'),
+        remoteDirPath: '/uploads',
+        remoteCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      expect(resolverCalls, 0, reason: 'no collision → no prompt');
+      expect(manager.uploads.first['remotePath'], '/uploads/fresh.txt');
+    });
   });
 }

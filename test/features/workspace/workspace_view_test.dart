@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
+import 'package:letsflutssh/features/terminal/pane_recording_registry.dart';
 import 'package:letsflutssh/features/workspace/panel_tab_bar.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
@@ -13,6 +15,7 @@ import 'package:letsflutssh/features/workspace/workspace_view.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
+import 'package:letsflutssh/providers/focused_pane_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
@@ -1004,4 +1007,265 @@ void main() {
       expect(find.text('Restore'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Divider drag — ratio update
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — divider drag updates ratio', () {
+    // Dragging the split divider should push a new ratio into the
+    // workspace notifier — the divider tracks the cursor's absolute
+    // position, so dragging left of centre yields a ratio below 0.5.
+    testWidgets('horizontal drag pushes a smaller first-side ratio', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final branch = WorkspaceBranch(
+        id: 'b0',
+        direction: Axis.horizontal,
+        first: PanelLeaf(
+          id: 'p1',
+          tabs: [_tab(id: 't1', connection: conn1, label: 'Left')],
+          activeTabIndex: 0,
+        ),
+        second: PanelLeaf(
+          id: 'p2',
+          tabs: [_tab(id: 't2', connection: conn2, label: 'Right')],
+          activeTabIndex: 0,
+        ),
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      late ProviderContainer container;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            configProvider.overrideWith(TestConfigNotifier.new),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(ws),
+            ),
+          ],
+          child: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                theme: AppTheme.dark(),
+                home: const Scaffold(
+                  body: SizedBox(
+                    width: 800,
+                    height: 600,
+                    child: WorkspaceView(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(container.read(workspaceProvider).root, isA<WorkspaceBranch>());
+
+      // Grab the resize-column MouseRegion's GestureDetector (the
+      // divider hit zone) and drag it toward the left edge.
+      final dividerCursor = find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.resizeColumn,
+      );
+      expect(dividerCursor, findsOneWidget);
+      final start = tester.getCenter(dividerCursor);
+      await tester.dragFrom(start, const Offset(-200, 0));
+      await tester.pump();
+
+      final root = container.read(workspaceProvider).root as WorkspaceBranch;
+      // Dragging the divider left of centre narrows the first side.
+      expect(root.ratio, lessThan(0.5));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Maximize button — tap toggles maximize state
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — maximize button tap', () {
+    testWidgets('tapping the maximize button maximizes the panel', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final branch = WorkspaceBranch(
+        direction: Axis.horizontal,
+        first: PanelLeaf(
+          id: 'p1',
+          tabs: [_tab(id: 't1', connection: conn1, label: 'Left')],
+          activeTabIndex: 0,
+        ),
+        second: PanelLeaf(
+          id: 'p2',
+          tabs: [_tab(id: 't2', connection: conn2, label: 'Right')],
+          activeTabIndex: 0,
+        ),
+      );
+      final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+      late ProviderContainer container;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            configProvider.overrideWith(TestConfigNotifier.new),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(ws),
+            ),
+          ],
+          child: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                theme: AppTheme.dark(),
+                home: const Scaffold(
+                  body: SizedBox(
+                    width: 800,
+                    height: 600,
+                    child: WorkspaceView(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(container.read(workspaceProvider).maximizedPanelId, isNull);
+
+      // Tap the first panel's maximize button.
+      await tester.tap(find.byTooltip('Maximize').first);
+      await tester.pump();
+
+      expect(container.read(workspaceProvider).isMaximized, isTrue);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Companion button — hidden for kinds without a PTY
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — companion button gating', () {
+    testWidgets('companion button hidden for a kind without a terminal', (
+      tester,
+    ) async {
+      // WebDAV connections own no PTY, so the terminal/files swap is
+      // meaningless and the companion button must not render.
+      final conn = Connection(
+        id: 'wd1',
+        label: 'DAV',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.9', user: 'dav'),
+        ),
+        state: SSHConnectionState.connected,
+      )..kind = SessionKind.webdav;
+      final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+      await tester.pump();
+
+      // Neither half of the companion swap shows for a non-PTY kind.
+      expect(find.text('Terminal'), findsNothing);
+      expect(find.text('Files'), findsNothing);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Record button — visible only when the focused pane has a recordable
+  // handle registered
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — record button', () {
+    testWidgets('no record button when the focused pane cannot record', (
+      tester,
+    ) async {
+      const tabId = 'tab-norec';
+      const paneId = 'pane-norec';
+      final recording = ValueNotifier<bool>(false);
+      PaneRecordingRegistry.instance.register(
+        paneId,
+        PaneRecordingHandle(
+          isRecording: recording,
+          canRecord: false,
+          toggle: () async {},
+        ),
+      );
+      addTearDown(() {
+        PaneRecordingRegistry.instance.unregister(paneId);
+        recording.dispose();
+      });
+
+      final conn = _conn('c1');
+      final tab = _tab(id: tabId, connection: conn, kind: TabKind.terminal);
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            configProvider.overrideWith(TestConfigNotifier.new),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(ws),
+            ),
+            focusedPaneProvider(
+              tabId,
+            ).overrideWith(() => _StaticFocusedPaneNotifier(paneId)),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: const Scaffold(
+              body: SizedBox(width: 800, height: 600, child: WorkspaceView()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byIcon(Icons.fiber_manual_record_outlined), findsNothing);
+      expect(find.byIcon(Icons.fiber_manual_record), findsNothing);
+    });
+  });
+}
+
+/// Test-only [FocusedPaneNotifier] that pins the focused pane id so
+/// the connection bar's record button resolves a registered handle.
+class _StaticFocusedPaneNotifier extends FocusedPaneNotifier {
+  _StaticFocusedPaneNotifier(this._paneId);
+  final String _paneId;
+
+  @override
+  String? build() => _paneId;
 }

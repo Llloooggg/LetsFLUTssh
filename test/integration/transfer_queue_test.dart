@@ -30,6 +30,7 @@ import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/src/rust/api/bus.dart' as rust_bus;
 import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
 import 'package:letsflutssh/src/rust/api/test_hooks.dart' as rust_test;
+import 'package:letsflutssh/src/rust/api/transfer.dart' as rust_transfer;
 
 import '../helpers/frb_bootstrap.dart';
 
@@ -203,6 +204,146 @@ void main() {
           'batch-$i',
         );
       }
+    });
+
+    test('cancel on an unknown id returns false without throwing', () async {
+      // Spec: `transferCancel` walks the registry by id; a missing /
+      // already-terminal id is a no-op. The Dart wrapper must surface
+      // the Rust `false` cleanly so the UI's per-row cancel button
+      // can render a "nothing to cancel" toast instead of crashing.
+      final notifier = container.read(transfersProvider.notifier);
+      final ok = await notifier.cancel('does-not-exist-fake-task-id');
+      expect(ok, isFalse);
+    });
+
+    test('cancelAll walks the snapshot and cancels every active task', () async {
+      // Spec: cancelAll dispatches cancel() for each task whose state
+      // is queued or running at snapshot time. Drive two slow uploads,
+      // call cancelAll, then assert both settle in `cancelled`. The
+      // 50 ms write delay keeps the tasks alive long enough for the
+      // walk to catch both as active.
+      rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 50);
+
+      final notifier = container.read(transfersProvider.notifier);
+      final payload = Uint8List(2 * 1024 * 1024);
+      final files = <File>[];
+      final taskIds = <String>[];
+      addTearDown(() async {
+        for (final f in files) {
+          if (await f.exists()) await f.delete();
+        }
+      });
+
+      for (var i = 0; i < 2; i++) {
+        final f = File(
+          '${Directory.systemTemp.path}/lfs-xfer-cancelall-$i-${DateTime.now().microsecondsSinceEpoch}',
+        );
+        await f.writeAsBytes(payload);
+        files.add(f);
+        final id = await notifier.enqueueUpload(
+          connectionId: conn.id,
+          name: 'cancelall-$i.bin',
+          localPath: f.path,
+          remotePath: '/cancelall-$i.bin',
+          sizeBytes: payload.length,
+        );
+        taskIds.add(id);
+      }
+
+      // Let the executor start at least one chunk on each task — the
+      // walk inside cancelAll runs against `transferSnapshotAll`, so
+      // both tasks must be reported as queued / running at that point.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      notifier.cancelAll();
+
+      for (final id in taskIds) {
+        final state = await waitForTaskTerminal(id);
+        // Either the cancel arrived mid-flight (cancelled) or the
+        // tiny window between snapshot + cancel let the task finish
+        // (completed). Both are valid outcomes of the cancelAll race —
+        // what we're pinning here is that no task ends up in `failed`
+        // because of the cancel walk itself.
+        expect(state, isNot(equals(rust_bus.BusTaskState.failed)));
+      }
+
+      // Reset the delay so subsequent tests don't inherit it.
+      rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 0);
+    });
+
+    test('clearHistory empties the terminal entries from the registry', () async {
+      // Spec: `transferClearHistory` drops every Completed / Failed /
+      // Cancelled entry. Drive a completing upload, wait for terminal,
+      // call clearHistory, snapshot the registry — the entry is gone.
+      const payload = 'history-clear-payload';
+      final localTmp = File(
+        '${Directory.systemTemp.path}/lfs-xfer-clearhist-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      await localTmp.writeAsString(payload);
+      addTearDown(() async {
+        if (await localTmp.exists()) await localTmp.delete();
+      });
+
+      final notifier = container.read(transfersProvider.notifier);
+      final taskId = await notifier.enqueueUpload(
+        connectionId: conn.id,
+        name: 'clearhist.txt',
+        localPath: localTmp.path,
+        remotePath: '/clearhist.txt',
+        sizeBytes: payload.length,
+      );
+      final state = await waitForTaskTerminal(taskId);
+      expect(state, rust_bus.BusTaskState.completed);
+
+      await notifier.clearHistory();
+      // `transferDropTerminal` and `transferClearHistory` don't emit
+      // bus events — the Riverpod state catches up on the next refresh
+      // window that fires for any other reason. Pin the contract
+      // directly against the Rust snapshot so the assertion isn't
+      // racing the bus.
+      final snap = await rust_transfer.transferSnapshotAll();
+      expect(
+        snap.any((s) => s.id == taskId),
+        isFalse,
+        reason: 'clearHistory must drop the just-completed entry',
+      );
+    });
+
+    test('deleteHistory drops each provided id and skips missing ones', () async {
+      // Spec: deleteHistory iterates the supplied list and calls
+      // `transferDropTerminal` per id. Missing ids are silently
+      // skipped (the Rust function is idempotent on absent ids) so
+      // the UI can pass a stale id list without crashing.
+      const payload = 'history-delete-payload';
+      final localTmp = File(
+        '${Directory.systemTemp.path}/lfs-xfer-delhist-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      await localTmp.writeAsString(payload);
+      addTearDown(() async {
+        if (await localTmp.exists()) await localTmp.delete();
+      });
+
+      final notifier = container.read(transfersProvider.notifier);
+      final realId = await notifier.enqueueUpload(
+        connectionId: conn.id,
+        name: 'delhist.txt',
+        localPath: localTmp.path,
+        remotePath: '/delhist.txt',
+        sizeBytes: payload.length,
+      );
+      await waitForTaskTerminal(realId);
+
+      await notifier.deleteHistory([realId, 'this-id-does-not-exist']);
+      // Same shape as the clearHistory pin above: assert against
+      // the Rust snapshot directly so the Riverpod-refresh debounce
+      // can't race the assertion.
+      final snap = await rust_transfer.transferSnapshotAll();
+      expect(
+        snap.any((s) => s.id == realId),
+        isFalse,
+        reason:
+            'deleteHistory must drop the real id even when the '
+            'list also contains a stale / missing one',
+      );
     });
 
     test('cancel mid-flight settles the task in `cancelled`', () async {

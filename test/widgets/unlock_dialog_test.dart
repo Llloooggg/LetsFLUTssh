@@ -225,5 +225,36 @@ void main() {
       expect(find.text(l10n.unlock), findsOneWidget);
       expect(find.text(l10n.forgotPassword), findsOneWidget);
     });
+
+    testWidgets(
+      'tapping "Forgot password?" opens the typed-name reset confirmation; '
+      'dismissing it returns to the unlock dialog without wiping',
+      (tester) async {
+        // Spec: forgot-password routes through the same typed-name
+        // confirmation as Settings → Reset All Data. Confirming
+        // (typing "LetsFLUTssh") triggers WipeAllService; cancelling
+        // the confirmation returns to the unlock dialog untouched and
+        // the manager.unlockAttempt counter must NOT tick — the
+        // unlock dialog is still up so the user can keep trying the
+        // password.
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+        );
+        await _open(tester, manager: mgr);
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        await tester.tap(find.text(l10n.forgotPassword));
+        await tester.pumpAndSettle();
+        // The confirmation dialog should be visible with its title.
+        expect(find.text(l10n.resetAllDataConfirmTitle), findsOneWidget);
+        // Dismiss via the Cancel button on the confirmation dialog.
+        await tester.tap(find.text(l10n.cancel));
+        await tester.pumpAndSettle();
+        // Back on the unlock dialog — Unlock button is rendered again,
+        // confirmation title is gone, manager was never invoked.
+        expect(find.text(l10n.unlock), findsOneWidget);
+        expect(find.text(l10n.resetAllDataConfirmTitle), findsNothing);
+        expect(mgr.unlockAttemptCalls, isEmpty);
+      },
+    );
   });
 }

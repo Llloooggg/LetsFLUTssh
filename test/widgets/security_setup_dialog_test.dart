@@ -1,6 +1,15 @@
+/// Tagged `frb_global_store` because the SecuritySetupResult staged-secret
+/// tests stage/take values through the process-global Rust SecretStore;
+/// running this file in the parallel pass alongside other suites that
+/// also mutate that store flakes the take side (the test passes locally
+/// in isolation, fails with a null-secret race in CI parallel).
+@Tags(['frb_global_store'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
+import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 import 'package:letsflutssh/widgets/core/app_button.dart';
@@ -266,5 +275,57 @@ void main() {
         );
       },
     );
+  });
+
+  group('SecuritySetupResult — staged-secret transit', () {
+    test('stageSecret returns null for null and empty inputs', () {
+      // Spec: callers pass through whatever the wizard captured;
+      // a null / empty value must round-trip null so the wizard
+      // pop-result carries no SecretStore id (and no live entry
+      // gets created with empty bytes).
+      expect(SecuritySetupResult.stageSecret(null), isNull);
+      expect(SecuritySetupResult.stageSecret(''), isNull);
+    });
+
+    test('stageSecret + takeMasterPassword round-trip is single-shot', () {
+      // Spec: the wizard stages typed plaintext under a fresh uuid
+      // in the Rust SecretStore; the awaiter `take*`-s it once and
+      // the SecretStore entry is gone. A second take returns null.
+      final id = SecuritySetupResult.stageSecret('hunter2-master');
+      expect(id, isNotNull);
+      final result = SecuritySetupResult(
+        tier: SecurityTier.paranoid,
+        masterPasswordSecretId: id,
+      );
+      expect(result.takeMasterPassword(), 'hunter2-master');
+      // Atomic take — second call returns null because the slot
+      // was consumed.
+      expect(result.takeMasterPassword(), isNull);
+    });
+
+    test('takeShortPassword / takePin route through their own slot ids', () {
+      final shortId = SecuritySetupResult.stageSecret('pw-short');
+      final pinId = SecuritySetupResult.stageSecret('1234');
+      final result = SecuritySetupResult(
+        tier: SecurityTier.keychain,
+        shortPasswordSecretId: shortId,
+        pinSecretId: pinId,
+      );
+      expect(result.takeShortPassword(), 'pw-short');
+      expect(result.takePin(), '1234');
+      // Independent slots — exhausting one doesn't affect the other.
+      expect(result.takeShortPassword(), isNull);
+    });
+
+    test('take* on an absent slot id returns null without side effects', () {
+      // Spec: SecuritySetupResult with no staged-id fields models
+      // the "user cancelled / no secret captured" case (every tier
+      // except Paranoid; or Apply that didn't change the modifier).
+      // Each take* helper returns null straight away.
+      const result = SecuritySetupResult(tier: SecurityTier.plaintext);
+      expect(result.takeMasterPassword(), isNull);
+      expect(result.takeShortPassword(), isNull);
+      expect(result.takePin(), isNull);
+    });
   });
 }
