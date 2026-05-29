@@ -904,6 +904,89 @@ void main() {
       });
     });
 
+    group('FRB typed-envelope routing', () {
+      // _localizeFrbKind matches strings that start with '{'; passes
+      // them through frbErrorFromWire and switches on the typed kind.
+      // The three kinds with dedicated templates (authFailed,
+      // hostKeyRejected, timeout) emit a localised string; every other
+      // kind falls through to null and the OS-error path returns the
+      // raw redacted envelope.
+      test('authFailed wire envelope → localized ssh-auth-failed message', () {
+        final out = localizeError(
+          l10n,
+          '{"kind":"auth_failed","detail":"server refused"}',
+        );
+        // Uses placeholders for user/host because the wire shape
+        // doesn't carry them at this layer.
+        expect(out, contains('?'));
+        expect(out, isNot(contains('auth_failed')));
+      });
+      test('hostKeyRejected wire envelope → localized message', () {
+        final out = localizeError(
+          l10n,
+          '{"kind":"host_key_rejected","detail":"unknown fingerprint"}',
+        );
+        expect(out, isNot(contains('host_key_rejected')));
+      });
+      test('timeout wire envelope → localized connection-timed-out', () {
+        final out = localizeError(l10n, '{"kind":"timeout","detail":"30s"}');
+        expect(out, isNotEmpty);
+        expect(out, isNot(contains('timeout')));
+      });
+
+      // The other kinds all fall through to null inside
+      // _localizeFrbKind, so localizeError walks the rest of the chain
+      // and the OS-error path returns the raw redacted envelope text.
+      // We just verify the function doesn't throw on any kind.
+      const otherKinds = <String>[
+        'generic',
+        'connect',
+        'handshake',
+        'auth_other',
+        'key_parse',
+        'passphrase_required',
+        'passphrase_incorrect',
+        'io',
+        'db',
+        'sftp',
+        'session_unavailable',
+        'recorder',
+        'archive',
+        'transport',
+        'vault',
+        'vault_corrupt',
+        'vault_platform_unsupported',
+        'update',
+        'platform',
+        'crypto',
+        'cancelled',
+        'archive_future_version',
+        'webdav',
+        's3',
+        'fido2',
+        'pkcs11',
+        'enclave',
+        'hello',
+        'tpm',
+        'keystore',
+        'unsupported',
+      ];
+      for (final kind in otherKinds) {
+        test('$kind wire envelope falls through to OS-error path', () {
+          final out = localizeError(l10n, '{"kind":"$kind","detail":"x"}');
+          expect(out, isNotEmpty);
+        });
+      }
+
+      test('malformed JSON envelope still surfaces a string', () {
+        // Starts with `{` so _localizeFrbKind routes through
+        // frbErrorFromWire, which falls back to Generic + raw detail
+        // when the JSON is unparseable.
+        final out = localizeError(l10n, '{not-valid-json}');
+        expect(out, isNotEmpty);
+      });
+    });
+
     group('sanitizeError — errno English coverage', () {
       test('errno 1 — Operation not permitted', () {
         const e = FileSystemException('x', '/f', OSError('loc', 1));
