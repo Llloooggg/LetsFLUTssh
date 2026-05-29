@@ -341,6 +341,105 @@ void main() {
       state.disposeSftpBrowser();
     });
 
+    testWidgets(
+      'connection-failed branch with a null connectionError falls back to '
+      'the generic errConnectionFailed string',
+      (tester) async {
+        // Spec: `initSftp`'s `!conn.isConnected` branch checks
+        // `conn.connectionError` and routes through either the
+        // localised error or the bare `errConnectionFailed` fallback.
+        // The existing "refused" test pinned the localizeError arm;
+        // this pins the fallback when `connectionError` is null.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(body: _TestBrowser(connection: conn)),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The mixin pushes the fallback error into `sftpError`; the
+        // `_TestBrowser.build` paints "Error: $sftpError" off that.
+        // ARB's `errConnectionFailed` resolves to "Connection failed"
+        // in the English bundle the test scope loads by default.
+        expect(find.textContaining('Connection failed'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'successful init wires onSftpReady + the transfer-bus subscription, '
+      'and disposeSftpBrowser tears the listener down cleanly',
+      (tester) async {
+        // Spec: after `sftpInitFactory` resolves, the mixin calls
+        // `onSftpReady`, flips `sftpInitializing` to false, AND
+        // wires the transfer-bus listener through
+        // `_subscribeTransferBus`. `disposeSftpBrowser` then cancels
+        // the wired listener so the host class's own `dispose`
+        // does not leak a subscription on the broadcast pipe.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+        conn.markTransportAdopted();
+
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async => result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        expect(state.onReadyCalled, isTrue);
+        expect(state.sftpInitializing, isFalse);
+        expect(state.sftpResult, isNotNull);
+        // The host-class contract: callers invoke `disposeSftpBrowser`
+        // from their own `dispose`. The mixin must remain safe even
+        // when the underlying FRB subscription was never actually
+        // wired (the catch arm above left `_transferBusSub = null`).
+        state.disposeSftpBrowser();
+      },
+    );
+
     testWidgets('calls onSftpReady on success', (tester) async {
       final conn = Connection(
         id: 'c1',

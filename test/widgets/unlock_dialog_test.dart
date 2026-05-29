@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
@@ -9,6 +11,24 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security/unlock_dialog.dart';
 
 import '../helpers/fake_security.dart';
+
+/// Fake [MasterPasswordManager] whose `unlockAttempt` blocks on an
+/// externally-completable future so the test can observe the busy
+/// branch of `_unlock` between the `setState(_busy = true)` and the
+/// terminal response. The queued-outcomes path in
+/// [FakeMasterPasswordManager] returns immediately, leaving no
+/// observable window to pump the busy-branch widgets.
+class _SlowFakeManager extends FakeMasterPasswordManager {
+  _SlowFakeManager(this._pending);
+
+  final Future<TierUnlockAttempt> _pending;
+
+  @override
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
+    unlockAttemptCalls.add(password);
+    return _pending;
+  }
+}
 
 Widget _wrap(Widget child) => ProviderScope(
   child: MaterialApp(
@@ -225,6 +245,140 @@ void main() {
       expect(find.text(l10n.unlock), findsOneWidget);
       expect(find.text(l10n.forgotPassword), findsOneWidget);
     });
+
+    testWidgets(
+      'tapping the visibility suffix flips the obscure state on the password '
+      'field',
+      (tester) async {
+        // Spec: the suffix `AppIconButton` toggles `_obscure`. When
+        // visible it renders the `visibility` icon and the underlying
+        // `SecurePasswordField` clears its `obscureText`; tapping
+        // again restores `visibility_off` + obscured input.
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+        );
+        await _open(tester, manager: mgr);
+        // Initial state — `visibility_off` rendered because text is
+        // hidden by default.
+        expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+        expect(find.byIcon(Icons.visibility), findsNothing);
+        await tester.tap(find.byIcon(Icons.visibility_off));
+        await tester.pumpAndSettle();
+        // After the flip — eye icon swaps to the inverse glyph.
+        expect(find.byIcon(Icons.visibility), findsOneWidget);
+        expect(find.byIcon(Icons.visibility_off), findsNothing);
+        // No unlock fired — the suffix never triggers a submit.
+        expect(mgr.unlockAttemptCalls, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'submitting the password field via the keyboard action invokes the '
+      'unlock path the same as tapping the Unlock button',
+      (tester) async {
+        // Spec: `SecurePasswordField.onSubmitted` wires through to
+        // `_unlock`. The dialog must accept Enter / IME submit as an
+        // alternative to tapping the primary button.
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+        );
+        bool? result;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  result = await UnlockDialog.show(ctx, manager: mgr);
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'submit-via-enter');
+        // Fire the editing-action callback that backs Enter on the
+        // soft / hardware keyboard.
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        expect(result, isTrue);
+        expect(mgr.unlockAttemptCalls.map(utf8.decode).toList(), [
+          'submit-via-enter',
+        ]);
+      },
+    );
+
+    testWidgets(
+      'cooldown ticker stops once the rate-limit status flips back to '
+      'unlocked between ticks',
+      (tester) async {
+        // Spec: `_startCooldownTicker` polls `manager.rateLimitStatus()`
+        // every second and tears itself down once `!next.isLocked`.
+        // Drive a 5-second cooldown, then mutate the fake's status to
+        // unlocked between ticks and pump forward — the ticker should
+        // cancel itself and the locked banner should disappear.
+        const lockedAfter = RateLimitStatus(
+          failureCount: 5,
+          cooldownRemaining: Duration(seconds: 3),
+        );
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.wrongSecret],
+          statusAfterFailure: lockedAfter,
+        );
+        await _open(tester, manager: mgr);
+        await tester.enterText(find.byType(TextField), 'bad');
+        await tester.tap(find.text('Unlock'));
+        await tester.pump();
+        await tester.pump();
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        // Banner up while the cooldown is engaged.
+        expect(find.text(l10n.tierCooldownHint(4)), findsOneWidget);
+        // Flip the fake back to unlocked, then advance one tick.
+        mgr.setStatus(
+          const RateLimitStatus(
+            failureCount: 0,
+            cooldownRemaining: Duration.zero,
+          ),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        // Banner gone — ticker observed the unlocked status and
+        // cancelled itself.
+        expect(find.text(l10n.tierCooldownHint(4)), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'busy state renders the deriving-key indicator and disables the form',
+      (tester) async {
+        // Spec: while `_busy` is true the dialog hides the primary
+        // Unlock button + Forgot link in favour of the spinner + the
+        // `derivingKey` copy. Drive that branch with a slow manager
+        // whose `unlockAttempt` future hangs until we explicitly
+        // complete it, so the test can pump between the setState that
+        // flips `_busy` and the response that flips it back.
+        final completer = Completer<TierUnlockAttempt>();
+        final mgr = _SlowFakeManager(completer.future);
+        await _open(tester, manager: mgr);
+        await tester.enterText(find.byType(TextField), 'pw');
+        await tester.tap(find.text('Unlock'));
+        // First pump runs `_unlock` synchronously up to the await,
+        // setting `_busy = true`; the next pump rebuilds with the
+        // busy branch.
+        await tester.pump();
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        expect(find.text(l10n.derivingKey), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        // Primary button + forgot link both gone while busy.
+        expect(find.text(l10n.unlock), findsNothing);
+        expect(find.text(l10n.forgotPassword), findsNothing);
+        // Release the hanging unlock attempt so the test can settle
+        // without leaking the future.
+        completer.complete(TierUnlockAttempt.staged);
+        await tester.pumpAndSettle();
+      },
+    );
 
     testWidgets(
       'tapping "Forgot password?" opens the typed-name reset confirmation; '

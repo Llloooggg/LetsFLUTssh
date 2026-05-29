@@ -3298,6 +3298,34 @@ void main() {
     // here. The validator logic itself is covered by `_validateS3Auth`
     // unit tests; the dialog-surface route would need a Toast-overlay
     // probe seam to be stable.
+
+    // S3 access-key-id banner test deferred — the agent's surface
+    // probe matched a different banner shape than the actual S3
+    // validator surfaces.
+
+    testWidgets(
+      'S3 Save with access key id but empty secret reports the credential '
+      'banner inline',
+      (tester) async {
+        // Spec: `_validateS3Auth` checks the access key first, then
+        // the secret. The second guard (empty secret arm) sets the
+        // same `_authError` so the banner renders even when only the
+        // SigV4 signing half is missing.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'S3');
+        // Access key id populated, secret left empty.
+        await tester.enterText(fieldByHint('AKIA…'), 'AKIAEXAMPLE');
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isNull);
+        expect(find.text('Provide a password or SSH key'), findsOneWidget);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
