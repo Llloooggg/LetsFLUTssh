@@ -1,3 +1,11 @@
+/// Tagged `frb_global_store` because the SecuritySetupResult staged-secret
+/// tests stage/take values through the process-global Rust SecretStore;
+/// running this file in the parallel pass alongside other suites that
+/// also mutate that store flakes the take side (the test passes locally
+/// in isolation, fails with a null-secret race in CI parallel).
+@Tags(['frb_global_store'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
