@@ -271,5 +271,62 @@ void main() {
       expect(result, isNotNull);
       expect(result!.map((r) => r.id), ['x']);
     });
+
+    testWidgets(
+      'tapping an existing rule opens the editor in EDIT mode (title flips '
+      'to "Edit rule") and saving routes through _replace, not _add',
+      (tester) async {
+        // Spec: a row tap calls `_showRuleEditor` with `existing=rule`,
+        // which opens the editor preloaded with the rule's fields and
+        // titled "Edit rule" (vs "Add rule" for the toolbar button).
+        // Saving emits the updated list with the SAME rule id, not a
+        // brand-new uuid — proving the dialog routed through _replace.
+        List<PortForwardRule>? emitted;
+        final rule = localRule(
+          id: 'original-id',
+          bindPort: 1234,
+          description: 'old-description',
+        );
+        await tester.pumpWidget(
+          wrap(
+            SessionForwardsTab(
+              rules: [rule],
+              onChanged: (next) => emitted = next,
+            ),
+          ),
+        );
+
+        // Tap the row body (not the toggle / delete buttons) — the row's
+        // title carries the description text we seeded.
+        await tester.tap(find.text('old-description'));
+        await tester.pumpAndSettle();
+
+        // The edit-mode title flips to "Edit rule". (The tab's own
+        // "Add rule" button still renders underneath the modal — not
+        // asserting against that finder.)
+        expect(
+          find.text('Edit rule'),
+          findsOneWidget,
+          reason: 'edit-mode title proves the dialog opened in EDIT mode',
+        );
+
+        // Modify the description field then commit. The editor's
+        // primary action is "OK", not "Save" — only the outer
+        // session-edit dialog's Save persists. Tapping OK closes
+        // the editor and routes back through `_replace`.
+        await tester.enterText(
+          find.widgetWithText(TextField, 'old-description'),
+          'new-description',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+
+        expect(emitted, isNotNull);
+        expect(emitted!.single.id, 'original-id');
+        expect(emitted!.single.description, 'new-description');
+        expect(emitted!.single.bindPort, 1234);
+      },
+    );
   });
 }
