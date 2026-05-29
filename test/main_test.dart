@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +23,7 @@ import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/core/app_icon_button.dart';
+import 'package:letsflutssh/widgets/core/shortcut_registry.dart';
 
 import 'helpers/fake_session_notifier.dart';
 import 'helpers/frb_bootstrap.dart';
@@ -449,6 +451,328 @@ void main() {
 
       // Restore
       ErrorWidget.builder = originalBuilder;
+    });
+  });
+
+  group('MainScreen — keyboard shortcuts', () {
+    // The sidebar shortcut is the cheapest path to exercise the
+    // `_buildKeyBindings` / `guarded` closure scaffolding without
+    // dragging in a real session-edit dialog or settings modal —
+    // it's a pure setState toggle inside MainScreen.
+    testWidgets('Ctrl+B toggles the sidebar via CallbackShortcuts', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Sidebar starts open → chevron_left.
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Sidebar should now be closed → chevron_right.
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+    });
+
+    // The locked-state gate (`guarded`) short-circuits every binding —
+    // pressing Ctrl+B while locked must NOT flip the sidebar.
+    // Ctrl+B no-ops while locked test deferred — the lockStateProvider
+    // round-trip through debugForce* + pumpAndSettle interacts with
+    // the secure-screen scope's listenable in a way the test's
+    // chevron-icon finder cannot observe deterministically.
+
+    testWidgets('next/prev tab shortcuts cycle the active tab', (tester) async {
+      final c1 = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final c2 = Connection(
+        id: 'c2',
+        label: 'Beta',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.2', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final t1 = TabEntry(
+        id: 'tab-1',
+        label: c1.label,
+        connection: c1,
+        kind: TabKind.terminal,
+      );
+      final t2 = TabEntry(
+        id: 'tab-2',
+        label: c2.label,
+        connection: c2,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [t1, t2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+      expect(container.read(workspaceProvider).root, isA<PanelLeaf>());
+
+      // Ctrl+Tab → nextTab moves from 0 → 1.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      final after = container.read(workspaceProvider).root as PanelLeaf;
+      expect(after.activeTabIndex, 1);
+    });
+
+    // Single-tab panel: `_switchTab` short-circuits because
+    // `panel.tabs.length > 1` is false. Confirms the early-return
+    // branch is harmless.
+    testWidgets('nextTab no-ops on a single-tab panel', (tester) async {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      final after = container.read(workspaceProvider).root as PanelLeaf;
+      expect(after.activeTabIndex, 0);
+    });
+
+    testWidgets('Ctrl+W closes the active tab on a single-tab panel', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // After closeTab the panel collapses or tabs list shrinks.
+      final root = container.read(workspaceProvider).root;
+      // Either the leaf is gone or the tabs list is empty.
+      if (root is PanelLeaf) {
+        expect(root.tabs, isEmpty);
+      }
+    });
+
+    test('AppShortcutRegistry builds a CallbackMap for the MainScreen set', () {
+      // Sanity-check the activator collision guard. The MainScreen
+      // bindings share the registry path with other panels, but the
+      // ones it actually mounts (newSession / closeTab / nextTab /
+      // prevTab / toggleSidebar / splitRight / splitDown /
+      // maximizePanel / openSettings) must coexist in a single map
+      // without colliding.
+      final reg = AppShortcutRegistry.instance;
+      final map = reg.buildCallbackMap({
+        AppShortcut.newSession: () {},
+        AppShortcut.closeTab: () {},
+        AppShortcut.nextTab: () {},
+        AppShortcut.prevTab: () {},
+        AppShortcut.toggleSidebar: () {},
+        AppShortcut.splitRight: () {},
+        AppShortcut.splitDown: () {},
+        AppShortcut.maximizePanel: () {},
+        AppShortcut.openSettings: () {},
+      });
+      expect(map.length, 9);
+    });
+  });
+
+  group('MainScreen — desktop drop target', () {
+    testWidgets('non-.lfs dropped files are silently ignored', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final dropTarget = tester.widget<DropTarget>(
+        find.byType(DropTarget).first,
+      );
+      // No exception → branch executed and `lfsFiles.isNotEmpty` was
+      // false; `showLfsImportDialog` was NOT invoked (would have hit
+      // FRB).
+      dropTarget.onDragDone!(
+        DropDoneDetails(
+          files: [DropItemFile('/tmp/whatever.txt')],
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        ),
+      );
+      await tester.pump();
+
+      // Sanity: shell still healthy after the drop.
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+    });
+
+    testWidgets('empty file list is silently ignored', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final dropTarget = tester.widget<DropTarget>(
+        find.byType(DropTarget).first,
+      );
+      dropTarget.onDragDone!(
+        const DropDoneDetails(
+          files: [],
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+    });
+  });
+
+  group('MainScreen — duplicate / split toolbar buttons', () {
+    testWidgets('duplicate icon triggers WorkspaceNotifier.duplicateTab', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Server-1',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+      final initialRoot = container.read(workspaceProvider).root as PanelLeaf;
+      expect(initialRoot.tabs.length, 1);
+
+      await tester.tap(find.byIcon(Icons.content_copy));
+      await tester.pumpAndSettle();
+
+      final after = container.read(workspaceProvider).root as PanelLeaf;
+      expect(
+        after.tabs.length,
+        2,
+        reason: 'duplicateTab should add a sibling tab on the same panel',
+      );
+    });
+
+    testWidgets('horizontal_split icon splits the panel vertically', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'c1',
+        label: 'Server-1',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+      expect(container.read(workspaceProvider).root, isA<PanelLeaf>());
+
+      await tester.tap(find.byIcon(Icons.horizontal_split));
+      await tester.pumpAndSettle();
+
+      // Root should now be a split node (no longer a single leaf).
+      expect(container.read(workspaceProvider).root, isNot(isA<PanelLeaf>()));
+    });
+  });
+
+  // First-launch banner toast test deferred — the LetsFLUTsshApp root
+  // mounts the Rust-backed bootstrap path which races the toast
+  // overlay pump cadence; the listener fires but the test's overlay
+  // finder doesn't observe the Toast widget reliably within the
+  // discrete pump window.
+
+  group('MainScreen — sidebar persistence', () {
+    testWidgets('sidebar starts open and stays open through a rebuild', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+
+      // Pump again without restarting — the State is preserved across
+      // intra-frame rebuilds because MainScreen lives at the root.
+      await tester.pump();
+      expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     });
   });
 }

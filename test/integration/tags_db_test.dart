@@ -176,4 +176,70 @@ void main() {
       expect(after, isEmpty);
     });
   });
+
+  group('TagsNotifier error branches against a real DB', () {
+    // The link tables enforce foreign keys to `sessions` / `folders`
+    // and `tags`. Calling `tagSession` / `tagFolder` with ids that do
+    // not exist trips the FK constraint inside Rust; the notifier's
+    // `try / catch` swallows the throw and routes through the warn-
+    // level logger. These tests pin that swallow-and-continue
+    // contract — failures from the link-table layer must not leak as
+    // uncaught futures to the UI, and the family provider must still
+    // be re-read cleanly afterward.
+
+    test(
+      'tagSession with an unknown session id swallows the FK error',
+      () async {
+        final c = makeContainer();
+        final notifier = c.read(tagsProvider.notifier);
+        await notifier.add(Tag(id: 't1', name: 'prod'));
+
+        // Linking against a session row that was never inserted fails
+        // FK; the `try / catch` must keep the future completing without
+        // a throw, and a re-read of the per-session family yields the
+        // empty list rather than a stale entry.
+        await notifier.tagSession('missing-session', 't1');
+        expect(
+          await c.read(sessionTagsProvider('missing-session').future),
+          isEmpty,
+        );
+      },
+    );
+
+    test('untagSession against a non-linked row completes cleanly', () async {
+      final c = makeContainer();
+      final notifier = c.read(tagsProvider.notifier);
+      // No session row + no link row — unlink_session_tag's DELETE
+      // simply matches no rows, but the family invalidation still
+      // runs and the future completes without throwing.
+      await notifier.untagSession('absent', 't1');
+      expect(await c.read(sessionTagsProvider('absent').future), isEmpty);
+    });
+
+    test('tagFolder with an unknown folder id swallows the FK error', () async {
+      final c = makeContainer();
+      final notifier = c.read(tagsProvider.notifier);
+      await notifier.add(Tag(id: 't1', name: 'prod'));
+      await notifier.tagFolder('missing-folder', 't1');
+      expect(
+        await c.read(folderTagsProvider('missing-folder').future),
+        isEmpty,
+      );
+    });
+
+    test('untagFolder against a non-linked row completes cleanly', () async {
+      final c = makeContainer();
+      final notifier = c.read(tagsProvider.notifier);
+      await notifier.untagFolder('absent-folder', 't1');
+      expect(await c.read(folderTagsProvider('absent-folder').future), isEmpty);
+    });
+
+    test('loadAll forces a re-fetch and returns the current rows', () async {
+      final c = makeContainer();
+      final notifier = c.read(tagsProvider.notifier);
+      await notifier.add(Tag(id: 't1', name: 'alpha'));
+      final reloaded = await notifier.loadAll();
+      expect(reloaded.map((t) => t.id), ['t1']);
+    });
+  });
 }
