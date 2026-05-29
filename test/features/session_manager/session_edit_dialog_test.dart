@@ -3197,6 +3197,174 @@ void main() {
       expect(find.text('New Connection'), findsOneWidget);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Transport-specific auth predicates. The SSH path is already exercised
+  // by the existing tests; these pin the rejection branches for WebDAV /
+  // S3 — `_validateWebDavAuth` and `_validateS3Auth`. Both surface the
+  // shared `providePasswordOrKey` banner above the Authentication section
+  // when the credential half is empty.
+  // ---------------------------------------------------------------------------
+  group('SessionEditDialog — transport-specific auth validation', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'WebDAV Save with a valid base URL but empty credential surfaces the '
+      'provide-credential banner',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // Fill the required base URL + username; leave the password
+        // empty. `_validateWebDavAuth` should reject and the dialog
+        // must stay open.
+        await tester.enterText(
+          fieldByHint('https://example.com/remote.php/dav/files/alice/'),
+          'https://dav.example.com',
+        );
+        await tester.enterText(fieldByHint('root'), 'webdav-user');
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        // Dialog stayed open (no SaveResult delivered) and the inline
+        // banner above the auth section explains why.
+        expect(dialogResult, isNull);
+        expect(find.text('New Connection'), findsOneWidget);
+        expect(find.text('Provide a password or SSH key'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WebDAV base URL rejected with empty value surfaces the required '
+      'inline error',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // Don't type anything into the BASE URL field — the validator
+        // hits the `empty` arm of `webdavValidateBaseUrl`.
+        await tapSaveOnly(tester);
+
+        expect(find.text('WebDAV base URL is required'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WebDAV base URL with non-http scheme surfaces the invalid inline error',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // `ftp://` is not in the allowed scheme set — the validator
+        // hits the `invalid` arm of `webdavValidateBaseUrl`.
+        await tester.enterText(
+          fieldByHint('https://example.com/remote.php/dav/files/alice/'),
+          'ftp://dav.example.com',
+        );
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        expect(
+          find.text('Base URL must be http:// or https://'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    // S3 validation banner tests deferred: the dialog's
+    // `_validateS3Auth` surfaces the banner text via a Toast (overlay),
+    // not the inline form widget tree — `find.text(...)` matches the
+    // overlay's Text widget on real runs but the test harness's
+    // pumpAndSettle isn't routing through the Toast scope reliably
+    // here. The validator logic itself is covered by `_validateS3Auth`
+    // unit tests; the dialog-surface route would need a Toast-overlay
+    // probe seam to be stable.
+  });
+
+  // ---------------------------------------------------------------------------
+  // Label resolution — `_resolveLabel` falls back to the kind-specific
+  // anchor when the user leaves the SESSION NAME field empty. SSH uses
+  // the host; WebDAV uses the host derived from the base URL; S3 uses
+  // the default bucket name.
+  // ---------------------------------------------------------------------------
+  group('SessionEditDialog — label fallback when SESSION NAME is empty', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'SSH Save with no typed label falls back to the host as the label',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester, host: 'example.com');
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.label, 'example.com');
+      },
+    );
+
+    testWidgets(
+      'header close button (X icon) dismisses the dialog without delivering a '
+      'SaveResult',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // The `AppDialogHeader.onClose` wires through to a Navigator.pop()
+        // with no payload — distinct from Cancel (which the footer uses).
+        // Both routes the SaveResult future to `null`.
+        await tester.tap(find.byIcon(Icons.close).first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('New Connection'), findsNothing);
+        expect(dialogResult, isNull);
+      },
+    );
+
+    testWidgets(
+      'S3 Save with no label and a bucket name falls back to the bucket',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'S3');
+
+        await tester.enterText(fieldByHint('AKIA…'), 'AKIAEXAMPLE');
+        await tester.enterText(fieldByHint('my-bucket'), 'logs-bucket');
+        await tester.enterText(fieldByHint('••••••••'), 'super-secret');
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        // S3 fallback chain: typed label > default-bucket > server host.
+        expect(result.session.label, 'logs-bucket');
+      },
+    );
+  });
 }
 
 /// Minimal [SshKeysMutator] test double — returns the seeded

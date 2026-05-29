@@ -1258,6 +1258,279 @@ void main() {
       expect(find.byIcon(Icons.fiber_manual_record), findsNothing);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Context menu — tapping items invokes the corresponding workspace mutation.
+  // The existing render-only tests pin which items appear; these assert the
+  // tapped item actually drives `closeOthers` / `closeToTheLeft` /
+  // `closeToTheRight` / `closeAll` / `toggleMaximize` via the notifier.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — context menu action tap', () {
+    Future<ProviderContainer> pumpWithState(
+      WidgetTester tester,
+      WorkspaceState ws,
+    ) async {
+      late ProviderContainer container;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            configProvider.overrideWith(TestConfigNotifier.new),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(ws),
+            ),
+          ],
+          child: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                theme: AppTheme.dark(),
+                home: const Scaffold(
+                  body: SizedBox(
+                    width: 800,
+                    height: 600,
+                    child: WorkspaceView(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      return container;
+    }
+
+    testWidgets('tapping Close in the context menu closes the active tab', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final t1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+      final t2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+      final panel = PanelLeaf(id: 'p0', tabs: [t1, t2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      final container = await pumpWithState(tester, ws);
+
+      await tester.tap(find.text('Alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      final leaf = container.read(workspaceProvider).root as PanelLeaf;
+      expect(leaf.tabs.map((t) => t.id).toList(), ['t2']);
+    });
+
+    testWidgets('tapping Close Others trims the panel to the active tab', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final conn3 = _conn('c3');
+      final t1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+      final t2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+      final t3 = _tab(id: 't3', connection: conn3, label: 'Gamma');
+      final panel = PanelLeaf(id: 'p0', tabs: [t1, t2, t3], activeTabIndex: 1);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      final container = await pumpWithState(tester, ws);
+
+      // Right-click on Beta (the middle tab) and choose Close Others.
+      await tester.tap(find.text('Beta'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Close Others'));
+      await tester.pumpAndSettle();
+
+      final leaf = container.read(workspaceProvider).root as PanelLeaf;
+      expect(leaf.tabs.map((t) => t.id).toList(), ['t2']);
+    });
+
+    testWidgets(
+      'tapping Close Tabs to the Right keeps every tab up to and including '
+      'the target',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final conn3 = _conn('c3');
+        final t1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+        final t2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+        final t3 = _tab(id: 't3', connection: conn3, label: 'Gamma');
+        final panel = PanelLeaf(
+          id: 'p0',
+          tabs: [t1, t2, t3],
+          activeTabIndex: 0,
+        );
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        final container = await pumpWithState(tester, ws);
+
+        await tester.tap(find.text('Alpha'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Close Tabs to the Right'));
+        await tester.pumpAndSettle();
+
+        final leaf = container.read(workspaceProvider).root as PanelLeaf;
+        expect(leaf.tabs.map((t) => t.id).toList(), ['t1']);
+      },
+    );
+
+    testWidgets(
+      'tapping Close Tabs to the Left keeps every tab from the target onward',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final conn3 = _conn('c3');
+        final t1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+        final t2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+        final t3 = _tab(id: 't3', connection: conn3, label: 'Gamma');
+        final panel = PanelLeaf(
+          id: 'p0',
+          tabs: [t1, t2, t3],
+          activeTabIndex: 2,
+        );
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        final container = await pumpWithState(tester, ws);
+
+        await tester.tap(find.text('Gamma'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Close Tabs to the Left'));
+        await tester.pumpAndSettle();
+
+        final leaf = container.read(workspaceProvider).root as PanelLeaf;
+        expect(leaf.tabs.map((t) => t.id).toList(), ['t3']);
+      },
+    );
+
+    testWidgets('tapping Close All collapses the panel to an empty workspace', (
+      tester,
+    ) async {
+      final conn1 = _conn('c1');
+      final conn2 = _conn('c2');
+      final t1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+      final t2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+      final panel = PanelLeaf(id: 'p0', tabs: [t1, t2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      final container = await pumpWithState(tester, ws);
+
+      await tester.tap(find.text('Alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Close All'));
+      await tester.pumpAndSettle();
+
+      // closeAll collapses the empty panel, which by `_collapseEmptyPanel`
+      // resets the workspace to a fresh single empty panel.
+      final ws2 = container.read(workspaceProvider);
+      expect(ws2.hasTabs, isFalse);
+    });
+
+    testWidgets(
+      'tapping Maximize in the context menu flips maximizedPanelId on the '
+      'workspace notifier',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final t1 = _tab(id: 't1', connection: conn1, label: 'Left');
+        final t2 = _tab(id: 't2', connection: conn2, label: 'Right');
+        final branch = WorkspaceBranch(
+          direction: Axis.horizontal,
+          first: PanelLeaf(id: 'p1', tabs: [t1], activeTabIndex: 0),
+          second: PanelLeaf(id: 'p2', tabs: [t2], activeTabIndex: 0),
+        );
+        final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+        final container = await pumpWithState(tester, ws);
+
+        await tester.tap(find.text('Left'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Maximize'));
+        await tester.pumpAndSettle();
+
+        expect(container.read(workspaceProvider).maximizedPanelId, 'p1');
+      },
+    );
+
+    testWidgets(
+      'tapping Restore in the context menu clears the maximized panel id',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final t1 = _tab(id: 't1', connection: conn1, label: 'Left');
+        final t2 = _tab(id: 't2', connection: conn2, label: 'Right');
+        final branch = WorkspaceBranch(
+          direction: Axis.horizontal,
+          first: PanelLeaf(id: 'p1', tabs: [t1], activeTabIndex: 0),
+          second: PanelLeaf(id: 'p2', tabs: [t2], activeTabIndex: 0),
+        );
+        final ws = WorkspaceState(
+          root: branch,
+          focusedPanelId: 'p1',
+          maximizedPanelId: 'p1',
+        );
+
+        final container = await pumpWithState(tester, ws);
+
+        // Right-click on the maximized panel's tab; the menu should now
+        // show Restore instead of Maximize.
+        await tester.tap(find.text('Left'), buttons: kSecondaryButton);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Restore'));
+        await tester.pumpAndSettle();
+
+        expect(container.read(workspaceProvider).maximizedPanelId, isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Retry callback — verify that an SFTP retry closes + re-opens the SFTP
+  // tab so `FileBrowserTab._initSftp` reruns. Terminal-side retry calls
+  // through to `TerminalTabState.reconnect`, which requires a mounted PTY
+  // (FRB-bound) and is left for the integration layer.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — retry button tap', () {
+    // SFTP-retry swap-tab test deferred: the addSftpTab + closeTab race
+    // happens off a microtask the prePopulatedWorkspaceNotifier doesn't
+    // observe synchronously in the test pump cadence; the panel
+    // re-reads stale on the next frame. Covering the SFTP retry needs
+    // either a real Riverpod-driven workspace notifier with a settle
+    // pump or a controller seam that exposes the pending mutation.
+
+    testWidgets(
+      'retry callback is null when the active tab has no connection error — '
+      'the connection bar leaves the Reconnect button out so a bare '
+      '`_retryCallback` lookup returns null on a connected tab',
+      (tester) async {
+        final conn = _conn('c1');
+        final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+        final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        expect(find.text('Reconnect'), findsNothing);
+      },
+    );
+  });
 }
 
 /// Test-only [FocusedPaneNotifier] that pins the focused pane id so
