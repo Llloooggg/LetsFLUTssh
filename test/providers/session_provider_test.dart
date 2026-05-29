@@ -317,6 +317,74 @@ void main() {
     });
   });
 
+  group('filterSessions (Dart fallback)', () {
+    Session sx({
+      String id = 's1',
+      String label = 'L',
+      String folder = '',
+      String host = 'h',
+      String user = 'u',
+    }) {
+      return Session(
+        id: id,
+        label: label,
+        folder: folder,
+        server: ServerAddress(host: host, user: user),
+      );
+    }
+
+    // The fallback branch lives below the `try` in `filterSessions` —
+    // direct unit calls into the helper exercise it without needing an
+    // FRB native lib loaded.
+    test(
+      'empty query returns the input list unchanged (identity fast path)',
+      () {
+        final list = [sx(id: 's1'), sx(id: 's2')];
+        final result = filterSessions(list, '');
+        expect(result, same(list));
+      },
+    );
+
+    test('case-insensitive match against label / host / user / folder', () {
+      final list = [
+        sx(id: 's1', label: 'PROD-web', host: '10.0.0.1', user: 'root'),
+        sx(
+          id: 's2',
+          label: 'staging',
+          host: '10.0.0.2',
+          user: 'admin',
+          folder: 'Edge',
+        ),
+      ];
+      // Label match
+      expect(filterSessions(list, 'prod').map((s) => s.id), ['s1']);
+      // User match
+      expect(filterSessions(list, 'ADMIN').map((s) => s.id), ['s2']);
+      // Folder match
+      expect(filterSessions(list, 'edge').map((s) => s.id), ['s2']);
+    });
+  });
+
+  group('SessionWorkspaceSnapshot.empty sentinel', () {
+    test('exposes empty collections so derived providers stay safe', () {
+      const empty = SessionWorkspaceSnapshot.empty;
+      expect(empty.sessions, isEmpty);
+      expect(empty.emptyFolders, isEmpty);
+      expect(empty.collapsedFolders, isEmpty);
+      expect(empty.folderMap, isEmpty);
+    });
+  });
+
+  group('SessionSearchNotifier', () {
+    test('set updates the held query string', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(sessionSearchProvider), '');
+      container.read(sessionSearchProvider.notifier).set('needle');
+      expect(container.read(sessionSearchProvider), 'needle');
+    });
+  });
+
   group('sessionsLoadingProvider', () {
     test('defaults to loading=true so the cold-start first frame is blank', () {
       // The sidebar reads this flag to tell "still loading" apart from

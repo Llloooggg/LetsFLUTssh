@@ -13,7 +13,12 @@ import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/core/dropdown_select_button.dart';
+import 'package:letsflutssh/widgets/ssh_keys/enclave_ssh_dialog.dart';
 import 'package:letsflutssh/widgets/ssh_keys/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hello_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/keystore_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/pkcs11_import_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/tpm_ssh_dialog.dart';
 import 'package:letsflutssh/widgets/core/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
@@ -3365,6 +3370,257 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Auth section — render branches the broad scenarios above don't hit.
+  // ---------------------------------------------------------------------------
+  group('SessionEditDialog — auth render branches', () {
+    Session makeSshSession({
+      String id = 'edit-1',
+      String label = 'Edit',
+      SessionAuth auth = const SessionAuth(),
+    }) {
+      return Session(
+        id: id,
+        label: label,
+        server: const ServerAddress(host: 'h.example.com', user: 'u'),
+        auth: auth,
+      );
+    }
+
+    testWidgets(
+      'editing a session with a stored password renders the "Saved" hint',
+      (tester) async {
+        // `_buildPasswordField` branches on `widget.session?.auth
+        // .hasStoredPassword` — when true the hint reads
+        // "Saved — type to change" instead of the 8-bullet mask.
+        final existing = makeSshSession(
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            hasStoredPassword: true,
+          ),
+        );
+        await tester.pumpWidget(buildApp(session: existing));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Saved — type to change'), findsWidgets);
+      },
+    );
+
+    // 'editing a session with stored key data renders Saved hint in PEM'
+    // deferred — the PEM textarea is collapsed by default and the
+    // expand interaction route through the auth panel didn't open
+    // within the pump cadence here.
+
+    testWidgets(
+      'editing a session with stored passphrase renders the "Saved" hint',
+      (tester) async {
+        // `_buildPassphraseField` reads `hasStoredPassphrase` — flip
+        // and confirm the hint text shows up next to the field.
+        final existing = makeSshSession(
+          auth: const SessionAuth(
+            authType: AuthType.key,
+            hasStoredPassphrase: true,
+          ),
+        );
+        await tester.pumpWidget(buildApp(session: existing));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Saved — type to change'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'passphrase validator rejects a value when no key is provided',
+      (tester) async {
+        // Spec: `_buildPassphraseField` returns `provideKeyFirst` for
+        // a non-empty value with no key path or PEM body. The error
+        // surfaces inline below the field.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Type a passphrase only — no key path, no PEM body.
+        await tester.enterText(fieldByHint('192.168.1.1'), 'host.example.com');
+        await tester.enterText(fieldByHint('root'), 'someone');
+        await tester.enterText(fieldByHint('Optional'), 'just-a-passphrase');
+        await tester.pumpAndSettle();
+
+        await tapSaveOnly(tester);
+
+        // Validator returns S.provideKeyFirst when passphrase is set
+        // without a key. The error renders below the field.
+        expect(
+          find.text('Provide a key file or PEM text first'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    // 'password visibility icon toggle' deferred — the visibility
+    // icon's first-match is somewhere outside the password field's
+    // suffix slot, so tapping it doesn't flip the obscure flag.
+  });
+
+  // ---------------------------------------------------------------------------
+  // Key picker — stub rows + non-FIDO2 hardware badges.
+  // ---------------------------------------------------------------------------
+  group('SessionEditDialog — key picker non-FIDO2 backends', () {
+    SshKeyEntry makeKey(String id, String label) => SshKeyEntry(
+      id: id,
+      label: label,
+      privateKey: '',
+      publicKey: '',
+      keyType: 'ed25519',
+      createdAt: DateTime(2025, 1, 1),
+    );
+
+    Widget buildWithKeys(
+      List<SshKeyEntry> keys, {
+      Map<String, String> backends = const {},
+      Set<String> stubIds = const {},
+    }) {
+      final keysList = List<SshKeyEntry>.unmodifiable(keys);
+      return ProviderScope(
+        overrides: [
+          sshKeysStreamProvider.overrideWith((_) => Stream.value(keysList)),
+          sshKeysMutatorProvider.overrideWithValue(
+            _BackendBadgeMutator(keysList, backends, stubIds),
+          ),
+          sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+          tagsProvider.overrideWith(_EmptyTagsNotifier.new),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => SessionEditDialog.show(context),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Select from Key Store'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select from Key Store'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('PKCS#11 row carries the Pkcs11Badge', (tester) async {
+      await tester.pumpWidget(
+        buildWithKeys(
+          [makeKey('k1', 'YubiKey PIV')],
+          backends: {'k1': 'pkcs11'},
+        ),
+      );
+      await openPicker(tester);
+      expect(find.byType(Pkcs11Badge), findsOneWidget);
+    });
+
+    testWidgets('Enclave row carries the EnclaveBadge', (tester) async {
+      await tester.pumpWidget(
+        buildWithKeys(
+          [makeKey('k1', 'Secure Enclave key')],
+          backends: {'k1': 'enclave'},
+        ),
+      );
+      await openPicker(tester);
+      expect(find.byType(EnclaveBadge), findsOneWidget);
+    });
+
+    testWidgets('Windows Hello row carries the HelloBadge', (tester) async {
+      await tester.pumpWidget(
+        buildWithKeys([makeKey('k1', 'Hello key')], backends: {'k1': 'hello'}),
+      );
+      await openPicker(tester);
+      expect(find.byType(HelloBadge), findsOneWidget);
+    });
+
+    testWidgets('TPM row carries the TpmBadge', (tester) async {
+      await tester.pumpWidget(
+        buildWithKeys([makeKey('k1', 'TPM key')], backends: {'k1': 'tpm'}),
+      );
+      await openPicker(tester);
+      expect(find.byType(TpmBadge), findsOneWidget);
+    });
+
+    testWidgets('Keystore row carries the KeystoreBadge', (tester) async {
+      await tester.pumpWidget(
+        buildWithKeys(
+          [makeKey('k1', 'Keystore key')],
+          backends: {'k1': 'keystore'},
+        ),
+      );
+      await openPicker(tester);
+      expect(find.byType(KeystoreBadge), findsOneWidget);
+    });
+
+    testWidgets(
+      'stub row (importedAsStub) wraps the tile in a desaturated Tooltip',
+      (tester) async {
+        // Spec: the stub branch in `_buildKeyPickerOption` renders the
+        // disabled tile under a `Tooltip` + `Opacity` so the user sees
+        // why the row cannot be picked.
+        await tester.pumpWidget(
+          buildWithKeys(
+            [makeKey('k1', 'stubbed device key')],
+            backends: {'k1': 'enclave'},
+            stubIds: {'k1'},
+          ),
+        );
+        await openPicker(tester);
+
+        // The picker dialog contains an Opacity wrapping the tile —
+        // the stub branch wraps with Opacity(opacity: 0.55, ...).
+        expect(find.byType(Opacity), findsWidgets);
+        // The tile's subtitle flips from the keyType to the stub copy.
+        expect(
+          find.text('Was on another device — re-generate here to use'),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+}
+
+/// Variant of [_StubKeysMutator] that lets a test mark specific ids
+/// as `importedAsStub = true`. Kept inline here so the file's primary
+/// stub mutator stays unchanged.
+class _BackendBadgeMutator extends SshKeysMutator {
+  _BackendBadgeMutator(this._initial, this._backends, this._stubIds);
+
+  final List<SshKeyEntry> _initial;
+  final Map<String, String> _backends;
+  final Set<String> _stubIds;
+
+  @override
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    return {
+      for (final entry in _initial)
+        entry.id: SshKeyMetadata(
+          id: entry.id,
+          label: entry.label,
+          publicKey: entry.publicKey,
+          keyType: entry.keyType,
+          createdAt: entry.createdAt,
+          isGenerated: entry.isGenerated,
+          privateFingerprint: '',
+          publicFingerprint: '',
+          backend: _backends[entry.id] ?? 'software',
+          importedAsStub: _stubIds.contains(entry.id),
+        ),
+    };
+  }
 }
 
 /// Minimal [SshKeysMutator] test double — returns the seeded

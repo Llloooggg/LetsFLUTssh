@@ -23,6 +23,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -300,6 +301,234 @@ void main() {
       expect(File('${localDir.path}/dl/a.txt').readAsStringSync(), 'AA');
       expect(File('${localDir.path}/dl/inner/b.txt').readAsStringSync(), 'BBB');
     });
+
+    // directory-upload enqueue tests deferred — the
+    // `_enqueueUploadDir` path walks via `localFsFlatWalkFiles` which
+    // needs a Rust worker dispatch + chain of remote mkdirs the
+    // fixture's SFTP server doesn't process synchronously enough for
+    // the test's `_waitForFile` poll to land.
+  });
+
+  group('TransferHelpers single-file download conflict resolution', () {
+    test(
+      'no pre-existing local file → resolver bypassed, original path used',
+      () async {
+        // Spec: `_resolveDownloadConflict` early-returns the target
+        // when the local probe returns null. A regression that
+        // unconditionally consulted the resolver would burn a
+        // round-trip every fresh download.
+        File('${sftpRoot.path}/remote.txt').writeAsStringSync('REMOTE');
+        final localDir = Directory.systemTemp.createTempSync('lfs-fb-dl-free-');
+        addTearDown(() => localDir.deleteSync(recursive: true));
+
+        var resolverCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          resolverCalls++;
+          return const ConflictDecision(ConflictAction.skip);
+        });
+        addTearDown(resolver.dispose);
+
+        final ok = await TransferHelpers.enqueueDownload(
+          manager: container.read(transfersProvider.notifier),
+          remoteFs: remoteFs,
+          connectionId: conn.id,
+          entry: FileEntry(
+            name: 'remote.txt',
+            path: '/remote.txt',
+            size: 6,
+            modTime: DateTime.now(),
+            isDir: false,
+          ),
+          localDirPath: localDir.path,
+          localCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(ok, isTrue);
+        expect(resolverCalls, 0, reason: 'no pre-existing file → no prompt');
+        await _waitForContent('${localDir.path}/remote.txt', 'REMOTE');
+      },
+    );
+
+    test('skip — pre-existing local file is preserved', () async {
+      File('${sftpRoot.path}/remote.txt').writeAsStringSync('REMOTE');
+      final localDir = Directory.systemTemp.createTempSync('lfs-fb-dl-skip-');
+      addTearDown(() => localDir.deleteSync(recursive: true));
+      File('${localDir.path}/remote.txt').writeAsStringSync('KEEP-ME');
+
+      final resolver = fixedResolver(ConflictAction.skip);
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: container.read(transfersProvider.notifier),
+        remoteFs: remoteFs,
+        connectionId: conn.id,
+        entry: FileEntry(
+          name: 'remote.txt',
+          path: '/remote.txt',
+          size: 6,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        localDirPath: localDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      // Give any racing transfer task a brief window to attempt a
+      // write; the local file must still carry the original content.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(File('${localDir.path}/remote.txt').readAsStringSync(), 'KEEP-ME');
+    });
+
+    test(
+      'replace — pre-existing local file overwritten with remote bytes',
+      () async {
+        File('${sftpRoot.path}/remote.txt').writeAsStringSync('REMOTE');
+        final localDir = Directory.systemTemp.createTempSync(
+          'lfs-fb-dl-replace-',
+        );
+        addTearDown(() => localDir.deleteSync(recursive: true));
+        File('${localDir.path}/remote.txt').writeAsStringSync('OLD');
+
+        final resolver = fixedResolver(ConflictAction.replace);
+        addTearDown(resolver.dispose);
+
+        final ok = await TransferHelpers.enqueueDownload(
+          manager: container.read(transfersProvider.notifier),
+          remoteFs: remoteFs,
+          connectionId: conn.id,
+          entry: FileEntry(
+            name: 'remote.txt',
+            path: '/remote.txt',
+            size: 6,
+            modTime: DateTime.now(),
+            isDir: false,
+          ),
+          localDirPath: localDir.path,
+          localCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(ok, isTrue);
+        await _waitForContent('${localDir.path}/remote.txt', 'REMOTE');
+      },
+    );
+
+    test('keepBoth — downloads under a unique sibling name', () async {
+      // `uniqueSiblingName` is owned Rust-side; the helper just feeds
+      // it `_localExists`. The new file must land beside the original
+      // under a derived name (`remote (1).txt` shape) and the original
+      // content must survive untouched.
+      File('${sftpRoot.path}/remote.txt').writeAsStringSync('REMOTE');
+      final localDir = Directory.systemTemp.createTempSync('lfs-fb-dl-both-');
+      addTearDown(() => localDir.deleteSync(recursive: true));
+      File('${localDir.path}/remote.txt').writeAsStringSync('KEEP-ME');
+
+      final resolver = fixedResolver(ConflictAction.keepBoth);
+      addTearDown(resolver.dispose);
+
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: container.read(transfersProvider.notifier),
+        remoteFs: remoteFs,
+        connectionId: conn.id,
+        entry: FileEntry(
+          name: 'remote.txt',
+          path: '/remote.txt',
+          size: 6,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        localDirPath: localDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      // The original is preserved; a renamed sibling carries the
+      // remote bytes.
+      expect(File('${localDir.path}/remote.txt').readAsStringSync(), 'KEEP-ME');
+      final siblings = localDir.listSync().whereType<File>().where((f) {
+        final name = f.path.split(Platform.pathSeparator).last;
+        return name != 'remote.txt' && name.startsWith('remote');
+      }).toList();
+      // Wait for the sibling to appear.
+      final deadline = DateTime.now().add(const Duration(seconds: 20));
+      File? sibling;
+      while (DateTime.now().isBefore(deadline)) {
+        final fresh = localDir.listSync().whereType<File>().where((f) {
+          final name = f.path.split(Platform.pathSeparator).last;
+          return name != 'remote.txt' && name.startsWith('remote');
+        }).toList();
+        if (fresh.isNotEmpty && fresh.first.readAsStringSync() == 'REMOTE') {
+          sibling = fresh.first;
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(
+        sibling,
+        isNotNull,
+        reason:
+            'keepBoth must deposit the remote bytes under a renamed sibling '
+            '(seen pre-poll: ${siblings.map((f) => f.path).toList()})',
+      );
+      expect(sibling!.readAsStringSync(), 'REMOTE');
+    });
+
+    test(
+      'symlink at the local target → resolver refuses without prompting',
+      () async {
+        // Spec: `_resolveDownloadConflict` refuses to overwrite a
+        // symlink (would follow the link and clobber an unrelated
+        // file). The resolver must NOT be consulted — the refusal is
+        // unconditional. Regression would consult the resolver and
+        // possibly write through the link.
+        File('${sftpRoot.path}/remote.txt').writeAsStringSync('REMOTE');
+        final localDir = Directory.systemTemp.createTempSync('lfs-fb-dl-link-');
+        addTearDown(() => localDir.deleteSync(recursive: true));
+        // Aim the symlink at a file outside the localDir so a
+        // hypothetical write-through wouldn't poison the dir.
+        final realTarget = File('${localDir.path}/real-target.txt')
+          ..writeAsStringSync('UNRELATED');
+        await Link('${localDir.path}/remote.txt').create(realTarget.path);
+
+        var resolverCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          resolverCalls++;
+          return const ConflictDecision(ConflictAction.replace);
+        });
+        addTearDown(resolver.dispose);
+
+        final ok = await TransferHelpers.enqueueDownload(
+          manager: container.read(transfersProvider.notifier),
+          remoteFs: remoteFs,
+          connectionId: conn.id,
+          entry: FileEntry(
+            name: 'remote.txt',
+            path: '/remote.txt',
+            size: 6,
+            modTime: DateTime.now(),
+            isDir: false,
+          ),
+          localDirPath: localDir.path,
+          localCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(ok, isFalse);
+        expect(resolverCalls, 0, reason: 'symlink refusal must be silent');
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        expect(realTarget.readAsStringSync(), 'UNRELATED');
+      },
+    );
   });
 
   // The SftpBrowserMixin live-session group and the openShell test were
@@ -350,12 +579,106 @@ void main() {
           transport.openShell(cols: 80, rows: 24),
           throwsA(isA<SshConnectError>()),
         );
+        // Every public channel op must hit the same `_requireSession`
+        // guard. A regression that skipped the guard on one method
+        // would either NPE deep in FRB or silently no-op against a
+        // dead session; the typed error is the load-bearing contract.
+        await expectLater(
+          transport.openSftp(),
+          throwsA(isA<SshConnectError>()),
+        );
+        await expectLater(
+          transport.openDirectTcpip(
+            hostToConnect: '127.0.0.1',
+            portToConnect: 22,
+            originatorAddress: '127.0.0.1',
+            originatorPort: 0,
+          ),
+          throwsA(isA<SshConnectError>()),
+        );
+        await expectLater(
+          transport.requestRemoteForward('127.0.0.1', 0),
+          throwsA(isA<SshConnectError>()),
+        );
+        await expectLater(
+          transport.cancelRemoteForward('127.0.0.1', 0),
+          throwsA(isA<SshConnectError>()),
+        );
         // Second disconnect is idempotent.
         await transport.disconnect();
 
         notifier.disconnect(c.id);
       },
     );
+
+    test(
+      'openDirectTcpip round-trips bytes through a loopback echo target',
+      () async {
+        // The fixture's `channel_open_direct_tcpip` proxies loopback
+        // targets; standing up a Dart-side echo server and driving the
+        // channel through `RustTransport.openDirectTcpip` exercises the
+        // wrapper end-to-end: `write` (Dart bytes → russh stdin half),
+        // `read` (russh stdout half → Dart bytes), `eof` (half-close),
+        // and `close` (drop the FRB handle). The whole `_RustDirectTcpip`
+        // surface is reachable only through a real channel.
+        final echoServer = await ServerSocket.bind('127.0.0.1', 0);
+        addTearDown(echoServer.close);
+        final echoFutures = <Future<void>>[];
+        echoServer.listen((socket) {
+          echoFutures.add(() async {
+            await socket.addStream(socket);
+            await socket.close();
+          }());
+        });
+
+        final transport = conn.transport!;
+        final channel = await transport.openDirectTcpip(
+          hostToConnect: '127.0.0.1',
+          portToConnect: echoServer.port,
+          originatorAddress: '127.0.0.1',
+          originatorPort: 0,
+        );
+
+        // Write a payload, half-close, drain echo bytes until the
+        // channel reports closed (`read` → null). The fixture echoes
+        // whole bytes verbatim; the assertion is a complete loop-back.
+        final payload = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
+        await channel.write(payload);
+        await channel.eof();
+
+        final received = <int>[];
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (DateTime.now().isBefore(deadline)) {
+          final chunk = await channel.read();
+          if (chunk == null) break;
+          received.addAll(chunk);
+          if (received.length >= payload.length) break;
+        }
+        await channel.close();
+
+        expect(
+          received,
+          payload.toList(),
+          reason: 'the loopback echo target must round-trip every byte',
+        );
+      },
+    );
+
+    test('requestRemoteForward returns a bound port and cancelRemoteForward '
+        'is idempotent', () async {
+      // The fixture's `tcpip_forward` handler binds 127.0.0.1 only
+      // and rewrites `*port` to whatever the OS picked, so passing
+      // `0` here drives the "let the server choose" branch on both
+      // sides of the wire. Cancelling twice exercises the idempotent
+      // arm — `cancel_tcpip_forward` returns Ok on a missing key.
+      final transport = conn.transport!;
+      final bound = await transport.requestRemoteForward('127.0.0.1', 0);
+      expect(bound, greaterThan(0));
+      await transport.cancelRemoteForward('127.0.0.1', bound);
+      // Second cancel must not throw — fixture returns OK on missing
+      // key, and the wrapper propagates that as a clean `Future<void>`.
+      await transport.cancelRemoteForward('127.0.0.1', bound);
+    });
   });
 }
 

@@ -3833,4 +3833,118 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Selection iteration branches: deleting / moving a folder selection runs
+  // a `for` over `selectedFolderPaths`. These cover the loop body + the
+  // post-mutation `clearDesktopSelection` arm taken when selectMode is off.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — bulk delete with folder selection', () {
+    testWidgets(
+      'Delete with marquee-selected folder iterates over folder paths and '
+      'falls back to clearDesktopSelection when not in mobile select mode',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Marquee-style selection that mixes a session id and a folder
+        // path, exactly the shape the marquee drag produces. `selectMode`
+        // stays false so `_resetSelectionAfterDelete` takes the
+        // `clearDesktopSelection` arm.
+        state.setMarqueeSelection({'1'}, {'Production/DB'});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        // Open the confirm dialog via the Delete shortcut.
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+
+        // The confirm prose names both the session count and the folder
+        // count — `_deleteSelected` joined them with "and".
+        expect(find.textContaining('1 session'), findsWidgets);
+        expect(find.textContaining('1 folder'), findsWidgets);
+
+        // Confirm — the inner loop iterates the single folder path and
+        // the post-delete branch routes through `clearDesktopSelection`.
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        // Selection cleared, panel stayed in desktop mode (no
+        // `selectMode = true`).
+        expect(state.selectedIds, isEmpty);
+        expect(state.selectedFolderPaths, isEmpty);
+        expect(state.selectMode, isFalse);
+
+        debugMobilePlatformOverride = null;
+      },
+    );
+
+    testWidgets(
+      'Delete confirm dismissed via Cancel keeps the selection intact',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.setMarqueeSelection({'1'}, {'Production'});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+
+        // Bail out — the early return in `_deleteSelected` after
+        // `await ConfirmDialog.show` short-circuits without touching
+        // the mutator.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Selection untouched.
+        expect(state.selectedIds, equals({'1'}));
+        expect(state.selectedFolderPaths, equals({'Production'}));
+      },
+    );
+  });
+
+  group('SessionPanel — bulk move with folder selection (mobile)', () {
+    setUp(() => debugMobilePlatformOverride = true);
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets(
+      'Move dialog with a folder in the selection iterates over folder paths '
+      'and exits select mode on completion',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Enter mobile select mode through the visibleForTesting hook
+        // so the move button picks up the folder selection.
+        state.enterSelectModeWithFolder('Production/DB');
+        await tester.pumpAndSettle();
+
+        // Open Move dialog from the mobile selection bar.
+        await tester.tap(find.byIcon(Icons.drive_file_move));
+        await tester.pumpAndSettle();
+        expect(find.text('Move to Folder'), findsOneWidget);
+
+        // Tap "/ (root)" — `_applyMove` then runs the folder loop and
+        // `selectMode` flips false via `exitSelectMode`.
+        await tester.tap(find.text('/ (root)'));
+        await tester.pumpAndSettle();
+
+        // Select mode was exited (mobile path takes the `_ctrl.selectMode`
+        // arm in `_applyMove`).
+        expect(state.selectMode, isFalse);
+      },
+    );
+  });
 }
