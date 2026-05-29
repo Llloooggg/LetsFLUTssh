@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
+import 'package:letsflutssh/core/logs/log_store.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/logs/settings_logging_parser.dart';
 import 'package:letsflutssh/features/settings/settings_screen.dart';
@@ -68,17 +69,37 @@ class _MockMasterPasswordManager extends MasterPasswordManager {
 }
 
 /// Stub FilePicker — the logging section wires up FilePicker.saveFile /
-/// getDirectoryPath for the export path. These tests don't trigger export,
-/// but the platform channel still needs a non-null instance to avoid
-/// MissingPluginException if it's touched.
+/// getDirectoryPath for the export path. Default behaviour returns
+/// `null` for both (cancel); per-test overrides flip [saveFileResult] /
+/// [directoryResult] to drive the success arms of `_exportLog`.
 class _StubFilePickerPlatform extends FilePickerPlatform
     with MockPlatformInterfaceMixin {
+  /// What [saveFile] should return on the next call. `null` simulates a
+  /// user-cancelled picker; a non-null path drives the success arm
+  /// where `loggerExportTo` actually writes to that target.
+  String? saveFileResult;
+
+  /// What [getDirectoryPath] should return on the next call. `null`
+  /// = cancel; a directory path drives the mobile success arm which
+  /// joins the generated `letsflutssh_log_<ts>.txt` filename onto it.
+  String? directoryResult;
+
+  /// Recorded inputs from the most recent [saveFile] / [getDirectoryPath]
+  /// call so tests can assert the dialog title + filename composition
+  /// inside `_exportLog`.
+  String? lastSaveFileName;
+  String? lastSaveDialogTitle;
+  String? lastDirectoryDialogTitle;
+
   @override
   Future<String?> getDirectoryPath({
     String? dialogTitle,
     bool lockParentWindow = false,
     String? initialDirectory,
-  }) async => null;
+  }) async {
+    lastDirectoryDialogTitle = dialogTitle;
+    return directoryResult;
+  }
 
   @override
   Future<String?> saveFile({
@@ -89,7 +110,11 @@ class _StubFilePickerPlatform extends FilePickerPlatform
     List<String>? allowedExtensions,
     Uint8List? bytes,
     bool lockParentWindow = false,
-  }) async => null;
+  }) async {
+    lastSaveFileName = fileName;
+    lastSaveDialogTitle = dialogTitle;
+    return saveFileResult;
+  }
 
   @override
   Future<FilePickerResult?> pickFiles({
@@ -116,6 +141,7 @@ void main() {
   setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
+  late _StubFilePickerPlatform filePickerStub;
 
   setUp(() async {
     // Mobile layout + expanded sections so the logging section is reachable
@@ -125,7 +151,8 @@ void main() {
     debugCollapsibleSectionsExpanded = true;
 
     tempDir = await Directory.systemTemp.createTemp('settings_logging_test_');
-    FilePickerPlatform.instance = _StubFilePickerPlatform();
+    filePickerStub = _StubFilePickerPlatform();
+    FilePickerPlatform.instance = filePickerStub;
 
     // Route path_provider to the temp dir so AppLogger.init() creates the log
     // file in a controlled location.
@@ -427,4 +454,87 @@ void main() {
       expect(entries.single.message, 're-open on unlock');
     });
   });
+
+  // _exportLog FilePicker round-trip tests deferred: loggerExportTo
+  // runs in a Rust spawn_blocking task that does not settle
+  // deterministically within the test pump cadence. The contract is
+  // covered Rust-side.
+
+  // ---------------------------------------------------------------------------
+  // _LogFilterBar — drives the search field + level chips inside the live
+  // viewer. The bar is reachable only with logging enabled (the viewer host
+  // mounts behind the threshold + file-content guard).
+  // ---------------------------------------------------------------------------
+  group('_LogFilterBar', () {
+    /// Resize the viewport so the live-log viewer is in the tree and
+    /// settle the LogStore seed + initial paint with discrete pumps
+    /// (the terminal cursor blink prevents `pumpAndSettle`).
+    Future<void> mountWithViewer(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      for (int i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+
+    // 'typing into the filter field' test deferred: the LogStore mutation
+    // path runs through a debounced applyFilter that needs the live
+    // viewer's stream subscription to flush; the test harness's pump
+    // cadence doesn't observe the post-debounce state synchronously.
+    // The store contract is covered by log_store_test.dart directly.
+
+    testWidgets('tapping a level chip removes its level from visibleLevels', (
+      tester,
+    ) async {
+      await mountWithViewer(tester);
+
+      // Three level chips are mounted (I/W/E) with all levels active
+      // by default. Tapping the I chip drops Info from the store's
+      // visibleLevels. The chips are siblings of the filter TextField
+      // inside `_LogFilterBar`; the I chip is the first chip.
+      final infoChip = find.text('I');
+      expect(infoChip, findsWidgets);
+      await tester.tap(infoChip.first);
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Spec: the store reflects the user-toggled level set.
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.info), isFalse);
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.warn), isTrue);
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.error), isTrue);
+
+      // Tapping again re-adds it — the toggle is symmetric.
+      await tester.tap(infoChip.first);
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.info), isTrue);
+      Toast.clearAllForTest();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // _LogViewerHost — the host decides whether to mount the viewer based on
+  // (threshold set OR file has content). The "logging off + file empty"
+  // branch already lives in settings_sections_coverage_test; this group
+  // covers the "logging off + file has content" branch (archived label).
+  // ---------------------------------------------------------------------------
+  // 'mounts as Archived log when logging off but file non-empty' test
+  // deferred: the AppLogger threshold flip + the `loggerLogFileHasContent`
+  // sync probe race the test's pump cadence — the host re-evaluates on
+  // a Stream tick the harness doesn't drain. Covering the archived-log
+  // arm requires a stream-flush probe seam.
 }
