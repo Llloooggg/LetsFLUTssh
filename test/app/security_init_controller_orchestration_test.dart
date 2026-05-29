@@ -103,6 +103,9 @@ void main() {
     Future<bool> Function()? verifyReadable,
     FakeMasterPasswordManager? masterPassword,
     FakeAutoLockNotifier? autoLock,
+    LegacyStateDetector? legacyStateDetector,
+    CorruptDbHandler? corruptDbHandler,
+    LegacyStateHandler? legacyStateHandler,
   }) async {
     SecurityInitController? ctrl;
     final autoLockNotifier = autoLock ?? FakeAutoLockNotifier();
@@ -116,6 +119,14 @@ void main() {
           configProvider.overrideWith(
             () => _NoPersistConfigNotifier(seedConfig),
           ),
+          // `securityCapabilitiesProvider` is a FutureProvider over an
+          // FRB sync probe; without an override every test path that
+          // touches `_initSecurity` (which `await`s `caps.future`)
+          // crashes on FRB-not-initialised. Seed the software-only
+          // snapshot so the await resolves immediately.
+          securityCapabilitiesProvider.overrideWith(
+            (ref) async => _softwareOnlyCaps,
+          ),
         ],
         child: MaterialApp(
           navigatorKey: navigatorKey,
@@ -128,6 +139,9 @@ void main() {
                 isMounted: () => true,
                 dialogPrompter: prompter,
                 verifyReadable: verifyReadable,
+                legacyStateDetector: legacyStateDetector,
+                corruptDbHandler: corruptDbHandler,
+                legacyStateHandler: legacyStateHandler,
               );
               return const SizedBox.shrink();
             },
@@ -377,6 +391,17 @@ void main() {
       harness.ctrl.dispose();
     });
   });
+
+  // Dispatcher-recurse tests for the corruptDbHandler / legacyState*
+  // seams require a much deeper override mesh than the existing
+  // harness: every continued / wipedAndRestarted outcome routes back
+  // through `_initSecurity`, the capabilities probe, `_handleLegacyStateIfPresent`,
+  // and ultimately the unlock dispatch — each of which hits FRB or
+  // OS-tier paths the unit harness can't fake without a full
+  // `flutter_test` integration suite. Leave the seams wired so a
+  // later integration pass can drive them; the assertion-bearing
+  // tests for the underlying recovery FRB calls live Rust-side
+  // (`lfs_core::recovery::tests`).
 }
 
 /// Auto-lock notifier that counts `load()` invocations so the
