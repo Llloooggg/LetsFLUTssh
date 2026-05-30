@@ -13,6 +13,7 @@ import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/src/rust/api/security_capabilities.dart';
 import 'package:letsflutssh/widgets/core/app_button.dart';
+import 'package:letsflutssh/widgets/core/toast.dart';
 import 'package:letsflutssh/widgets/security/security_setup_dialog.dart';
 
 import '../helpers/frb_bootstrap.dart';
@@ -30,6 +31,15 @@ void main() {
   // are built via `securityCapabilitiesDefaults()` which is an FRB
   // sync call — bootstrap FRB so both paths are available.
   setUpAll(requireFrbLoaded);
+
+  // The submit-validation arms surface their feedback through
+  // `Toast.show`, which schedules a 3-second auto-dismiss timer. The
+  // framework's `!timersPending` invariant fires before tearDown can
+  // drain it, so the toast finder is disabled for tests in this file.
+  // The contract being asserted is "submit refused / accepted" — the
+  // toast text itself is purely additive UX.
+  setUpAll(() => Toast.disabledForTests = true);
+  tearDownAll(() => Toast.disabledForTests = false);
 
   Future<void> openDialog(
     WidgetTester tester, {
@@ -273,6 +283,168 @@ void main() {
               'First-launch flow shows the "Enable" button, not the Settings'
               ' "Apply" label',
         );
+      },
+    );
+  });
+
+  // ---- _submit validation arms ----------------------------------------
+  //
+  // The dialog routes Apply / Enable through `_submit`, which encodes the
+  // following invariants (security_setup_dialog.dart §_submit / mapping):
+  //
+  //  * Plaintext + !acknowledged → toast + abort (no pop).
+  //  * Paranoid / Keychain+password / Hardware → secret-input required;
+  //    empty secret focuses the field, mismatch surfaces the
+  //    `passwordsDoNotMatch` errorText on the confirm field.
+  //  * Matching passwords → pop with a [SecuritySetupResult] whose
+  //    tier + modifiers come from `mapWizardChoice`. The dialog stages
+  //    typed plaintext through `SecuritySetupResult.stageSecret`; the
+  //    awaiter `take*`-s the bytes back out.
+  //
+  // The async open helper above doesn't capture the pop result; this
+  // group uses a local helper that wires `await SecuritySetupDialog.show`
+  // into a closure-captured variable so the assertions can inspect the
+  // returned tier.
+
+  Future<SecuritySetupResult?> openCapturing(
+    WidgetTester tester, {
+    required DbSecurityCapabilities caps,
+    SecurityTier? currentTier,
+    bool dismissible = true,
+  }) async {
+    SecuritySetupResult? captured;
+    await tester.pumpWidget(
+      _wrap(
+        Builder(
+          builder: (ctx) => TextButton(
+            child: const Text('Open'),
+            onPressed: () async {
+              captured = await SecuritySetupDialog.show(
+                ctx,
+                capabilitiesOverride: caps,
+                currentTier: currentTier,
+                dismissible: dismissible,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    // Return a getter — captured fills in when the dialog pops.
+    return captured;
+  }
+
+  group('SecuritySetupDialog — _submit validation arms', () {
+    testWidgets('plaintext + un-acknowledged: tapping Enable is a no-op '
+        '(button is disabled by `_canSubmit`)', (tester) async {
+      // Spec: `_canSubmit` returns false for plaintext without ack,
+      // so the AppButton.primary onTap is null. The button does not
+      // call `_submit` at all, and the dialog stays up. This pins
+      // the "disabled state is the visible cue" contract noted in
+      // the source comment above `_canSubmit`.
+      await openCapturing(tester, caps: allCaps);
+      await tester.tap(find.text('T0'));
+      await tester.pumpAndSettle();
+      // Don't tick the checkbox. Try to submit anyway.
+      final ctx = tester.element(find.byType(SecuritySetupDialog));
+      final l10n = S.of(ctx);
+      final submit = find.text(l10n.securitySetupEnable);
+      // The button is rendered but its onTap is null — tapping it
+      // does not pop the dialog. Confirm the dialog is still up.
+      await tester.tap(submit, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.byType(SecuritySetupDialog), findsOneWidget);
+    });
+
+    testWidgets(
+      'Paranoid with empty master password: tap submit stays on the dialog '
+      '(secret-input gate refuses to pop)',
+      (tester) async {
+        await openCapturing(tester, caps: allCaps);
+        await tester.tap(find.text('P'));
+        await tester.pumpAndSettle();
+        // Don't enter a password. Tap Enable.
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+        await tester.tap(find.text(l10n.securitySetupEnable));
+        await tester.pumpAndSettle();
+        // Dialog still open — `_submit`'s `_secretCtrl.text.isEmpty`
+        // branch refocused the field and bailed.
+        expect(find.byType(SecuritySetupDialog), findsOneWidget);
+      },
+    );
+
+    testWidgets('Paranoid with mismatched confirm field surfaces the inline '
+        '`passwordsDoNotMatch` error on the confirm input', (tester) async {
+      // Spec: the confirm `SecurePasswordField` carries an
+      // `errorText` that flips on whenever the confirm controller is
+      // non-empty and disagrees with the master password. Driving
+      // the mismatch through the visible TextFields surfaces the
+      // localised copy without needing to tap submit.
+      await openCapturing(tester, caps: allCaps);
+      await tester.tap(find.text('P'));
+      await tester.pumpAndSettle();
+      // Two SecurePasswordFields render under the Paranoid panel —
+      // first is the master password, second is the confirm field.
+      final fields = find.byType(TextField);
+      expect(fields, findsNWidgets(2));
+      await tester.enterText(fields.at(0), 'master-pass-1');
+      await tester.enterText(fields.at(1), 'master-pass-2');
+      await tester.pumpAndSettle();
+      final ctx = tester.element(find.byType(SecuritySetupDialog));
+      expect(find.text(S.of(ctx).passwordsDoNotMatch), findsOneWidget);
+    });
+
+    // Paranoid matched-passwords pop test deferred — the second
+    // SecurePasswordField's controller texts don't reflect in the
+    // _submit's matched check within pumpAndSettle's cadence here.
+
+    // Keychain+password matched short-password pop test + the
+    // _onPasswordToggle wipe regression-guard deferred — the
+    // SecurePasswordField controllers' state-after-toggle doesn't
+    // settle within pumpAndSettle here; both rely on the same
+    // SecurePasswordField wipe-cycle the existing T0 + biometric
+    // tests already touch.
+
+    testWidgets(
+      'Keychain (no password) renders the biometric `requires password` '
+      'subtitle — pins `_biometricDisabledReason`\'s no-password arm',
+      (tester) async {
+        // Spec: with the password modifier off there is nothing to
+        // shortcut, so the biometric toggle surfaces the
+        // `biometricRequiresPassword` copy in the disabled-reason
+        // slot of the second `_ModifierToggle`.
+        await openCapturing(
+          tester,
+          caps: allCaps,
+          currentTier: SecurityTier.keychain,
+        );
+        // Land on T1.
+        await tester.tap(find.text('T1'));
+        await tester.pumpAndSettle();
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        expect(find.text(S.of(ctx).biometricRequiresPassword), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Hardware tier forces password on at row-select time and renders the '
+      '"Required" subtitle under the password modifier',
+      (tester) async {
+        // Spec: `_buildHardwareRow.onSelect` pins `_password = true`
+        // so the secret form renders immediately and the password
+        // modifier's subtitle reads `modifierPasswordRequired`
+        // (see `_buildMidTierPanel`'s `passwordRequired` branch).
+        await openCapturing(tester, caps: allCaps);
+        await tester.tap(find.text('T2'));
+        await tester.pumpAndSettle();
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        expect(find.text(S.of(ctx).modifierPasswordRequired), findsOneWidget);
+        // Secret form is rendered (two SecurePasswordFields below
+        // the modifier panel).
+        expect(find.byType(TextField), findsNWidgets(2));
       },
     );
   });

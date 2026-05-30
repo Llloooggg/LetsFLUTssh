@@ -616,6 +616,222 @@ void main() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Local-drop conflict-dialog branches
+  // ─────────────────────────────────────────────────────────────────────────
+
+  testWidgets('OS drop with a real conflict + Replace overwrites the file', (
+    tester,
+  ) async {
+    // Contract — when the destination file already exists (regular
+    // file, not a symlink), the resolver surfaces FileConflictDialog;
+    // tapping Replace returns `ConflictAction.replace` and the local
+    // copy proceeds with the original `targetPath`. The bytes after
+    // the drop must reflect the source file.
+    if (Platform.isWindows) return;
+    final conn = connectedConnection();
+    conn.markTransportAdopted();
+    final src = Directory.systemTemp.createTempSync('fb_replace_src_');
+    final dst = Directory.systemTemp.createTempSync('fb_replace_dst_');
+    addTearDown(() {
+      if (src.existsSync()) src.deleteSync(recursive: true);
+      if (dst.existsSync()) dst.deleteSync(recursive: true);
+    });
+    final srcFile = File(p.join(src.path, 'doc.txt'))..writeAsStringSync('NEW');
+    // Pre-existing regular file at the destination triggers the dialog.
+    File(p.join(dst.path, 'doc.txt')).writeAsStringSync('OLD');
+
+    final seeded = await seededResult(localDir: dst);
+    await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+    await tester.pumpAndSettle();
+
+    filePaneById(tester, 'local').onOsDropReceived!.call([srcFile.path]);
+    // Settle until the dialog renders. The conflict path involves a
+    // Rust stat call + dialog mount + microtask hop.
+    final dialogFinder = find.text('Replace');
+    final stopwatch = Stopwatch()..start();
+    while (dialogFinder.evaluate().isEmpty && stopwatch.elapsed.inSeconds < 5) {
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(dialogFinder, findsOneWidget);
+    await tester.tap(dialogFinder);
+    await tester.pumpAndSettle();
+
+    // The Replace branch returns the original targetPath; the local
+    // copy then overwrites with the source bytes.
+    final dstFile = File(p.join(dst.path, 'doc.txt'));
+    final waitForCopy = Stopwatch()..start();
+    while (dstFile.readAsStringSync() != 'NEW' &&
+        waitForCopy.elapsed.inSeconds < 5) {
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(dstFile.readAsStringSync(), 'NEW');
+  });
+
+  testWidgets('OS drop with a real conflict + Keep both writes a sibling', (
+    tester,
+  ) async {
+    // Contract — Keep both routes through `uniqueSiblingName`, which
+    // resolves to a non-colliding path like "doc (1).txt"; the
+    // original file stays intact and the new file lands beside it.
+    if (Platform.isWindows) return;
+    final conn = connectedConnection();
+    conn.markTransportAdopted();
+    final src = Directory.systemTemp.createTempSync('fb_keep_src_');
+    final dst = Directory.systemTemp.createTempSync('fb_keep_dst_');
+    addTearDown(() {
+      if (src.existsSync()) src.deleteSync(recursive: true);
+      if (dst.existsSync()) dst.deleteSync(recursive: true);
+    });
+    final srcFile = File(p.join(src.path, 'doc.txt'))..writeAsStringSync('NEW');
+    final original = File(p.join(dst.path, 'doc.txt'))
+      ..writeAsStringSync('OLD');
+
+    final seeded = await seededResult(localDir: dst);
+    await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+    await tester.pumpAndSettle();
+
+    filePaneById(tester, 'local').onOsDropReceived!.call([srcFile.path]);
+    final dialogFinder = find.text('Keep both');
+    final stopwatch = Stopwatch()..start();
+    while (dialogFinder.evaluate().isEmpty && stopwatch.elapsed.inSeconds < 5) {
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(dialogFinder, findsOneWidget);
+    await tester.tap(dialogFinder);
+    await tester.pumpAndSettle();
+
+    // Original keeps its bytes; a sibling appears with the new bytes.
+    final waitForCopy = Stopwatch()..start();
+    Iterable<FileSystemEntity> contents = const [];
+    while (waitForCopy.elapsed.inSeconds < 5) {
+      contents = dst.listSync(followLinks: false);
+      if (contents.length >= 2) break;
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(original.readAsStringSync(), 'OLD');
+    expect(contents.length, greaterThanOrEqualTo(2));
+  });
+
+  testWidgets('OS drop with a real conflict + Skip leaves the target alone', (
+    tester,
+  ) async {
+    // Contract — Skip + Cancel collapse into the same `return null`
+    // arm of `_resolveLocalDropConflict`; the existing file's bytes
+    // are preserved and no sibling appears.
+    if (Platform.isWindows) return;
+    final conn = connectedConnection();
+    conn.markTransportAdopted();
+    final src = Directory.systemTemp.createTempSync('fb_skip_src_');
+    final dst = Directory.systemTemp.createTempSync('fb_skip_dst_');
+    addTearDown(() {
+      if (src.existsSync()) src.deleteSync(recursive: true);
+      if (dst.existsSync()) dst.deleteSync(recursive: true);
+    });
+    final srcFile = File(p.join(src.path, 'doc.txt'))..writeAsStringSync('NEW');
+    File(p.join(dst.path, 'doc.txt')).writeAsStringSync('OLD');
+
+    final seeded = await seededResult(localDir: dst);
+    await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+    await tester.pumpAndSettle();
+
+    filePaneById(tester, 'local').onOsDropReceived!.call([srcFile.path]);
+    final dialogFinder = find.text('Skip');
+    final stopwatch = Stopwatch()..start();
+    while (dialogFinder.evaluate().isEmpty && stopwatch.elapsed.inSeconds < 5) {
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(dialogFinder, findsOneWidget);
+    await tester.tap(dialogFinder);
+    await tester.pumpAndSettle();
+
+    // Drain microtasks so any in-flight copy that should NOT happen
+    // would have completed by now.
+    for (var i = 0; i < 20; i++) {
+      await tester.runAsync(
+        () async => await Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    final dstFile = File(p.join(dst.path, 'doc.txt'));
+    expect(dstFile.readAsStringSync(), 'OLD');
+    // No sibling — only the original entry sits in `dst`.
+    expect(dst.listSync(followLinks: false).length, 1);
+  });
+
+  testWidgets(
+    'OS drop with a real conflict + Cancel halts the rest of the batch',
+    (tester) async {
+      // Contract — Cancel sets `resolver.isCancelled`, which the batch
+      // loop reads at the top of every iteration. The second source
+      // in the same drop never reaches its stat call, so its target
+      // never appears in `dst`.
+      if (Platform.isWindows) return;
+      final conn = connectedConnection();
+      conn.markTransportAdopted();
+      final src = Directory.systemTemp.createTempSync('fb_cancel_src_');
+      final dst = Directory.systemTemp.createTempSync('fb_cancel_dst_');
+      addTearDown(() {
+        if (src.existsSync()) src.deleteSync(recursive: true);
+        if (dst.existsSync()) dst.deleteSync(recursive: true);
+      });
+      final srcA = File(p.join(src.path, 'a.txt'))..writeAsStringSync('A');
+      final srcB = File(p.join(src.path, 'b.txt'))..writeAsStringSync('B');
+      // Pre-existing collision on `a.txt` triggers the dialog; `b.txt`
+      // has no collision and would copy unimpeded if not for cancel.
+      File(p.join(dst.path, 'a.txt')).writeAsStringSync('OLD');
+
+      final seeded = await seededResult(localDir: dst);
+      await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+      await tester.pumpAndSettle();
+
+      filePaneById(
+        tester,
+        'local',
+      ).onOsDropReceived!.call([srcA.path, srcB.path]);
+      final cancelFinder = find.text('Cancel');
+      final stopwatch = Stopwatch()..start();
+      while (cancelFinder.evaluate().isEmpty &&
+          stopwatch.elapsed.inSeconds < 5) {
+        await tester.runAsync(
+          () async =>
+              await Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump();
+      }
+      expect(cancelFinder, findsOneWidget);
+      await tester.tap(cancelFinder);
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 20; i++) {
+        await tester.runAsync(
+          () async =>
+              await Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump();
+      }
+
+      // `a.txt` keeps its OLD content; `b.txt` was never copied
+      // because the cancel guard short-circuits the loop.
+      expect(File(p.join(dst.path, 'a.txt')).readAsStringSync(), 'OLD');
+      expect(File(p.join(dst.path, 'b.txt')).existsSync(), isFalse);
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Resizable divider
   // ─────────────────────────────────────────────────────────────────────────
 

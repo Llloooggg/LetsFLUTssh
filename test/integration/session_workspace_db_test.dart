@@ -742,5 +742,138 @@ void main() {
         expect(filteredTree, isNotEmpty);
       },
     );
+
+    test(
+      'sessionsLoadingProvider flips false once the workspace stream emits',
+      () async {
+        // Cold-start contract — the sidebar reads the loading flag to
+        // tell "still loading" apart from "no sessions yet". Once the
+        // workspace stream's first emission lands, the flag must flip
+        // to false so the empty-state can render.
+        final c = makeContainer();
+        await waitForSnapshot(c, (_) => true);
+        expect(c.read(sessionsLoadingProvider), isFalse);
+      },
+    );
+
+    test(
+      'sessionsByIdProvider rebuilds with the new id after an add',
+      () async {
+        // Contract — the derived `Map<String, Session>` reflects every
+        // workspace-stream emission. Adding a session puts its id in
+        // the map and removing it drops the entry; the consumer's
+        // `select((m) => m[id])` therefore only rebuilds when ITS
+        // session changes.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+        final byId = c.read(sessionsByIdProvider);
+        expect(byId, hasLength(1));
+        expect(byId['s1']?.id, 's1');
+        await mutator.delete('s1');
+        await waitForSnapshot(c, (s) => s.sessions.isEmpty);
+        expect(c.read(sessionsByIdProvider), isEmpty);
+      },
+    );
+  });
+
+  group('SessionMutator unique-folder-name walk', () {
+    test(
+      'duplicateFolder walks past (1) when both base and (1) collide',
+      () async {
+        // Contract — `_uniqueFolderNameUnder` walks the suffix counter
+        // by reading both the session-derived folder set AND the
+        // `folderMap.values` traversal (via `_composeFolderPath`).
+        // Three duplicates of `Proj` should land under
+        // `Proj (1)`, `Proj (2)`, `Proj (3)` — proving the loop
+        // walks past collisions one-by-one rather than fast-failing.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'Proj'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (1)') ||
+              s.emptyFolders.contains('Proj (1)'),
+        );
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (2)') ||
+              s.emptyFolders.contains('Proj (2)'),
+        );
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (3)') ||
+              s.emptyFolders.contains('Proj (3)'),
+        );
+
+        final snap = c.read(sessionWorkspaceProvider);
+        final folders = {
+          ...snap.sessions.map((s) => s.folder),
+          ...snap.emptyFolders,
+        };
+        expect(
+          folders,
+          containsAll(['Proj', 'Proj (1)', 'Proj (2)', 'Proj (3)']),
+        );
+      },
+    );
+
+    test('moveFolder no-op when reparenting into the same parent', () async {
+      // Contract — `moveFolder` computes the resolved `newPath` from
+      // `newParent + folderName`. When `newParent == ''` and the
+      // source already sits at root, the resolved path matches the
+      // current path and the guard returns silently (no `renameFolder`
+      // FRB call). Same-path / cycle / empty checks all hit this arm.
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Root'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+      // newParent='' + folder='Root' → newPath='Root' == folderPath.
+      await mutator.moveFolder('Root', '');
+      expect(c.read(sessionWorkspaceProvider).sessions.single.folder, 'Root');
+    });
+
+    test(
+      'duplicateFolder source path with multi-level nesting copies all empties',
+      () async {
+        // Contract — the loop translates every `$sourcePath/X/Y`
+        // empty subfolder to `$newRoot/X/Y`. Nested empty folders
+        // covered here ensure the slice / replacement math runs
+        // through more than the trivial single-level case.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.addEmptyFolder('Tree');
+        await mutator.addEmptyFolder('Tree/Inner');
+        await mutator.addEmptyFolder('Tree/Inner/Leaf');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.emptyFolders.contains('Tree') &&
+              s.emptyFolders.contains('Tree/Inner') &&
+              s.emptyFolders.contains('Tree/Inner/Leaf'),
+        );
+
+        await mutator.duplicateFolder('Tree', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.emptyFolders.contains('Tree (1)/Inner') &&
+              s.emptyFolders.contains('Tree (1)/Inner/Leaf'),
+        );
+        final snap = c.read(sessionWorkspaceProvider);
+        expect(snap.emptyFolders, contains('Tree (1)'));
+        expect(snap.emptyFolders, contains('Tree (1)/Inner'));
+        expect(snap.emptyFolders, contains('Tree (1)/Inner/Leaf'));
+      },
+    );
   });
 }

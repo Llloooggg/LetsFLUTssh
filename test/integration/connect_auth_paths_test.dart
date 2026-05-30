@@ -217,5 +217,63 @@ void main() {
         notifier.disconnect(conn.id);
       },
     );
+
+    test('a wrong password settles into disconnected with an error', () async {
+      // Negative quick-connect path — `_authFromConfig` still composes
+      // `DbPreparedAuthRef_Password` → `SshAuthPasswordRef`, but the
+      // fixture's `auth_password` handler rejects it and the
+      // connection's bus listener flips state to disconnected with
+      // a non-null `connectionError`. Covers the quick-connect arm's
+      // failure path independent of the saved-session test in
+      // `session_connect_end_to_end_test.dart`.
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final conn = notifier.connectAsync(
+        SSHConfig(
+          server: address(),
+          auth: const SshAuth(password: 'wrong-password'),
+        ),
+        label: 'password-wrong',
+      );
+
+      await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+      await conn.transportReady;
+
+      expect(conn.state, SSHConnectionState.disconnected);
+      expect(conn.connectionError, isNotNull);
+
+      notifier.disconnect(conn.id);
+    });
+  });
+
+  group('connections_notifier_auth — agent short-circuit', () {
+    test(
+      'useAgent skips the composer and the connect attempt settles',
+      () async {
+        // Contract — `_authFromConfig` short-circuits on `auth.useAgent`
+        // BEFORE calling `connectionPrepareAuth`, returning
+        // `const SshAuthAgent()` directly. The russh fixture has no
+        // matching agent socket so the auth phase fails; what's
+        // load-bearing here is that the connect attempt SETTLES
+        // (state != connecting) without hanging — proves the agent
+        // arm wires through `busConnectArgs` and into the actor.
+        final container = makeContainer();
+        final notifier = container.read(connectionsProvider.notifier);
+        final conn = notifier.connectAsync(
+          SSHConfig(server: address(), auth: const SshAuth(useAgent: true)),
+          label: 'agent-short-circuit',
+        );
+
+        await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+        await conn.transportReady;
+
+        // The fixture has no agent socket so a clean settle is the
+        // expected outcome — `connecting` would mean the auth-method
+        // dispatch is wedged.
+        expect(conn.state, isNot(SSHConnectionState.connecting));
+
+        notifier.disconnect(conn.id);
+      },
+    );
   });
 }

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/widgets/core/app_dialog.dart';
 import 'package:letsflutssh/widgets/security/unlock_dialog.dart';
 
 import '../helpers/fake_security.dart';
@@ -408,6 +409,102 @@ void main() {
         expect(find.text(l10n.unlock), findsOneWidget);
         expect(find.text(l10n.resetAllDataConfirmTitle), findsNothing);
         expect(mgr.unlockAttemptCalls, isEmpty);
+      },
+    );
+
+    testWidgets('forgot-password typed-name gate: the destructive action stays '
+        'disabled until the user types the magic phrase verbatim', (
+      tester,
+    ) async {
+      // Spec: `TypedNameConfirmDialog` enables the destructive
+      // Confirm action only when the typed text exactly matches the
+      // magic phrase `LetsFLUTssh`. Typing a near-miss leaves the
+      // action disabled and tapping it is a no-op (Dialog stays up
+      // and the unlock dialog never wipes). Pin "disabled when text
+      // doesn't match" by inspecting the AppButton's enabled flag
+      // — more reliable than a tap-and-not-pop probe because the
+      // disabled button swallows the gesture.
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.staged],
+      );
+      await _open(tester, manager: mgr);
+      final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+      await tester.tap(find.text(l10n.forgotPassword));
+      await tester.pumpAndSettle();
+
+      // Type a near-miss into the phrase field — same length,
+      // off by one character.
+      await tester.enterText(find.byType(TextField).last, 'LetsFLUTssH');
+      await tester.pumpAndSettle();
+
+      // The destructive confirm action is in the dialog footer.
+      // `AppButton.destructive(enabled: _matches)` — `_matches` is
+      // false for a non-exact entry, so the action button's
+      // `onTap` collapses to null (the disabled-state branch in
+      // AppButton).
+      final confirmBtn = tester.widget<AppButton>(
+        find.ancestor(
+          of: find.text(l10n.resetAllDataConfirmAction),
+          matching: find.byWidgetPredicate((w) => w is AppButton),
+        ),
+      );
+      expect(
+        confirmBtn.enabled,
+        isFalse,
+        reason: 'near-miss text leaves _matches=false',
+      );
+      // The unlock manager has not been invoked, and the wipe has
+      // not started. Cancel out and confirm the unlock dialog is
+      // back up so the test exits cleanly without a half-finished
+      // FRB wipe.
+      await tester.tap(find.text(l10n.cancel));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.unlock), findsOneWidget);
+      expect(mgr.unlockAttemptCalls, isEmpty);
+    });
+
+    testWidgets(
+      'forgot-password typed-name gate: the destructive action enables '
+      'once the magic phrase matches verbatim',
+      (tester) async {
+        // Spec mirror of the above: the same controller, fed the
+        // exact magic phrase, must flip `_matches` to true and arm
+        // the destructive action. We pin the enabled flag and back
+        // out via Cancel so the actual wipe (which routes through
+        // `WipeAllService` → real FRB recovery cascade) does NOT
+        // fire inside the unit-test process.
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+        );
+        await _open(tester, manager: mgr);
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        await tester.tap(find.text(l10n.forgotPassword));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField).last, 'LetsFLUTssh');
+        await tester.pumpAndSettle();
+
+        // The destructive confirm action's enabled flag is the
+        // observable shape of `_matches`. Pin it directly so a future
+        // refactor that breaks the gate doesn't silently slide
+        // through.
+        final confirmBtn = tester.widget<AppButton>(
+          find.ancestor(
+            of: find.text(l10n.resetAllDataConfirmAction),
+            matching: find.byWidgetPredicate((w) => w is AppButton),
+          ),
+        );
+        expect(
+          confirmBtn.enabled,
+          isTrue,
+          reason: 'verbatim match flips _matches=true',
+        );
+
+        // Cancel out before tapping the now-armed destructive action,
+        // otherwise the wipe fires inside the unit-test process.
+        await tester.tap(find.text(l10n.cancel));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.unlock), findsOneWidget);
       },
     );
   });

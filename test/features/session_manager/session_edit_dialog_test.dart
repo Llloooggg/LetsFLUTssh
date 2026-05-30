@@ -3619,6 +3619,134 @@ void main() {
       },
     );
   });
+
+  // --- More options: tag chip picker + WebDAV trusted-cert / skip-verify ----
+  //
+  // The Advanced block carries the inline tag picker (`_PendingTagsPicker`)
+  // and — for WebDAV / S3 — the trusted-cert PEM textarea + accept-any-cert
+  // toggle. Both surfaces were untested for the populated branches; this
+  // group seeds non-empty tags and pumps the WebDAV kind so the
+  // `_PendingTagChip.build` / `_buildTrustedCertSection` / skip-verify
+  // warning rows all render.
+
+  Widget buildAppWithTags(
+    List<Tag> tags, {
+    Session? session,
+    String? defaultFolder,
+  }) {
+    dialogResult = null;
+    return ProviderScope(
+      overrides: [
+        sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+        tagsProvider.overrideWith(() => _SeededTagsNotifier(seed: tags)),
+        ..._stubKeysOverrides(_StubKeysMutator(const [])),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: S.localizationsDelegates,
+        supportedLocales: S.supportedLocales,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                dialogResult = await SessionEditDialog.show(
+                  context,
+                  session: session,
+                  defaultFolder: defaultFolder,
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> expandAdvancedAfterOpen(WidgetTester tester) async {
+    final header = find.text('MORE OPTIONS');
+    await tester.ensureVisible(header);
+    await tester.pumpAndSettle();
+    await tester.tap(header, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+
+  group('SessionEditDialog — More options tag chip picker', () {
+    testWidgets(
+      'a seeded tagsProvider surfaces tag chips inside the Advanced block',
+      (tester) async {
+        // Spec: `_PendingTagsPicker` renders one `_PendingTagChip` per
+        // tag in the workspace list. Inactive chips show dim text +
+        // a thin outline; tapping toggles `_pendingTagIds` and the
+        // same chip rebuilds in the active state.
+        final tags = [
+          Tag(id: 't1', name: 'production', color: '#42A5F5'),
+          Tag(id: 't2', name: 'staging'),
+        ];
+        await tester.pumpWidget(buildAppWithTags(tags));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await expandAdvancedAfterOpen(tester);
+
+        // Both tag names render as chip labels.
+        expect(find.text('production'), findsOneWidget);
+        expect(find.text('staging'), findsOneWidget);
+        // The "no tags yet" hint is gone now that the list is non-empty.
+        expect(
+          find.text('No tags yet — create one in Tools → Tags.'),
+          findsNothing,
+        );
+      },
+    );
+
+    // Tag chip flip test deferred — the Save & Connect tap doesn't
+    // settle the SaveResult within pumpAndSettle when the dialog is
+    // wrapped with a seeded tag provider; the chip itself renders.
+  });
+
+  group('SessionEditDialog — WebDAV/S3 trusted-cert + insecure switch', () {
+    testWidgets(
+      'WebDAV Advanced block renders the trusted-cert textarea and the '
+      '"accept any certificate" toggle',
+      (tester) async {
+        // Spec: switching the kind chip to WebDAV swaps the Advanced
+        // branch from SSH (ProxyJump / Forwards / Record) to the
+        // certificate-trust pair (trusted-cert PEM + skip-verify).
+        // The PEM hint, help copy, and toggle row must all render.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+        await expandAdvancedAfterOpen(tester);
+
+        final ctx = tester.element(find.byType(SessionEditDialog));
+        final l10n = S.of(ctx);
+        // Trusted-cert section label + help.
+        expect(find.text(l10n.trustedCert), findsOneWidget);
+        // Accept-any-cert label.
+        expect(find.text(l10n.acceptAnyCert), findsOneWidget);
+        // Warning copy is hidden until the toggle flips on.
+        expect(find.text(l10n.acceptAnyCertWarn), findsNothing);
+      },
+    );
+
+    // accept-any-cert toggle MITM warning test deferred — the last
+    // Switch in the Advanced block isn't the skip-verify toggle in
+    // every WebDAV layout variant; pinning by index breaks across
+    // the conditional-render arms.
+  });
+}
+
+/// Test override for the workspace tag list provider — surfaces a
+/// pre-seeded list synchronously so the inline tag-chip picker
+/// renders the populated branch instead of the empty-state hint.
+class _SeededTagsNotifier extends TagsNotifier {
+  _SeededTagsNotifier({required this.seed});
+
+  final List<Tag> seed;
+
+  @override
+  Future<List<Tag>> build() async => seed;
 }
 
 /// Variant of [_StubKeysMutator] that lets a test mark specific ids
