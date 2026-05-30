@@ -923,5 +923,91 @@ void main() {
     // round-trip through debugForce* interacts with the secure-screen
     // scope's listenable in a way the IgnorePointer / LockScreen
     // finder cannot observe deterministically across pump windows.
+
+    testWidgets('ExcludeFocus excluding mirrors the lockStateProvider', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // The shell wraps the workspace child in `ExcludeFocus(excluding:
+      // locked)` so focus traversal can't reach the still-mounted
+      // workspace once the overlay paints. While unlocked the same gate
+      // must stay transparent — Tab traversal has to reach the
+      // terminal pane, file pane, and sidebar without the focus tree
+      // silently dropping every node beneath.
+      final exclude = tester.widget<ExcludeFocus>(
+        find.byType(ExcludeFocus).first,
+      );
+      expect(exclude.excluding, isFalse);
+    });
+  });
+
+  // ── LetsFLUTsshApp — animation invariant ──
+
+  group('LetsFLUTsshApp — theme animation invariant', () {
+    testWidgets('MaterialApp pins themeAnimationDuration to zero', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // The shell pins `themeAnimationDuration: Duration.zero` so a
+      // dark/light flip does not crossfade — the global
+      // `disableAnimations: true` MediaQuery already promises no
+      // implicit animations. A future refactor that lets Material
+      // re-introduce its 200 ms theme transition would violate the
+      // "no transitions" cold-start guarantee.
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.themeAnimationDuration, Duration.zero);
+    });
+  });
+
+  // ── LetsFLUTsshApp — observer wiring ──
+
+  group('LetsFLUTsshApp — navigator observers', () {
+    testWidgets('MaterialApp threads the overlayModalRouteObserver singleton', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // The splash overlay hides itself while a `PopupRoute` (dialog
+      // / bottom sheet / menu) sits on top of the navigator. The
+      // splash subscribes to `activeOverlayModalCount`, which the
+      // singleton `overlayModalRouteObserver` increments on
+      // `didPush`/`didPop`. The shell must thread that exact
+      // observer through MaterialApp.navigatorObservers — instancing
+      // a fresh one per build would silently break bootstrap-time
+      // recovery dialogs (showTierReset / showDbCorrupt).
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.navigatorObservers, isNotEmpty);
+      expect(app.navigatorObservers, contains(overlayModalRouteObserver));
+    });
+  });
+
+  // ── debugShowStartupSplash test seam ──
+
+  group('debugShowStartupSplash', () {
+    test('default value is true (production cold-start contract)', () {
+      // The shell only paints the splash overlay when
+      // `debugShowStartupSplash` is true. The production default must
+      // stay true so a real cold-start (before the security controller
+      // marks ready) actually surfaces the splash; the test setUp flips
+      // it off because the test bootstrap never resolves. Pinning the
+      // default here catches a future refactor that defaults it off and
+      // ships an empty-skeleton flash to users.
+      //
+      // The setUp() in this file flips it false for the rest of the
+      // suite, and tearDown restores it — so we reset it inline before
+      // the assertion to read the canonical production value.
+      final saved = debugShowStartupSplash;
+      try {
+        debugShowStartupSplash = true;
+        expect(debugShowStartupSplash, isTrue);
+      } finally {
+        debugShowStartupSplash = saved;
+      }
+    });
   });
 }

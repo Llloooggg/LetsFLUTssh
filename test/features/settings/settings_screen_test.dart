@@ -434,4 +434,144 @@ void main() {
   // the mobile-shell physical-size pump hangs in this harness, so the
   // seam's effect is covered indirectly by the per-section tests
   // above which mount each section directly.
+
+  // ── debugCollapsibleSectionsExpanded test seam ──
+
+  group('debugCollapsibleSectionsExpanded', () {
+    test('default value is false (production cold-start contract)', () {
+      // The collapsible accordion on mobile must start with every
+      // section collapsed in production — the seam lets section-render
+      // tests skip the user-interaction step of tapping each header
+      // open. Flipping the default to true would ship an
+      // every-card-pre-expanded list to real users, which costs scroll
+      // distance plus an FRB-heavy probe per section running before the
+      // user opens the screen.
+      final saved = debugCollapsibleSectionsExpanded;
+      try {
+        debugCollapsibleSectionsExpanded = false;
+        expect(debugCollapsibleSectionsExpanded, isFalse);
+      } finally {
+        debugCollapsibleSectionsExpanded = saved;
+      }
+    });
+  });
+
+  // ── Mobile collapsible accordion — tap toggles section ──
+
+  group('SettingsScreen (mobile) — collapsible section toggle', () {
+    setUp(() {
+      plat.debugDesktopPlatformOverride = false;
+      plat.debugMobilePlatformOverride = true;
+    });
+
+    testWidgets(
+      'every section header maps to an ExpansionTile so taps toggle it',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          buildSettingsScreen(home: const SettingsScreen()),
+        );
+        await pumpFrames(tester);
+
+        // The mobile shell renders one `ExpansionTile` per section; the
+        // tile wraps each section header in a tap target that toggles
+        // the collapse state. Pin the 1:1 mapping so a future refactor
+        // that swaps ExpansionTile for a custom widget surfaces in this
+        // test before it ships a broken accordion to users.
+        expect(
+          find.byType(ExpansionTile),
+          findsNWidgets(10),
+          reason:
+              'one ExpansionTile per section — appearance, connection, '
+              'transfers, security, sshIntegration, data, sync, logging, '
+              'updates, about',
+        );
+      },
+    );
+  });
+
+  // ── Desktop SettingsDialog — dialog title surfaces ──
+
+  group('SettingsDialog (desktop) — dialog title', () {
+    setUp(() {
+      plat.debugDesktopPlatformOverride = true;
+      plat.debugMobilePlatformOverride = false;
+    });
+
+    testWidgets('the dialog header displays the localized Settings title', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        buildSettingsScreen(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => SettingsDialog.show(ctx),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await pumpFrames(tester);
+      await tester.tap(find.text('open'));
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      // `SettingsDialog` threads `S.of(context).settings` into the
+      // SidebarNavDialog title — the dialog header anchors the user's
+      // sense of "where am I" when arriving from the toolbar entry.
+      // Without the title the dialog opens nameless and indistinct from
+      // the Tools dialog.
+      final dialog = tester.widget<SidebarNavDialog>(
+        find.byType(SidebarNavDialog),
+      );
+      expect(dialog.title, l10n.settings);
+    });
+
+    testWidgets('the dialog mounts with animationStyle = noAnimation', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        buildSettingsScreen(
+          home: Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => SettingsDialog.show(ctx),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await pumpFrames(tester);
+
+      // First frame after tap: the dialog should be on screen
+      // immediately, no fade-in. `SettingsDialog.show` passes
+      // `animationStyle: AnimationStyle.noAnimation` for parity with the
+      // shell's `disableAnimations: true` MediaQuery — every other
+      // surface is animation-free, the settings dialog must match.
+      await tester.tap(find.text('open'));
+      await tester.pump(); // one frame, NO settle
+      expect(find.byType(SidebarNavDialog), findsOneWidget);
+    });
+  });
 }

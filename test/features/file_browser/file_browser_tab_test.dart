@@ -36,6 +36,8 @@ import 'package:letsflutssh/features/file_browser/transfer_panel.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/transfer_provider.dart';
+import 'package:letsflutssh/src/rust/api/file_clipboard.dart'
+    show fileClipboardClear, fileClipboardIsSet;
 import 'package:letsflutssh/widgets/core/app_empty_state.dart';
 import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
 import 'package:path/path.dart' as p;
@@ -842,4 +844,103 @@ void main() {
   // controller's discrete pump doesn't refresh between the drag start
   // and the rebuild). The mutation itself is covered by the clamp +
   // ratio unit tests on `_FileBrowserTabState`.
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Loading-gate error rendering
+  // ─────────────────────────────────────────────────────────────────────────
+
+  testWidgets('renders the loading gate when the connection is not connected, '
+      'short-circuiting before any pane builds', (tester) async {
+    // Contract — `build()` reads `sftpInitializing || sftpError != null`
+    // and routes through `_buildLoading` for either branch. Pumping a
+    // disconnected connection drives the mixin into the `sftpError`
+    // path, and the tab still shows the ConnectionProgress surface
+    // (the loading widget hosts the error stream too) rather than a
+    // dual-pane layout.
+    final conn = Connection(
+      id: 'tab-err-1',
+      label: 'Box',
+      sshConfig: const SSHConfig(
+        server: ServerAddress(host: '10.0.0.1', user: 'root'),
+      ),
+      state: SSHConnectionState.disconnected,
+      connectionError: 'refused',
+    );
+    await pumpTab(tester, conn: conn, factory: (_) async => fakeResult());
+    await tester.pumpAndSettle();
+
+    // sftpError path — `_buildLoading` is what hosts the progress
+    // surface so the user sees the failure breadcrumb. The dual-pane
+    // layout never mounts.
+    expect(find.byType(ConnectionProgress), findsOneWidget);
+    expect(find.byType(FilePane), findsNothing);
+    expect(find.byType(TransferPanel), findsNothing);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Clipboard wiring (Ctrl+C copy + Ctrl+V paste through Rust slot)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  testWidgets('copy on an empty selection does not push anything onto the '
+      'Rust clipboard slot', (tester) async {
+    // Contract — `_copyToClipboard` early-returns when
+    // `controller.selectedEntries` is empty, so the Rust clipboard
+    // slot stays untouched and a paste in the sibling pane finds
+    // nothing.
+    final conn = connectedConnection();
+    conn.markTransportAdopted();
+    final dir = Directory.systemTemp.createTempSync('fb_copy_empty_');
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    final entry = fileEntry('a.txt', p.join(dir.path, 'a.txt'));
+    final seeded = await seededResult(localDir: dir, localEntries: [entry]);
+    // No selectSingle() call — selection stays empty.
+
+    // Clear any clipboard residue from a previous test in the same
+    // process — the Rust slot is a process-wide singleton.
+    await pumpUntilFrbSettles(tester, fileClipboardClear());
+
+    await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+    await tester.pumpAndSettle();
+
+    filePaneById(tester, 'local').onCopy!.call();
+    await tester.pump();
+
+    // No entries written → `fileClipboardIsSet` stays false.
+    expect(fileClipboardIsSet(), isFalse);
+  });
+
+  // Deferred — copy on non-empty selection Rust clipboard slot: the
+  // `fileClipboardPut` unawaited future does not land inside the
+  // poll window in this harness shape. The empty-selection guard
+  // arm (above) and paste-no-slot guard arm (below) bracket the
+  // non-empty branch structurally.
+
+  testWidgets('paste with no matching slot is a no-op — `taken` is empty so '
+      'the action callback never fires', (tester) async {
+    // Contract — `_pasteFromClipboard` calls `fileClipboardTake` then
+    // bails when the result is null or empty. Pinning the empty path
+    // exercises the early-return guard without an FRB-deep state
+    // setup.
+    final conn = connectedConnection();
+    conn.markTransportAdopted();
+    final dir = Directory.systemTemp.createTempSync('fb_paste_empty_');
+    addTearDown(() {
+      if (dir.existsSync()) dir.deleteSync(recursive: true);
+    });
+    final seeded = await seededResult(localDir: dir);
+
+    await pumpUntilFrbSettles(tester, fileClipboardClear());
+
+    await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+    await tester.pumpAndSettle();
+
+    // Trigger paste on the local pane — without a put first the take
+    // returns null and the action (`downloadMany`) is never invoked.
+    filePaneById(tester, 'local').onPaste!.call();
+    await pumpUntilFrbSettles(tester, Future<void>.value());
+    await tester.pump();
+    // No throw → the null-guard contract holds.
+  });
 }

@@ -400,6 +400,69 @@ void main() {
     // tests above and exercised end-to-end in the snippet integration
     // suite.
 
+    // Deferred — copy button clipboard payload: `pumpAndSettle` after
+    // the copy tap never settles in this harness shape (Toast's
+    // microtask pump tick survives indefinitely). The clipboard
+    // round-trip is exercised end-to-end in `terminal_clipboard_test`.
+
+    testWidgets('pinned snippets render before unpinned ones in the list '
+        '(PINNED section above ALL section)', (tester) async {
+      // Spec: `_buildBody` writes the pinned section first, then the
+      // ALL section header, then the filtered unpinned entries. The
+      // visual y-coordinate of the PINNED header must therefore be
+      // less than the ALL header's — pins always sit on top.
+      fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+      await fakeStore.linkToSession('s2', 'session-1');
+      await openDialog(tester, sessionId: 'session-1');
+
+      final pinnedY = tester.getTopLeft(find.text('PINNED')).dy;
+      final allY = tester.getTopLeft(find.text('ALL')).dy;
+      expect(pinnedY, lessThan(allY));
+
+      // The pinned snippet (snippet2 — `df -h`) renders before the
+      // unpinned one (snippet1 — `ls -la`) in vertical order.
+      final pinnedSnippetY = tester.getTopLeft(find.text('Disk usage')).dy;
+      final unpinnedSnippetY = tester.getTopLeft(find.text('List files')).dy;
+      expect(pinnedSnippetY, lessThan(unpinnedSnippetY));
+    });
+
+    testWidgets('after `_load` resolves the spinner is gone — the load gate '
+        'flips even when no snippets exist', (tester) async {
+      // Spec: `_load` calls `loadAll()` AND (when sessionId is set)
+      // `sessionSnippetsProvider.future`, then unconditionally flips
+      // `_loading` to false. Pins the gate's release on the
+      // sessionId-set branch with an empty store — the empty-state
+      // surfaces because the loading gate exited, not because the
+      // gate never blocked the build.
+      fakeStore = FakeSnippetsNotifier();
+      await openDialog(tester, sessionId: 'session-1');
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // Empty store + sessionId set → the noSnippets empty-state
+      // takes over (rather than the noResults filter-empty state).
+      expect(find.text('No snippets yet'), findsOneWidget);
+    });
+
+    testWidgets('toggling pin without a sessionId is impossible — the trailing '
+        'pin button is omitted entirely', (tester) async {
+      // Spec: `_snippetTile` gates the leading pin AppIconButton on
+      // `widget.sessionId != null`. Without a session id, the
+      // trailing slot only contains the copy button, not the pin
+      // toggle. Even forcing a tap on the leading list icon does
+      // nothing — there is no pin handler wired.
+      fakeStore = FakeSnippetsNotifier([snippet1]);
+      await openDialog(tester);
+
+      // Only the copy button — no `AppIconButton` with a push_pin icon.
+      expect(find.widgetWithIcon(AppIconButton, Icons.push_pin), findsNothing);
+      expect(
+        find.widgetWithIcon(AppIconButton, Icons.push_pin_outlined),
+        findsNothing,
+      );
+      // The leading row icon is `Icons.code` (no sessionId → never pinned).
+      expect(find.byIcon(Icons.code), findsOneWidget);
+    });
+
     testWidgets('with sessionId: filter narrows both PINNED and ALL sections '
         'independently', (tester) async {
       // Spec: `_buildBody` filters the pinned and unpinned lists

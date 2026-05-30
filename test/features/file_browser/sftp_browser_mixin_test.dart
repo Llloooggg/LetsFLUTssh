@@ -653,5 +653,214 @@ void main() {
 
       expect(factoryCalled, isTrue);
     });
+
+    testWidgets(
+      'upload / download single-entry helpers route through the batch paths '
+      'and stay safe when sftpResult is null',
+      (tester) async {
+        // Spec: the convenience wrappers `upload(entry)` /
+        // `download(entry)` wrap the entry in a 1-list and call
+        // `uploadMany` / `downloadMany`. With no SFTP result, the
+        // batch methods early-return on the `remote == null` /
+        // `local == null` guards — the wrapper must not throw, must
+        // not leave dangling microtasks, and must not enqueue
+        // anything against the transfer queue.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(connection: conn, autoInit: false),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        final entry = FileEntry(
+          name: 'a.txt',
+          path: '/tmp/a.txt',
+          size: 1,
+          modTime: DateTime(2024),
+          isDir: false,
+        );
+
+        // Both shorthands must dispatch cleanly to the batch methods,
+        // which early-return because sftpResult is null.
+        state.upload(entry);
+        state.download(entry);
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'a successful init with a non-null sftpResult populates the field, '
+      'flips the initializing flag, and leaves error empty',
+      (tester) async {
+        // Spec: when `sftpInitFactory` resolves, the mixin assigns the
+        // result, calls `onSftpReady`, and sets `sftpInitializing =
+        // false`. `sftpError` must stay null — the error field is
+        // exclusive to the failure path. Pins the happy state shape.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+        conn.markTransportAdopted();
+
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async => result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        expect(state.sftpResult, same(result));
+        expect(state.sftpInitializing, isFalse);
+        expect(state.sftpError, isNull);
+        // Cleanup — `disposeSftpBrowser` cancels the bus subscription
+        // if one was wired; safe to call regardless.
+        state.disposeSftpBrowser();
+      },
+    );
+
+    testWidgets(
+      'buildConflictResolver(showApplyToAll:false) yields a resolver whose '
+      'cancel flag flips after dispose-without-resolve never throws',
+      (tester) async {
+        // Spec: `buildConflictResolver` constructs a fresh
+        // BatchConflictResolver per call. Both `showApplyToAll`
+        // variants (true / false) produce a non-cancelled resolver,
+        // and dispose remains idempotent so the `finally`-arm in
+        // `uploadMany` / `downloadMany` stays safe on the empty-
+        // iteration branch. Pin the `showApplyToAll:false` arm
+        // (single-entry batch).
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(connection: conn, autoInit: false),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        final resolver = state.buildConflictResolver(showApplyToAll: false);
+        expect(resolver.isCancelled, isFalse);
+        resolver.dispose();
+        // Idempotent: a second dispose must remain safe.
+        resolver.dispose();
+      },
+    );
+
+    testWidgets(
+      'uploadMany short-circuits when remote controller is null even with a '
+      'non-empty entry list — the resolver is still disposed cleanly',
+      (tester) async {
+        // Spec: the guard `if (remote == null || entries.isEmpty)`
+        // covers the asymmetric case where entries ARE supplied but
+        // remote is null. The method must return before building a
+        // resolver, so no dialog fires and no `finally` runs against
+        // a non-existent handle.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(connection: conn, autoInit: false),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        // sftpResult is null → remote is null → guard hits with
+        // entries.isNotEmpty (a one-element list).
+        final entry = FileEntry(
+          name: 'a.txt',
+          path: '/tmp/a.txt',
+          size: 1,
+          modTime: DateTime(2024),
+          isDir: false,
+        );
+        await state.uploadMany([entry]);
+        // No dialog opened, no throw — pin the early-return contract.
+      },
+    );
+
+    // `_refreshAfterTransferTerminal` integration covered by integration:
+    // the function calls `transferSnapshotAll()` against a live Rust
+    // transfer queue and dispatches refresh on the matching pane. The
+    // queue boot + bus stream wiring runs only against the native lib
+    // bound to a real session; widget-test bootstrap of those plumbing
+    // surfaces would replicate the integration harness.
   });
 }

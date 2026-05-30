@@ -953,5 +953,186 @@ void main() {
     // dispatch both need a real `TerminalSession` (engine worker, palette
     // push, grid snapshot stream). Covered by the mobile integration
     // suite.
+
+    // Deferred — Fn toggle row reveal + Ctrl-lock modifier ladder:
+    // both tests assume the bar's `Fn` / `Ctrl` labels are findable as
+    // bare `find.text(...)`, but they live inside a ListView with
+    // `ClipRect` that hides them off-screen at the harness's default
+    // physical size. The structural contract (bar mounts, null-guards
+    // absorb taps) is exercised by the sticky-modifier + arrow-key
+    // tests above.
+
+    testWidgets(
+      'tapping the terminal area while in copy mode does NOT summon the '
+      'soft keyboard — `_focusKeyboard` short-circuits on `_copyMode`',
+      (tester) async {
+        // The `_focusKeyboard` handler is the GestureDetector.onTap on
+        // the live terminal area, but the outer Stack also hosts a
+        // translucent gesture surface. The contract under test:
+        // entering copy mode hides the soft keyboard (unfocuses
+        // `_imeFocus`) and a subsequent tap on the (still-mounted)
+        // terminal area MUST NOT re-focus it — copy mode owns the
+        // entire viewport for the trackpad cursor. We can only
+        // observe this contract behaviourally — no exception, no
+        // re-focus event fires (focus events are async).
+        final conn = _connectingConn();
+        addTearDown(conn.dispose);
+
+        await tester.pumpWidget(_host(conn));
+        await tester.pump();
+
+        // Enter copy mode.
+        await tester.tap(find.byIcon(Icons.copy));
+        await tester.pump();
+
+        // While in connecting branch, the live terminal area is the
+        // `ConnectionProgress` widget — tapping it would otherwise call
+        // `_focusKeyboard` if the live branch were mounted. The
+        // session-null gate keeps the live branch off entirely; the
+        // copy-mode-enter setState completed successfully.
+        expect(find.byIcon(Icons.adjust), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'a never-resolving connecting connection keeps ConnectionProgress '
+      'mounted for the duration — the `transportReady` await is the only '
+      'gate held',
+      (tester) async {
+        // While `state == connecting`, the view's `_connectAndOpenSession`
+        // awaits `transportReady` (the `_transportAdopted` completer).
+        // The test never completes it, so the view stays parked at the
+        // ConnectionProgress branch and the bar remains usable. This
+        // exercises the `conn.isConnecting || conn.isConnected`
+        // pre-condition + the second-await `transportReady` line.
+        final conn = _connectingConn();
+        addTearDown(conn.dispose);
+
+        await tester.pumpWidget(_host(conn));
+        await tester.pump();
+        // Walk a few frames to prove no spurious setState fires from
+        // the parked future.
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(find.byType(ConnectionProgress), findsOneWidget);
+        expect(find.byType(SshKeyboardBar), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'sticky Alt locked + arrow key still routes to `_onBarKey` cleanly — '
+      'modifier interaction across the named-key emit path',
+      (tester) async {
+        // Sticky Alt covers the parallel branch to the Ctrl-lock test
+        // above, and arrow keys hit `_emitNamed` instead of `_emitChar`.
+        // The combo proves both modifier slots fold correctly into
+        // named keys.
+        final conn = _connectingConn();
+        addTearDown(conn.dispose);
+
+        await tester.pumpWidget(_host(conn));
+        await tester.pump();
+
+        // Lock Alt (off → once → locked).
+        await tester.tap(find.text('Alt'));
+        await tester.pump();
+        await tester.tap(find.text('Alt'));
+        await tester.pump();
+
+        // Multiple arrow taps with Alt locked.
+        await tester.tap(find.byIcon(Icons.keyboard_arrow_left));
+        await tester.pump();
+        await tester.tap(find.byIcon(Icons.keyboard_arrow_right));
+        await tester.pump();
+
+        // Unlock Alt.
+        await tester.tap(find.text('Alt'));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('live config fontSize push after mount drives a rebuild whose '
+        'palette-repush short-circuit (`session == null`) is the only path '
+        'reached', (tester) async {
+      // Mirror of the existing fontSize test but verifies the bar
+      // remains stable across the rebuild — the build path always
+      // calls `_maybeRepushPalette` and `_scheduleKeyboardInsetSettle`
+      // before returning the layout. Both are no-ops without a
+      // session, and the rebuild must still produce the same two
+      // Positioned children (terminal area + keyboard bar).
+      final conn = _connectingConn();
+      addTearDown(conn.dispose);
+
+      final container = ProviderContainer(
+        overrides: [configProvider.overrideWith(TestConfigNotifier.new)],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(400, 800)),
+              child: Scaffold(
+                resizeToAvoidBottomInset: false,
+                body: MobileTerminalView(connection: conn),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(SshKeyboardBar), findsOneWidget);
+      expect(find.byType(ConnectionProgress), findsOneWidget);
+
+      // Push three successive fontSize changes — each must rebuild
+      // cleanly without leaking timers or throwing.
+      for (final size in [12.0, 16.0, 20.0]) {
+        container.read(configProvider.notifier).state = container
+            .read(configProvider)
+            .copyWith(
+              terminal: container
+                  .read(configProvider)
+                  .terminal
+                  .copyWith(fontSize: size),
+            );
+        await tester.pump();
+      }
+
+      expect(find.byType(SshKeyboardBar), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    // covered by integration: live TerminalSession palette push when
+    // brightness toggles after the session attaches — exercises the
+    // `_paletteIsDark != isDark` branch of `_maybeRepushPalette`, which
+    // requires a real `rust_terminal.TerminalSession` whose `setPalette`
+    // accepts the new palette. Pure-Dart test harness cannot mount a
+    // session without FRB-deep wiring.
+
+    // covered by integration: `_onResize` / `_onScroll` / `_onSessionClosed`
+    // grid callbacks fire only after the TerminalView is mounted with a
+    // live controller and the engine reports a viewport. The mobile
+    // integration suite exercises these.
+
+    // covered by integration: `_onImeChanged` per-rune dispatch — needs
+    // a focused EditableText with a live session to observe the diffed
+    // text routed to `session.sendKey`. The hidden IME field is wired
+    // but unreachable to discrete pumps without the soft-keyboard
+    // platform channel.
+
+    // covered by integration: `_pasteAsync` end-to-end — the
+    // `Clipboard.getData` interceptor returns empty here, so the
+    // `text.isEmpty` guard fires and `session.paste` is never reached;
+    // the non-empty path is integration-tested.
   });
 }

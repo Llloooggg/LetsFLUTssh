@@ -508,4 +508,205 @@ void main() {
   // value is non-zero only when there is something to evict, which
   // requires materialising a recording first (covered by
   // recorder_storage_test.dart Rust-side).
+
+  // ── Data location tile copies the resolved path to the clipboard ──
+
+  testWidgets(
+    'tapping the data location tile copies the resolved path through Clipboard.setData',
+    (tester) async {
+      sizeView(tester);
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.dataLocation));
+      await tester.tap(find.text(l10n.dataLocation));
+      await pumpFrames(tester, 4);
+
+      // Spec: `_DataPathTile.onTap` runs `Clipboard.setData` with the
+      // resolved support-dir path (the path_provider mock returns
+      // `tempDir.path`). The clipboard hook captures the call so the
+      // copy contract is verified without relying on the toast text.
+      expect(copiedText, isNotNull);
+      expect(copiedText, tempDir.path);
+      // The localized "path copied" info toast surfaces alongside the
+      // clipboard write.
+      expect(find.text(l10n.pathCopied), findsOneWidget);
+      // Drain the toast auto-dismiss timer.
+      await tester.pump(const Duration(seconds: 4));
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── Data location tile hides the chevron — informational only ──
+
+  testWidgets(
+    'data location tile renders with `showChevron: false` (no drill-down affordance)',
+    (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.dataLocation));
+      // Spec: `_DataPathTile` passes `showChevron: false` because the
+      // tile is informational (tap-to-copy) — not a drill-down. The
+      // `Icons.chevron_right` finder must come up empty in the tile's
+      // own row.
+      final tile = find.ancestor(
+        of: find.text(l10n.dataLocation),
+        matching: find.byType(Row),
+      );
+      // No chevron icon descends from the data-location row itself.
+      expect(
+        find.descendant(
+          of: tile.first,
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  // ── Reset-all data tile renders the destructive red icon ──
+
+  testWidgets(
+    'reset-all-data tile renders with destructive=true → delete_forever icon present',
+    (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.resetAllDataTitle));
+      // Spec: `_ResetAllDataTile` wires `_ActionTile(destructive: true)` —
+      // the destructive variant tints both icon + title red, and the
+      // leading icon is `delete_forever_outlined` (the wipe-everything
+      // visual cue). The icon stays mounted alongside the destructive
+      // title even when the user has not opened the confirm dialog.
+      expect(find.byIcon(Icons.delete_forever_outlined), findsWidgets);
+      // The destructive subtitle paints under the title (same row).
+      expect(find.text(l10n.resetAllDataSubtitle), findsOneWidget);
+    },
+  );
+
+  // ── Recordings tile leading icon is the `sd_storage` cap chip ──
+
+  testWidgets('recordings cap dropdown uses the sd_storage leading icon', (
+    tester,
+  ) async {
+    sizeView(tester);
+    await tester.pumpWidget(buildApp());
+    await pumpFrames(tester);
+    final l10n = await loadL10n();
+
+    await scrollTo(tester, find.text(l10n.recordingsTitle));
+    // Spec: the cap dropdown is `AppPopupSelect<int>(leadingIcon:
+    // Icons.sd_storage_outlined)`. A future re-skin that loses the
+    // leading icon would break the visual cue for "storage cap" so
+    // pin it explicitly. The recordings row also carries the
+    // `fiber_manual_record_outlined` recording-dot icon.
+    expect(find.byIcon(Icons.sd_storage_outlined), findsWidgets);
+    expect(find.byIcon(Icons.fiber_manual_record_outlined), findsWidgets);
+  });
+
+  // ── Recordings cap row subtitle exposes the `used / cap` shape ──
+
+  testWidgets(
+    'recordings cap row subtitle carries the `used / cap` separator',
+    (tester) async {
+      sizeView(tester);
+      const fiveGib = 5 * 1024 * 1024 * 1024;
+      // Pin a 5 GiB cap so the suffix is a known IEC label distinct
+      // from the smaller presets.
+      final cfg = AppConfig.defaults.copyWith(
+        recordingsStorageCapBytes: fiveGib,
+      );
+      await tester.pumpWidget(buildApp(initialConfig: cfg));
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.recordingsTitle));
+      // Spec: the subtitle reads `<usedLabel> / <capLabel>`. While
+      // `_refreshUsage` is in flight the used label collapses to `…`
+      // (or `—` on read failure) and the cap-label suffix is the IEC
+      // 5 GiB preset string.
+      expect(find.textContaining(' / '), findsWidgets);
+      // The 5 GiB preset is reachable through the dropdown trigger
+      // because `recordingsStorageCapBytes` already pins exactly that
+      // value — `selectedCap` maps 1-for-1 to the preset.
+      expect(find.text(l10n.recordingsCapPreset5Gb), findsWidgets);
+    },
+  );
+
+  // ── Storage subsection header sits between Export/Import + the data tiles ──
+
+  testWidgets(
+    'storage subsection header paints above the data-location and destructive tiles',
+    (tester) async {
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      // Spec: the `_DataSection.build` Column wires
+      //   _ExportImportTile → spacer → _SectionHeader(dataStorage)
+      //   → _DataPathTile → _RecordingsStorageTile → _ResetAllDataTile
+      // After scrolling the storage header into view, the three
+      // tiles (data-location, recordings, reset-all-data) all live
+      // BELOW the storage header in the same column — resolved by
+      // each tile's `getTopLeft` y-coordinate.
+      await scrollTo(tester, find.text(l10n.dataStorageSection));
+
+      final storageHeaderY = tester
+          .getTopLeft(find.text(l10n.dataStorageSection))
+          .dy;
+      final dataLocationY = tester.getTopLeft(find.text(l10n.dataLocation)).dy;
+      final resetY = tester.getTopLeft(find.text(l10n.resetAllDataTitle)).dy;
+
+      expect(
+        storageHeaderY < dataLocationY,
+        isTrue,
+        reason: 'Storage header must paint above the data-location tile',
+      );
+      expect(
+        dataLocationY < resetY,
+        isTrue,
+        reason: 'Reset-all-data tile sits at the bottom of the data section',
+      );
+    },
+  );
+
+  // ── Recordings cap trigger label refreshes when config flips between presets ──
+
+  // Deferred — recordings cap trigger label re-renders after the
+  // config provider flips presets: the `configProvider.notifier.update`
+  // call schedules a Rust-store actor that never drains inside the
+  // pump budget, leading to a 10-min timeout. The trigger row's
+  // initial 500 MiB preset label is asserted by the test above.
+
+  // ── Recordings storage usage read-failure arm (`_usageReadFailed`) ──
+  // covered by integration: `recorderStorageUsed` runs as an FRB call
+  // backed by `lfs_core::recorder::storage_used`; provoking the catch
+  // arm requires a Rust-side failure (broken recordings root,
+  // permission denied) that the widget pump cannot synthesise without
+  // a test seam on the FRB stub.
 }

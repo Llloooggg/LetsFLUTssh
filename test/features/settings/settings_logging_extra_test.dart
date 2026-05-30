@@ -485,4 +485,278 @@ void main() {
   // `loggerLogFileHasContent` sync probe race the test pump cadence
   // — the host re-evaluates on a Stream tick the harness does not
   // drain, so the "Archived log" label is observable only end-to-end.
+
+  // ── _LiveLogViewer._formatEntry — banner header divider arm ──
+
+  testWidgets(
+    'seeded `--- Log started ---` banner renders without throwing through the viewer',
+    (tester) async {
+      sizeView(tester);
+      // Seed a banner + a primary entry directly into the store so
+      // `_formatEntry` exercises both the divider arm (banner header)
+      // and the routine-entry arm (info row) on the same paint.
+      // `debugApplySeed` runs the same merge code path as the real
+      // disk seed but bypasses path_provider / file I/O.
+      LogStore.instance.debugApplySeed(
+        [
+          '--- Log started 2026-04-24T00:00:00Z ---',
+          'Platform: linux "Linux 6.6"',
+          '12:34:56 I [App] seeded entry',
+        ].join('\n'),
+      );
+
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Spec: the viewer mounts cleanly with banner + platform header +
+      // routine entry seeded; the formatter's `--- ` divider branch +
+      // header dim branch + routine stripe branch must all complete
+      // without throwing. The TerminalView surface is opaque to a
+      // widget finder, so the assertion is the absence of an exception
+      // plus the toolbar still rendered.
+      expect(find.text('Live Log'), findsOneWidget);
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── _LiveLogViewer._wrapText — long message triggers the wrap path ──
+
+  testWidgets(
+    'long seeded message body renders through the wrap path without throwing',
+    (tester) async {
+      sizeView(tester);
+      // A 600-char body forces `_wrapText` to split at least twice on
+      // an 80-column viewport. The store's debugInject reaches
+      // `_onEntry` directly so the formatter sees the entry without
+      // racing AppLogger's stream.
+      final longBody = ('lorem ipsum dolor sit amet ' * 30).trim();
+      LogStore.instance.debugInject(
+        LogEntry(
+          timestamp: '12:34:56',
+          level: LogLevel.info,
+          tag: 'WrapTag',
+          message: longBody,
+        ),
+      );
+
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Spec: `_wrapText` returns multiple chunks for a body longer
+      // than the available-first width; the formatter re-emits the
+      // stripe on each continuation row. The whole sync feed lands
+      // in the terminal engine without throwing — viewer toolbar
+      // stays mounted.
+      expect(find.text('Live Log'), findsOneWidget);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── _LiveLogViewer._copyLogToClipboard — seeded entries serialise level markers ──
+
+  testWidgets(
+    'copy button with seeded entries writes level-marked text to the clipboard',
+    (tester) async {
+      sizeView(tester);
+      String? copiedText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+
+      // Seed a multi-level batch directly into the in-memory store —
+      // the copy path reads `_store.allEntries`, which `debugInject`
+      // populates synchronously, so the clipboard payload reflects
+      // every entry without waiting on the AppLogger seed race.
+      LogStore.instance.debugInject(
+        const LogEntry(
+          timestamp: '12:34:56',
+          level: LogLevel.info,
+          tag: 'CopyTag',
+          message: 'info row',
+        ),
+      );
+      LogStore.instance.debugInject(
+        const LogEntry(
+          timestamp: '12:34:57',
+          level: LogLevel.warn,
+          tag: 'CopyTag',
+          message: 'warn row',
+        ),
+      );
+      LogStore.instance.debugInject(
+        const LogEntry(
+          timestamp: '12:34:58',
+          level: LogLevel.error,
+          tag: 'CopyTag',
+          message: 'error row',
+        ),
+      );
+
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+      await tester.scrollUntilVisible(
+        find.byIcon(Icons.copy),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pump();
+
+      // Spec: the copy serialiser emits `<ts> <I|W|E> [tag] message`
+      // for every routine entry — `_levelMarker` maps each LogLevel
+      // to its single-letter token. Both the tag and message must
+      // round-trip into the clipboard payload.
+      expect(copiedText, isNotNull);
+      expect(copiedText, contains('[CopyTag]'));
+      expect(copiedText, contains('info row'));
+      expect(copiedText, contains('warn row'));
+      expect(copiedText, contains('error row'));
+      // The three level markers (I/W/E) all appear in the serialised
+      // output — `_levelMarker` covers every LogLevel.
+      expect(copiedText, contains(' I '));
+      expect(copiedText, contains(' W '));
+      expect(copiedText, contains(' E '));
+
+      // Drain the toast auto-dismiss timer.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+    },
+  );
+
+  // ── _LoggingSection._clearLogs — toast surfaces the localized cleared message ──
+
+  testWidgets('tapping the clear icon fires the localized logs-cleared toast', (
+    tester,
+  ) async {
+    sizeView(tester);
+    // Seed an entry so the buffer has something to clear; the clear
+    // handler runs `AppLogger.clearLogs` + `_store.clearAll` + then
+    // shows the localized "logs cleared" toast.
+    LogStore.instance.debugInject(
+      const LogEntry(
+        timestamp: '12:34:56',
+        level: LogLevel.info,
+        tag: 'ClearTag',
+        message: 'pending clear',
+      ),
+    );
+
+    final config = AppConfig.defaults.copyWith(
+      behavior: const BehaviorConfig(logLevel: LogLevel.info),
+    );
+    await tester.pumpWidget(buildApp(initialConfig: config));
+    await pumpFrames(tester);
+    final l10n = await loadL10n();
+
+    await tester.scrollUntilVisible(
+      find.byIcon(Icons.delete_outline),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await pumpFrames(tester, 4);
+
+    // Spec: the synchronous `_store.clearAll()` drains the in-memory
+    // buffer immediately, and the localized success toast appears
+    // before the 3s auto-dismiss timer expires.
+    expect(LogStore.instance.allEntries, isEmpty);
+    expect(find.text(l10n.logsCleared), findsOneWidget);
+    // Drain the toast timer so no pending timer survives teardown.
+    await tester.pump(const Duration(seconds: 4));
+    Toast.clearAllForTest();
+  });
+
+  // ── _LiveLogViewer filter chip — toggling drives applyFilter through the store ──
+
+  testWidgets('tapping a level chip applies the filter through the LogStore', (
+    tester,
+  ) async {
+    sizeView(tester);
+    // Seed one entry per level so the filter changes have something
+    // to drop / retain in the filtered set.
+    LogStore.instance.debugInject(
+      const LogEntry(
+        timestamp: '12:34:56',
+        level: LogLevel.info,
+        tag: 'FilterTag',
+        message: 'info body',
+      ),
+    );
+    LogStore.instance.debugInject(
+      const LogEntry(
+        timestamp: '12:34:57',
+        level: LogLevel.warn,
+        tag: 'FilterTag',
+        message: 'warn body',
+      ),
+    );
+
+    final config = AppConfig.defaults.copyWith(
+      behavior: const BehaviorConfig(logLevel: LogLevel.info),
+    );
+    await tester.pumpWidget(buildApp(initialConfig: config));
+    await pumpFrames(tester);
+    await tester.scrollUntilVisible(
+      find.text('Live Log'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    // Spec: with both levels visible by default, both entries pass
+    // the filter — the buffer holds the warn entry alongside the
+    // info entry.
+    final beforeFilter = LogStore.instance.filteredEntries;
+    expect(beforeFilter.any((e) => e.level == LogLevel.warn), isTrue);
+
+    // Tap the W chip — `_toggleLevel` drops Warn from
+    // `_visibleLevels` and re-pushes the filter, so the recomputed
+    // filtered subset no longer carries the warn entry.
+    await tester.tap(find.text('W').first);
+    await pumpFrames(tester, 4);
+    final afterFilter = LogStore.instance.filteredEntries;
+    expect(afterFilter.any((e) => e.level == LogLevel.warn), isFalse);
+    expect(afterFilter.any((e) => e.level == LogLevel.info), isTrue);
+    Toast.clearAllForTest();
+  });
+
+  // ── _LoggingSection._exportLog cancel arm (desktop FilePicker) ──
+  // covered by integration: the export action wires the
+  // `file_picker` Dart plugin to `loggerExportTo` Rust-side; the
+  // FilePicker platform stub used by `settings_logging_test.dart`
+  // covers the desktop trigger, but the success-arm Rust copy
+  // settles past the widget pump cadence — full pipeline is verified
+  // end-to-end.
 }
