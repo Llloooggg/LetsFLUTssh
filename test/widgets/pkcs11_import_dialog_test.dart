@@ -1095,6 +1095,216 @@ void main() {
       expect(b, isA<Pkcs11Backend>());
     });
   });
+
+  group('Pkcs11ImportDialog — picker + probe extras', () {
+    testWidgets(
+      'custom-module picker returning null leaves the module list unchanged',
+      (tester) async {
+        // Spec: `_pickCustomModule` short-circuits when the picker
+        // seam returns null (user dismissed). No row gets appended
+        // and no loadModule is fired.
+        final backend = _RecordingBackend();
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                onPressed: () => Pkcs11ImportDialog.show(
+                  ctx,
+                  backend: backend,
+                  pickModuleFile: () async => null,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Custom module...'));
+        await tester.pumpAndSettle();
+        // No probe fired because the picker returned null.
+        expect(backend.loadedPaths, isEmpty);
+        // Still on the empty-state copy.
+        expect(find.textContaining('No PKCS#11 module found'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'module with empty-token list (noToken probe) still advances to the '
+      'token step with the "no token present" copy',
+      (tester) async {
+        // Spec: `_onModuleTap` advances to the token step whenever the
+        // probe yields `ready` OR `noToken` (the latter is a soft
+        // warning: the module loaded but no reader has a card). The
+        // user must reach the token step so they can swap cards
+        // without restarting the wizard.
+        final backend = _FakeBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+          tokens: const [],
+        );
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        // Title flipped to the token step + empty-state copy renders.
+        expect(find.text('Select token'), findsOneWidget);
+        expect(find.text('No token present in any reader.'), findsOneWidget);
+      },
+    );
+
+    testWidgets('dispose without a staged PIN never invokes dropPin', (
+      tester,
+    ) async {
+      // Spec: `dispose` only calls `backend.dropPin` when
+      // `_pinSecretId` was assigned. Walking the no-pin path (cancel
+      // immediately) must leave `droppedPinIds` empty so we never
+      // hit dropPin with a null id.
+      final backend = _FakeBackend(
+        modules: [
+          const rust_pkcs11.DbPkcs11ModuleCandidate(
+            vendor: 'OpenSC',
+            path: '/p.so',
+          ),
+        ],
+      );
+      await _open(tester, backend: backend);
+      // Cancel before tapping any module — `_pinSecretId` stays null.
+      final cancel = find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            w.properties.button == true &&
+            w.properties.label == 'Cancel',
+      );
+      await tester.tap(cancel);
+      await tester.pumpAndSettle();
+      expect(backend.droppedPinIds, isEmpty);
+    });
+
+    testWidgets(
+      'PIN-pad token advances straight to the key step (no PIN prompt)',
+      (tester) async {
+        // Spec: `_onTokenTap` checks `pkcs11ShouldSkipPinStep` — when
+        // the token reports `protectedAuthPath = true`, the wizard
+        // skips the in-app PIN dialog and hops to the key step. The
+        // empty-keys copy is what surfaces.
+        final backend = _FakeBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+          tokens: [
+            rust_pkcs11.DbPkcs11TokenInfo(
+              slotId: BigInt.from(1),
+              label: 'PinPadToken',
+              manufacturer: 'TestCo',
+              model: 'TestModel',
+              serial: 'SN-P',
+              // Login required BUT the token has its own PIN pad.
+              loginRequired: true,
+              protectedAuthPath: true,
+              userPinFinalTry: false,
+              userPinLocked: false,
+            ),
+          ],
+          keys: const [],
+        );
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('PinPadToken'));
+        await tester.pumpAndSettle();
+        // Skipped PIN step → landed on key step with the empty copy.
+        expect(
+          find.text('Token has no SSH-usable keys (RSA, ECDSA, Ed25519).'),
+          findsOneWidget,
+        );
+        // No PIN was staged because the PIN-pad branch was taken.
+        expect(backend.stagedPinId, isNull);
+      },
+    );
+
+    testWidgets(
+      'save-step typed label trims and uses the typed value when non-empty',
+      (tester) async {
+        // Spec: `_submit` trims the typed label; non-empty wins over
+        // the picked `key.label` default.
+        final backend = _FakeBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+          tokens: [
+            rust_pkcs11.DbPkcs11TokenInfo(
+              slotId: BigInt.from(1),
+              label: 'TestToken',
+              manufacturer: 'TestCo',
+              model: 'TestModel',
+              serial: 'SN-1',
+              loginRequired: false,
+              protectedAuthPath: true,
+              userPinFinalTry: false,
+              userPinLocked: false,
+            ),
+          ],
+          keys: [
+            rust_pkcs11.DbPkcs11KeyMeta(
+              label: 'original-key',
+              ckaId: Uint8List.fromList([1]),
+              sshKeyType: 'rsa',
+              sshPublicBlob: Uint8List.fromList([2]),
+              disabledReason: '',
+            ),
+          ],
+        );
+        Pkcs11ImportResult? captured;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                onPressed: () async {
+                  captured = await Pkcs11ImportDialog.show(
+                    ctx,
+                    backend: backend,
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('TestToken'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('original-key'));
+        await tester.pumpAndSettle();
+        // Overwrite the prefill with a custom (surrounded-by-whitespace)
+        // label. `_submit` trims before substituting.
+        await tester.enterText(find.byType(TextField), '  my-yubikey  ');
+        await tester.pumpAndSettle();
+        final semantics = find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              w.properties.button == true &&
+              w.properties.label == 'Import key',
+        );
+        await tester.tap(semantics);
+        await tester.pumpAndSettle();
+        expect(backend.captured!.label, 'my-yubikey');
+        expect(captured!.label, 'my-yubikey');
+      },
+    );
+  });
 }
 
 // ── Test backends ──────────────────────────────────────────────────────

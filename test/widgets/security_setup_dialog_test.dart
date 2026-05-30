@@ -500,4 +500,86 @@ void main() {
       expect(result.takePin(), isNull);
     });
   });
+
+  // ---- Footer / initial-selection / modifier-panel deep arms ---------
+  //
+  // These pin behaviours that depend on widget.currentTier (initial
+  // selection branches in `_initialSelection`) and on widget.dismissible
+  // (footer Cancel/Apply layout). They live outside the `_submit
+  // validation arms` group so the helpers above don't try to capture
+  // a result — these only inspect rendered widgets.
+
+  group('SecuritySetupDialog — footer + initial selection', () {
+    testWidgets(
+      'dismissible=true renders the Cancel button alongside the primary CTA',
+      (tester) async {
+        // Spec: `_buildFooterActions` only renders Cancel on the edit
+        // path (dismissible). First-launch (`dismissible=false`) hides
+        // it because the dialog blocks dismissal anyway.
+        await openCapturing(
+          tester,
+          caps: allCaps,
+          currentTier: SecurityTier.keychain,
+        );
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.cancel), findsOneWidget);
+        // The Settings edit path uses the "Apply" copy.
+        expect(find.text(l10n.securitySetupApply), findsOneWidget);
+        expect(find.text(l10n.securitySetupEnable), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'dismissible=false hides Cancel — only the primary Enable CTA shows',
+      (tester) async {
+        // First-launch: no currentTier, dialog locked, Cancel is a dead
+        // control on this path and the wizard must not render it.
+        await openCapturing(tester, caps: allCaps, dismissible: false);
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.cancel), findsNothing);
+        expect(find.text(l10n.securitySetupEnable), findsOneWidget);
+      },
+    );
+
+    // Deferred — currentTier=paranoid landing + master-password form
+    // pre-render: the initial `_password = true` force path does not
+    // materialise both `TextField` widgets within the pump cadence
+    // this harness affords. Covered by the security setup integration
+    // tests.
+
+    testWidgets(
+      'currentTier=plaintext lands on T0 row with the ack panel pre-rendered',
+      (tester) async {
+        // Spec: `_initialSelection` maps SecurityTier.plaintext → T0
+        // selection so the ack checkbox renders on first paint.
+        await openCapturing(
+          tester,
+          caps: allCaps,
+          currentTier: SecurityTier.plaintext,
+        );
+        // Ack checkbox is part of the plaintext modifier panel.
+        expect(find.byType(Checkbox), findsOneWidget);
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+        // The Apply CTA renders disabled until the box is ticked
+        // (matches the existing "ack unlocks the Enable button" test).
+        final submit = find.text(l10n.securitySetupApply);
+        final btn = tester.widget<AppButton>(
+          find.ancestor(
+            of: submit,
+            matching: find.byWidgetPredicate((w) => w is AppButton),
+          ),
+        );
+        expect(btn.onTap, isNull);
+      },
+    );
+
+    // Deferred — switching from Paranoid to T0 modifier-panel dispatch
+    // and Paranoid biometric-toggle absence: both depend on the
+    // Paranoid pre-render landing, which the harness pump cadence
+    // does not deliver. Modifier-panel switch is exercised in the
+    // T2 ↔ T1 tests above.
+  });
 }

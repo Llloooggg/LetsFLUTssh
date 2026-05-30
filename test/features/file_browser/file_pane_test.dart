@@ -3123,6 +3123,237 @@ void main() {
       ctrl.dispose();
     });
   });
+
+  // ===========================================================================
+  // Drag feedback — visible label and icon
+  // ===========================================================================
+  group('FilePane — drag feedback contents', () {
+    testWidgets('multi-selection feedback shows item-count text + copy icon', (
+      tester,
+    ) async {
+      // Contract: when more than one entry is selected, the drag
+      // feedback paints `dragItemCount` (`{N} items`) and the
+      // `file_copy` icon — pinning the multi-vs-single shape that
+      // `_dragIcon` + `_buildDragFeedback` choose between.
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.toggleSelect('/home/a.txt');
+      ctrl.toggleSelect('/home/b.txt');
+      ctrl.toggleSelect('/home/c.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<PaneDragData>>(
+        find.byType(Draggable<PaneDragData>).first,
+      );
+      // Build the feedback widget out-of-tree to inspect its label
+      // and icon without mounting it (Draggable's own feedback only
+      // shows during an active drag gesture).
+      final feedback = draggable.feedback;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(body: Center(child: feedback)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Three selected → `_dragIcon` picks `Icons.file_copy`.
+      expect(find.byIcon(Icons.file_copy), findsOneWidget);
+      // The label uses the localized `dragItemCount` template.
+      expect(find.text('3 items'), findsOneWidget);
+    });
+
+    testWidgets('single-selection feedback shows entry name + per-type icon', (
+      tester,
+    ) async {
+      final entries = [
+        FileEntry(
+          name: 'just_me.txt',
+          path: '/home/just_me.txt',
+          size: 10,
+          mode: 0x81A4,
+          modTime: now,
+          isDir: false,
+        ),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.selectSingle('/home/just_me.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<PaneDragData>>(
+        find.byType(Draggable<PaneDragData>),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(body: Center(child: draggable.feedback)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Single file → `_dragIcon` picks `Icons.insert_drive_file`,
+      // label is the entry name (no localized template).
+      expect(find.byIcon(Icons.insert_drive_file), findsOneWidget);
+      expect(find.text('just_me.txt'), findsOneWidget);
+    });
+  });
+
+  // ===========================================================================
+  // Deep breadcrumb
+  // ===========================================================================
+  group('FilePane — deep breadcrumb', () {
+    testWidgets('a deep path renders every segment + the home-root icon', (
+      tester,
+    ) async {
+      // The breadcrumb parser produces N nav segments for a path
+      // `/a/b/c/d`. Each segment must surface as its own tappable
+      // text node, the root anchor (the home icon on POSIX) must
+      // sit before the first segment, and the leaf segment must
+      // be a sibling of the rest — not collapsed into "…".
+      final fs = _MockFS({
+        '/': [],
+        '/srv': [],
+        '/srv/data': [],
+        '/srv/data/projects': [],
+        '/srv/data/projects/letsflutssh': [],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      await ctrl.navigateTo('/srv/data/projects/letsflutssh');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Every segment renders as a text node — order does not
+      // matter for this assertion; the breadcrumb-navigation
+      // group above pins the leaf-vs-root colour contract.
+      expect(find.text('srv'), findsWidgets);
+      expect(find.text('data'), findsWidgets);
+      expect(find.text('projects'), findsWidgets);
+      expect(find.text('letsflutssh'), findsWidgets);
+      // POSIX root anchor is the home icon button.
+      expect(find.byIcon(Icons.home), findsOneWidget);
+      // Forward-slash separators surface between segments.
+      expect(find.text(' / '), findsWidgets);
+    });
+
+    testWidgets('tapping a mid-path segment navigates to that prefix', (
+      tester,
+    ) async {
+      // Contract: `_buildPathSegments` wires each segment to
+      // `ctrl.navigateTo(buildPathForSegment(bc, i))`. Tapping the
+      // second segment must land on `/srv/data`, not the leaf or
+      // the root.
+      final fs = _MockFS({
+        '/': [],
+        '/srv': [],
+        '/srv/data': [],
+        '/srv/data/projects': [],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      await ctrl.navigateTo('/srv/data/projects');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Tap the second segment (`data`).
+      await tester.tap(find.text('data').first);
+      await tester.pumpAndSettle();
+
+      expect(ctrl.currentPath, '/srv/data');
+    });
+  });
+
+  // ===========================================================================
+  // Path editor — cancel via tap-outside
+  // ===========================================================================
+  group('FilePane — path editor tap outside', () {
+    testWidgets('tapping outside the TextField closes the editor', (
+      tester,
+    ) async {
+      // Contract: `_buildPathEditor` wires `onTapOutside` to
+      // `_pathFocusNode.unfocus()`. The `_onPathFocusChanged`
+      // listener then flips `_editingPath` back to false and the
+      // breadcrumb returns. Pins the cancel-without-submit branch.
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit Path'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+
+      // Tap somewhere clearly outside the TextField (the header
+      // label area is the safest non-editor surface).
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      // Editor collapses back into the breadcrumb.
+      expect(find.byType(TextField), findsNothing);
+      // The previous path stayed put — no navigation on tap-out.
+      expect(ctrl.currentPath, '/home');
+
+      ctrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // Sort column — owner-asc / owner-desc cycle
+  // ===========================================================================
+  group('FilePane — sort cycle', () {
+    testWidgets(
+      'each column cycles through ascending / descending on repeated taps',
+      (tester) async {
+        // Contract: `FilePaneController.setSort` flips the sort
+        // direction when the same column is re-tapped and resets to
+        // ascending when a different column is tapped. The header
+        // arrow indicator (`↑` / `↓`) follows the active direction.
+        final entries = makeEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        expect(ctrl.sortColumn, SortColumn.name);
+        expect(ctrl.sortAscending, isTrue);
+
+        // First Modified tap: column flips, direction back to asc.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortColumn, SortColumn.modified);
+        expect(ctrl.sortAscending, isTrue);
+
+        // Second Modified tap: same column, direction inverts.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortColumn, SortColumn.modified);
+        expect(ctrl.sortAscending, isFalse);
+
+        // Third Modified tap: direction inverts again.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortAscending, isTrue);
+      },
+    );
+  });
 }
 
 /// MockFS returning a Windows initial directory.
