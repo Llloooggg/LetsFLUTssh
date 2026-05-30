@@ -68,6 +68,65 @@ void main() {
       expect(limiter.status().failureCount, 0);
     });
 
+    test('cooldown ladder grows monotonically across multiple failures', () {
+      // Spec: the backoff schedule is monotonically non-decreasing and
+      // doubles up to a cap. A run of four failures must produce
+      // cooldown values that walk through `backoffSchedule[1..=4]`
+      // (clamped to the cap if four is beyond the table). Asserting
+      // the relationship — not the exact constants — keeps the test
+      // robust against a future schedule edit that keeps the shape
+      // but tweaks the numbers.
+      final limiter = InMemoryRateLimiter();
+      addTearDown(limiter.dispose);
+      final schedule = PasswordRateLimiter.backoffSchedule;
+      final readings = <int>[];
+      for (var i = 0; i < 4; i++) {
+        limiter.recordFailure();
+        // The cooldown remaining is `nextRetryAt - now`; allow a
+        // few ms drift between the FRB write and the status read.
+        final ms = limiter.status().cooldownRemaining!.inMilliseconds;
+        readings.add(ms);
+      }
+      // The first reading reflects schedule[1]; readings climb
+      // monotonically (or plateau at the cap).
+      for (var i = 1; i < readings.length; i++) {
+        expect(
+          readings[i],
+          greaterThanOrEqualTo(readings[i - 1] - 100),
+          reason:
+              'failure #${i + 1} cooldown ${readings[i]}ms shrunk '
+              'below failure #$i (${readings[i - 1]}ms); the schedule '
+              'must be non-decreasing',
+        );
+      }
+      // The first failure aligns with schedule[1] (allow ±100 ms drift).
+      final expectedFirstMs = schedule[1] * 1000;
+      expect(
+        readings.first,
+        inInclusiveRange(expectedFirstMs - 100, expectedFirstMs),
+      );
+    });
+
+    test('isLocked true while cooldown > 0, false at zero', () {
+      // Spec: `RateLimitStatus.isLocked` is purely a function of
+      // `cooldownRemaining > Duration.zero`. Used by the unlock dialog
+      // to gate the password field; a misread here would either let
+      // the user keep typing during a real cooldown (security
+      // regression) or block them post-cooldown (user-hostile).
+      const locked = RateLimitStatus(
+        failureCount: 3,
+        cooldownRemaining: Duration(seconds: 5),
+      );
+      const unlocked = RateLimitStatus(
+        failureCount: 3,
+        cooldownRemaining: Duration.zero,
+      );
+      const noField = RateLimitStatus(failureCount: 0, cooldownRemaining: null);
+      expect(locked.isLocked, isTrue);
+      expect(unlocked.isLocked, isFalse);
+      expect(noField.isLocked, isFalse);
+    });
+
     test('separate instances do not share counters', () {
       // Spec: each instance allocates its own uuid id under the
       // shared Rust registry — recording a failure on one must not
@@ -262,6 +321,40 @@ void main() {
       expect(s.failureCount, 0);
       expect(s.isLocked, isFalse);
     });
+
+    test(
+      'invalidateCache on a never-initialised limiter is a silent no-op',
+      () async {
+        // Spec: `invalidateCache` short-circuits when `_initialised`
+        // is still false — the actor slot was never registered, so
+        // there is no Rust state to clear. The next `statusAsync`
+        // proceeds through the init path normally. A throw here
+        // would break the wipe-all/logout flow because those callers
+        // invoke invalidateCache eagerly without first awaiting
+        // statusAsync.
+        final limiter = PersistedRateLimiter(hmacKey: hmacKey);
+        // No statusAsync call — _initialised is false.
+        limiter.invalidateCache();
+        // The subsequent statusAsync still works.
+        final s = await limiter.statusAsync();
+        expect(s.failureCount, 0);
+        expect(s.isLocked, isFalse);
+      },
+    );
+
+    test(
+      'awaitPendingSave is safe to call before any write was scheduled',
+      () async {
+        // Spec: `awaitPendingSave` routes through
+        // `persisted_rate_limit_actor_flush` which the docs describe
+        // as "returns immediately when no write is pending". The
+        // unlock flow may call awaitPendingSave defensively after a
+        // recordSuccess that flipped a 0 → 0 counter (no-op write);
+        // the call must complete without throwing in that scenario.
+        final limiter = await makeLimiter();
+        await expectLater(limiter.awaitPendingSave(), completes);
+      },
+    );
 
     test('fromPrebuiltId binds to an already-registered actor slot', () async {
       // Build the slot via the canonical constructor, drive it once,

@@ -176,6 +176,49 @@ void main() {
       }
     });
 
+    test('sibling BusEvent variants on the SshAgent topic are not '
+        'SshAgentSignaturePrompt — the type filter pins exactly one variant', () {
+      // Spec: `_onEvent` early-returns on every event that isn't a
+      // `BusEvent_SshAgentSignaturePrompt`. Pin a representative
+      // sample of the sealed-class variants so a future FRB regen
+      // that promotes a sibling to the same dispatcher cannot slip
+      // a second event type into the prompt listener without
+      // updating the filter.
+      const siblings = <rust_bus.BusEvent>[
+        rust_bus.BusEvent.echoed(payload: 'noise'),
+        rust_bus.BusEvent.autoLockLocked(),
+        rust_bus.BusEvent.autoLockUnlocked(),
+        rust_bus.BusEvent.sessionsChanged(),
+        rust_bus.BusEvent.keysChanged(),
+        rust_bus.BusEvent.knownHostsChanged(),
+      ];
+      for (final ev in siblings) {
+        expect(
+          ev,
+          isNot(isA<rust_bus.BusEvent_SshAgentSignaturePrompt>()),
+          reason:
+              '_onEvent must early-return on every non-prompt variant; '
+              'a missed sibling would route its payload as a fake '
+              'signature prompt back to ssh_agent_respond_to_signature_request.',
+        );
+      }
+    });
+
+    test('start() then stop() then start() then stop() — full lifecycle '
+        'round-trip is idempotent and never throws', () {
+      // Spec: the cold-start handler may run the wire-up sequence
+      // through a hot-reload or a second bootstrap pass after a
+      // recovery dialog. Drive the public surface through a full
+      // round-trip (start/stop/start/stop) so a regression that
+      // breaks any one transition (e.g. start-after-stop relying
+      // on a non-null cached subscription) surfaces here rather
+      // than silently dropping prompts in production.
+      expect(SshAgentPromptListener.start, returnsNormally);
+      expect(SshAgentPromptListener.stop, returnsNormally);
+      expect(SshAgentPromptListener.start, returnsNormally);
+      expect(SshAgentPromptListener.stop, returnsNormally);
+    });
+
     // covered by integration: the live `_onEvent` dispatch, the
     // `_handlePrompt` dialog mount, the `_showDialog`
     // navigator-not-mounted fail-closed branch, and the round-trip

@@ -433,4 +433,96 @@ void main() {
       },
     );
   });
+
+  // ── Int-tile onChanged dispatch via field submission ──
+  //
+  // The `_IntTile` primitive surfaces a [TextFormField] whose
+  // `onFieldSubmitted` validates the parsed int against the
+  // [min,max] envelope before calling `onChanged`. Driving the
+  // submission through the text field exercises the persisted-update
+  // path each section wires into `configProvider.notifier.update` —
+  // the same code paths a slider drag would reach but without the
+  // gesture-arena brittleness.
+
+  group(
+    '_ConnectionSection — int tile submissions reach the persisted field',
+    () {
+      testWidgets(
+        'submitting a valid default-port routes through ssh.defaultPort',
+        (tester) async {
+          sizeView(tester);
+          final container = await mountWithContainer(tester);
+          await pumpFrames(tester);
+          final l10n = await loadL10n();
+
+          await scrollTo(tester, find.text(l10n.defaultPort));
+          // Locate the int field inside the default-port row by its
+          // initial value (the config-store default is 22, shipped via
+          // `AppConfig.defaults`). Submitting "2222" must pass the
+          // 1..65535 envelope check and persist via the `onChanged`
+          // closure into `ssh.defaultPort`.
+          final initial = container.read(configProvider).defaultPort.toString();
+          final field = find.widgetWithText(TextFormField, initial).last;
+          await tester.enterText(field, '2222');
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await pumpFrames(tester);
+
+          expect(container.read(configProvider).defaultPort, 2222);
+        },
+      );
+
+      testWidgets(
+        'submitting an out-of-range port leaves the persisted value untouched',
+        (tester) async {
+          sizeView(tester);
+          final container = await mountWithContainer(tester);
+          await pumpFrames(tester);
+          final l10n = await loadL10n();
+
+          await scrollTo(tester, find.text(l10n.defaultPort));
+          final before = container.read(configProvider).defaultPort;
+          // 99999 is past the 1..65535 envelope — the int-tile's
+          // `onSubmitted` guard refuses to dispatch and the persisted
+          // field stays put.
+          final field = find
+              .widgetWithText(TextFormField, before.toString())
+              .last;
+          await tester.enterText(field, '99999');
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await pumpFrames(tester);
+
+          expect(container.read(configProvider).defaultPort, before);
+        },
+      );
+    },
+  );
+
+  group(
+    '_TransferSection — int tile submissions reach the persisted field',
+    () {
+      testWidgets(
+        'submitting a valid workers count routes through transferWorkers',
+        (tester) async {
+          sizeView(tester);
+          final container = await mountWithContainer(tester);
+          await pumpFrames(tester);
+          final l10n = await loadL10n();
+
+          await scrollTo(tester, find.text(l10n.parallelWorkers));
+          final initial = container
+              .read(configProvider)
+              .transferWorkers
+              .toString();
+          final field = find.widgetWithText(TextFormField, initial).last;
+          await tester.enterText(field, '7');
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await pumpFrames(tester);
+
+          // 1..10 envelope — `7` is in-range so the dispatch must
+          // land in `transferWorkers`.
+          expect(container.read(configProvider).transferWorkers, 7);
+        },
+      );
+    },
+  );
 }

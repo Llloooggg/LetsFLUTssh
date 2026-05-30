@@ -722,6 +722,90 @@ void main() {
     });
   });
 
+  group('PanelTabBar — pointer-signal scroll edge cases', () {
+    testWidgets(
+      'a scroll event without attached clients is a silent no-op',
+      // The strip only scrolls when the `SingleChildScrollView`
+      // controller has attached clients — i.e. when there is enough
+      // content to scroll. A single tab in a wide bar leaves the
+      // controller clientless; a pointer-scroll over it must not
+      // throw. Without the `hasClients` guard the jumpTo call would
+      // raise "ScrollController not attached to any scroll views"
+      // and turn an idle hover into a crash.
+      (tester) async {
+        await tester.pumpWidget(
+          buildBar(
+            tabs: [makeTab(id: 't1', label: 'OnlyTab')],
+            width: 600,
+          ),
+        );
+
+        final center = tester.getCenter(find.byType(SingleChildScrollView));
+        final pointer = TestPointer(1, PointerDeviceKind.mouse);
+        await tester.sendEventToBinding(pointer.hover(center));
+        await tester.sendEventToBinding(pointer.scroll(const Offset(0, 80)));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'scroll clamps to maxScrollExtent at the trailing edge',
+      // Symmetric counterpart to the existing "clamps to zero"
+      // test: a large positive scroll delta must not push the
+      // offset past `maxScrollExtent`. Without the clamp the strip
+      // would scroll off the rightmost tab and leave the user
+      // staring at the trailing drop zone.
+      (tester) async {
+        final tabs = List.generate(
+          20,
+          (i) => makeTab(id: 'tab-$i', label: 'Server $i'),
+        );
+        await tester.pumpWidget(buildBar(tabs: tabs, width: 400));
+        await tester.pumpAndSettle();
+
+        final scrollable = find.byType(SingleChildScrollView);
+        final pointer = TestPointer(1, PointerDeviceKind.mouse);
+        await tester.sendEventToBinding(
+          pointer.hover(tester.getCenter(scrollable)),
+        );
+        // Push far past the maximum to force the clamp.
+        await tester.sendEventToBinding(
+          pointer.scroll(const Offset(0, 100000)),
+        );
+        await tester.pump();
+
+        final ctrl = tester
+            .widget<SingleChildScrollView>(scrollable)
+            .controller!;
+        expect(ctrl.offset, ctrl.position.maxScrollExtent);
+      },
+    );
+  });
+
+  group('PanelTabBar — close button only fires for the hovered tab', () {
+    testWidgets(
+      'no close icon is rendered when no tab is hovered',
+      // Spec (`_PanelTabItemState.build`): `showClose` is bound to
+      // the hover state. Without a hover the icon does not even
+      // enter the tree — there is no invisible-but-clickable
+      // affordance. Guards the "click below the tab accidentally
+      // closes it" foot-gun.
+      (tester) async {
+        final tabs = [
+          makeTab(id: 't1', label: 'A'),
+          makeTab(id: 't2', label: 'B'),
+          makeTab(id: 't3', label: 'C'),
+        ];
+        await tester.pumpWidget(buildBar(tabs: tabs));
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.close), findsNothing);
+      },
+    );
+  });
+
   // ===========================================================================
   // Drop-accept callbacks on DragTarget<TabDragData>.
   //

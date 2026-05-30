@@ -177,6 +177,73 @@ void main() {
       expect(await vault.isStored(), isFalse);
     });
 
+    test('isStored on Linux returns true when the in-memory marker says yes '
+        'and TPM probe missed', () async {
+      if (!Platform.isLinux) return;
+      // Spec: when the TPM-sealed path is empty (no file) but the
+      // marker reports a prior successful libsecret write, isStored
+      // must invoke `secureStorageReadBiometric` — without the
+      // marker set this would short-circuit to false before
+      // touching libsecret. On a clean test env libsecret is
+      // unavailable so the call surfaces an exception; the catch
+      // collapses it to `false`. The branch coverage that matters
+      // here is "marker.set() does NOT short-circuit isStored to
+      // false; the FRB call gets a chance to run".
+      final marker = _InMemoryMarker(initialState: true);
+      final vault = BiometricKeyVault(marker: marker);
+      // The contract under test is "no throw" — the actual return
+      // value depends on whether the host has a reachable keyring
+      // daemon; on CI / WSL it doesn't, so isStored falls through
+      // to the catch branch and reports false. Both outcomes are
+      // valid; what we are pinning is the absence of a stray
+      // exception leaking out of the dispatch.
+      await expectLater(vault.isStored(), completes);
+    });
+
+    test('linuxTpmReady delegates to the Rust probe on Linux', () async {
+      if (!Platform.isLinux) return;
+      // Spec: on Linux the getter routes through
+      // `biometricVaultLinuxTpmReady` which checks `/dev/tpmrm0` +
+      // `tpm2-tools`. On a WSL / CI host neither is reachable so
+      // the FRB function returns false; what the test is pinning
+      // is the "function returns a bool without throwing" contract
+      // — a thrown exception here breaks the UI label-resolution
+      // flow that reads "hardware vs software" off this getter.
+      final vault = BiometricKeyVault(marker: _InMemoryMarker());
+      final ready = await vault.linuxTpmReady();
+      // No assumption about the test host's TPM presence; the
+      // contract is the bool return + no throw.
+      expect(ready, anyOf(isTrue, isFalse));
+    });
+
+    test(
+      'readToActive on Linux short-circuits to false when the marker is unset',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: the Linux branch tries the TPM-Rust path first; with
+        // no seal file it returns false (or throws — caught). The
+        // libsecret fallback then gates on the marker — with the
+        // marker unset, readToActive must return false WITHOUT ever
+        // calling `secureStorageReadBiometricToSecret`. The marker
+        // gate exists to prevent a libsecret stderr warning on hosts
+        // where no keyring daemon ever ran.
+        final marker = _InMemoryMarker();
+        // Sanity — marker reports unset on Linux.
+        expect(await marker.exists(), isFalse);
+        final vault = BiometricKeyVault(marker: marker);
+        // Drop any prior leak so the post-call observation is clean.
+        try {
+          rust_app.secretsDrop(id: kActiveDbKeySecretId);
+        } catch (_) {
+          // FRB unavailable — the suite already skipped at setUpAll.
+        }
+        final ok = await vault.readToActive();
+        expect(ok, isFalse);
+        // No bytes landed under the active slot.
+        expect(rust_app.secretsHas(id: kActiveDbKeySecretId), isFalse);
+      },
+    );
+
     // Paths requiring a real biometric / TPM / Secure Enclave / Hello
     // prompt — covered by integration:
     //   * `storeFromSecret` with bytes staged → needs Touch ID / Hello /

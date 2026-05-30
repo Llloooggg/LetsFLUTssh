@@ -285,6 +285,82 @@ void main() {
       },
     );
   });
+
+  // Spec — recovery paths the manager must walk without leaking state:
+  //   * when a `_start` call's underlying `startService` fails, the
+  //     manager must stay in `!_running` so the NEXT positive count
+  //     attempts a fresh start (not silently mark itself as already
+  //     running and never recover).
+  //   * dropping to 0 without ever having started must not invoke
+  //     `stopService` — the binding would interpret that as an
+  //     uninitialised stop and on Android the plugin throws.
+  group('ForegroundServiceManager — failed-start + idempotency', () {
+    late FakeBinding binding;
+    late ForegroundServiceManager manager;
+
+    setUp(() {
+      binding = FakeBinding();
+      manager = ForegroundServiceManager(binding: binding);
+    });
+
+    test('failed start lets the next positive count try again', () async {
+      // Spec: after a startService(false) the manager stays not-running,
+      // so a subsequent positive transition (still 0 → N) calls start
+      // again instead of skipping to the update-notification branch.
+      manager.init();
+      binding.startSucceeds = false;
+      await manager.onConnectionCountChanged(1);
+      expect(manager.isRunning, isFalse);
+      expect(binding.startCounts, [1]);
+      expect(binding.updateCounts, isEmpty);
+
+      // Plugin recovers — next attempt succeeds.
+      binding.startSucceeds = true;
+      await manager.onConnectionCountChanged(2);
+      expect(manager.isRunning, isTrue);
+      // The second 0 → positive transition fired a start, not an
+      // update. updateCounts must still be empty.
+      expect(binding.startCounts, [1, 2]);
+      expect(binding.updateCounts, isEmpty);
+    });
+
+    test('count stays 0 across multiple ticks → no spurious stop', () async {
+      // Spec: the stop branch only fires on positive → 0 while
+      // `_running`. Repeated 0-deltas before the service ever started
+      // are a no-op. A spurious stopService call on Android throws.
+      manager.init();
+      await manager.onConnectionCountChanged(0);
+      await manager.onConnectionCountChanged(0);
+      expect(binding.stopCount, 0);
+      expect(binding.startCounts, isEmpty);
+    });
+  });
+
+  // Spec — localisation cache invalidation. The connection-provider
+  // listener pushes a fresh `S` bundle every time the user switches
+  // locale; the manager must surface the LATEST bundle on the next
+  // start/update, not the bundle that was current when the manager
+  // was constructed.
+  group('ForegroundServiceManager — locale re-binding', () {
+    test('setLocalizations overrides the previously cached bundle', () async {
+      final binding = _LocaleRecordingBinding();
+      final manager = ForegroundServiceManager(binding: binding);
+      final en = await S.delegate.load(const Locale('en'));
+      // ICU plural surface differs by locale, but locale loading is
+      // deterministic — load each bundle once and assert identity.
+      final ru = await S.delegate.load(const Locale('ru'));
+
+      manager.init();
+      manager.setLocalizations(en);
+      await manager.onConnectionCountChanged(1);
+      // Switch locale mid-session — next update must see the ru bundle.
+      manager.setLocalizations(ru);
+      await manager.onConnectionCountChanged(2);
+
+      expect(binding.startLocalizations, [en]);
+      expect(binding.updateLocalizations, [ru]);
+    });
+  });
 }
 
 /// Captures the `S` bundle each start/update was called with so the

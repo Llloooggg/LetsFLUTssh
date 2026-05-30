@@ -613,6 +613,112 @@ void main() {
       },
     );
 
+    testWidgets(
+      'cooldown banner reflects the live `cooldownRemaining` — the displayed '
+      'seconds equal the limiter value plus one to avoid the off-by-one zero '
+      'flash between ticks',
+      (tester) async {
+        // Spec: the build branch renders
+        // `l10n.tierCooldownHint(_cooldown.cooldownRemaining!.inSeconds + 1)`.
+        // The `+ 1` exists so the banner shows "1s" during the last
+        // sub-second tick rather than flashing "0s" before the ticker
+        // observes the unlocked status. Pin the exact arithmetic with
+        // a longer cooldown so a refactor that drops the offset (or
+        // worse, reads `inMilliseconds`) surfaces as a clear miss.
+        const initialLocked = RateLimitStatus(
+          failureCount: 7,
+          cooldownRemaining: Duration(seconds: 12),
+        );
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+          initialStatus: initialLocked,
+        );
+        await _open(tester, manager: mgr);
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        // Banner copy must use 12 + 1 = 13 seconds.
+        expect(find.text(l10n.tierCooldownHint(13)), findsOneWidget);
+        // A nearby off-by-one value must NOT match — guards against
+        // someone "fixing" the banner to use `inSeconds` flat.
+        expect(find.text(l10n.tierCooldownHint(12)), findsNothing);
+        // Drain the periodic ticker before tear-down.
+        await tester.pump(const Duration(seconds: 13));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'rate-limited render: both the wrong-password banner AND the cooldown '
+      'banner co-exist when a wrong attempt also engages the limiter',
+      (tester) async {
+        // Spec: after `wrongSecret` the dialog sets `_wrongPassword = true`
+        // AND copies the post-attempt limiter status into `_cooldown`.
+        // Both `if (_wrongPassword)` and `if (_cooldown.isLocked)`
+        // branches render their respective banners in the same pass.
+        // Without this co-render the user wouldn't see the typo error
+        // alongside the "try again in N seconds" hint.
+        const lockedAfter = RateLimitStatus(
+          failureCount: 5,
+          cooldownRemaining: Duration(seconds: 4),
+        );
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.wrongSecret],
+          statusAfterFailure: lockedAfter,
+        );
+        await _open(tester, manager: mgr);
+        await tester.enterText(find.byType(TextField), 'bad');
+        await tester.tap(find.text('Unlock'));
+        await tester.pump();
+        await tester.pump();
+        final l10n = S.of(tester.element(find.byType(UnlockDialog)));
+        expect(find.text(l10n.wrongMasterPassword), findsOneWidget);
+        expect(find.text(l10n.tierCooldownHint(5)), findsOneWidget);
+        // Drain the cooldown ticker before tear-down.
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'staged outcome short-circuits the cooldown ticker — a successful '
+      'unlock never starts polling the limiter on its way out',
+      (tester) async {
+        // Spec: the staged branch pops the dialog directly without
+        // touching `_cooldown` / `_startCooldownTicker`. A successful
+        // unlock therefore does NOT leave a periodic timer running
+        // post-dismiss — important because flutter_test will trip
+        // the pending-timer invariant if a stale ticker outlives the
+        // dialog. Pump only briefly (no fake-clock advance) so a
+        // leaked Timer.periodic would show up as a hang or a
+        // pending-timer error.
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.staged],
+        );
+        bool? result;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  result = await UnlockDialog.show(ctx, manager: mgr);
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'good');
+        await tester.tap(find.text('Unlock'));
+        await tester.pumpAndSettle();
+        // Dialog gone. A leaked periodic timer would fail
+        // `pumpAndSettle` with a pending-timer error — implicit
+        // assertion: the test reaches this line.
+        expect(result, isTrue);
+        expect(find.byType(UnlockDialog), findsNothing);
+      },
+    );
+
     // covered by integration: full forgot-password wipe completion exercises
     // WipeAllService → real FRB recovery cascade + sessionCredentialCacheProvider
     // + configProvider.update. Unit-driving the magic-phrase confirm into the

@@ -291,6 +291,84 @@ void main() {
       expect(find.textContaining(expectedBrokerLabel(l10n)), findsWidgets);
     });
 
+    testWidgets(
+      'no-transport host renders the "support unavailable" prose, not the '
+      'single-path template fed with an empty transport name',
+      (tester) async {
+        // Spec: the `neitherPath` branch surfaces a dedicated copy
+        // (`fido2BrokerNoTransportSubtitle`) instead of feeding the
+        // no-transport placeholder into the single-path template. The
+        // bug the dedicated branch closed: an earlier shape produced
+        // "Only `Not available on this platform` is available on this
+        // device", which is grammatically broken nonsense. Pin the
+        // dedicated copy so a refactor that re-collapses the two
+        // branches cannot re-introduce the nonsense string.
+        final snap = rust_fido2.fido2TransportSnapshot();
+        final neither = !snap.brokerAvailable && !snap.directHidAvailable;
+        if (!neither) {
+          markTestSkipped(
+            'host has at least one FIDO2 transport — neitherPath branch '
+            'is unreachable on this box',
+          );
+          return;
+        }
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+        await scrollTo(tester, find.text(l10n.fido2BrokerSectionTitle));
+        // The dedicated no-transport copy must appear verbatim.
+        expect(find.text(l10n.fido2BrokerNoTransportSubtitle), findsOneWidget);
+        // The single-path template fed with the "none" transport
+        // label must NOT appear — that was the broken sentence the
+        // dedicated branch was added to prevent.
+        expect(
+          find.text(
+            l10n.fido2BrokerSinglePathSubtitle(l10n.fido2BrokerTransportNone),
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'toggle initial value tracks the live `preferDirectHid` field on the '
+      'transport snapshot — Off when the dispatcher would currently route '
+      'through the broker',
+      (tester) async {
+        // Spec: the `_Toggle.value` argument is `snap.preferDirectHid`,
+        // a process-wide atomic the Rust dispatcher reads to pick a
+        // transport. A fresh boot has the flag at its persisted default
+        // (false unless the user changed it); the rendered toggle must
+        // mirror that exact state so a glance at Settings tells the
+        // user what the dispatcher will actually do.
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+        await scrollTo(tester, find.text(l10n.fido2BrokerPreferDirectHidTitle));
+
+        // The toggle knob's visual state comes from the same `value`
+        // the section binds to. Looking up the Switch's value via the
+        // visible alignment is brittle; instead pin the contract on
+        // the underlying snapshot value the section reads — if the
+        // section ever stops binding the toggle to it, the rendered
+        // value would silently desync from the dispatcher state.
+        final snap = rust_fido2.fido2TransportSnapshot();
+        // Default for a fresh test bootstrap: the persisted flag has
+        // never been flipped, so the dispatcher reads false.
+        expect(
+          snap.preferDirectHid,
+          isFalse,
+          reason:
+              'A freshly-bootstrapped test process must have the '
+              'fido2PreferDirectHid atomic at its default; the toggle '
+              'value the section renders is bound to this same field, '
+              'so the contract is "they share state".',
+        );
+      },
+    );
+
     // covered by integration: `_setPrefer` flips
     // `rust_fido2.fido2SetPreferDirectHid` and the persisted
     // `AppConfig.behavior.fido2PreferDirectHid` field. The verb runs

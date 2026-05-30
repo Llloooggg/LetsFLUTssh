@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/features/terminal/terminal_tab.dart';
@@ -14,6 +15,7 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/providers/focused_pane_provider.dart';
 
+import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
@@ -38,10 +40,14 @@ class _RecordingConnectionsNotifier extends ConnectionsNotifier {
   }
 }
 
-Connection _makeConnectingConnection({String id = 'tab-conn'}) {
+Connection _makeConnectingConnection({
+  String id = 'tab-conn',
+  String? sessionId,
+}) {
   return Connection(
     id: id,
     label: 'tab',
+    sessionId: sessionId,
     sshConfig: const SSHConfig(
       server: ServerAddress(host: '127.0.0.1', port: 22, user: 'u'),
       auth: SshAuth(),
@@ -79,9 +85,11 @@ Widget _host(
 ProviderContainer _container(
   Connection conn, {
   _RecordingConnectionsNotifier? manager,
+  FakeSessionNotifier? sessions,
 }) {
   return ProviderContainer(
     overrides: [
+      if (sessions != null) ...sessions.overrides(),
       connectionsProvider.overrideWith(
         () => manager ?? _RecordingConnectionsNotifier([conn]),
       ),
@@ -532,6 +540,184 @@ void main() {
             'been unmounted mid-flight.',
       );
       expect(conn.state, SSHConnectionState.connected);
+    },
+  );
+
+  testWidgets(
+    'reconnect() with sessionId but no matching session in the workspace '
+    'falls back to the cached SSHConfig — no FRB call, no crash',
+    (tester) async {
+      // Spec: `_refreshConfig` looks the connection's `sessionId` up
+      // in the session workspace. When `indexWhere` returns -1 (no
+      // matching session), the branch logs and returns
+      // `widget.connection.sshConfig` unchanged. With an empty
+      // workspace this branch is the only reachable one — the
+      // reconnect must still complete normally and the factory must
+      // still observe the cached SSHConfig the tab was constructed
+      // with (no clobber from a stale store read).
+      const cachedHost = '10.0.0.5';
+      final conn = Connection(
+        id: 'conn-stale-session',
+        label: 'tab',
+        sessionId: 'session-not-in-store',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: cachedHost, port: 22, user: 'u'),
+          auth: SshAuth(),
+        ),
+        state: SSHConnectionState.connecting,
+      );
+      addTearDown(conn.dispose);
+      final sessions = FakeSessionNotifier(sessions: const <Session>[]);
+      addTearDown(sessions.dispose);
+      final manager = _RecordingConnectionsNotifier([conn]);
+      final container = _container(conn, manager: manager, sessions: sessions);
+      addTearDown(container.dispose);
+
+      SSHConfig? observed;
+      Future<void> factory(Connection c) async {
+        observed = c.sshConfig;
+      }
+
+      final tabKey = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(
+        _host(conn, container, tabKey: tabKey, reconnectFactory: factory),
+      );
+      await tester.pump();
+
+      tabKey.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Stale-session branch hands the factory the cached SSHConfig.
+      expect(
+        observed?.server.host,
+        cachedHost,
+        reason:
+            'When the session id is not in the workspace, _refreshConfig '
+            'must fall back to the cached SSHConfig on the connection.',
+      );
+    },
+  );
+
+  testWidgets(
+    'reconnect() with sessionId matching a workspace session adopts the '
+    'fresh SSHConfig — the connection picks up edits the user made in '
+    'the session editor',
+    (tester) async {
+      // Spec: `_refreshConfig` projects the matching `Session` back
+      // through `toSSHConfig()` and assigns the result to
+      // `widget.connection.sshConfig` before the reconnect factory
+      // runs. This is how an edit to the saved session (e.g.
+      // different host or user) takes effect on the next reconnect
+      // without re-creating the Connection.
+      const stalHost = '127.0.0.1';
+      const freshHost = '192.0.2.99';
+      const freshUser = 'rotated-user';
+      const sessionId = 'session-fresh';
+      final conn = Connection(
+        id: 'conn-fresh-session',
+        label: 'tab',
+        sessionId: sessionId,
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: stalHost, port: 22, user: 'u'),
+          auth: SshAuth(),
+        ),
+        state: SSHConnectionState.connecting,
+      );
+      addTearDown(conn.dispose);
+
+      final freshSession = Session(
+        id: sessionId,
+        label: 'fresh',
+        server: const ServerAddress(host: freshHost, port: 22, user: freshUser),
+      );
+      final sessions = FakeSessionNotifier(sessions: [freshSession]);
+      addTearDown(sessions.dispose);
+      final manager = _RecordingConnectionsNotifier([conn]);
+      final container = _container(conn, manager: manager, sessions: sessions);
+      addTearDown(container.dispose);
+
+      SSHConfig? observed;
+      Future<void> factory(Connection c) async {
+        observed = c.sshConfig;
+      }
+
+      final tabKey = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(
+        _host(conn, container, tabKey: tabKey, reconnectFactory: factory),
+      );
+      await tester.pump();
+
+      tabKey.currentState!.reconnect();
+      await tester.pumpAndSettle();
+
+      // Fresh session projected through toSSHConfig must overwrite
+      // the stale host/user the connection was constructed with.
+      expect(
+        observed?.server.host,
+        freshHost,
+        reason:
+            '_refreshConfig must adopt the matching session\'s host on '
+            'reconnect so user edits actually take effect.',
+      );
+      expect(observed?.server.user, freshUser);
+      // The mutation is observable on the Connection itself too —
+      // `_refreshConfig` writes back to `widget.connection.sshConfig`
+      // so the reconnect factory and post-reconnect Connection state
+      // see the same fresh values.
+      expect(conn.sshConfig.server.host, freshHost);
+    },
+  );
+
+  testWidgets(
+    'reconnect() without an injected factory carries the refreshed config '
+    'into ConnectionsNotifier.reconnect via `updatedConfig:`',
+    (tester) async {
+      // Spec: the non-factory branch hands the fresh config to the
+      // notifier as `updatedConfig:`. Pinning the contract guards
+      // against a refactor that drops the parameter — the notifier
+      // would then reconnect against a stale cached config and a
+      // saved-session edit (host rename) would silently no-op until
+      // the user disconnected first.
+      const sessionId = 'session-bare';
+      const freshHost = '198.51.100.7';
+      final conn = Connection(
+        id: 'conn-bare',
+        label: 'tab',
+        sessionId: sessionId,
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '127.0.0.1', port: 22, user: 'u'),
+          auth: SshAuth(),
+        ),
+        state: SSHConnectionState.connecting,
+      );
+      addTearDown(conn.dispose);
+      final freshSession = Session(
+        id: sessionId,
+        label: 'fresh',
+        server: const ServerAddress(host: freshHost, port: 22, user: 'u'),
+      );
+      final sessions = FakeSessionNotifier(sessions: [freshSession]);
+      addTearDown(sessions.dispose);
+      final manager = _RecordingConnectionsNotifier([conn]);
+      final container = _container(conn, manager: manager, sessions: sessions);
+      addTearDown(container.dispose);
+
+      final tabKey = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(_host(conn, container, tabKey: tabKey));
+      await tester.pump();
+
+      tabKey.currentState!.reconnect();
+      await tester.pump();
+
+      expect(manager.reconnectCalls, hasLength(1));
+      expect(
+        manager.reconnectCalls.single.config?.server.host,
+        freshHost,
+        reason:
+            'No-factory delegation must thread the refreshed SSHConfig '
+            'through `updatedConfig:` so the notifier reconnects against '
+            'the current saved-session values.',
+      );
     },
   );
 
