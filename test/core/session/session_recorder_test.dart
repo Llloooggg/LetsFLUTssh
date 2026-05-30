@@ -298,4 +298,88 @@ void main() {
     // comment lives in the test description so it shows up in the
     // test runner output.
   }, skip: 'covered by integration: bus-driven rotation needs the live actor');
+
+  test(
+    'record after close drops every direction — recordInput and recordOutput '
+    'both gate on the same _closed flag so the shell teardown can flush both '
+    'streams without throwing on a sealed sink',
+    () async {
+      // Spec: `_enqueueEvent` returns immediately when `_closed` is
+      // set, regardless of direction. The contract is "both record*
+      // surfaces become no-ops post-close so the shell teardown does
+      // not crash". Pin both arms in one test — a regression that
+      // gated only one direction would let trailing input events
+      // leak past the close marker and corrupt the recording's tail.
+      final rec = await SessionRecorder.open(
+        sessionId: 's-postclose',
+        shellLabel: 'bash',
+        width: 80,
+        height: 24,
+      );
+      expect(rec, isNotNull);
+      await rec!.close();
+      rec.recordOutput(utf8.encode('out'));
+      rec.recordInput(utf8.encode('in'));
+      // A second close must still return the same path with no
+      // additional events on disk — idempotency holds even after
+      // dropped record calls.
+      final again = await rec.close();
+      expect(again, isNotNull);
+      final lines = File(again!).readAsLinesSync();
+      // Only the asciinema header — no event lines.
+      expect(lines, hasLength(1));
+    },
+  );
+
+  test('open with a non-default shellLabel routes the field into the asciinema '
+      'env block — a single-char label is enough to flush the formatter, no '
+      'minimum-length normalisation Dart-side', () async {
+    // Spec: the shellLabel passed to `open` reaches asciinema's
+    // header env-map verbatim. A regression that trimmed / lowered
+    // / re-cased the label before the FRB call would silently
+    // mismatch the playback target (asciinema's player keys off
+    // the env SHELL value for tab-complete hints).
+    final rec = await SessionRecorder.open(
+      sessionId: 's-shell',
+      shellLabel: 'fish',
+      width: 100,
+      height: 30,
+    );
+    expect(rec, isNotNull);
+    expect(rec!.terminalShellLabel, 'fish');
+    expect(rec.width, 100);
+    expect(rec.height, 30);
+    expect(rec.sessionId, 's-shell');
+    final path = await rec.close();
+    final header =
+        jsonDecode(File(path!).readAsLinesSync().first) as Map<String, Object?>;
+    expect((header['env'] as Map<String, Object?>?)?['SHELL'], 'fish');
+  });
+
+  test(
+    'close on an open recorder seals the file and returns its current path — '
+    'the path field tracks the latest on-disk file, not the open-time guess',
+    () async {
+      // Spec: `_currentPath` is initialised from the open snapshot and
+      // updated by every `RecorderStarted` bus event (the latter only
+      // fires on rotate, which the unit harness does not drive). The
+      // simple open → close path must return the open-time path. Pin
+      // that `close()` resolves to a path that actually exists on
+      // disk — a regression that emitted a stale or empty string
+      // would crash the recording browser's open-by-path.
+      final rec = await SessionRecorder.open(
+        sessionId: 's-path',
+        shellLabel: 'bash',
+        width: 80,
+        height: 24,
+      );
+      expect(rec, isNotNull);
+      final path = await rec!.close();
+      expect(path, isNotNull);
+      expect(File(path!).existsSync(), isTrue);
+      // Plaintext-mode (no DB key) yields .cast; the file extension
+      // is the visible contract for playback dispatch.
+      expect(p.extension(path), '.cast');
+    },
+  );
 }

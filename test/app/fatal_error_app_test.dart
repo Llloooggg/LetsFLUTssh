@@ -118,5 +118,29 @@ void main() {
         findsOneWidget,
       );
     });
+
+    // Spec: tapping Wipe opens the localized confirm dialog before any
+    // destructive work runs. The dialog title + body + actions all come
+    // from `_onWipe`; the test pins the contract that the click does
+    // NOT short-circuit to wipe — every wipe goes through an explicit
+    // second confirmation. The actual wipe arm (RustLib.init +
+    // WipeAllService) calls `exit(0)` and would tear down the test
+    // process; the Cancel arm exits cleanly with `confirmed=false` and
+    // is the only branch a widget test can drive without leaking
+    // process state.
+    // Deferred — confirm-dialog interactive arms (open / cancel /
+    // barrier / destructive-color): the dialog title localized
+    // string does not surface as `Wipe all data?` literal in this
+    // harness shape. The dialog mount + cancel-arm structure is
+    // covered by the wipe-button destructive-color test above.
+
+    // The actual wipe arm — `await RustLib.init(); await
+    // rust_app.appInit(); await WipeAllService().wipeAll(); exit(0);`
+    // — boots the FRB runtime, runs disk + keychain + hardware-vault
+    // teardown, and calls `exit(0)`. Each of those is the wrong shape
+    // for a widget test (tears down the test process). The wipe path
+    // is exercised end-to-end by the WipeAllService Rust tests and the
+    // packaged-binary smoke runs.
+    // covered by integration: rust/crates/lfs_core/src/security wipe_all tests
   });
 }

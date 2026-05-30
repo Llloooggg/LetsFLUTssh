@@ -123,6 +123,21 @@ class _FakeRemoteSftpFs implements RemoteSftpFs {
   }
 }
 
+/// `flatWalkFiles`-only fake that returns a fixed, non-sorted leaf list so
+/// the ordering / passthrough contract on `RemoteFS.flatWalkFiles` is
+/// pinned without confusing the rest of the suite.
+class _MultiLeafFakeRemoteSftpFs extends _FakeRemoteSftpFs {
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth) async {
+    calls.add('flatWalkFiles:$path:$maxDepth');
+    return const [
+      FlatFileLeaf(relPath: 'z.txt', size: 10),
+      FlatFileLeaf(relPath: 'a.txt', size: 10),
+      FlatFileLeaf(relPath: 'b/inner.txt', size: 42),
+    ];
+  }
+}
+
 void main() {
   // `RemoteFS.exists` falls back to a parent-listing + name match,
   // which routes through `lfs_core::path::path_parent` /
@@ -330,6 +345,46 @@ void main() {
     // (operation-tag composition order). The structural error-mapping
     // contract is exercised by the cause-preserving tests in
     // `test/core/sftp/errors_test.dart`.
+
+    test(
+      'flatWalkFiles relays the leaf list verbatim — the shim does not deduplicate '
+      'or sort, leaving ordering to the SFTP-native walker',
+      () async {
+        // Spec: the walker returns leaves in server-encountered order;
+        // the shim copies them into a Dart list without reordering or
+        // dropping duplicates. A regression that re-sorted on relPath
+        // would flip the transfer-queue insertion order; one that
+        // deduped on size would silently drop legitimate sibling
+        // files with identical bytes.
+        final fake = _MultiLeafFakeRemoteSftpFs();
+        final fs = RemoteFS(fake);
+        final leaves = await fs.flatWalkFiles('/srv', maxDepth: 16);
+        expect(leaves.map((l) => l.relPath).toList(), [
+          'z.txt',
+          'a.txt',
+          'b/inner.txt',
+        ]);
+        expect(leaves.map((l) => l.size).toList(), [10, 10, 42]);
+      },
+    );
+
+    test(
+      'rename forwards both arguments in positional order — the shim must not '
+      'silently swap oldPath / newPath, otherwise a rename to a new name '
+      'would overwrite the source',
+      () async {
+        // Spec: `FileSystem.rename(oldPath, newPath)` is the canonical
+        // order; the SFTP wire-format takes (from, to) in that
+        // sequence. A regression that swapped the args at the Dart
+        // boundary would issue `rename(to, from)` and either fail
+        // (the destination doesn't exist) or, worse, succeed against
+        // a target that did and clobber it.
+        final fake = _FakeRemoteSftpFs();
+        final fs = RemoteFS(fake);
+        await fs.rename('/srv/old', '/srv/new');
+        expect(fake.calls.single, 'rename:/srv/old:/srv/new');
+      },
+    );
 
     test(
       'flatWalkFiles default depth (100) matches the abstract API contract — '

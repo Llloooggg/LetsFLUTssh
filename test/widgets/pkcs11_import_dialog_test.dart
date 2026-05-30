@@ -1230,6 +1230,158 @@ void main() {
     );
 
     testWidgets(
+      'stagePin failure keeps the wizard on the token step — the PIN dialog '
+      'completed but the SecretStore rejected the bytes, so the key step '
+      'never opens (no `_loadKeys` call) and `_pinSecretId` stays null',
+      (tester) async {
+        // Spec: `_stagePinAndAdvance` catches the staging exception,
+        // logs, and returns early before flipping `_step` to key.
+        // Pins the catch arm — a successful PIN entry that hit a
+        // backend write failure must not advance the wizard.
+        final backend = _StagePinFailingBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+          tokens: [
+            rust_pkcs11.DbPkcs11TokenInfo(
+              slotId: BigInt.from(1),
+              label: 'TestToken',
+              manufacturer: 'TestCo',
+              model: 'TestModel',
+              serial: 'SN-1',
+              loginRequired: true,
+              protectedAuthPath: false,
+              userPinFinalTry: false,
+              userPinLocked: false,
+            ),
+          ],
+        );
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('TestToken'));
+        await tester.pumpAndSettle();
+        // HardwareKeyPromptDialog opened — enter PIN and submit.
+        await tester.enterText(find.byType(TextField).first, '1234');
+        await tester.pumpAndSettle();
+        final ok = find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              w.properties.button == true &&
+              w.properties.label == 'OK',
+        );
+        await tester.tap(ok);
+        await tester.pumpAndSettle();
+        // Wizard still on the token step — staging failed before the
+        // step flipped to key. The previously-staged PIN id is null,
+        // so dispose must NOT call dropPin.
+        expect(find.text('Select token'), findsWidgets);
+        expect(backend.droppedPinIds, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'listKeys throws on the auto-login token path — wizard lands on the key '
+      'step with the empty-list copy (loading flag was reset by the catch arm)',
+      (tester) async {
+        // Spec: `_loadKeys` catches the FRB error, logs, and clears
+        // the loading flag. The dialog renders the key step with
+        // `_keys = const []` so the user sees the empty-state copy
+        // rather than a stuck spinner.
+        final backend = _ListKeysFailingBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+          tokens: [
+            rust_pkcs11.DbPkcs11TokenInfo(
+              slotId: BigInt.from(1),
+              label: 'AnonToken',
+              manufacturer: 'TestCo',
+              model: 'TestModel',
+              serial: 'SN-A',
+              loginRequired: false,
+              protectedAuthPath: false,
+              userPinFinalTry: false,
+              userPinLocked: false,
+            ),
+          ],
+        );
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('AnonToken'));
+        await tester.pumpAndSettle();
+        // Empty-keys copy on the key step — the catch arm reset the
+        // loading flag so the spinner copy is gone.
+        expect(
+          find.text('Token has no SSH-usable keys (RSA, ECDSA, Ed25519).'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Loading keys'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'listTokens throws after the module tap advances — wizard lands on the '
+      'token step with the empty list and no spinner stuck',
+      (tester) async {
+        // Spec: `_loadTokens` catches the FRB error and clears the
+        // loading flag. The empty-state copy renders because the
+        // tokens list stayed at its `const []` initial value.
+        final backend = _LoadTokensFailingBackend(
+          modules: [
+            const rust_pkcs11.DbPkcs11ModuleCandidate(
+              vendor: 'OpenSC',
+              path: '/p.so',
+            ),
+          ],
+        );
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('OpenSC'));
+        await tester.pumpAndSettle();
+        // Empty-tokens copy on the token step. The probe-side empty
+        // list (the first listTokens call) drove `noToken` for the
+        // dot but advanced; the second listTokens call threw and
+        // the catch arm cleared `_loadingTokens`.
+        expect(find.text('No token present in any reader.'), findsOneWidget);
+        expect(find.textContaining('Loading tokens'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'failed-probe row tap does not re-fire loadModule — the cached failed '
+      'state short-circuits the probe call',
+      (tester) async {
+        // Spec: `_onModuleTap` only re-probes when
+        // `_moduleProbes[path] == null`. A failed probe stamps
+        // `Pkcs11ModuleProbe.failed`, so subsequent taps on the
+        // same row skip the probe call and just refresh the
+        // selection state. Pins the cache: a regression that
+        // dropped the null check would re-fire `loadModule` and
+        // could thrash a misbehaving driver.
+        final backend = _RecordingBackend()..loadModuleThrows = true;
+        await _open(tester, backend: backend);
+        await tester.tap(find.text('Custom module...'));
+        await tester.pumpAndSettle();
+        // First probe — loadModule fired once + threw.
+        expect(backend.loadedPaths, hasLength(1));
+        // Re-tap the failing row — probe cached, loadModule must
+        // not fire again.
+        await tester.tap(find.text('/tmp/custom.so'));
+        await tester.pumpAndSettle();
+        expect(backend.loadedPaths, hasLength(1));
+        // Wizard still on module step (failed → no advance).
+        expect(find.text('Select PKCS#11 module'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'save-step typed label trims and uses the typed value when non-empty',
       (tester) async {
         // Spec: `_submit` trims the typed label; non-empty wins over
@@ -1555,4 +1707,48 @@ class _FailingImportBackend extends _FakeBackend {
   @override
   Future<String> importKey(rust_pkcs11.DbPkcs11ImportArgs args) async =>
       throw StateError('import boom');
+}
+
+/// Backend whose `stagePin` always throws. Lets the test pin the
+/// `_stagePinAndAdvance` catch arm — the wizard stays on the token
+/// step (the step never flips, no key load fires).
+class _StagePinFailingBackend extends _FakeBackend {
+  _StagePinFailingBackend({super.modules, super.tokens});
+
+  @override
+  Future<void> stagePin(String id, List<int> bytes) async =>
+      throw StateError('stage boom');
+}
+
+/// Backend whose `listKeys` always throws. Exercises the
+/// `_loadKeys` catch arm: the wizard lands on the key step but the
+/// loading spinner clears + no rows render.
+class _ListKeysFailingBackend extends _FakeBackend {
+  _ListKeysFailingBackend({super.modules, super.tokens});
+
+  @override
+  Future<List<rust_pkcs11.DbPkcs11KeyMeta>> listKeys(
+    String path,
+    BigInt slotId, {
+    String? pinSecretId,
+  }) async => throw StateError('list keys boom');
+}
+
+/// Backend whose `listTokens` throws on the *second* call (the
+/// `_loadTokens` call after `_onModuleTap` advances). The first
+/// probe-side call still succeeds with an empty list so the probe
+/// state stamps `noToken` and the tap is allowed to advance.
+class _LoadTokensFailingBackend extends _FakeBackend {
+  _LoadTokensFailingBackend({super.modules});
+
+  bool _firstCallDone = false;
+
+  @override
+  Future<List<rust_pkcs11.DbPkcs11TokenInfo>> listTokens(String path) async {
+    if (!_firstCallDone) {
+      _firstCallDone = true;
+      return const [];
+    }
+    throw StateError('list tokens boom');
+  }
 }

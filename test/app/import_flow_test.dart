@@ -1186,6 +1186,110 @@ void main() {
       expect(find.textContaining('7'), findsWidgets);
     });
 
+    _testFlow(
+      'apply success with knownHostsApplied=1 carries the known-hosts note '
+      'into the success toast',
+      (tester) async {
+        // Spec: `_summaryFromApply` sets
+        // `knownHostsApplied: apply.knownHostsApplied > 0`. The QR
+        // path threads that through `formatImportSummary`, which
+        // appends the known-hosts note when the flag is true. Pins
+        // the QR-side conversion of the count → bool — without it,
+        // the user would not see that their known_hosts merged.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(sessions: 1, knownHosts: 3),
+          ),
+        );
+
+        final source = QrDecodedSource.rust(
+          rust_archive.DbImportOpenResult(
+            handleId: 'qr-h',
+            preview: _previewWith(hasKnownHosts: true),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton('go', (ctx, ref) async {
+              await handleQrImportSource(
+                context: ctx,
+                ref: ref,
+                source: source,
+                choice: (
+                  mode: ImportMode.merge,
+                  options: const ExportOptions(
+                    includeSessions: true,
+                    includeKnownHosts: true,
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The known-hosts toggle was relayed to applyHandle.
+        expect(log.applyCalls.single.applyKnownHosts, isTrue);
+      },
+    );
+
+    _testFlow(
+      'QR-path success: refreshAfterImport is wired through every applyHandle '
+      'call — the Rust side gets the closure to invalidate caches',
+      (tester) async {
+        // Spec: `_applyRustQrSource` always passes a non-null
+        // `refreshAfterImport` closure to `applyHandle` so the
+        // Rust-side per-table apply can ping the Dart-side stores
+        // mid-transaction (tags, snippets). Pins the wiring — a
+        // regression that dropped the closure would leave the UI
+        // stale after a successful import.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(log: log, applyResult: () => _applyResult(sessions: 1)),
+        );
+
+        final source = QrDecodedSource.rust(
+          rust_archive.DbImportOpenResult(
+            handleId: 'qr-h',
+            preview: _previewWith(),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton('go', (ctx, ref) async {
+              await handleQrImportSource(
+                context: ctx,
+                ref: ref,
+                source: source,
+                choice: (
+                  mode: ImportMode.merge,
+                  options: const ExportOptions(includeSessions: true),
+                ),
+              );
+            }),
+          ),
+        );
+
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        expect(log.applyCalls.single.refreshProvided, isTrue);
+        // QR / paste-link payloads never carry a recordings tree —
+        // pins `recordings: false` on the QR apply contract.
+        expect(log.applyCalls.single.applyRecordings, isFalse);
+      },
+    );
+
     _testFlow('rolledBack apply on QR path surfaces the restored copy', (
       tester,
     ) async {

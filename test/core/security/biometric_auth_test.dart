@@ -351,4 +351,92 @@ void main() {
       },
     );
   });
+
+  group('BiometricAuth.isAvailable — exception path', () {
+    test(
+      'a throwing fprintdReachable surfaces as not-available — the convenience '
+      'getter inherits the same collapse-to-systemServiceMissing behaviour as '
+      'availability() so the lock screen never tries to authenticate against '
+      'a broken probe',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: `isAvailable()` is documented as "mirrors availability()
+        // == null". When `_linuxAvailability` catches the D-Bus error
+        // and returns `systemServiceMissing`, `isAvailable()` must
+        // surface false. A regression that let the exception escape
+        // would break the lock-screen fallback (the password field
+        // would never get a chance to render).
+        final bio = BiometricAuth(
+          fprintdReachable: () async => throw StateError('dbus gone'),
+          fprintdHasEnrolled: () async => true,
+        );
+        expect(await bio.isAvailable(), isFalse);
+      },
+    );
+  });
+
+  group(
+    'BiometricAuth.availability — Linux short-circuit on reachable check',
+    () {
+      test(
+        'fprintdHasEnrolled is not called when fprintdReachable returns false — '
+        'the ladder must surface the daemon-missing reason without poking the '
+        'enrolment slot, otherwise a fresh install with no fprintd would '
+        'surface "no finger enrolled" and confuse the install hint',
+        () async {
+          if (!Platform.isLinux) return;
+          // Spec: `_linuxAvailability` returns
+          // `BiometricUnavailableReason.systemServiceMissing` immediately
+          // when `_fprintdReachable()` returns false; the
+          // `_fprintdHasEnrolled` probe is only meaningful after the
+          // daemon is reachable. Pin the ordering — a regression that
+          // reversed the checks would surface `notEnrolled` on a missing
+          // daemon and the README install snippet would no longer
+          // surface.
+          var enrolledChecked = false;
+          final bio = BiometricAuth(
+            fprintdReachable: () async => false,
+            fprintdHasEnrolled: () async {
+              enrolledChecked = true;
+              return true;
+            },
+          );
+          expect(
+            await bio.availability(),
+            BiometricUnavailableReason.systemServiceMissing,
+          );
+          expect(
+            enrolledChecked,
+            isFalse,
+            reason:
+                'short-circuit on reachable=false must not consult the '
+                'enrolment probe — the ladder is reachable → enrolled, never '
+                'the other way around',
+          );
+        },
+      );
+    },
+  );
+
+  group(
+    'BiometricAuth.backingLevel — non-Linux desktop is software-backed',
+    () {
+      test('on Linux without a TPM the level is software regardless of fprintd '
+          'state — backing-level is keyed off the TPM probe, not the fprintd '
+          'reachability ladder', () async {
+        if (!Platform.isLinux) return;
+        // Spec: `backingLevel()` branches solely on `_tpmAvailable()`
+        // for the Linux arm. A regression that started consulting the
+        // fprintd state would conflate "do we have a biometric prompt"
+        // (availability) with "is the cached key in hardware"
+        // (backingLevel) — two orthogonal Settings concerns.
+        final bio = BiometricAuth(
+          tpmAvailable: () async => false,
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => true,
+        );
+        expect(await bio.backingLevel(), BiometricBackingLevel.software);
+      });
+    },
+  );
 }

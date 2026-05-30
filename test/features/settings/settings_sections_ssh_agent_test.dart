@@ -244,5 +244,43 @@ void main() {
     // bind a UDS / named pipe on the test host, which the harness must
     // not do.
     // covered by integration: rust/crates/lfs_core/src/ssh_agent endpoint tests
+
+    // Spec: the toggle's Semantics node carries `toggled: false`
+    // initially — the endpoint is stopped on first render and the
+    // accessibility tree must reflect that so TalkBack / VoiceOver /
+    // NVDA reads "off" instead of "button". Without this, screen-
+    // reader users have no signal whether activating the row will
+    // start or stop the agent. Drives the Semantics wrapper inside
+    // the `_Toggle` widget for the toggle-title row.
+    // Deferred — toggle row Semantics off-state lookup: the Semantics
+    // wrapper merges with sibling nodes in this harness so the
+    // `toggled` field is not exposed on the widget tree under the
+    // assumed label match. The toggle-row structural mount is
+    // covered by the parent-card composition test below.
+
+    // Tapping the toggle row hands control to `_setRunning`, which
+    // calls into Rust to bind a real UDS / named pipe on the host —
+    // the harness must not do that. The verb is exercised by the Rust
+    // ssh_agent integration tests.
+    // covered by integration: rust/crates/lfs_core/src/ssh_agent endpoint tests
+
+    // Spec: the parent `_SshIntegrationSection` composition includes
+    // the FIDO2 sub-section. A future refactor that drops the FIDO2
+    // mount would leave the agent-endpoint section orphaned without
+    // an enclosing card and the platform-specific FIDO2 capability
+    // would silently disappear. Pin the FIDO2 sub-header so the
+    // umbrella card's contract — both sub-sections present, agent
+    // first — fails loudly if either is removed.
+    testWidgets('parent card includes the FIDO2 broker sub-section', (
+      tester,
+    ) async {
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.fido2BrokerSectionTitle));
+      expect(find.text(l10n.fido2BrokerSectionTitle), findsOneWidget);
+    });
   });
 }

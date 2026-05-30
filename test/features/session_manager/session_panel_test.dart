@@ -3947,4 +3947,216 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // SessionTreeView callback wiring — the panel forwards a handful of
+  // tree-side events into the controller / mutator. Each callback below
+  // drives a small uncovered slice of `_buildTreeView` so the wiring
+  // contract is pinned (callback exists, calls the right mutator verb,
+  // updates the panel state).
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — tree view callback wiring', () {
+    testWidgets('onToggleFolderCollapsed forwards the path to the mutator', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final tree = tester.widget<SessionTreeView>(find.byType(SessionTreeView));
+      // The panel wires this callback so the controller persists the
+      // expand / collapse state across rebuilds. Invoking it directly
+      // exercises the lambda body (`ref.read(sessionMutator…)…`) without
+      // racing the on-row gesture detector.
+      tree.onToggleFolderCollapsed?.call('Production');
+      // No widget exception leaked from the mutator call.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'onBackgroundContextMenu surfaces the root folder menu at the given offset',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final tree = tester.widget<SessionTreeView>(
+          find.byType(SessionTreeView),
+        );
+        // The wired lambda calls `_showFolderContextMenu(context, ref,
+        // '', position)` — the empty-string folder path resolves to the
+        // root background menu whose distinguishing action is
+        // `New Connection`.
+        tree.onBackgroundContextMenu?.call(const Offset(20, 20));
+        await tester.pumpAndSettle();
+        expect(find.text('New Connection'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'onBulkMoved moves both session ids and folder paths then clears the desktop selection',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp(emptyFolders: {'Archive'}));
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Seed a desktop-style marquee selection (`selectMode == false`)
+        // — the callback's post-move arm then takes
+        // `clearDesktopSelection`.
+        state.setMarqueeSelection({'1'}, {'Production/DB'});
+        await tester.pumpAndSettle();
+
+        final tree = tester.widget<SessionTreeView>(
+          find.byType(SessionTreeView),
+        );
+        // Drive the bulk-move callback with both kinds of payload in one
+        // call to exercise the `moveMultiple` arm + the folder-loop arm.
+        // The callback signature is `void Function(...)` but the closure
+        // is async — pumpAndSettle drains the internal mutator futures.
+        tree.onBulkMoved?.call({'1'}, {'Production/DB'}, 'Archive');
+        await tester.pumpAndSettle();
+
+        // Desktop branch clears the marquee selection once the move
+        // completes; mobile-select-mode branch would call exitSelectMode
+        // instead and is covered by the mobile bulk-move test above.
+        expect(state.selectedIds, isEmpty);
+        expect(state.selectedFolderPaths, isEmpty);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Header "create new" target resolution — `_resolveFocusedTargetFolder`
+  // walks `focusedFolderPath → focusedSessionId.folder → root`. The
+  // focused-folder arm is exercised by the existing
+  // `New Folder from folder context creates subfolder` test; the
+  // focused-session arm (no folder selected, a session row holds focus,
+  // header click) is the missing slice.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — header create lands in focused session folder', () {
+    testWidgets(
+      'header New Folder uses the focused session\'s folder as the parent',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Session `1` lives in the 'Production' folder — focusing it
+        // makes `_resolveFocusedTargetFolder` take the focused-session
+        // branch (no folder focused) and resolve to 'Production'.
+        state.controller.setFocusedSession('1');
+        await tester.pumpAndSettle();
+
+        // Header's New Folder button → `_createFolder(context, ref,
+        // 'Production')`. The button is identified by its tooltip; the
+        // dialog title prose then confirms the dialog opened.
+        await tester.tap(find.byTooltip('New Folder'));
+        await tester.pumpAndSettle();
+
+        // Dialog open — the focused-session branch resolved to a
+        // non-root parent, so the New Folder dialog header reads
+        // 'Production' (the prose includes the parent path).
+        expect(find.text('New Folder'), findsWidgets);
+        // Cancel — we only care that the resolve branch fired without
+        // throwing.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // WebDAV-aware bulk delete — `_dropWebdavSecretsForSelection` walks
+  // the selection and explicitly clears the `webdav_session_details`
+  // secret for every WebDAV row before the DB row delete (the secrets
+  // table has no FK so the delete-cascade does not reach it). This
+  // path only fires when the selection contains at least one
+  // WebDAV session and is otherwise dead.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — bulk delete with a WebDAV session in selection', () {
+    testWidgets(
+      'Delete on a WebDAV-only selection routes through secrets drop without throwing',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        final webdavSession = Session(
+          id: 'wd-1',
+          label: 'webdav-1',
+          folder: '',
+          kind: SessionKind.webdav,
+          server: const ServerAddress(host: 'dav.example.com', user: 'user'),
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            password: 'pass',
+          ),
+        );
+
+        await tester.pumpWidget(
+          buildApp(sessions: [...testSessions, webdavSession]),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Marquee-style selection that points to the WebDAV row only —
+        // `_dropWebdavSecretsForSelection` then takes the `isWebDav`
+        // arm for the single id.
+        state.setMarqueeSelection({'wd-1'}, const <String>{});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+        expect(find.text('Delete Selected'), findsWidgets);
+
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        // Selection cleared after the confirm + secrets-drop +
+        // mutator delete completes; no exception leaked from the
+        // FRB call.
+        expect(state.selectedIds, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Apps menu key (LogicalKeyboardKey.contextMenu) parallels Shift+F10.
+  // Both bindings route through `_openContextMenuFromKeyboard` — the
+  // F10 path is covered above; this test pins the Apps key path so a
+  // future shortcut-registry rename doesn't quietly drop one of them
+  // and the keyboard / dedicated-key user lose the same capability.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — Apps menu key opens the keyboard context menu', () {
+    testWidgets(
+      'Apps key with a focused session opens the session context menu',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.controller.setFocusedSession('1');
+        state.focusNode.requestFocus();
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit Connection'), findsOneWidget);
+      },
+    );
+  });
 }

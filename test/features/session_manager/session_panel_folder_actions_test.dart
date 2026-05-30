@@ -253,6 +253,140 @@ void main() {
   );
 
   testWidgets(
+    'folder context menu — copy folder path lands on the controller clipboard '
+    'state (clipboard entry then becomes available for paste)',
+    (tester) async {
+      // Contract — `StandardMenuAction.copy.item` on a folder row
+      // calls `_ctrl.copyFolderPath(folderPath)`. After the call the
+      // session-panel controller reports `hasClipboardEntry == true`
+      // so a subsequent right-click on a sibling folder shows the
+      // Paste row (the visibility gate `_ctrl.hasClipboardEntry`).
+      // Pins the controller mutation contract — a forgotten clipboard
+      // write would surface here because the Paste row never appears.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('Copy'));
+      await tester.pumpAndSettle();
+
+      // Right-click another folder — the Paste item must now appear
+      // because the controller has a clipboard entry.
+      await rightClickText(tester, 'Archive');
+      expect(find.text('Paste'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'folder context menu — Edit Tags is a no-op when folderIdByPath returns '
+    'null (fresh fake without DB-side folder rows)',
+    (tester) async {
+      // Contract — the editTags item reads `folderIdByPath` and
+      // only opens `TagAssignDialog.showForFolder` for a non-null
+      // id. The fake's mutator returns null for unknown paths, so
+      // the action must short-circuit silently — no dialog opens
+      // and no exception propagates. Pins the null-guard: a
+      // future change that forgot the null check would crash on
+      // the implicit-bang inside TagAssignDialog.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('Edit Tags'));
+      await tester.pumpAndSettle();
+
+      // No tag-assign dialog opened. The localized dialog title
+      // would surface otherwise.
+      expect(find.text('Edit Tags'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'folder context menu — non-root folder surfaces the full vocabulary: '
+    'New Connection / New Folder / Copy / Cut / Rename Folder / Edit Tags / '
+    'Delete Folder',
+    (tester) async {
+      // Contract — `_showFolderContextMenu` builds the menu from a
+      // fixed shape; the `folderPath.isNotEmpty` block is where the
+      // copy / cut / rename / editTags / delete vocabulary surfaces.
+      // Pins the inventory so a future re-ordering / drop of one of
+      // the action items would regress here. Root-folder coverage of
+      // the inverse (suppressed block) belongs in the session-panel
+      // integration test that can drive the right-click on an empty
+      // tree region — the unit harness can't synthesise that gesture
+      // reliably.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+
+      // Full per-folder vocabulary surfaces.
+      expect(find.text('New Connection'), findsOneWidget);
+      expect(find.text('New Folder'), findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.text('Cut'), findsOneWidget);
+      expect(find.text('Rename Folder'), findsOneWidget);
+      expect(find.text('Edit Tags'), findsOneWidget);
+      expect(find.text('Delete Folder'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'rename folder dialog: cancel button leaves the folder + sessions intact',
+    (tester) async {
+      // Contract — `_showFolderNameDialog`'s Cancel button pops the
+      // dialog with null. `_renameFolder` early-returns on null so
+      // no mutator call lands. Pins the cancel path against an
+      // accidental no-op rename that still rebuilt child paths.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('Rename Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      final s1 = fake.state.firstWhere((s) => s.id == 's1');
+      final s2 = fake.state.firstWhere((s) => s.id == 's2');
+      expect(s1.folder, 'Production');
+      expect(s2.folder, 'Production/DB');
+    },
+  );
+
+  testWidgets(
+    'new folder dialog: typing the name of an existing sibling surfaces the '
+    '"already exists" error from the onChange duplicate guard',
+    (tester) async {
+      // Contract — `_showFolderNameDialog` builds the duplicate
+      // check inside its onChanged: when the typed name combined
+      // with the parent path matches an existing folder, the
+      // `errorText` flips to `folderAlreadyExists(name)`. Pins the
+      // duplicate-guard — without it, the user could create
+      // siblings sharing a path and the tree would collapse them.
+      //
+      // Fixture has `Production` and `Production/DB`. Opening
+      // New Folder on `Production` and typing `DB` joins to
+      // `Production/DB`, which is in the existing-folders set →
+      // error renders.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('New Folder'));
+      await tester.pumpAndSettle();
+
+      final field = find.byType(TextField).last;
+      await tester.enterText(field, 'DB');
+      await tester.pumpAndSettle();
+
+      // The error template includes the typed name.
+      expect(find.textContaining('already exists'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'rename folder applies a new name and rewrites child session folders',
     (tester) async {
       // Contract — `_renameFolder` builds `parentPath/result.trim()`

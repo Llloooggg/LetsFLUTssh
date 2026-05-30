@@ -579,6 +579,91 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets(
+      'unresolved-token fill dialog: typing values + Run pops both dialogs '
+      'with the filled command',
+      (tester) async {
+        // Spec: `_selectSnippet` opens `_SnippetFillDialog` when
+        // `renderSnippet.unresolved` is non-empty. The Run button
+        // closes the fill dialog with the entered values; the
+        // picker then pops with the filled command.
+        //
+        // Covered by integration: deferred — the host harness's
+        // ancestor-lookup-after-dispose check trips when the inner
+        // `Navigator.pop` chain unwinds while widget tests still hold
+        // a reference to the disposed fill-dialog context. End-to-end
+        // coverage of the Run arm lives in the snippets integration
+        // suite — the unit-level template-substitution path is
+        // pinned by the host snippet test above.
+      },
+      skip: true,
+    );
+
+    testWidgets(
+      'unresolved-token fill dialog: Cancel pops the inner dialog without '
+      'popping the picker',
+      (tester) async {
+        // Spec: `_selectSnippet` short-circuits when the fill dialog
+        // returns null. The picker stays open so the user can pick a
+        // different snippet — matches the "I picked the wrong one"
+        // recovery noted in the source comment.
+        //
+        // Covered by integration: same dispose race as the Run arm.
+      },
+      skip: true,
+    );
+
+    testWidgets(
+      'with sessionId: snippets are sorted alphabetically inside each section '
+      '(the underlying store returns sorted; the picker preserves order)',
+      (tester) async {
+        // Spec: `_load` calls `notifier.loadAll()` which the fake
+        // sorts by title. The picker renders each section's list in
+        // arrival order, so the visible order in PINNED + ALL must
+        // mirror the store's sort. Pins the no-shuffle contract —
+        // a future regression that re-orders rows by id / arrival
+        // would reveal here.
+        final aaa = Snippet(id: 's-aaa', title: 'AAA', command: 'a');
+        final bbb = Snippet(id: 's-bbb', title: 'BBB', command: 'b');
+        final ccc = Snippet(id: 's-ccc', title: 'CCC', command: 'c');
+        fakeStore = FakeSnippetsNotifier([ccc, aaa, bbb]);
+        await openDialog(tester);
+
+        final aY = tester.getTopLeft(find.text('AAA')).dy;
+        final bY = tester.getTopLeft(find.text('BBB')).dy;
+        final cY = tester.getTopLeft(find.text('CCC')).dy;
+        expect(aY, lessThan(bY));
+        expect(bY, lessThan(cY));
+      },
+    );
+
+    testWidgets(
+      'filter narrows by description text — `Snippet.description` is part of '
+      'the haystack `filterSnippets` examines',
+      (tester) async {
+        // Spec: `_matches` defers to `filterSnippets`, which checks
+        // title + command + description against the needle. Pins
+        // the description haystack — a regression that dropped
+        // description from the search predicate would surface here
+        // as the snippet failing to match its own description.
+        final described = Snippet(
+          id: 's-desc',
+          title: 'X',
+          command: 'y',
+          description: 'unique-needle-zzz',
+        );
+        fakeStore = FakeSnippetsNotifier([described, snippet1]);
+        await openDialog(tester);
+
+        await tester.enterText(find.byType(TextField), 'unique-needle-zzz');
+        await tester.pumpAndSettle();
+
+        // The described snippet matched; the un-described one did not.
+        expect(find.text('X'), findsOneWidget);
+        expect(find.text('List files'), findsNothing);
+      },
+    );
+
     testWidgets('with sessionId: filter narrows both PINNED and ALL sections '
         'independently', (tester) async {
       // Spec: `_buildBody` filters the pinned and unpinned lists

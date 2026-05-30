@@ -5,7 +5,10 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/src/rust/api/openssh_config_import.dart' as imp;
 import 'package:letsflutssh/src/rust/api/ssh_config.dart' as ssh;
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('mapRustImportSession', () {
     test('password auth type maps onto AuthType.password', () {
       const row = imp.DbOpenSshImportSession(
@@ -202,6 +205,186 @@ void main() {
       );
       expect(preview.result.mode, ImportMode.replace);
     });
+  });
+
+  group('OpenSshConfigImporter — Rust-bound static helpers', () {
+    // `expandHome` + `isSuspiciousPath` are thin wrappers around FRB
+    // calls into `lfs_core::path`. Bootstrapping FRB exercises the
+    // real grammar instead of pretending the Dart side owns it.
+    setUpAll(requireFrbLoaded);
+
+    test(
+      'expandHome leaves a path without a leading "~" untouched — the wrapper '
+      'does not normalise or canonicalise, only substitutes the home prefix',
+      () {
+        // Spec: `expandHome` routes through `opensshConfigExpandHome`.
+        // The Rust grammar substitutes a leading `~` (with or without
+        // trailing slash) and returns every other input verbatim.
+        // A Dart-side path-normaliser regression would surface here as
+        // a slash-shape change on the absolute / relative arms.
+        expect(
+          OpenSshConfigImporter.expandHome('/etc/ssh/sshd_config'),
+          '/etc/ssh/sshd_config',
+        );
+        expect(
+          OpenSshConfigImporter.expandHome('relative/path'),
+          'relative/path',
+        );
+        expect(OpenSshConfigImporter.expandHome(''), '');
+      },
+    );
+
+    test(
+      'expandHome substitutes a leading "~" with a non-empty home prefix — the '
+      'returned path starts at an absolute boundary, never with a literal "~"',
+      () {
+        // Spec: the Rust helper resolves `~` against the env / OnceLock
+        // home dir. On the desktop CI host this is always a real
+        // directory, so the substitution wipes the leading tilde and
+        // surfaces an absolute path. Pin the "no leftover ~" contract
+        // — a regression that surfaced "~" verbatim would let a
+        // downstream FRB call try to open a literal "~/.ssh/key" file.
+        final expanded = OpenSshConfigImporter.expandHome('~/.ssh/id_ed25519');
+        expect(expanded, isNot(startsWith('~')));
+        expect(expanded, endsWith('/.ssh/id_ed25519'));
+      },
+    );
+
+    test(
+      'isSuspiciousPath flags traversal segments and clears straight absolute '
+      'paths — the wrapper delegates to lfs_core::path::is_suspicious_path',
+      () {
+        // Spec: `isSuspiciousPath` rejects any path containing `..`
+        // segments because a maliciously crafted `IdentityFile`
+        // directive could coerce the importer into reading sensitive
+        // files outside `~/.ssh/`. Straight absolute paths the user
+        // typed intentionally pass through. Pin both arms so a
+        // regression that loosened the rule or rejected legitimate
+        // absolute paths surfaces here.
+        expect(
+          OpenSshConfigImporter.isSuspiciousPath('~/.ssh/../../etc/shadow'),
+          isTrue,
+        );
+        expect(
+          OpenSshConfigImporter.isSuspiciousPath('/etc/ssh/keys/host_ed25519'),
+          isFalse,
+        );
+        expect(OpenSshConfigImporter.isSuspiciousPath('id_ed25519'), isFalse);
+      },
+    );
+  });
+
+  group('OpenSshConfigImporter.buildPreview — end-to-end Rust round-trip', () {
+    // The whole pipeline (parse + Include + key import + auth-type
+    // decision + UUID minting + Dart-side wrap) goes through one FRB
+    // call into `lfs_core::import::openssh_config::build_preview`.
+    // Exercise the wrap on a minimal config so the `_wrapPreview` path
+    // (sessions / managerKeys / emptyFolders / hostsWithMissingKeys
+    // mutation guards) is pinned end-to-end.
+    setUpAll(requireFrbLoaded);
+
+    test('a config with one Host stanza and no IdentityFile lands as one '
+        'password-auth session, no manager keys, and the parsed-host count '
+        'matches — the wrap relays counts verbatim', () async {
+      // Spec: `buildPreview` constructs `OpenSshConfigImportPreview`
+      // with `parsedHosts` from the raw Rust count, sessions mapped
+      // through `mapRustImportSession`, and an `emptyFolders` set
+      // populated only when the session list is non-empty. With a
+      // single host and no usable key, the auth defaults to password
+      // and the folder label is recorded in `emptyFolders`. Pin the
+      // wrap-assembly contract.
+      const configContent = '''
+Host prod
+  HostName prod.example.com
+  User deploy
+  Port 22
+''';
+      final importer = OpenSshConfigImporter(baseDirOverride: '/tmp');
+      final preview = await importer.buildPreview(
+        configContent: configContent,
+        folderLabel: 'unit-test',
+      );
+      expect(preview.parsedHosts, 1);
+      expect(preview.result.sessions, hasLength(1));
+      final session = preview.result.sessions.single;
+      expect(session.label, 'prod');
+      expect(session.host, 'prod.example.com');
+      expect(session.user, 'deploy');
+      expect(session.authType, AuthType.password);
+      expect(preview.result.managerKeys, isEmpty);
+      // Spec: emptyFolders is populated when sessions is *non*-empty
+      // so the apply path knows which folder to seed even when the
+      // session list will collapse on dedup.
+      expect(preview.result.emptyFolders, contains('unit-test'));
+      // Spec: hostsWith* lists are unmodifiable views — a caller
+      // attempt to grow them must throw, not silently corrupt the
+      // preview before apply.
+      expect(() => preview.result.sessions.first, returnsNormally);
+      expect(
+        () => preview.hostsWithMissingKeys.add('x'),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('an empty config yields zero parsedHosts, zero sessions, and an empty '
+        'emptyFolders set — the wrap does not seed the folder label when no '
+        'session lands', () async {
+      // Spec: `_wrapPreview` only adds the folder label to
+      // `emptyFolders` when `sessions.isEmpty` is false. The empty
+      // path must produce no folder hint either — a regression that
+      // always seeded the folder would surface an "empty folder"
+      // marker on every failed import and pollute the user's
+      // folder tree.
+      final importer = OpenSshConfigImporter(baseDirOverride: '/tmp');
+      final preview = await importer.buildPreview(
+        configContent: '',
+        folderLabel: 'unused',
+      );
+      expect(preview.parsedHosts, 0);
+      expect(preview.result.sessions, isEmpty);
+      expect(preview.result.managerKeys, isEmpty);
+      expect(preview.result.emptyFolders, isEmpty);
+    });
+
+    test(
+      'ImportMode threads through buildPreview into the ImportResult unchanged '
+      '— the wrap does not override the caller-chosen merge / replace mode',
+      () async {
+        // Spec: `_wrapPreview` carries `mode` from the caller into
+        // `ImportResult.mode`. The Rust side is mode-agnostic; the Dart
+        // wrap decides. Pin that the replace arm survives the wrap so
+        // a regression that defaulted to merge (or silently swapped
+        // the value) surfaces here, not at the apply step where the
+        // user would lose existing data unexpectedly.
+        final importer = OpenSshConfigImporter(baseDirOverride: '/tmp');
+        final preview = await importer.buildPreview(
+          configContent: '',
+          folderLabel: 'replace-test',
+          mode: ImportMode.replace,
+        );
+        expect(preview.result.mode, ImportMode.replace);
+      },
+    );
+
+    test(
+      'buildPreviewFromPath returns null for a non-existent file — every '
+      '"nothing to show" outcome collapses into the silent-fallthrough sentinel',
+      () async {
+        // Spec: `buildPreviewFromPath` documents "Returns `null` for
+        // missing files / I/O errors / non-UTF-8 content". A
+        // regression that surfaced the underlying FRB error would
+        // force the caller (settings dialog) to catch one more
+        // exception path; the null sentinel collapses every
+        // unreachable-source outcome into one silent fallthrough.
+        final importer = OpenSshConfigImporter(baseDirOverride: '/tmp');
+        final preview = await importer.buildPreviewFromPath(
+          path:
+              '/nonexistent/never-created-${DateTime.now().microsecondsSinceEpoch}.cfg',
+          folderLabel: 'missing-source',
+        );
+        expect(preview, isNull);
+      },
+    );
   });
 
   group('mapRustImportSession — non-standard port + label preservation', () {

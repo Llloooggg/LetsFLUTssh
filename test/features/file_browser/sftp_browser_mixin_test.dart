@@ -1102,5 +1102,13 @@ void main() {
         await future;
       },
     );
+
+    // Deferred — uploadMany / downloadMany dispatch + cancel bail with
+    // _CapturingTransfersNotifier: FilePaneController.init runs a
+    // post-mount FRB tick that schedules a Timer; the timer survives
+    // the test pump cadence and trips the pending-timer invariant on
+    // teardown. The loop body and dispatch contract are covered by
+    // the BatchConflictResolver tests in
+    // `transfer_helpers_test.dart`.
   });
 }

@@ -237,6 +237,118 @@ void main() {
     );
   });
 
+  group('selector identity + reactivity', () {
+    test(
+      'transfersProvider is the single source for the three selectors — '
+      'a reseed via FakeTransfersNotifier lands on all three in lockstep',
+      () {
+        // Spec: `transferHistoryProvider`, `activeTransfersProvider`,
+        // and `transferStatusProvider` are pure `.field` projections.
+        // Seeding the fake with every slice populated and reading via
+        // the three selectors must yield the SAME data the parent
+        // provider exposes — otherwise the fan-out grew an unexpected
+        // copy / cache.
+        final completed = HistoryEntry(
+          id: 'history-1',
+          name: 'done.txt',
+          direction: TransferDirection.download,
+          sourcePath: '/srv/done.txt',
+          targetPath: '/tmp/done.txt',
+          status: TransferStatus.completed,
+          createdAt: DateTime.utc(2026, 4, 1),
+        );
+        const queued = ActiveEntry(
+          id: 'queued-1',
+          name: 'pending.txt',
+          direction: TransferDirection.upload,
+          sourcePath: '/tmp/pending.txt',
+          targetPath: '/srv/pending.txt',
+          status: TransferStatus.queued,
+        );
+        const status = ActiveTransferState(
+          running: 0,
+          queued: 1,
+          currentInfo: 'pending.txt 0%',
+        );
+        final container = ProviderContainer(
+          overrides: [
+            transfersProvider.overrideWith(
+              () => FakeTransfersNotifier(
+                history: [completed],
+                active: const [queued],
+                status: status,
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final parent = container.read(transfersProvider);
+        // Identity: the selector reads ARE the parent's lists, not
+        // copies — re-read after a state change would otherwise miss
+        // the fan-out. Comparing by `same(...)` pins that no defensive
+        // copy was layered in between.
+        expect(container.read(transferHistoryProvider), same(parent.history));
+        expect(container.read(activeTransfersProvider), same(parent.active));
+        expect(container.read(transferStatusProvider), same(parent.status));
+      },
+    );
+
+    test('ProviderContainer.invalidate(transfersProvider) re-runs build() and '
+        'restores the fake seed — the selectors see the rebuilt state', () {
+      // Spec: invalidation tears down the notifier and rebuilds. The
+      // fake's `build()` re-plants its `_initial` snapshot — so the
+      // selectors read the same seed after invalidation as before.
+      // Pins the FakeTransfersNotifier contract that `build` is
+      // idempotent — a regression where `_initial` got mutated post-
+      // build would surface as a different selector read on
+      // re-build.
+      final completed = HistoryEntry(
+        id: 'h-keep',
+        name: 'survives.bin',
+        direction: TransferDirection.download,
+        sourcePath: '/srv/survives.bin',
+        targetPath: '/tmp/survives.bin',
+        status: TransferStatus.completed,
+        createdAt: DateTime.utc(2026, 2, 1),
+        sizeBytes: 42,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          transfersProvider.overrideWith(
+            () => FakeTransfersNotifier(history: [completed]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(transferHistoryProvider), hasLength(1));
+      container.invalidate(transfersProvider);
+      // Rebuilt — fake replants the seed.
+      expect(container.read(transferHistoryProvider), hasLength(1));
+      expect(container.read(transferHistoryProvider).first.id, 'h-keep');
+    });
+
+    test('overriding transfersProvider with the default FakeTransfersNotifier '
+        '(no seed) yields empty slices on every selector', () {
+      // Spec: the empty-state fake leaves `TransfersState` at its
+      // default — every slice empty, status counters zero. Mirrors
+      // the cold-start contract of the real notifier before the
+      // first FRB snapshot lands.
+      final container = ProviderContainer(
+        overrides: [transfersProvider.overrideWith(FakeTransfersNotifier.new)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(transferHistoryProvider), isEmpty);
+      expect(container.read(activeTransfersProvider), isEmpty);
+      final status = container.read(transferStatusProvider);
+      expect(status.running, 0);
+      expect(status.queued, 0);
+      expect(status.hasActive, isFalse);
+    });
+  });
+
   // The notifier's FRB-deep enqueue / cancel / refresh pipeline
   // (`enqueueDownload`, `enqueueUpload`, `cancel`, `cancelAll`,
   // `_doRefresh`, `_safeSnapshot`, `_displayName`) requires a real

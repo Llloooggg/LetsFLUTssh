@@ -136,6 +136,50 @@ void main() {
       // the unlock UI to fall back to typed password.
       expect(await newVault().isBiometricPasswordStored(), isFalse);
     });
+
+    test(
+      'probeDetail returns a non-empty opaque code on every host — the Settings '
+      'card always has something to localise, even when "available"',
+      () async {
+        // Spec: `probeDetail` is the localisation-key source for the
+        // hardware-tier hint copy. The Settings provider switches on
+        // `HardwareProbeDetail.fromCode(...)`; an empty / null string
+        // there would surface as a blank tooltip instead of the
+        // "platform-supports-but-…" hint. Pin the non-empty contract.
+        final code = await newVault().probeDetail();
+        expect(code, isNotEmpty);
+      },
+    );
+
+    test('clear → isStored is the post-condition that lets a tier switch reuse '
+        'the vault without crashing on a leftover envelope', () async {
+      // Spec: `clear` is best-effort but the post-condition is
+      // "the vault now reads as not-stored". On a Linux CI host
+      // without a TPM the call still completes (and the state was
+      // already not-stored). Pin the invariant for the
+      // round-trip the tier-switch code depends on — a regression
+      // that left `is_stored == true` after `clear()` would break
+      // the wizard's "you can re-provision now" branch.
+      final vault = newVault();
+      await vault.clear();
+      expect(await vault.isStored(), isFalse);
+    });
+
+    test(
+      'read with a null PIN does not throw on a fresh install — passwordless '
+      'T2 unseal failure collapses into the same null sentinel as wrong PIN',
+      () async {
+        // Spec: the resolveAuthValue passwordless arm produces an empty
+        // auth value; if the vault is not stored (Linux CI without
+        // TPM, no envelope on disk), the read returns null instead of
+        // throwing. Pin the null-PIN path explicitly — the
+        // `read('whatever')` test above covers the typed-password
+        // branch; this covers the null arm so a regression that
+        // started throwing on a null PIN would surface here.
+        final result = await newVault().read(null);
+        expect(result, isNull);
+      },
+    );
   });
 
   group('HardwareTierVault.resolveAuthValue', () {

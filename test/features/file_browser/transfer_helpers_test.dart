@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
@@ -408,6 +410,160 @@ void main() {
       expect(ok, isTrue);
       expect(resolverCalls, 0, reason: 'no collision → no prompt');
       expect(manager.uploads.first['remotePath'], '/uploads/fresh.txt');
+    });
+
+    test(
+      'upload-conflict cached "apply to all" carries the first decision across '
+      'a multi-entry batch without re-prompting',
+      () async {
+        // Spec: BatchConflictResolver caches the user's first
+        // applyToAll decision in the Rust registry; subsequent calls
+        // inside the same batch must NOT re-invoke the prompt. Pin the
+        // contract that drives the "replace all" UX — re-prompting on
+        // every collision after the user opted in would be the
+        // user-visible regression.
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs(existing: {'/uploads/a.txt', '/uploads/b.txt'});
+        var promptCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          promptCalls++;
+          return const ConflictDecision(
+            ConflictAction.replace,
+            applyToAll: true,
+          );
+        });
+        addTearDown(resolver.dispose);
+
+        final okA = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('a.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        final okB = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('b.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(okA, isTrue);
+        expect(okB, isTrue);
+        expect(manager.uploads, hasLength(2));
+        // First call prompts; second hits the cache and bypasses it.
+        expect(promptCalls, 1);
+      },
+    );
+
+    test(
+      'cancelled resolver short-circuits every subsequent enqueueUpload — no '
+      'prompt, no manager dispatch',
+      () async {
+        // Spec: once the user cancels the batch, `BatchConflictResolver`
+        // sets the registry flag; `_resolveUploadConflict` reads it as
+        // `ConflictAction.cancel` and returns null without prompting.
+        // The helper short-circuits before reaching the manager.
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs(existing: {'/uploads/x.txt'});
+        var promptCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          promptCalls++;
+          return const ConflictDecision(
+            ConflictAction.cancel,
+            applyToAll: true,
+          );
+        });
+        addTearDown(resolver.dispose);
+
+        final okFirst = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('x.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        expect(okFirst, isFalse);
+        expect(resolver.isCancelled, isTrue);
+
+        // A second collision after cancel must not re-prompt and must
+        // not enqueue — pinning the "batch is dead" contract.
+        final okSecond = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('x.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        expect(okSecond, isFalse);
+        expect(promptCalls, 1, reason: 'cancel sticks — no re-prompt');
+        expect(manager.uploads, isEmpty);
+      },
+    );
+
+    test('download-conflict skip on an existing local file → returns false and '
+        'never enqueues', () async {
+      // Spec: `_resolveDownloadConflict` calls `_snapshotLocal` which
+      // FRB-stats the path. When the target exists (we created the
+      // file in /tmp), the resolver runs and returning skip must
+      // short-circuit before the manager sees the task.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.skip),
+      );
+      addTearDown(resolver.dispose);
+
+      // Create a real local file the snapshot probe will find. The
+      // FRB symlink-stat call walks Rust's `std::fs::symlink_metadata`,
+      // so a touch on disk is the cheapest way to drive the
+      // "existing target" branch without faking the FRB layer.
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      final existingFile = File('${tmpDir.path}/collide.bin');
+      await existingFile.writeAsBytes(const [1, 2, 3]);
+
+      final entry = FileEntry(
+        name: 'collide.bin',
+        path: '/remote/collide.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.downloads, isEmpty);
     });
   });
 }
