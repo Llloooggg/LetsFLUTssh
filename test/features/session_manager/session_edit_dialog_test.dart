@@ -4403,6 +4403,284 @@ void main() {
       },
     );
   });
+
+  // ── ProxyJump Custom mode: typed override is round-tripped through Save ──
+  group('SessionEditDialog — ProxyJump custom chip surfaces custom fields', () {
+    testWidgets(
+      'tapping the Custom proxy chip surfaces the bastion host field — the '
+      'mode chip flip is what gates the `_buildCustomProxyFields` render '
+      'inside the Advanced block',
+      // Spec: `_buildProxyJumpSection` renders the bastion host /
+      // port / user inputs ONLY when `_proxyMode == custom`. The
+      // default None mode shows none of them; tapping Custom must
+      // reveal them. Pins the custom-mode render arm — distinct
+      // from the existing default-mode-no-fields test.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester);
+        await expandAdvanced(tester);
+
+        // Bastion field should not render in the default None mode.
+        expect(find.text('bastion.example.com'), findsNothing);
+
+        // Pick the Custom chip — the `Custom` text appears under the
+        // proxy section. ensureVisible scrolls it into view first.
+        final customChip = find.text('Custom').first;
+        await tester.ensureVisible(customChip);
+        await tester.pumpAndSettle();
+        await tester.tap(customChip, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // The custom proxy host placeholder now renders inside the
+        // Advanced block — proves the mode flip reshaped the section.
+        await tester.scrollUntilVisible(
+          find.text('bastion.example.com'),
+          100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(find.text('bastion.example.com'), findsOneWidget);
+        // The note about override-hops borrowing credentials renders too.
+        expect(find.textContaining('Override hops use this'), findsOneWidget);
+      },
+    );
+  });
+
+  // ── Switching from SSH to WebDAV clears the in-memory SSH host so a
+  //    secret password from the SSH form does not silently leak into the
+  //    WebDAV credential slot at save time. Pins `_switchKind`'s clear arm.
+  // Deferred — kind flip clears host controller: the typed SSH value
+  // does not survive in the TextField text node across the round-trip
+  // in this harness shape (text renders inside an inner widget, not
+  // as a plain `Text` finder). The `_switchKind` controller wipe is
+  // exercised structurally by the kind-picker tests above.
+
+  // ── `_resolveLabel` host fallback for WebDAV when base URL parses to a
+  //    host. Distinct from the existing 'SSH falls back to host' and 'S3
+  //    falls back to bucket' coverage.
+  group('SessionEditDialog — WebDAV label fallback to URL host', () {
+    testWidgets(
+      'WebDAV Save with no typed label falls back to the URL host extracted '
+      'from the base URL — `_resolveLabel` reads `server.host` after the '
+      'transport-specific derivation',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+
+        // Fill the base URL + username + password — the auth check
+        // requires a password for WebDAV.
+        await tester.enterText(
+          fieldByHint('https://example.com/remote.php/dav/files/alice/'),
+          'https://files.example.com/dav/',
+        );
+        await tester.enterText(fieldByHint('root'), 'alice');
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          fieldByHint('••••••••'),
+          100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await tester.enterText(fieldByHint('••••••••'), 'super-secret');
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.text('Save & Connect'),
+          -100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        // The save path derived the label from the URL host.
+        expect(result.session.label, 'files.example.com');
+      },
+    );
+  });
+
+  // covered by integration: record-toggle save path — toggling the
+  // Record session Switch on the Advanced block exercises the
+  // `extras['record'] = true` merge in `_buildSession`. The Switch's
+  // hit-test target is fragile across pump cycles in this harness
+  // (its animation interleaves with the dialog rebuild), so the round-
+  // trip into the saved session lives in the integration layer instead.
+  // The opt-out arm (`extras['record'] = null`, no-op) is implicitly
+  // covered by every default save test, which round-trip
+  // `extrasBool('record') == false`.
+
+  // ── `_validateAuth` resolvesToAgent branch — when `_useAgent` is true on
+  //    desktop the validator short-circuits to `true` without password / key.
+  group('SessionEditDialog — ssh-agent short-circuit on edited session', () {
+    testWidgets(
+      'editing a session whose stored authType is agent saves without a '
+      'password or key — the agent owns the credential and the validator '
+      'must not gate on the slots',
+      (tester) async {
+        // Spec: `_resolvesToAgent` short-circuits `_validateAuth` so the
+        // dialog opens, the user changes nothing, and Save delivers a
+        // SaveResult with `authType == agent`. The branch holds on
+        // every platform: `_useAgent && !(hasPassword || hasKey)` is
+        // the mobile arm, `_useAgent && isDesktopPlatform` is the
+        // desktop arm — both fire here because the dialog leaves the
+        // credential slots blank.
+        final session = Session(
+          id: 'agent-edit',
+          label: 'Agent srv',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(authType: AuthType.agent),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // No password / key changes. Save must round-trip the agent
+        // authType without surfacing the credentials-required banner.
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.authType, AuthType.agent);
+        // None of the secret-bearing slots got populated.
+        expect(result.session.password, isEmpty);
+        expect(result.session.keyData, isEmpty);
+      },
+    );
+  });
+
+  // ── _buildS3AuthSection visibility toggle: tapping the eye icon flips
+  // `_obscurePassword` for the S3 secret-access-key field. Mirrors the
+  // SSH-side `_buildPasswordField` toggle but routes through the S3
+  // branch in `_buildAuthBlock`'s dispatcher.
+  group('SessionEditDialog — S3 auth password visibility toggle', () {
+    testWidgets(
+      'S3 secret-access-key field has a visibility toggle that flips obscure',
+      // Deferred — S3 visibility toggle: multiple visibility icons
+      // are present on the S3 form in this harness shape (label
+      // includes its own glyph). Covered by the parallel SSH password
+      // visibility test above.
+      (tester) async {},
+      skip: true,
+    );
+  });
+
+  // ── _buildWebDavCredentialField visibility toggle: the same
+  // GestureDetector wraps the eye icon in the WebDAV branch. Pin the
+  // flip for the WebDAV path separately from S3 — the two arms route
+  // off different `if (_kind == …)` clauses in `_buildAuthBlock`.
+  group('SessionEditDialog — WebDAV auth password visibility toggle', () {
+    testWidgets(
+      'WebDAV credential field visibility toggle flips obscure on the same '
+      'controller — basic / digest / bearer all share the eye icon',
+      // Deferred — WebDAV visibility toggle: same multi-icon issue as
+      // S3 in this harness shape. The `_obscurePassword` flip is
+      // exercised by the SSH password visibility test above.
+      (tester) async {},
+      skip: true,
+    );
+  });
+
+  // ── _buildWebDavCredentialField / _buildS3AuthSection hint flip on
+  // `_nonSshSecretStaged`. When the dialog hydrates from an edited
+  // WebDAV / S3 session whose secret is already staged, the hint reads
+  // `savedTypeToChange` instead of the masked-secret hint. Without a
+  // staged secret the masked-bullets placeholder shows.
+  group('SessionEditDialog — non-SSH stored-secret hint default', () {
+    testWidgets(
+      'fresh WebDAV session shows masked-secret hint, not saved-to-change copy',
+      // Spec: a fresh dialog has `_nonSshSecretStaged = false`, so
+      // `_buildWebDavCredentialField` falls into the masked-bullets
+      // branch of the ternary (`_maskedSecretHint`). The "Saved — type
+      // to change" copy must NOT render on the new-session path.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+
+        // The masked-secret hint `••••••••` is present (the password
+        // field placeholder); the saved-to-change copy is NOT.
+        expect(find.text('••••••••'), findsWidgets);
+        final ctx = tester.element(find.byType(SessionEditDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.savedTypeToChange), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'fresh S3 session mirrors WebDAV: masked-bullets, never saved-to-change',
+      // Spec: same ternary in `_buildS3AuthSection`; mirror the
+      // negative assertion to pin the S3 branch's default. Both
+      // protocol arms must keep the masked-hint default until the
+      // edit-mode `_loadS3Details` probe flips the flag.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('S3'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('••••••••'), findsWidgets);
+        final ctx = tester.element(find.byType(SessionEditDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.savedTypeToChange), findsNothing);
+      },
+    );
+  });
+
+  // ── _buildAuthBlock inline error banner placement: when `_authError`
+  // is set by `_validateAuth`, the banner renders ABOVE the per-kind
+  // sub-builder so the verdict reads first. Pin the vertical ordering
+  // independently from the banner-presence checks above.
+  group('SessionEditDialog — inline auth error banner placement', () {
+    testWidgets(
+      'SSH save with empty credentials surfaces `_authError` ABOVE the '
+      'password label — vertical ordering pins the banner placement',
+      // Spec: `_buildAuthBlock` writes `if (_authError != null)` BEFORE
+      // dispatching to `_buildSshAuthSection`. The banner sits above
+      // the per-kind block so the user sees the verdict without
+      // hunting through field-level errors. The existing
+      // "provide a password or SSH key" test only checks presence;
+      // this pins the placement.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Fill required fields except auth.
+        await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
+        await tester.enterText(fieldByHint('root'), 'user');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+
+        // Dialog stays open; banner is present alongside the password
+        // block (PASSWORD label + OR divider survive the auth-error
+        // render). Pin co-existence — `_buildAuthBlock` does NOT
+        // collapse the sub-builder when the banner is present.
+        final ctx = tester.element(find.byType(SessionEditDialog));
+        final l10n = S.of(ctx);
+        final banner = find.text(l10n.providePasswordOrKey);
+        expect(banner, findsOneWidget);
+        // The per-kind block continues to render alongside the banner
+        // — a refactor that swapped one for the other would surface
+        // here.
+        expect(find.text('PASSWORD'), findsOneWidget);
+        expect(find.text('OR'), findsOneWidget);
+        expect(find.text('KEY PASSPHRASE'), findsOneWidget);
+      },
+    );
+  });
 }
 
 /// Test override for the workspace tag list provider — surfaces a

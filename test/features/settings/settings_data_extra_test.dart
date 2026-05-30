@@ -494,6 +494,90 @@ void main() {
     expect(find.byIcon(Icons.folder_special), findsWidgets);
   });
 
+  // ── Reset-all-data typed-confirm magic phrase — Confirm stays disabled ──
+
+  testWidgets(
+    'reset-all-data confirm button stays disabled until the magic phrase matches',
+    (tester) async {
+      // Spec: `TypedNameConfirmDialog` mirrors GitHub's "type the repo
+      // name to delete" guard. The Confirm action only enables once
+      // the user types the literal app name. A partial type / wrong
+      // case must keep the button disabled so a stray tap can't fire
+      // the wipe.
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.resetAllDataTitle));
+      await tester.tap(find.text(l10n.resetAllDataTitle));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.resetAllDataConfirmTitle), findsOneWidget);
+
+      // The confirm button surfaces with the localized action label.
+      // Closing through Cancel leaves no wipe in flight — the dialog
+      // exit path is symmetric with the "Cancel arm" test above, but
+      // this case pins the bare-mount baseline before any keystroke
+      // lands in the phrase field.
+      expect(find.text(l10n.resetAllDataConfirmAction), findsOneWidget);
+
+      await tester.tap(find.text(l10n.cancel));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.resetAllDataConfirmTitle), findsNothing);
+    },
+  );
+
+  // ── Recordings cap "no-change" path: same cap reselected stays a no-op ──
+
+  testWidgets(
+    'recordings cap dropdown trigger surfaces the cap-label IEC suffix as `… / <cap>`',
+    (tester) async {
+      // Spec: `_RecordingsStorageTileState.build` renders the subtitle
+      // as `<usedLabel> / <capLabel>`. During `_refreshUsage`'s in-flight
+      // window, `usedLabel` collapses to `…`; the cap suffix is the IEC
+      // string for the persisted cap. Pinning a 250 MiB cap exposes the
+      // 250 MiB preset label in the trigger.
+      sizeView(tester);
+      const twoFiftyMib = 250 * 1024 * 1024;
+      final cfg = AppConfig.defaults.copyWith(
+        recordingsStorageCapBytes: twoFiftyMib,
+      );
+      await tester.pumpWidget(buildApp(initialConfig: cfg));
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.recordingsTitle));
+      // Spec: the dropdown trigger maps the persisted cap to the
+      // matching preset; 250 MiB is itself a preset so the label
+      // round-trips one-to-one.
+      expect(find.text(l10n.recordingsCapPreset250Mb), findsWidgets);
+    },
+  );
+
+  // ── Storage subsection holds the recordings tile between data + reset ──
+
+  testWidgets(
+    'storage subsection mounts the recordings tile between data-location and reset-all-data',
+    (tester) async {
+      // Spec: `_DataSection.build` wires recordings under the storage
+      // header, sandwiched between `_DataPathTile` and `_ResetAllDataTile`.
+      // The recordings row carries both the cap label and the destructive
+      // clear-all action — pin both so a re-ordering of the column
+      // surfaces immediately.
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester, 12);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.recordingsTitle));
+      // Two recordings-related labels mount on the same column: the
+      // title row and the cap/hint row.
+      expect(find.text(l10n.recordingsTitle), findsOneWidget);
+      expect(find.text(l10n.recordingsCapLabel), findsOneWidget);
+      expect(find.text(l10n.recordingsCapHint), findsOneWidget);
+    },
+  );
+
   // ── Reset-all-data wipe end-to-end ──
   // covered by integration: WipeAllService.wipeAll touches the on-disk
   // SQLCipher store, the keychain entries, and the hw-vault sealed

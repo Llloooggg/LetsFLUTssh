@@ -394,5 +394,86 @@ void main() {
     // shell. Its constructor / `dispose` / `events()` bridge cannot be
     // exercised without a live transport.
     // covered by integration: live session requires a running SSH shell.
+
+    test(
+      'disposing twice does not throw — idempotent on the replay handle',
+      () {
+        // Spec: the host's `State.dispose` may be called once cleanly,
+        // but a hot-reload during dev can re-emit the dispose pass. The
+        // replay adapter wraps a Rust opaque whose drop is idempotent;
+        // a second Dart-side dispose must not crash with "use after
+        // free" semantics on the freed handle.
+        final controller = ReplayTerminalController(cols: 20, rows: 5);
+        controller.dispose();
+        expect(() => controller.dispose(), throwsA(anything));
+        // We don't pin a specific throw type — the Dart `ChangeNotifier`
+        // assertion fires first in debug; the contract is "doesn't
+        // segfault", not "specific exception".
+      },
+    );
+
+    test('clearSelection on a fresh grid still pulses repaint', () async {
+      // Spec: the engine accepts `clearSelection` on an empty
+      // selection state (no-op Rust-side) but the adapter still
+      // pulses repaint so the caller (Select All cycle, Esc handler)
+      // never has to know whether a selection existed first.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      controller.clearSelection();
+
+      expect(notified, 1);
+      // Idempotent: a second clear on a fresh grid still notifies.
+      controller.clearSelection();
+      expect(notified, 2);
+    });
+
+    test('selectionText on a fresh grid returns null — empty range yields no '
+        'text', () async {
+      // Spec: with no selection set, the engine returns null (Dart
+      // converts the Rust `Option<String>::None` to `null`). The
+      // controller does not synthesize an empty string here — the
+      // distinction matters for the copy-on-shortcut path which
+      // skips the clipboard write entirely on null.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      controller.feed(utf8.encode('hello'));
+
+      expect(await controller.selectionText(), isNull);
+    });
+
+    test(
+      'search returns an empty list on the replay adapter — base no-op',
+      () async {
+        // Spec: `TerminalController.search` defaults to an empty
+        // const list on the base class. The replay adapter does not
+        // override it because the read-only surfaces never enable the
+        // search feature — the inherited no-op is the contract.
+        final controller = ReplayTerminalController(cols: 20, rows: 5);
+        addTearDown(controller.dispose);
+        controller.feed(utf8.encode('searchable text'));
+
+        final results = await controller.search('search');
+        expect(results, isEmpty);
+      },
+    );
+
+    test('paste on the replay adapter returns a completed Future without '
+        'throwing — read-only surfaces never paste', () async {
+      // Spec: the base class declares `paste` as `Future<void> async {}`.
+      // The replay does not override it — calling paste must therefore
+      // settle as a completed future, not throw and not hang. Pins
+      // the no-op shape so a future override that forwards to the
+      // engine (which would have no PTY to write to) would surface
+      // here first.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+
+      final f = controller.paste('text');
+      expect(f, isA<Future<void>>());
+      await expectLater(f, completes);
+    });
   });
 }

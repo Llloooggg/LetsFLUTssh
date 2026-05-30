@@ -300,6 +300,62 @@ void main() {
     );
   });
 
+  // ── Distinct connect ids across rapid calls ─────────────────────
+  //
+  // The Notifier mints a UUIDv4 per call to `connectAsync` /
+  // `connectWebDavAsync` / `connectS3Async`. Even back-to-back calls in
+  // the same microtask must yield distinct ids so the workspace's tab
+  // strip can address each row independently.
+
+  group('id allocation', () {
+    test('connectWebDavAsync mints a fresh id on each call', () async {
+      // Spec: the in-flight WebDAV futures all settle into
+      // `disconnected` (no DB fixture), but the synchronous id-mint
+      // must produce distinct values per call so a user mass-opening
+      // bookmarks doesn't see two tabs collapse into one.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(connectionsProvider.notifier);
+      final session = Session(
+        id: 'wd-id',
+        label: 'X',
+        kind: SessionKind.webdav,
+        server: const ServerAddress(host: 'h', user: 'u'),
+        auth: const SessionAuth(authType: AuthType.password),
+      );
+      final a = notifier.connectWebDavAsync(session);
+      final b = notifier.connectWebDavAsync(session);
+      expect(a.id, isNot(equals(b.id)));
+      await a.waitUntilReady().timeout(const Duration(seconds: 15));
+      await b.waitUntilReady().timeout(const Duration(seconds: 15));
+    });
+
+    test('connectS3Async stores the connection in the in-memory map', () async {
+      // Spec: every connectAsync / connectWebDavAsync / connectS3Async
+      // immediately registers the Connection in the Notifier's map so
+      // `notifier.get(id)` returns it before the async resolve runs.
+      // Without that, the workspace's tab strip would have to wait for
+      // the connect future to settle before it could even reference
+      // the new tab.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(connectionsProvider.notifier);
+      final session = Session(
+        id: 's3-map',
+        label: 'Map Test',
+        kind: SessionKind.s3,
+        server: const ServerAddress(host: 's3.example.com', user: 'AKIA'),
+        auth: const SessionAuth(authType: AuthType.password),
+      );
+      final conn = notifier.connectS3Async(session);
+      // `notifier.connections` is the user-visible list; the conn is
+      // not internal, so it surfaces in both lookups.
+      expect(notifier.connections, contains(conn));
+      expect(notifier.get(conn.id), same(conn));
+      await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+    });
+  });
+
   group('deferred to integration', () {
     test(
       'reconnect with a tracked id tears the transport down and re-dispatches',

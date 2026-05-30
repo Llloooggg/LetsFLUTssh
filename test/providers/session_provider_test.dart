@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
@@ -581,6 +582,62 @@ void main() {
       final folders = mutator.folders();
       expect(folders, ['A', 'B']);
     });
+  });
+
+  // ── Derived providers compose off the workspace snapshot ─────────
+
+  group('sessionsByIdProvider', () {
+    test('builds an O(1)-by-id map mirroring the flat list', () async {
+      // Spec: `sessionsByIdProvider` is the dependent-rebuild oracle —
+      // a widget watching `sessionsByIdProvider.select((m) => m[id])`
+      // rebuilds only when that id's row changes. Map content must
+      // match the flat list one-to-one (id → Session).
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', label: 'A'));
+      await mutator.add(makeSession(id: 's2', label: 'B'));
+      await Future<void>.delayed(Duration.zero);
+
+      final map = container.read(sessionsByIdProvider);
+      expect(map.keys, containsAll(<String>{'s1', 's2'}));
+      expect(map['s1']?.label, 'A');
+      expect(map['s2']?.label, 'B');
+      // Map size matches the flat list — every list entry shows up
+      // exactly once in the map.
+      expect(map.length, container.read(sessionProvider).length);
+    });
+  });
+
+  // ── filteredSessionTreeProvider derives off the workspace snapshot ──
+
+  group('filteredSessionTreeProvider', () {
+    test('returns a List<SessionTreeNode> for an empty workspace', () async {
+      // Spec: even without sessions or empty folders, the tree
+      // provider returns a non-null list (empty when nothing has
+      // been added). The sidebar dereferences `.length` immediately
+      // on every paint — null would crash.
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
+      final tree = container.read(filteredSessionTreeProvider);
+      expect(tree, isA<List<SessionTreeNode>>());
+    });
+
+    // Deferred — empty-folder node materialisation: `SessionTree.build`
+    // routes through `rust_tree.sessionTreeBuild` (FRB), which returns
+    // `const []` when the bridge has not been initialized. Verified by
+    // integration: `test/integration/session_tree_*` covers the
+    // Rust-side folder grouping end-to-end.
   });
 
   group('sessionsLoadingProvider', () {

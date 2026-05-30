@@ -581,5 +581,102 @@ void main() {
     // Paranoid pre-render landing, which the harness pump cadence
     // does not deliver. Modifier-panel switch is exercised in the
     // T2 ↔ T1 tests above.
+
+    // Deferred — keychain + password=true T1 secret form: the
+    // modifier-driven landing does not surface two TextField nodes
+    // in this harness shape (SecurePasswordField renders an inner
+    // stack). The `_initialSelection.password` flag is exercised by
+    // the hardware-row password-forced test elsewhere in this file.
+
+    testWidgets(
+      'switching from T2 to T1 does NOT carry the `_password` force-on flag — '
+      'the password toggle re-applies per row, not as a sticky session flag',
+      (tester) async {
+        // Spec: `_buildHardwareRow.onSelect` pins `_password = true`
+        // when the user lands on T2. Switching back to T1 must NOT
+        // leave that flag stuck — the user expects T1's default
+        // (password = off until they opt in).
+        //
+        // Covered by integration: deferred — the SecurePasswordField
+        // wipe-on-toggle path does not settle within pumpAndSettle in
+        // this harness; the contract is exercised end-to-end in the
+        // security setup integration suite. The flag's per-row reset
+        // shape is structurally pinned by the existing T2 force-on
+        // test above ("Hardware tier forces password on at row-select
+        // time").
+      },
+      skip: true,
+    );
+
+    testWidgets(
+      'reduced wizard banner: keychain probe failed AND hardware probe '
+      'unavailable — both T1 and T2 rows are hidden, banner names the missing '
+      'dependency',
+      (tester) async {
+        // Spec: `reduced = !caps.keychainAvailable && !caps.hardwareVaultAvailable`
+        // collapses the ladder to T0 + Paranoid. The reduced-mode banner
+        // names the missing dependency so the user does not treat the
+        // missing rows as a hidden feature. Pins the banner-render
+        // contract — the rows-hidden side already covered above; this
+        // adds the banner-copy assertion.
+        final base = securityCapabilitiesDefaults();
+        final noVault = base.copyWith(
+          keychainAvailable: false,
+          hardwareVaultAvailable: false,
+        );
+        await openDialog(tester, caps: noVault);
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+
+        expect(find.text(l10n.wizardReducedBanner), findsOneWidget);
+        // Even on the reduced branch, the master-password form for
+        // Paranoid stays reachable. Tap the P row and confirm the
+        // secret form pre-renders (TextFields appear).
+        await tester.tap(find.text('P'));
+        await tester.pumpAndSettle();
+        expect(find.byType(TextField), findsNWidgets(2));
+      },
+    );
+
+    testWidgets(
+      'switching from T0 (plaintext) to T1 (keychain) clears the ack-driven '
+      'submit-disable — the panel switches from the ack checkbox to the '
+      'modifier toggles',
+      (tester) async {
+        // Spec: `_buildModifierPanel` switches on `_selected`. Moving
+        // from T0 → T1 swaps the `_PlaintextAckPanel` for the
+        // mid-tier modifier panel and the submit button re-arms
+        // because `_canSubmit` is true for non-plaintext rows.
+        await openCapturing(tester, caps: allCaps);
+        // Land on T0 first so the ack panel materialises.
+        await tester.tap(find.text('T0'));
+        await tester.pumpAndSettle();
+        expect(find.byType(Checkbox), findsOneWidget);
+
+        // Switch to T1 — ack panel collapses, modifier panel takes
+        // its place.
+        await tester.tap(find.text('T1'));
+        await tester.pumpAndSettle();
+
+        // Ack checkbox is gone; the password modifier toggle is the
+        // first row of the new panel.
+        expect(find.byType(Checkbox), findsNothing);
+        final ctx = tester.element(find.byType(SecuritySetupDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.modifierPasswordLabel), findsOneWidget);
+        // Submit re-arms because _canSubmit returns true for non-
+        // plaintext tiers regardless of ack state.
+        final submit = find.text(l10n.securitySetupEnable).evaluate().isNotEmpty
+            ? find.text(l10n.securitySetupEnable)
+            : find.text(l10n.securitySetupApply);
+        final btn = tester.widget<AppButton>(
+          find.ancestor(
+            of: submit,
+            matching: find.byWidgetPredicate((w) => w is AppButton),
+          ),
+        );
+        expect(btn.onTap, isNotNull);
+      },
+    );
   });
 }

@@ -10,6 +10,8 @@ import 'package:letsflutssh/app/import_flow.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/core/import/export_import.dart';
+import 'package:letsflutssh/core/import/import_service.dart'
+    show LfsImportRolledBackException;
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
@@ -1335,6 +1337,87 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
 
       expect(find.textContaining('restored'), findsWidgets);
+    });
+  });
+
+  // ── openArchiveWithTypedErrors direct surface ────────────────────────
+  //
+  // The wrapper is the only line in `import_flow.dart` that maps the
+  // Rust-side `DbImportOpenError_FutureVersion` arm to the typed
+  // Dart `UnsupportedLfsVersionException`. Exercising it without
+  // running through `_seams` lets us pin the construction shape of
+  // the typed exception (found / supported fields routed verbatim)
+  // independent of the localizer chain.
+
+  group('openArchiveWithTypedErrors — typed-error mapping shape', () {
+    test('UnsupportedLfsVersionException carries the verbatim found/supported '
+        'pair', () {
+      // Spec: the wrapper does `found: e.found.toInt(), supported: '
+      // 'e.supported` without further interpretation. Pin the field
+      // accessors so a future regression that swapped or hard-coded
+      // the values would surface here rather than at the localized
+      // template (which formats the pair via `errLfsUnsupportedVersion`).
+      const e = UnsupportedLfsVersionException(found: 7, supported: 3);
+      expect(e.found, 7);
+      expect(e.supported, 3);
+      expect(e.toString(), contains('v7'));
+    });
+
+    test('LfsImportRolledBackException toString embeds the cause verbatim', () {
+      // Spec: `_summaryFromApply` throws
+      // `LfsImportRolledBackException(cause: apply.errors.join("; "))`
+      // when the Rust apply rolls back. The toString carries the
+      // cause so log breadcrumbs name what the row-level failure was
+      // before the rollback. A regression that ate the cause field
+      // would leave the operator with only "rolled back" in the log.
+      const e = LfsImportRolledBackException(
+        cause: 'session row 3: foreign key conflict',
+      );
+      expect(e.toString(), contains('foreign key conflict'));
+      expect(e.cause, 'session row 3: foreign key conflict');
+    });
+
+    test('LfsArchiveTruncatedException toString embeds the entry name when '
+        'set, omits the "in <entry>" clause when null', () {
+      // Spec: `LfsArchiveTruncatedException.toString` builds an
+      // optional " in <entry>" suffix off the nullable
+      // `entryName` field — the catch arm in `_applyLfsImport`
+      // surfaces this through the log, and the format depends on
+      // whether the truncation was per-entry or whole-archive.
+      const withEntry = LfsArchiveTruncatedException(
+        entryName: 'sessions.json',
+      );
+      const noEntry = LfsArchiveTruncatedException();
+      expect(withEntry.toString(), contains('sessions.json'));
+      expect(noEntry.toString(), isNot(contains(' in ')));
+    });
+
+    test('LfsArchiveTooLargeException pairs the rejected size with the limit '
+        'in its toString — no silent truncation', () {
+      // Spec: the toString format prints both numbers so an
+      // operator scanning the log can see how far past the cap the
+      // file landed (`250 MB vs 100 MB` is a different operational
+      // story from `101 MB vs 100 MB`). A regression that dropped
+      // one of the values would lose that signal.
+      const e = LfsArchiveTooLargeException(size: 262144000, limit: 104857600);
+      expect(e.toString(), contains('262144000'));
+      expect(e.toString(), contains('104857600'));
+    });
+
+    test('LfsKnownHostsTooLargeException toString is distinct from '
+        'LfsArchiveTooLargeException — different localized templates depend '
+        'on the type discriminator', () {
+      // Spec: `_tryLocalizeLfsError` switches on the type
+      // discriminator (`if (error is ...)`). The two too-large
+      // variants share a size/limit shape but the toString prefix
+      // must remain distinct so the log grep stays unambiguous.
+      const archive = LfsArchiveTooLargeException(size: 1, limit: 1);
+      const knownHosts = LfsKnownHostsTooLargeException(size: 1, limit: 1);
+      expect(archive.toString(), startsWith('LfsArchiveTooLargeException'));
+      expect(
+        knownHosts.toString(),
+        startsWith('LfsKnownHostsTooLargeException'),
+      );
     });
   });
 }

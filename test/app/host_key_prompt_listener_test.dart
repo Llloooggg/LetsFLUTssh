@@ -172,5 +172,96 @@ void main() {
     // owns no `@visibleForTesting` injection point, so these branches
     // belong in `test/integration/known_hosts_prompt_test.dart` where
     // Rust + Dart share a process.
+
+    test('payload promptId round-trips verbatim — no trimming or rewrite', () {
+      // Spec: the listener echoes `event.promptId` straight back into
+      // the `KnownHostPromptResponse` command so the russh handler can
+      // pair the verdict with the original request. A copy-with-modify
+      // would silently drop a response on the floor and the handshake
+      // would block waiting for a verdict that never matches.
+      const event = rust_bus.BusEvent.knownHostPromptRequest(
+        promptId: 'prompt-uuid-with-dashes-and-1234',
+        host: 'h',
+        port: 22,
+        keyType: 'ssh-ed25519',
+        fingerprint: 'SHA256:X',
+        kind: rust_bus.BusKnownHostPromptKind.newHost,
+      );
+      const req = event as rust_bus.BusEvent_KnownHostPromptRequest;
+      expect(req.promptId, 'prompt-uuid-with-dashes-and-1234');
+    });
+
+    test(
+      'port accessor widens unsigned to a Dart int safely for the dialog',
+      () {
+        // Spec: `_showDialog` does `event.port.toInt()` because the FRB
+        // wire type is unsigned. A standard SSH port and a high custom
+        // port must both round-trip without an overflow truncation that
+        // would point the dialog at the wrong server.
+        const lowPort = rust_bus.BusEvent.knownHostPromptRequest(
+          promptId: 'a',
+          host: 'h',
+          port: 22,
+          keyType: 'ssh-ed25519',
+          fingerprint: 'SHA256:A',
+          kind: rust_bus.BusKnownHostPromptKind.newHost,
+        );
+        const highPort = rust_bus.BusEvent.knownHostPromptRequest(
+          promptId: 'b',
+          host: 'h',
+          port: 65535,
+          keyType: 'ssh-ed25519',
+          fingerprint: 'SHA256:B',
+          kind: rust_bus.BusKnownHostPromptKind.keyChanged,
+        );
+        const low = lowPort as rust_bus.BusEvent_KnownHostPromptRequest;
+        const high = highPort as rust_bus.BusEvent_KnownHostPromptRequest;
+        expect(low.port.toInt(), 22);
+        expect(high.port.toInt(), 65535);
+      },
+    );
+
+    test('fingerprint and keyType are passed through unmodified — the dialog '
+        'shows the raw OpenSSH formatting', () {
+      // Spec: `_showDialog` hands `event.keyType` and `event.fingerprint`
+      // straight into `HostKeyDialog.showNewHost` / `showKeyChanged` so
+      // the user sees the canonical OpenSSH host-key formatting
+      // (`SHA256:...` + the algorithm name). The listener must not
+      // normalize or strip these — the dialog text is the user's only
+      // signal during a TOFU decision and a regression here would
+      // erode trust in the prompt.
+      const event = rust_bus.BusEvent.knownHostPromptRequest(
+        promptId: 'p',
+        host: 'h.example',
+        port: 22,
+        keyType: 'ecdsa-sha2-nistp521',
+        fingerprint: 'SHA256:1+/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789==',
+        kind: rust_bus.BusKnownHostPromptKind.keyChanged,
+      );
+      const req = event as rust_bus.BusEvent_KnownHostPromptRequest;
+      expect(req.keyType, 'ecdsa-sha2-nistp521');
+      expect(req.fingerprint, contains('SHA256:'));
+      expect(req.fingerprint, contains('+'));
+      expect(req.fingerprint, contains('/'));
+    });
+  });
+
+  group('lifecycle invariants — multiple start/stop cycles', () {
+    setUpAll(requireFrbLoaded);
+
+    test('rapid start/stop bursts do not leak subscriptions or throw', () {
+      // Spec: a recovery flow may trigger several bootstrap re-entries
+      // in rapid succession (unlock → fatal probe → re-unlock). Each
+      // pass calls `start()` and the previous pass's `stop()` may not
+      // have settled yet. The listener guards both verbs against
+      // double-cancel / double-bind, so a burst must remain safe.
+      for (var i = 0; i < 5; i++) {
+        HostKeyPromptListener.start();
+        HostKeyPromptListener.stop();
+      }
+      // Trailing start so tearDown's stop() still reaches a live state.
+      HostKeyPromptListener.start();
+      expect(HostKeyPromptListener.stop, returnsNormally);
+    });
   });
 }

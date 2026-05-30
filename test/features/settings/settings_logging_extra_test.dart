@@ -752,6 +752,95 @@ void main() {
     Toast.clearAllForTest();
   });
 
+  // ── _LiveLogViewer.build wires the toolbar three icons regardless of level ──
+
+  testWidgets(
+    'live log viewer mounts copy / save_alt / delete_outline toolbar icons together',
+    (tester) async {
+      // Spec: `_buildToolbar` wires three AppIconButtons (copy / export
+      // / clear). The icons are the only way the user reaches export +
+      // clear without scrolling — losing any one would silently strand
+      // the corresponding action.
+      sizeView(tester);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+      expect(find.byIcon(Icons.save_alt), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    },
+  );
+
+  // ── _LogFilterBar renders three level chips: I / W / E ──
+
+  testWidgets(
+    'log filter bar mounts I, W, E level chips on top of the viewer',
+    (tester) async {
+      // Spec: `_LogFilterBar` hard-codes the three chips matching every
+      // LogLevel. A missing chip would block users from hiding noise of
+      // the corresponding level during a support session.
+      sizeView(tester);
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // All three level chips render their single-character labels.
+      expect(find.text('I'), findsWidgets);
+      expect(find.text('W'), findsWidgets);
+      expect(find.text('E'), findsWidgets);
+    },
+  );
+
+  // ── _LiveLogViewer renders empty-state when LogStore has no entries ──
+
+  testWidgets(
+    'live log viewer with an empty LogStore shows the localized empty-log placeholder',
+    (tester) async {
+      // Spec: `_buildLogBody` watches `_store.changes` and renders the
+      // localized `logIsEmpty` text when `_store.allEntries.isEmpty`.
+      // The empty-state text replaces the TerminalView so the user
+      // sees an intelligible message instead of a blank box.
+      sizeView(tester);
+      // Wipe any pre-seeded entries — debugApplySeed / debugInject
+      // from other tests in the same run leave residue in the
+      // singleton.
+      await LogStore.resetForTesting();
+
+      final config = AppConfig.defaults.copyWith(
+        behavior: const BehaviorConfig(logLevel: LogLevel.info),
+      );
+      await tester.pumpWidget(buildApp(initialConfig: config));
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await tester.scrollUntilVisible(
+        find.text('Live Log'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Empty-state placeholder is reachable as either the centered
+      // text or the empty-log clipboard toast text — both share the
+      // localized `logIsEmpty` key.
+      expect(find.text(l10n.logIsEmpty), findsWidgets);
+      Toast.clearAllForTest();
+    },
+  );
+
   // ── _LoggingSection._exportLog cancel arm (desktop FilePicker) ──
   // covered by integration: the export action wires the
   // `file_picker` Dart plugin to `loggerExportTo` Rust-side; the

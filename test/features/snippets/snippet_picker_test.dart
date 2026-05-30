@@ -689,5 +689,86 @@ void main() {
       // The unpinned filtered snippet is still rendered (sectionless).
       expect(find.text('Disk usage'), findsOneWidget);
     });
+
+    testWidgets(
+      'with sessionId: a pinned-only filter hit (no ALL section) renders the '
+      'PINNED header without the ALL header — the second-clause `if` in '
+      '`_buildBody` only emits the ALL header when filteredUnpinned is non-empty',
+      (tester) async {
+        // Spec: `_buildBody` writes `if (filteredUnpinned.isNotEmpty)
+        // _sectionHeader(s.allSnippets)` inside the `hasPinned` block —
+        // the ALL header only appears when there is at least one
+        // unpinned hit AFTER the filter. Pin the asymmetry: when the
+        // filter narrows to a single pinned snippet, PINNED renders
+        // alone, no orphan ALL header.
+        fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+        await fakeStore.linkToSession('s1', 'session-1');
+        await openDialog(tester, sessionId: 'session-1');
+
+        // Baseline: both headers visible.
+        expect(find.text('PINNED'), findsOneWidget);
+        expect(find.text('ALL'), findsOneWidget);
+
+        // Filter to a token only the PINNED snippet's command matches.
+        await tester.enterText(find.byType(TextField).first, 'ls');
+        await tester.pumpAndSettle();
+
+        // Pinned section still visible; ALL header dropped because no
+        // unpinned snippet survives the filter.
+        expect(find.text('PINNED'), findsOneWidget);
+        expect(find.text('ALL'), findsNothing);
+        expect(find.text('List files'), findsOneWidget);
+        expect(find.text('Disk usage'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'snippet command containing the search needle case-insensitively is '
+      'matched — the filter does not require exact-case overlap',
+      (tester) async {
+        // Spec: `filterSnippets` (in `snippets_logic.dart`) downcases
+        // both haystack and needle, so uppercase letters in the search
+        // field do not exclude lowercase command tokens. Pins the
+        // contract a future regression to case-sensitive matching
+        // would break.
+        fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+        await openDialog(tester);
+
+        await tester.enterText(find.byType(TextField), 'LS');
+        await tester.pumpAndSettle();
+
+        // Even though the command is `ls -la` (lowercase), the
+        // uppercase needle matches because the filter folds case.
+        expect(find.text('List files'), findsOneWidget);
+        expect(find.text('Disk usage'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'with sessionId: a pinned snippet whose title matches the filter still '
+      'renders its trailing pin button (filled push_pin) — the pin toggle '
+      'survives narrowing of the visible list',
+      (tester) async {
+        // Spec: the trailing `AppIconButton` slot for `pinned: true`
+        // tiles uses the filled `Icons.push_pin`. Narrowing the list
+        // with a filter does not strip trailing buttons — every visible
+        // tile keeps its full action set so the user can still toggle
+        // the pin from inside a filtered view.
+        fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+        await fakeStore.linkToSession('s1', 'session-1');
+        await openDialog(tester, sessionId: 'session-1');
+
+        await tester.enterText(find.byType(TextField).first, 'ls');
+        await tester.pumpAndSettle();
+
+        // Pinned section visible with one entry; trailing pin button
+        // (filled icon) is reachable.
+        expect(find.text('PINNED'), findsOneWidget);
+        expect(
+          find.widgetWithIcon(AppIconButton, Icons.push_pin),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

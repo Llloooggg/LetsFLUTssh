@@ -1110,5 +1110,170 @@ void main() {
     // teardown. The loop body and dispatch contract are covered by
     // the BatchConflictResolver tests in
     // `transfer_helpers_test.dart`.
+
+    testWidgets(
+      'object-store FileSystem capability surfaces through the seeded '
+      'SFTPInitResult — the mixin does not gate uploadMany on POSIX-only '
+      'backends; non-POSIX backends (WebDAV / S3) ride the same enqueue path',
+      (tester) async {
+        // Spec: the source comment above the `remote == null` guard
+        // explains the dispatch is FileSystem-kind agnostic — the
+        // controller's `fs` may be RemoteFS (SFTP), WebDavFileSystem,
+        // or S3FileSystem and the queue routes by ProviderRegistry on
+        // the Rust side. Pin that the mixin does NOT pre-filter by
+        // `capabilities.posixMode` — the _StubFs declares object-store
+        // capabilities and uploadMany still proceeds through the
+        // guard into the (empty) enqueue branch.
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        // Sanity: the stub explicitly advertises objectStore — the
+        // non-POSIX flavour — so the test pins the capability shape
+        // the mixin must accept without gating.
+        expect(remoteCtrl.fs.capabilities, FileSystemCapabilities.objectStore);
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  autoInit: false,
+                  initialResult: result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+
+        // Empty entry list short-circuits at the second clause of the
+        // guard — the capability of the remote FS is irrelevant. Pin
+        // the no-throw contract for non-POSIX backends.
+        await state.uploadMany(const []);
+        await state.downloadMany(const []);
+      },
+    );
+
+    testWidgets(
+      'onSftpReady is NOT invoked on a failed init — the catch arm of '
+      'initSftp routes through the error setter, not the success setter',
+      (tester) async {
+        // Spec: the success path calls `onSftpReady(result)` BEFORE
+        // flipping `sftpInitializing = false`. A thrown
+        // `sftpInitFactory` lands in the `catch (e)` arm, which only
+        // writes `sftpError` + `sftpInitializing = false` — the host
+        // class must never see the ready callback on a failure path.
+        // Pins the negative contract: the failure transition is
+        // symmetric to the success transition only on the
+        // initializing flag, not on the ready hook.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+        conn.markTransportAdopted();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async => throw Exception('subsystem'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        // Failure path: error set, initializing cleared, ready hook
+        // NEVER fired. The negative contract is the whole point of
+        // this test — a refactor that hoisted `onSftpReady` out of
+        // the success branch would surface here.
+        expect(state.onReadyCalled, isFalse);
+        expect(state.sftpError, isNotNull);
+        expect(state.sftpInitializing, isFalse);
+      },
+    );
+
+    testWidgets(
+      'connection-failed branch does NOT invoke sftpInitFactory — the early '
+      'return on !conn.isConnected fires before the factory dispatch',
+      (tester) async {
+        // Spec: `initSftp`'s `!conn.isConnected` check at lines 71-84
+        // short-circuits the entire factory-or-real-init dispatch. If
+        // the connection failed BEFORE init, the factory must never
+        // be called — the error already exists, the SFTP open would
+        // race against a dead transport. Pins the order of operations:
+        // connection-state gate fires before factory dispatch.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+          connectionError: 'connection refused',
+        );
+
+        var factoryInvoked = false;
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async {
+                    factoryInvoked = true;
+                    throw Exception('should-not-run');
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(factoryInvoked, isFalse);
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        expect(state.sftpError, isNotNull);
+        expect(state.onReadyCalled, isFalse);
+      },
+    );
   });
 }

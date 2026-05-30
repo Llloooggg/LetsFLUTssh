@@ -386,4 +386,88 @@ void main() {
           'test/integration/session_connect_end_to_end_test.dart.',
     );
   });
+
+  // ── _resolveHardwareKeyPin sentinel cases ─────────────────────────
+  //
+  // The PIN-prompt helper returns `null` for four observable cases:
+  // empty keyId, missing row, software-only row, touch-only row. The
+  // first case is fully Dart-side (no FRB hop at all); the others
+  // need a manager-key row that does not exist in the in-memory DB
+  // the test boots, so they collapse to a different `null` source
+  // (`dbSshKeysGet` returns null on a missing id). Either way the
+  // observable result for the orchestrator is identical: the
+  // composer runs with `pin == ''` and the connect attempt routes
+  // through `auth_compose::prepare_auth` without a Dart-side dialog.
+
+  group('_resolveHardwareKeyPin observable behaviour through connectAsync', () {
+    test('empty keyId stages no PIN-prompt detour — connect threads straight '
+        'through to the composer', () async {
+      // Spec: `_resolveHardwareKeyPin('')` short-circuits with null
+      // BEFORE the `dbSshKeysGet` lookup. Drives the empty-keyId
+      // branch observably — a `pw`-only `SshAuth` carries no keyId so
+      // the early-return is the only path the helper can take.
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final conn = notifier.connectAsync(
+        configFor(const SshAuth(password: 'pw')),
+        label: 'no-key',
+        sessionId: 'sess-no-key',
+      );
+
+      // The synchronous return shape proves the helper did not throw
+      // on the empty keyId — the unawaited `_doConnect` reached the
+      // composer call without surfacing a HardwareKeyPromptCancelled
+      // back through the connect future.
+      expect(conn.state, SSHConnectionState.connecting);
+      await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+      notifier.disconnect(conn.id);
+    });
+
+    test('unknown keyId routes through dbSshKeysGet (null row) and falls '
+        'back to a PIN-less composer call', () async {
+      // Spec: `_resolveHardwareKeyPin` returns null on
+      // `row == null`. The in-memory DB this test booted carries no
+      // ssh_keys rows, so any keyId routes to that arm. The connect
+      // attempt still settles without throwing a typed
+      // `HardwareKeyPromptCancelled` — the only signal we can read
+      // here without a live SSH fixture.
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final conn = notifier.connectAsync(
+        configFor(const SshAuth(keyId: 'no-such-key-row', password: 'pw')),
+        label: 'unknown-key',
+      );
+      await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+      // The connect future resolved into a terminal state via the
+      // composer (or socket-level error) — not through a
+      // HardwareKeyPromptCancelled, which would surface as a
+      // distinct typed exception in `connectionError`.
+      expect(conn.connectionError, isNot(isA<HardwareKeyPromptCancelled>()));
+      notifier.disconnect(conn.id);
+    });
+  });
+
+  group('HardwareKeyPromptCancelled cause-chain compatibility', () {
+    test('cause defaults to null — typed catch in localizeError sees a flat '
+        'message without an opaque cause object', () {
+      // Spec: `HardwareKeyPromptCancelled` is constructed by the
+      // dialog dismiss arm with only the localized message; no
+      // wrapped cause. `SSHError.userMessage` collapses to the bare
+      // message when `cause == null`, so a regression that started
+      // wrapping the cancel in a russh / socket error would change
+      // the user-visible toast.
+      const e = HardwareKeyPromptCancelled('Cancelled');
+      expect(e.cause, isNull);
+      expect(e.userMessage, 'Cancelled');
+    });
+
+    test('toString omits the cause clause when cause is null', () {
+      // Spec: `SSHError.toString` branches on `cause != null`; a
+      // null cause must not produce the trailing `(caused by: null)`
+      // breadcrumb the log grep filters expect to see only on
+      // wrapped errors.
+      const e = HardwareKeyPromptCancelled('user dismissed');
+      expect(e.toString(), isNot(contains('caused by')));
+    });
+  });
 }

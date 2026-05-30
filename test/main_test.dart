@@ -13,6 +13,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
+import 'package:letsflutssh/app/connection_state_announcer.dart';
 import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -1202,5 +1203,225 @@ void main() {
         debugShowStartupSplash = saved;
       }
     });
+  });
+
+  // ── MainScreen — narrow layout uses Drawer (instead of inline sidebar) ──
+  //
+  // Spec: `_buildDesktopLayout` switches `AppShell.useDrawer` to `true`
+  // when `constraints.maxWidth < 600`. The same break drives `showMenuButton`
+  // on the toolbar. Pins the contract that a narrow viewport reuses the
+  // sidebar widget through a Drawer overlay rather than a docked column.
+  group('MainScreen — narrow layout drawer', () {
+    testWidgets(
+      'narrow viewport flips the AppShell into drawer mode and drops the '
+      'docked sidebar — the same sidebar widget mounts behind the menu',
+      (tester) async {
+        tester.view.physicalSize = const Size(400, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        // Hamburger menu icon — the narrow toolbar's menu button. The
+        // wide toolbar would have shown chevron_left for the docked
+        // sidebar collapse instead.
+        expect(find.byIcon(Icons.menu), findsOneWidget);
+        expect(find.byIcon(Icons.chevron_left), findsNothing);
+        // Tools / Settings text buttons still surface on the toolbar
+        // — only the sidebar surface changed.
+        expect(find.text('Tools'), findsOneWidget);
+        expect(find.text('Settings'), findsOneWidget);
+      },
+    );
+  });
+
+  // ── LetsFLUTsshApp — explicit theme=dark resolves to ThemeMode.dark ──
+  // Together with the existing 'system' / 'light' tests this pins the
+  // third arm of `themeModeProvider`'s switch.
+  group('LetsFLUTsshApp — explicit dark theme resolves to ThemeMode.dark', () {
+    testWidgets(
+      'config.terminal.theme == "dark" flows through themeModeProvider to '
+      'MaterialApp.themeMode — distinct from the system default',
+      (tester) async {
+        final config = AppConfig.defaults.copyWith(
+          terminal: AppConfig.defaults.terminal.copyWith(theme: 'dark'),
+        );
+        await tester.pumpWidget(buildApp(config: config));
+        await tester.pumpAndSettle();
+
+        final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+        expect(app.themeMode, ThemeMode.dark);
+      },
+    );
+  });
+
+  // ── LetsFLUTsshApp — MaterialApp.home is a MainScreen ──
+  // Pins the contract that the app shell mounts MainScreen as the home
+  // widget rather than a Builder / Navigator-only surface.
+  group('LetsFLUTsshApp — home is MainScreen', () {
+    testWidgets(
+      'MaterialApp.home is a MainScreen instance — the shell never wraps '
+      'home in an additional Navigator / Builder layer that could swallow '
+      'the lock overlay\'s context lookup',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+        expect(app.home, isA<MainScreen>());
+      },
+    );
+  });
+
+  // ── LetsFLUTsshApp — uiScale=0.5 floor clamp ──
+  // Spec: the MediaQuery override clamps the combined scaler to a 0.5
+  // minimum. A config that pushed below would have produced unreadable
+  // micro-text; the clamp tail keeps it usable.
+  group('LetsFLUTsshApp — uiScale floor clamp', () {
+    testWidgets(
+      'a sub-floor uiScale clamps the inherited textScaler at 0.5 — the lower '
+      'bound documents the "readable text" contract',
+      (tester) async {
+        final config = AppConfig.defaults.copyWith(
+          ui: AppConfig.defaults.ui.copyWith(uiScale: 0.25),
+        );
+        await tester.pumpWidget(buildApp(config: config));
+        await tester.pumpAndSettle();
+
+        final mediaQuery = tester.widget<MediaQuery>(
+          find.byType(MediaQuery).last,
+        );
+        // 0.25 × 1.0 inherited = 0.25 → clamped up to 0.5 floor.
+        expect(mediaQuery.data.textScaler, const TextScaler.linear(0.5));
+      },
+    );
+  });
+
+  // ── MainScreen — toggle sidebar shortcut while no tab is active ──
+  // Spec: AppShortcut.toggleSidebar's body is independent of `activeTab`
+  // (unlike closeTab / splitRight). Confirms the binding fires its
+  // setState path even when the workspace has no open tabs.
+  group('MainScreen — toggle-sidebar shortcut with empty workspace', () {
+    testWidgets(
+      'Ctrl+B flips the sidebar even when no tab is active — the binding '
+      'guards by lock state only, not by `activeTab != null`',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        // Sidebar open → chevron_left.
+        expect(find.byIcon(Icons.chevron_left), findsOneWidget);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        // Without an active tab, the toggle still flips — chevron flips
+        // because the body only consults `_sidebarOpen`.
+        expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+      },
+    );
+  });
+
+  // ── MainScreen — closeTab shortcut with no active tab ──
+  // Spec: the closeTab binding checks `activeTab != null` inside the
+  // guarded closure. With no tab the body is a no-op — pressing Ctrl+W
+  // must NOT throw a null deref or otherwise alter the workspace state.
+  group('MainScreen — close-tab shortcut on empty workspace', () {
+    testWidgets(
+      'Ctrl+W no-ops with no active tab — `activeTab != null` gate keeps '
+      'the body off when the workspace is empty',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp).first),
+        );
+        final before = container.read(workspaceProvider).root;
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        // No active tab → no mutation. The workspace root is untouched.
+        final after = container.read(workspaceProvider).root;
+        expect(identical(after, before), isTrue);
+      },
+    );
+  });
+
+  // ── MainScreen — splitRight no-op on empty workspace ──
+  // Spec: the splitRight binding guards on `activeTab != null` before
+  // calling `duplicateTab`. Without a tab the body is a no-op and the
+  // workspace must stay a single empty leaf.
+  group('MainScreen — splitRight shortcut on empty workspace', () {
+    testWidgets(
+      'Ctrl+\\ no-ops with no active tab — `activeTab != null` gate keeps '
+      'duplicateTab from running on an empty panel',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(MaterialApp).first),
+        );
+        final before = container.read(workspaceProvider).root;
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+
+        final after = container.read(workspaceProvider).root;
+        expect(identical(after, before), isTrue);
+      },
+    );
+  });
+
+  // ── LetsFLUTsshApp — Stack mounts ConnectionStateAnnouncer ──
+  // Spec: `_buildAppShell` wraps the active route child in a Stack
+  // whose siblings include `ConnectionStateAnnouncer` (semantics
+  // side-effect widget for accessibility). The announcer must mount
+  // exactly once — duplicate announcers would fire the same
+  // `SemanticsService.sendAnnouncement` twice per transition.
+  group('LetsFLUTsshApp — ConnectionStateAnnouncer mounts once', () {
+    testWidgets(
+      'shell mounts a single ConnectionStateAnnouncer under the MediaQuery — '
+      'duplicates would emit twin semantics announcements on every '
+      'connection state flip',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ConnectionStateAnnouncer), findsOneWidget);
+      },
+    );
+  });
+
+  // ── LetsFLUTsshApp — locale ar resolves to RTL fallback ──
+  // Spec: dropping the explicit Directionality and routing through
+  // localizationsDelegates means a `locale='ar'` config flows to
+  // MaterialApp.locale unchanged. Distinct from the existing `ja` case;
+  // pins the RTL locale arm specifically.
+  group('LetsFLUTsshApp — RTL locale arm', () {
+    testWidgets(
+      'config.locale == "ar" reaches MaterialApp.locale verbatim — the shell '
+      'must not silently rewrite RTL locales to LTR siblings',
+      (tester) async {
+        final config = AppConfig.defaults.copyWith(locale: 'ar');
+        await tester.pumpWidget(buildApp(config: config));
+        await tester.pumpAndSettle();
+
+        final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+        expect(app.locale, const Locale('ar'));
+      },
+    );
   });
 }

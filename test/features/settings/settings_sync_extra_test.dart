@@ -296,6 +296,93 @@ void main() {
   // the `pumpFrames` budget, leaving the test wedged for minutes per
   // case. Covered end-to-end by the WebDAV integration suite.
 
+  // ── _AuthMethodPicker idempotent: tapping the current method stays on it ──
+
+  testWidgets(
+    'tapping the basic chip while basic is selected keeps it as the auth method',
+    (tester) async {
+      // Spec: the picker dispatches `onChanged(m)` unconditionally —
+      // re-selecting the same value re-saves the same config without
+      // mutating it. The downstream Rust config stays consistent.
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.syncEnable));
+      // Default config seeds 'basic'; tapping it again must keep
+      // the auth method at 'basic'.
+      await tester.tap(find.text('basic'));
+      await pumpFrames(tester);
+
+      final cfg = rust_sync.syncConfigGet();
+      expect(cfg.webdavAuthMethod, 'basic');
+    },
+  );
+
+  // ── _AuthMethodPicker bearer arm ──
+
+  testWidgets(
+    'tapping the bearer chip flips the persisted auth method to bearer',
+    (tester) async {
+      // Spec: the picker exposes three values — basic / digest / bearer
+      // — that map 1:1 to the `lfs_core::sync` wire grammar. The bearer
+      // arm covers token-style WebDAV auth (Nextcloud app tokens etc.).
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.syncEnable));
+      await tester.tap(find.text('bearer'));
+      await pumpFrames(tester);
+
+      final cfg = rust_sync.syncConfigGet();
+      expect(cfg.webdavAuthMethod, 'bearer');
+    },
+  );
+
+  // ── Initial-render contract: all three auth chips visible ──
+
+  testWidgets('auth-method picker mounts all three chips on first render', (
+    tester,
+  ) async {
+    // Spec: the picker hard-codes `['basic', 'digest', 'bearer']` —
+    // the closed set the orchestrator accepts. A re-skin that drops
+    // any chip would silently break the corresponding wire variant
+    // for the user.
+    sizeView(tester);
+    await tester.pumpWidget(buildApp());
+    await pumpFrames(tester);
+    final l10n = await loadL10n();
+
+    await scrollTo(tester, find.text(l10n.syncEnable));
+    expect(find.text('basic'), findsOneWidget);
+    expect(find.text('digest'), findsOneWidget);
+    expect(find.text('bearer'), findsOneWidget);
+  });
+
+  // ── _SyncTimestampRow renders "Never run" for a zero timestamp ──
+
+  testWidgets(
+    'last-pushed / last-pulled rows render the "never run" sentinel on a fresh config',
+    (tester) async {
+      // Spec: `_formatMs` is skipped when the stored timestamp is 0;
+      // the row falls back to the localized `syncNeverRun` text. The
+      // setUp resets the sync config so both timestamps start at 0.
+      sizeView(tester);
+      await tester.pumpWidget(buildApp());
+      await pumpFrames(tester);
+      final l10n = await loadL10n();
+
+      await scrollTo(tester, find.text(l10n.syncEnable));
+      // Both the "Last pushed" and "Last pulled" rows render with the
+      // localized "Never run" placeholder when no timestamp is set.
+      expect(find.text(l10n.syncLastPushed(l10n.syncNeverRun)), findsOneWidget);
+      expect(find.text(l10n.syncLastPulled(l10n.syncNeverRun)), findsOneWidget);
+    },
+  );
+
   // ── Push / pull verb dispatch ──
   // covered by integration: `syncStatusProvider.notifier.push()` /
   // `.pull()` hit a real WebDAV endpoint; the `_showResultToast` per-kind

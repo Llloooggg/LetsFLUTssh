@@ -144,6 +144,99 @@ void main() {
       skip: 'covered by integration: requires live russh server fixture',
     );
   });
+
+  group('SshShellEvent — pattern matching exhaustiveness', () {
+    // Spec: the sealed `SshShellEvent` hierarchy lets the terminal
+    // renderer use exhaustive `switch` over the variants — a future
+    // additional variant trips the analyzer at every call site. Pin
+    // the discriminators so a renamed branch breaks here first.
+    test('every concrete variant is a distinct runtimeType', () {
+      final output = SshShellOutput(Uint8List.fromList([0]));
+      final extended = SshShellExtendedOutput(Uint8List.fromList([0]));
+      const eof = SshShellEof();
+      const exit = SshShellExitStatus(0);
+      const signal = SshShellExitSignal('HUP');
+
+      final types = <Type>{
+        output.runtimeType,
+        extended.runtimeType,
+        eof.runtimeType,
+        exit.runtimeType,
+        signal.runtimeType,
+      };
+      // Five concrete variants — overlap would mean a re-export
+      // collapsed the discriminator and the renderer would mis-route.
+      expect(types.length, 5);
+    });
+
+    test(
+      'ExitStatus carries the full int32 range — negative codes survive',
+      () {
+        // Spec: the Rust wire is `i32`; the Dart side widens to `int`.
+        // Some shells surface `-1` to indicate the process was killed
+        // before reporting a status. Pin that the negative-int round
+        // trip is intact — a `uint`-typed accessor would clamp to 0.
+        const e = SshShellExitStatus(-1);
+        expect(e.code, -1);
+      },
+    );
+
+    test('ExitSignal carries an empty signal name without nullifying', () {
+      // Spec: `_mapEvent` does not pre-filter the signal name; the
+      // engine occasionally emits an empty string when the channel
+      // reports an exit without a signal label. The Dart class must
+      // round-trip the empty value rather than collapsing to null.
+      const e = SshShellExitSignal('');
+      expect(e.signal, '');
+    });
+
+    test(
+      'Output bytes view is the same reference passed in — no defensive copy',
+      () {
+        // Spec: `_mapEvent` wraps the engine bytes verbatim so the
+        // renderer can adopt the buffer without paying for a copy on
+        // every shell frame. A defensive copy here would cap the shell
+        // throughput at half the FRB ingestion rate on long-running
+        // sessions emitting large buffers.
+        final bytes = Uint8List.fromList(List.filled(4096, 0x41));
+        final ev = SshShellOutput(bytes);
+        expect(identical(ev.bytes, bytes), isTrue);
+      },
+    );
+  });
+
+  group('SshConnectError — discriminator vs sibling exceptions', () {
+    // Spec: the localizer in `lib/utils/format.dart` discriminates
+    // connect-phase failures from auth / host-key failures by
+    // exception type. Sibling errors must not be assignable to
+    // `SshConnectError` or the catch arm would pull the wrong copy.
+    test('SshConnectError is not a SshHostKeyRejected', () {
+      const e = SshConnectError('refused');
+      expect(e, isNot(isA<SshHostKeyRejected>()));
+      expect(e, isNot(isA<SshAuthFailed>()));
+    });
+
+    test(
+      'SshAuthFailed has no message field — toString is the typed sentinel',
+      () {
+        // Spec: the auth-failed singleton is a typed marker — the UI
+        // localizes it without reading a payload. A regression that
+        // added a message field would change the toString and break
+        // log greps.
+        const e = SshAuthFailed();
+        expect(e.toString(), 'SshAuthFailed');
+      },
+    );
+
+    test('SshHostKeyRejected toString embeds the rejected fingerprint', () {
+      // Spec: the log breadcrumb format pairs the typed name with
+      // the rejected fingerprint so an operator scanning a log can
+      // pin the host without cross-referencing.
+      const e = SshHostKeyRejected('SHA256:AAAA');
+      expect(e.toString(), contains('SshHostKeyRejected'));
+      expect(e.toString(), contains('SHA256:AAAA'));
+    });
+  });
 }
 
 bool _isSubtype<Sub, Super>() => <Sub>[] is List<Super>;

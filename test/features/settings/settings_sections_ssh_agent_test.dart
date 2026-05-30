@@ -282,5 +282,96 @@ void main() {
       await scrollTo(tester, find.text(l10n.fido2BrokerSectionTitle));
       expect(find.text(l10n.fido2BrokerSectionTitle), findsOneWidget);
     });
+
+    testWidgets(
+      'toggle row is mounted exactly once in the SSH integration card',
+      (tester) async {
+        // Spec: the agent section paints one `_Toggle` for the
+        // running on/off verb. A regression that duplicated the
+        // toggle (e.g. moving it from `_SshAgentSection` to a parent
+        // wrapper without removing the original) would render two
+        // visually-identical rows and the operator would not know
+        // which one is authoritative. Pin the singleton mount via
+        // the localized label.
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.agentEndpointToggleTitle));
+        expect(
+          find.text(l10n.agentEndpointToggleTitle),
+          findsOneWidget,
+          reason:
+              'agentEndpointToggleTitle must appear exactly once — '
+              'a duplicate would split the toggle verb across two rows.',
+        );
+      },
+    );
+
+    testWidgets(
+      'copy-button label variant is exclusive — never both pipe-name and env-var labels',
+      (tester) async {
+        // Spec: `_SshAgentSection.build` picks ONE of
+        // `agentEndpointCopyPipeName` (Windows) /
+        // `agentEndpointCopyEnvVar` (Unix) per render. The two
+        // labels are mutually exclusive — a regression that paints
+        // both would leave the operator with two competing copy
+        // verbs. On the stopped endpoint neither shows; pin the
+        // mutual exclusion either way so adding the running overlay
+        // later cannot regress this invariant.
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.agentEndpointSectionTitle));
+        final pipeFound = find.text(l10n.agentEndpointCopyPipeName);
+        final envFound = find.text(l10n.agentEndpointCopyEnvVar);
+        // Cannot both be present simultaneously — at least one must
+        // be absent regardless of host platform.
+        expect(
+          tester.widgetList(pipeFound).isEmpty ||
+              tester.widgetList(envFound).isEmpty,
+          isTrue,
+          reason:
+              'Pipe-name and env-var copy labels must never coexist — they '
+              'are platform-mutually-exclusive variants of the same verb.',
+        );
+      },
+    );
+
+    testWidgets(
+      'section header is positioned ABOVE its toggle inside the same card',
+      (tester) async {
+        // Spec: `_SshAgentSection.build` returns a
+        // `Column(crossAxisAlignment: start)` with the
+        // `_SectionHeader` first and the `_Toggle` second. A
+        // regression that reordered them (header below toggle)
+        // would break the visual hierarchy — the operator would
+        // see a toggle with no enclosing label until they scrolled
+        // past it. Pin the vertical ordering through the rendered
+        // y-coordinates of the localized labels.
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.agentEndpointSectionTitle));
+        final headerY = tester
+            .getTopLeft(find.text(l10n.agentEndpointSectionTitle))
+            .dy;
+        final toggleY = tester
+            .getTopLeft(find.text(l10n.agentEndpointToggleTitle))
+            .dy;
+        expect(
+          headerY,
+          lessThan(toggleY),
+          reason:
+              'Agent-endpoint section header must paint ABOVE its toggle '
+              'so the operator reads the umbrella label before the verb.',
+        );
+      },
+    );
   });
 }

@@ -343,6 +343,103 @@ void main() {
     }, skip: true);
   });
 
+  // ── Re-check button: spinner state during the in-flight probe ──
+
+  testWidgets(
+    'Re-check button stays mounted and re-renders after the probe completes',
+    (tester) async {
+      // Spec: tapping Re-check flips `_recheckingTiers` true → renders
+      // the spinner inside the button → resolves the capability +
+      // probe-detail futures → flips back to false. The button must
+      // still be in the tree after the round-trip — disappearing would
+      // hide the affordance on hosts where nothing changed.
+      tester.view.physicalSize = const Size(900, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildApp());
+      await _pumpSettleAfterInit(tester);
+
+      final l10n = await S.delegate.load(const Locale('en'));
+      await tester.scrollUntilVisible(
+        find.text(l10n.securityRecheck),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text(l10n.securityRecheck));
+      // Pump a few frames so the spinner state runs through, then
+      // settle the FRB-shimmed probe calls.
+      await _pumpSettleAfterInit(tester);
+      // Spec: button rebuilt back to the label state once the futures
+      // resolve.
+      expect(find.text(l10n.securityRecheck), findsOneWidget);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── All four tier ladder cards persist after a Re-check ──
+
+  testWidgets(
+    'tier ladder cards all stay mounted after a Re-check round-trip',
+    (tester) async {
+      // Spec: `_rerunTierProbes` calls `ref.invalidate` on three
+      // capability providers then awaits their fresh futures. Each
+      // invalidation triggers a rebuild — the tier cards must survive
+      // it without throwing or dropping any tier from the ladder.
+      tester.view.physicalSize = const Size(900, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildApp());
+      await _pumpSettleAfterInit(tester);
+
+      final l10n = await S.delegate.load(const Locale('en'));
+      await tester.scrollUntilVisible(
+        find.text(l10n.securityRecheck),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text(l10n.securityRecheck));
+      await _pumpSettleAfterInit(tester);
+
+      // Every tier label is still in the tree after the re-check
+      // rebuilds the ladder.
+      expect(find.text(l10n.tierPlaintextLabel), findsWidgets);
+      expect(find.text(l10n.tierKeychainLabel), findsWidgets);
+      expect(find.text(l10n.tierHardwareLabel), findsWidgets);
+      expect(find.text(l10n.tierParanoidLabel), findsWidgets);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── Re-check button mounts with the refresh icon visible ──
+
+  testWidgets('Re-check button surfaces the refresh icon before any tap', (
+    tester,
+  ) async {
+    // Spec: `_SecuritySectionState.build` wires the Re-check button
+    // with `icon: Icons.refresh`. The icon is what tells the user
+    // "press this to re-probe" — a re-skin that dropped the icon
+    // would leave the button reading like any other text action.
+    tester.view.physicalSize = const Size(900, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(buildApp());
+    await _pumpSettleAfterInit(tester);
+
+    final l10n = await S.delegate.load(const Locale('en'));
+    await tester.scrollUntilVisible(
+      find.text(l10n.securityRecheck),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byIcon(Icons.refresh), findsWidgets);
+  });
+
   // ----------------------------------------------------------------
   // settings_sections_security_biometric.dart — biometric-modifier
   // flow
