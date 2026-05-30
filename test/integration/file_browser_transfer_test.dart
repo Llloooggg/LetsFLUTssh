@@ -452,21 +452,42 @@ void main() {
       // The original is preserved; a renamed sibling carries the
       // remote bytes.
       expect(File('${localDir.path}/remote.txt').readAsStringSync(), 'KEEP-ME');
-      final siblings = localDir.listSync().whereType<File>().where((f) {
+      // The Rust downloader writes into a `<name>.<uuid>.part`
+      // sidecar and renames it to the final sibling name on flush.
+      // Filter out the `.part` artefact so the poll doesn't race the
+      // rename and `readAsStringSync` a file that just got renamed
+      // away — the CI flake was a `PathNotFoundException` on the
+      // `.part` path between `listSync` and `readAsStringSync`.
+      bool isFinalSibling(File f) {
         final name = f.path.split(Platform.pathSeparator).last;
-        return name != 'remote.txt' && name.startsWith('remote');
-      }).toList();
+        return name != 'remote.txt' &&
+            name.startsWith('remote') &&
+            !name.endsWith('.part');
+      }
+
+      final siblings = localDir
+          .listSync()
+          .whereType<File>()
+          .where(isFinalSibling)
+          .toList();
       // Wait for the sibling to appear.
       final deadline = DateTime.now().add(const Duration(seconds: 20));
       File? sibling;
       while (DateTime.now().isBefore(deadline)) {
-        final fresh = localDir.listSync().whereType<File>().where((f) {
-          final name = f.path.split(Platform.pathSeparator).last;
-          return name != 'remote.txt' && name.startsWith('remote');
-        }).toList();
-        if (fresh.isNotEmpty && fresh.first.readAsStringSync() == 'REMOTE') {
-          sibling = fresh.first;
-          break;
+        final fresh = localDir
+            .listSync()
+            .whereType<File>()
+            .where(isFinalSibling)
+            .toList();
+        if (fresh.isNotEmpty) {
+          try {
+            if (fresh.first.readAsStringSync() == 'REMOTE') {
+              sibling = fresh.first;
+              break;
+            }
+          } on FileSystemException {
+            // Lost the rename race; re-poll.
+          }
         }
         await Future<void>.delayed(const Duration(milliseconds: 50));
       }
