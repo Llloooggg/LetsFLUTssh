@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/src/rust/api/terminal.dart';
 import 'package:letsflutssh/widgets/terminal/terminal_controller.dart';
+import 'package:letsflutssh/widgets/terminal/terminal_palette_theme.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -145,6 +146,45 @@ void main() {
       final controller = ReplayTerminalController(cols: 20, rows: 5);
       controller.dispose();
       expect(() => controller.feed(utf8.encode('x')), throwsA(anything));
+    });
+
+    test('setPalette pushes the new palette and notifies repaint', () {
+      // Spec: a brightness flip re-themes the terminal by handing a
+      // fresh `TerminalPalette` to the engine and pulsing the repaint
+      // signal so the view re-pulls a snapshot resolving cell colors
+      // against the new palette. The grid contents stay intact — only
+      // resolved RGB values change on the next snapshot.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      controller.feed(utf8.encode('A'));
+      final beforeCells = controller.snapshot().cells.length;
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      controller.setPalette(TerminalPaletteFromTheme.fromAppTheme());
+
+      expect(notified, 1);
+      // Same content count after re-theming — palette swap does not
+      // wipe the grid.
+      expect(controller.snapshot().cells.length, beforeCells);
+    });
+
+    test('snapshot reports the configured cols/rows', () {
+      final controller = ReplayTerminalController(cols: 30, rows: 12);
+      addTearDown(controller.dispose);
+      final frame = controller.snapshot();
+      expect(frame.cols, 30);
+      expect(frame.rows, 12);
+    });
+
+    test('repaint listenable is this notifier (single source)', () {
+      // `Listenable get repaint => this;` on the replay adapter — the
+      // view listens to the same ChangeNotifier the controller mixes
+      // in, so removing a listener via `repaint.removeListener` and
+      // `this.removeListener` reach the same dispatch table.
+      final controller = ReplayTerminalController(cols: 10, rows: 5);
+      addTearDown(controller.dispose);
+      expect(identical(controller.repaint, controller), isTrue);
     });
   });
 }

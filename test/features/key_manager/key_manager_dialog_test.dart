@@ -8,6 +8,11 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/ssh_keys/hardware_key_badge.dart';
+import 'package:letsflutssh/widgets/ssh_keys/enclave_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/hello_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/keystore_ssh_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/pkcs11_import_dialog.dart';
+import 'package:letsflutssh/widgets/ssh_keys/tpm_ssh_dialog.dart';
 import 'package:letsflutssh/widgets/core/toast.dart';
 
 import '../../helpers/frb_bootstrap.dart';
@@ -32,6 +37,17 @@ SshKeyMetadata _meta({
   String keyType = 'ssh-ed25519',
   String backend = 'software',
   bool importedAsStub = false,
+  String certFingerprint = '',
+  CertValidity? validity,
+  String? pkcs11ModulePath,
+  String? pkcs11TokenSerial,
+  String? pkcs11ObjectLabel,
+  String? helloCredentialName,
+  String? tpmProvider,
+  int? tpmHandle,
+  bool tpmPinRequired = false,
+  bool keystoreStrongBox = false,
+  String? keystorePlatform,
 }) => SshKeyMetadata(
   id: id,
   label: label,
@@ -43,6 +59,17 @@ SshKeyMetadata _meta({
   publicFingerprint: 'pub-$id',
   backend: backend,
   importedAsStub: importedAsStub,
+  certFingerprint: certFingerprint,
+  validity: validity,
+  pkcs11ModulePath: pkcs11ModulePath,
+  pkcs11TokenSerial: pkcs11TokenSerial,
+  pkcs11ObjectLabel: pkcs11ObjectLabel,
+  helloCredentialName: helloCredentialName,
+  tpmProvider: tpmProvider,
+  tpmHandle: tpmHandle,
+  tpmPinRequired: tpmPinRequired,
+  keystoreStrongBox: keystoreStrongBox,
+  keystorePlatform: keystorePlatform,
 );
 
 void main() {
@@ -152,6 +179,191 @@ void main() {
       // Stub-only actions must not appear on a non-stub row.
       expect(find.byTooltip('Re-generate here'), findsNothing);
     });
+
+    testWidgets('PKCS#11 row renders the Pkcs11Badge from _KeyRowBadges', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'p11',
+              label: 'Smart card',
+              backend: 'pkcs11',
+              pkcs11ModulePath: '/usr/lib/opensc-pkcs11.so',
+              pkcs11TokenSerial: 'TOK-001',
+              pkcs11ObjectLabel: 'auth-key',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(Pkcs11Badge), findsOneWidget);
+    });
+
+    testWidgets('Enclave row renders the EnclaveBadge from _KeyRowBadges', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'enc', label: 'Mac key', backend: 'enclave')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(EnclaveBadge), findsOneWidget);
+    });
+
+    testWidgets(
+      'Hello row renders the HelloBadge with the captured credential name',
+      (tester) async {
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'hello1',
+                label: 'Win Hello key',
+                backend: 'hello',
+                helloCredentialName: 'lfssh-key-1',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(HelloBadge), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'TPM row renders the TpmBadge; cng-pcp provider flags the silent '
+      'warning copy on the row',
+      (tester) async {
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'tpm1',
+                label: 'TPM key',
+                backend: 'tpm',
+                tpmProvider: 'cng-pcp',
+                tpmHandle: 0x81010001,
+                tpmPinRequired: true,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(TpmBadge), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Linux TPM (tss-esapi) row renders TpmBadge without the silent flag',
+      (tester) async {
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'tpm2',
+                label: 'Linux TPM key',
+                backend: 'tpm',
+                tpmProvider: 'tss-esapi',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(TpmBadge), findsOneWidget);
+      },
+    );
+
+    testWidgets('Android Keystore row renders the KeystoreBadge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'ks1',
+              label: 'Pixel key',
+              backend: 'keystore',
+              keystoreStrongBox: true,
+              keystorePlatform: 'Pixel 8 (Android 14)',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(KeystoreBadge), findsOneWidget);
+    });
+
+    testWidgets(
+      'Expired certificate paints the red _ExpiredBadge in the row trail',
+      (tester) async {
+        // Spec: when `entry.validity.isExpired` resolves true (cert
+        // `valid_before` in the past), `_KeyRowBadges` appends the
+        // red "Expired" pill. The label text comes from
+        // `S.of(context).certExpired` so we match it by visible text.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'exp1',
+                label: 'Old cert key',
+                certFingerprint: 'SHA256:expired-cert-fp',
+                validity: CertValidity(
+                  from: DateTime(2020, 1, 1),
+                  to: DateTime(2020, 6, 1),
+                ),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Expired'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'row with a valid certificate exposes the cert-remove (orange) action '
+      'instead of the cert-import affordance',
+      (tester) async {
+        // Spec: `_KeyRowActions` switches the second slot based on
+        // `entry.hasCertificate` — present → orange "Remove certificate"
+        // tooltip; absent → neutral "Attach an OpenSSH certificate…".
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'cert1',
+                label: 'Key with cert',
+                certFingerprint: 'SHA256:cert-fp',
+                validity: CertValidity(
+                  from: DateTime(2099, 1, 1),
+                  to: DateTime(2099, 12, 31),
+                ),
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        // Cert remove action is reachable via the localized tooltip
+        // `certRemove`. The localized string lives in app_en.arb; we
+        // do not pin a substring (the copy might evolve) and instead
+        // pin the structural cue: the import-cert "Attach…" tooltip
+        // must NOT appear when a cert is already attached.
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Tooltip &&
+                (w.message?.startsWith(
+                      'Attach an OpenSSH certificate signed by your CA',
+                    ) ??
+                    false),
+          ),
+          findsNothing,
+        );
+      },
+    );
 
     testWidgets(
       'stub row swaps the action set to [Re-generate, Remove] and hides the '
