@@ -731,12 +731,17 @@ fn fingerprint_for_row(row: &SshKeyRow) -> String {
 /// limited to one call site so we keep the helper private rather than
 /// promoting it into the cross-module surface.
 trait KeyDataEncodeBytes {
-    fn encoded_bytes(&self) -> Result<Vec<u8>, ssh_agent_lib::ssh_encoding::Error>;
+    fn encoded_bytes(&self) -> Result<Vec<u8>, russh::keys::ssh_encoding::Error>;
 }
 
 impl KeyDataEncodeBytes for russh::keys::ssh_key::public::KeyData {
-    fn encoded_bytes(&self) -> Result<Vec<u8>, ssh_agent_lib::ssh_encoding::Error> {
-        use ssh_agent_lib::ssh_encoding::Encode;
+    fn encoded_bytes(&self) -> Result<Vec<u8>, russh::keys::ssh_encoding::Error> {
+        // `russh::keys` re-exports its own `ssh_encoding::Encode` since
+        // 0.61 — the `ssh_agent_lib::ssh_encoding::Encode` trait is now
+        // a distinct type and `russh::keys::ssh_key::public::KeyData`
+        // no longer implements it. Use the russh-re-exported trait so
+        // the call resolves against the type's actual blanket impl.
+        use russh::keys::ssh_encoding::Encode;
         let mut out = Vec::with_capacity(self.encoded_len()?);
         self.encode(&mut out)?;
         Ok(out)
