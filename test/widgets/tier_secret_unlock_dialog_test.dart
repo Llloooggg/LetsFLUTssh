@@ -508,5 +508,133 @@ void main() {
       expect(observedSecret, '1234');
       expect(result, isTrue);
     });
+
+    testWidgets(
+      'numeric input without maxLength accepts arbitrarily long digit strings',
+      (tester) async {
+        // Spec: maxLength is optional. A numeric path without it must
+        // accept any number of digits — the legacy T2 PIN paths that
+        // ship without an explicit cap rely on the absence of a
+        // truncation. Letters still get filtered out by the
+        // digits-only formatter regardless of cap.
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 'L3',
+                      hint: 'pin',
+                      inputLabel: 'PIN',
+                      wrongSecretLabel: 'wrong',
+                      numeric: true,
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'abc12345678def90');
+        final field = tester.widget<TextField>(find.byType(TextField));
+        // Letters filtered, digits preserved in full.
+        expect(field.controller?.text, '1234567890');
+      },
+    );
+
+    testWidgets(
+      'autoTrigger=false then tap retry button fires the biometric callback',
+      (tester) async {
+        // Spec: callers that already tried biometric before opening the
+        // dialog pass autoTrigger=false. The retry button must still
+        // dispatch `unlock` exactly once per user tap so the user can
+        // re-invoke the system prompt without relaunching.
+        var bioCalls = 0;
+        bool? result;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  result = await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      autoTrigger: false,
+                      unlock: () async {
+                        bioCalls += 1;
+                        return true;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // First frame must not fire.
+        expect(bioCalls, 0);
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        await tester.tap(find.text(l10n.biometricUnlockTitle));
+        await tester.pumpAndSettle();
+        // One tap → one call → success closes the dialog with true.
+        expect(bioCalls, 1);
+        expect(result, isTrue);
+      },
+    );
+
+    testWidgets(
+      'maxLength boundary: input above the cap is truncated to the cap',
+      (tester) async {
+        // Spec: TierSecretUnlockLabels.maxLength applies as a hard cap
+        // on the field. The dialog passes the int straight through to
+        // SecurePasswordField (which in turn binds it to the
+        // LengthLimitingTextInputFormatter); anything above the cap
+        // must be dropped before reaching the controller.
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 'L3',
+                      hint: 'pin',
+                      inputLabel: 'PIN',
+                      wrongSecretLabel: 'wrong',
+                      maxLength: 6,
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'abcdefghij');
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.maxLength, 6);
+        expect(field.controller?.text, 'abcdef');
+      },
+    );
   });
 }

@@ -364,6 +364,177 @@ void main() {
     },
   );
 
+  testWidgets(
+    'flipping `isActive` on widget update is forwarded straight through to '
+    'the TilingView — the tab must re-render with the new foreground flag',
+    (tester) async {
+      // Spec: parent rebuilds with `isActive: true → false` (user
+      // switched away from this tab); the tab is a pass-through and
+      // must propagate the new flag without resetting its tree or
+      // dropping the focused-pane id. Pins `build()` reads from
+      // `widget.isActive` rather than a stale field captured at
+      // initState time.
+      const tabId = 'tab-flip';
+      final conn = _makeConnectingConnection();
+      addTearDown(conn.dispose);
+      final container = _container(conn);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(_host(conn, container, tabId: tabId));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        tester.widget<TilingView>(find.byType(TilingView)).isActiveTab,
+        isTrue,
+      );
+      final beforeId = container.read(focusedPaneProvider(tabId));
+
+      // Rebuild with the same key/conn but a new `isActive` flag.
+      await tester.pumpWidget(
+        _host(conn, container, tabId: tabId, isActive: false),
+      );
+      await tester.pump();
+
+      expect(
+        tester.widget<TilingView>(find.byType(TilingView)).isActiveTab,
+        isFalse,
+        reason:
+            'A widget rebuild that flips `isActive` must propagate the new '
+            'value down to the TilingView on the next build.',
+      );
+      // Focused-pane id is unchanged — the rebuild is a flag flip, not
+      // a remount, so the leaf id the workspace bar tracks persists.
+      expect(
+        container.read(focusedPaneProvider(tabId)),
+        equals(beforeId),
+        reason:
+            'A flag-only rebuild must not rotate the leaf id — the '
+            'focused-pane provider must keep pointing at the same pane.',
+      );
+    },
+  );
+
+  testWidgets(
+    'reconnect() called twice in a row runs the factory twice and the second '
+    'call re-resets the tree to a fresh single-leaf root',
+    (tester) async {
+      // Spec: each `reconnect()` mints a fresh `LeafNode` and routes
+      // through the factory once. Two back-to-back calls must each
+      // produce their own factory invocation and end with exactly one
+      // leaf — no leaks of the prior leaf, no skipped factory runs.
+      const tabId = 'tab-double-reconnect';
+      final conn = _makeConnectingConnection();
+      addTearDown(conn.dispose);
+      final manager = _RecordingConnectionsNotifier([conn]);
+      final container = _container(conn, manager: manager);
+      addTearDown(container.dispose);
+
+      var factoryCalls = 0;
+      Future<void> factory(Connection c) async {
+        factoryCalls++;
+      }
+
+      final tabKey = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(
+        _host(
+          conn,
+          container,
+          tabId: tabId,
+          tabKey: tabKey,
+          reconnectFactory: factory,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      final firstLeafId = container.read(focusedPaneProvider(tabId));
+
+      tabKey.currentState!.reconnect();
+      await tester.pumpAndSettle();
+      final secondLeafId = container.read(focusedPaneProvider(tabId));
+
+      tabKey.currentState!.reconnect();
+      await tester.pumpAndSettle();
+      final thirdLeafId = container.read(focusedPaneProvider(tabId));
+
+      expect(
+        factoryCalls,
+        2,
+        reason:
+            'Each reconnect call must invoke the factory exactly once — '
+            'no de-duplication, no skipped runs.',
+      );
+      expect(secondLeafId, isNot(equals(firstLeafId)));
+      expect(thirdLeafId, isNot(equals(secondLeafId)));
+      expect(find.byType(TerminalPane), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'tab unmounted mid-reconnect: the pending factory future resolves on the '
+    'connection without crashing the disposed state — the finally branch in '
+    '_runReconnectFactory must complete the ready future even when the host '
+    'widget is gone',
+    (tester) async {
+      // Spec: `_runReconnectFactory` is a `Future<void>` that the tab
+      // fires-and-forgets. If the tab disposes before the factory
+      // resolves, the finally branch still has to call
+      // `conn.completeReady()` so external awaiters of `conn.ready`
+      // unblock. The widget's own `mounted` guard is internal — the
+      // contract is "ready resolves on factory completion regardless
+      // of host widget lifecycle".
+      final conn = _makeConnectingConnection();
+      conn.resetForReconnect();
+      // The host widget below is unmounted mid-test; the connection
+      // outlives it, so dispose explicitly at the end.
+      addTearDown(conn.dispose);
+      final manager = _RecordingConnectionsNotifier([conn]);
+      final container = _container(conn, manager: manager);
+      addTearDown(container.dispose);
+
+      final completer = Completer<void>();
+      Future<void> factory(Connection c) async {
+        await completer.future;
+      }
+
+      final tabKey = GlobalKey<TerminalTabState>();
+      await tester.pumpWidget(
+        _host(conn, container, tabKey: tabKey, reconnectFactory: factory),
+      );
+      await tester.pump();
+
+      tabKey.currentState!.reconnect();
+      // Factory is parked on the completer; pump once so the state
+      // machine reaches the await.
+      await tester.pump();
+
+      // Unmount the tab while the factory is still pending. Pumping a
+      // bare SizedBox tears down the entire MaterialApp / Scaffold
+      // subtree.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      // Release the parked factory — finally branch runs on a now-
+      // disposed widget. The contract is: no crash, ready resolves.
+      completer.complete();
+      await tester.pump();
+      await tester.pump();
+
+      var resolved = false;
+      unawaited(conn.ready.then((_) => resolved = true));
+      await tester.pump();
+      expect(
+        resolved,
+        isTrue,
+        reason:
+            'The finally branch in `_runReconnectFactory` must complete '
+            'the connection ready future even when the host widget has '
+            'been unmounted mid-flight.',
+      );
+      expect(conn.state, SSHConnectionState.connected);
+    },
+  );
+
   // The interactive split / close / focus paths go through
   // `TerminalPane.onClose`, which is only non-null when the tree has
   // multiple panes. Driving a split requires a user-visible context

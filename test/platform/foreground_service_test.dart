@@ -212,4 +212,105 @@ void main() {
       expect(notificationText(en, 3), '3 active connections');
     });
   });
+
+  // Spec: the manager must cache localisations and pass them through to
+  // every start / update so the notification renders in the user's
+  // active locale, not in whichever locale the foreground task happened
+  // to spin up under. When the locale changes mid-session the next
+  // notification update must see the new bundle.
+  group('ForegroundServiceManager — localisation caching', () {
+    /// Records which S bundle was passed to each start/update call.
+    late _LocaleRecordingBinding binding;
+    late ForegroundServiceManager manager;
+    late S en;
+
+    setUpAll(() async {
+      en = await S.delegate.load(const Locale('en'));
+    });
+
+    setUp(() {
+      binding = _LocaleRecordingBinding();
+      manager = ForegroundServiceManager(binding: binding);
+    });
+
+    test('falls back to English when no localisations have been set', () async {
+      manager.init();
+      await manager.onConnectionCountChanged(1);
+      expect(binding.startLocalizations, hasLength(1));
+      // Fallback is the English bundle — same body the en-loaded
+      // bundle produces for the same count.
+      expect(
+        notificationText(binding.startLocalizations.single, 1),
+        notificationText(en, 1),
+      );
+    });
+
+    test('uses the cached localisations bundle for start + update', () async {
+      manager.init();
+      manager.setLocalizations(en);
+      await manager.onConnectionCountChanged(1);
+      await manager.onConnectionCountChanged(2);
+      expect(binding.startLocalizations, [en]);
+      expect(binding.updateLocalizations, [en]);
+    });
+  });
+
+  // Spec: every state transition that calls into the binding (start,
+  // update, stop) must be no-op when the manager has not been
+  // initialised. Without this guard a host that forgets to call
+  // [init] would happily fire start, the binding would fail, and the
+  // user would see a one-off notification with no service alive.
+  group('ForegroundServiceManager — uninitialised guard', () {
+    late FakeBinding binding;
+    late ForegroundServiceManager manager;
+
+    setUp(() {
+      binding = FakeBinding();
+      manager = ForegroundServiceManager(binding: binding);
+    });
+
+    test('dispose without init is a no-op', () async {
+      await manager.dispose();
+      expect(binding.stopCount, 0);
+    });
+
+    test(
+      'count changes ignored when isSupported but not initialised',
+      () async {
+        await manager.onConnectionCountChanged(1);
+        await manager.onConnectionCountChanged(0);
+        expect(binding.startCounts, isEmpty);
+        expect(binding.updateCounts, isEmpty);
+        expect(binding.stopCount, 0);
+      },
+    );
+  });
+}
+
+/// Captures the `S` bundle each start/update was called with so the
+/// localisation-cache contract can be asserted without mocking the
+/// translation surface.
+class _LocaleRecordingBinding implements ForegroundServiceBinding {
+  final startLocalizations = <S>[];
+  final updateLocalizations = <S>[];
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  void initService() {}
+
+  @override
+  Future<bool> startService(int count, S localizations) async {
+    startLocalizations.add(localizations);
+    return true;
+  }
+
+  @override
+  Future<void> updateNotification(int count, S localizations) async {
+    updateLocalizations.add(localizations);
+  }
+
+  @override
+  Future<void> stopService() async {}
 }

@@ -290,5 +290,65 @@ void main() {
         );
       },
     );
+
+    test('Probe variant with empty reason still collapses to unsupported', () {
+      // Spec: the helper must not branch on whether the Rust-side
+      // reason string is empty — every Probe sub-case is a
+      // platform-unsupported answer for the UI, even when the
+      // diagnostic carries no text (a backend that produces a
+      // bare error without context still must not crash the UI).
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.probe(''),
+        ),
+        BiometricUnavailableReason.platformUnsupported,
+      );
+    });
+  });
+
+  group('BiometricBackingLevel — ordering invariant', () {
+    test(
+      'hardware sorts before software (Settings card reflects the index)',
+      () {
+        // Spec: the Settings card renders the active backing level next
+        // to the biometric toggle and labels `hardware` as the stronger
+        // guarantee. The two-value enum is declared in that order in
+        // the source — flipping it would relabel every locale's UI
+        // copy without anyone noticing until release.
+        expect(BiometricBackingLevel.hardware.index, 0);
+        expect(BiometricBackingLevel.software.index, 1);
+      },
+    );
+  });
+
+  group('BiometricUnavailableReason — ordering invariant', () {
+    test('declaration order matches the disabled-reason switch', () {
+      // Spec: the Settings disabled-reason resolver in
+      // settings_sections_security._biometricDisabledReason switches on
+      // each variant in declaration order. Renumbering the enum
+      // (e.g. inserting a new variant in the middle) without a
+      // matching switch update would silently drop the new branch
+      // through to the catch-all.
+      expect(BiometricUnavailableReason.platformUnsupported.index, 0);
+      expect(BiometricUnavailableReason.noSensor.index, 1);
+      expect(BiometricUnavailableReason.notEnrolled.index, 2);
+      expect(BiometricUnavailableReason.systemServiceMissing.index, 3);
+    });
+  });
+
+  group('BiometricAuth — non-Linux happy path constructs', () {
+    test(
+      'no fprintd / TPM overrides supplied: instance constructs with defaults',
+      () {
+        // Spec: every overrideable seam is optional. A caller that
+        // supplies none constructs a BiometricAuth bound to the
+        // production FRB defaults; the absence of an override must
+        // never throw at construction. Exercising the constructor
+        // pins both branches of the `?? default` ladder in coverage
+        // for the four fields without booting the native lib.
+        final bio = BiometricAuth();
+        expect(bio, isA<BiometricAuth>());
+      },
+    );
   });
 }

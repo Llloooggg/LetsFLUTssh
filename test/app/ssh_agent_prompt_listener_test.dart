@@ -24,6 +24,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/ssh_agent_prompt_listener.dart';
+import 'package:letsflutssh/src/rust/api/bus.dart' as rust_bus;
+import 'package:letsflutssh/src/rust/api/ssh_agent.dart' as rust_ssh_agent;
 import 'package:letsflutssh/src/rust/frb_generated.dart' show RustLib;
 
 import '../helpers/frb_bootstrap.dart';
@@ -102,17 +104,86 @@ void main() {
     });
   });
 
-  group('event routing — kind → dialog / decision dispatch', () {
-    // covered by integration: the `_onEvent` filter, the
+  group('BusEvent_SshAgentSignaturePrompt payload shape', () {
+    setUpAll(requireFrbLoaded);
+
+    test('exposes every field the dialog reads off the event', () {
+      // `_handlePrompt` logs `event.keyId` and `_showDialog` hands
+      // `keyLabel` + `requester` into `AgentSignatureRequestDialog.show`.
+      // The verdict round-trip uses `event.requestId` as the
+      // correlation id. Pinning every accessor by name catches a
+      // future FRB regen that drops or renames any of them — the
+      // listener would otherwise fail at the call site during the next
+      // real agent prompt.
+      const event = rust_bus.BusEvent.sshAgentSignaturePrompt(
+        requestId: 'req-1',
+        keyId: 'key-1',
+        keyLabel: 'work',
+        requester: 'ssh-client',
+      );
+      expect(event, isA<rust_bus.BusEvent_SshAgentSignaturePrompt>());
+      const prompt = event as rust_bus.BusEvent_SshAgentSignaturePrompt;
+      expect(prompt.requestId, 'req-1');
+      expect(prompt.keyId, 'key-1');
+      expect(prompt.keyLabel, 'work');
+      expect(prompt.requester, 'ssh-client');
+    });
+
+    test('requester is nullable — matches macOS BSD-socket reality', () {
+      // The docstring on `BusEvent.sshAgentSignaturePrompt` notes that
+      // `requester` is `None` on macOS where the BSD socket layer does
+      // not surface a peer pid. The Dialog renders an "unknown
+      // requester" placeholder in that case. Confirm the freezed
+      // factory accepts a null requester so the macOS path actually
+      // reaches the listener instead of crashing at the FRB boundary.
+      const event = rust_bus.BusEvent.sshAgentSignaturePrompt(
+        requestId: 'req-mac',
+        keyId: 'key-mac',
+        keyLabel: 'home',
+      );
+      const prompt = event as rust_bus.BusEvent_SshAgentSignaturePrompt;
+      expect(prompt.requester, isNull);
+    });
+
+    test(
+      '_onEvent type filter — unrelated BusEvent variants are not routed',
+      () {
+        // The listener's `_onEvent` early-returns on anything that isn't
+        // a `BusEvent_SshAgentSignaturePrompt`. A sibling event must NOT
+        // match the filter type — otherwise the listener would call
+        // `ssh_agent_respond_to_signature_request` with the wrong
+        // request_id and the Rust side would hit an unknown-id path.
+        const unrelated = rust_bus.BusEvent.echoed(payload: 'noise');
+        expect(
+          unrelated,
+          isNot(isA<rust_bus.BusEvent_SshAgentSignaturePrompt>()),
+        );
+      },
+    );
+
+    test('DbAgentDecision wire kinds the listener emits are constructible', () {
+      // The `wireDecision` switch lowers the user's verdict to one of
+      // `'once'` / `'always'` / `'deny'` and hands it to
+      // `rust_ssh_agent.sshAgentRespondToSignatureRequest` wrapped in
+      // a `DbAgentDecision`. Pinning that each wire tag round-trips
+      // through the typed decision struct catches an FRB regen that
+      // renames the kind field or swaps the carrier type — the
+      // listener would otherwise fail silently on the next agent
+      // prompt.
+      for (final tag in const ['once', 'always', 'deny']) {
+        final dec = rust_ssh_agent.DbAgentDecision(kind: tag);
+        expect(dec.kind, tag);
+      }
+    });
+
+    // covered by integration: the live `_onEvent` dispatch, the
     // `_handlePrompt` dialog mount, the `_showDialog`
-    // navigator-not-mounted fail-closed branch, and the
-    // `wireDecision` switch (`once` / `always` / `deny`) all require
-    // a real `BusEvent_SshAgentSignaturePrompt` to flow through the
-    // process-singleton AppBus and the Rust `ssh_agent_respond_to_
-    // signature_request` FRB call to consume the verdict. AppBus
-    // exposes no debug-dispatch seam, and the listener owns no
-    // `@visibleForTesting` injection point. Driving the agent
-    // end-to-end belongs in the ssh-agent integration suite where
-    // Rust + Dart share a process.
+    // navigator-not-mounted fail-closed branch, and the round-trip
+    // through `ssh_agent_respond_to_signature_request` all require a
+    // real `BusEvent_SshAgentSignaturePrompt` to flow through the
+    // process-singleton AppBus. AppBus exposes no debug-dispatch seam,
+    // and the listener owns no `@visibleForTesting` injection point —
+    // they belong in the ssh-agent integration suite where Rust + Dart
+    // share a process.
   });
 }

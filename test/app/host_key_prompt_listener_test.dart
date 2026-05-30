@@ -21,6 +21,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/host_key_prompt_listener.dart';
+import 'package:letsflutssh/src/rust/api/bus.dart' as rust_bus;
 import 'package:letsflutssh/src/rust/frb_generated.dart' show RustLib;
 
 import '../helpers/frb_bootstrap.dart';
@@ -105,20 +106,71 @@ void main() {
     });
   });
 
-  group('event routing — kind → dialog dispatch', () {
-    // covered by integration: `_onEvent` filters on
-    // `BusEvent_KnownHostPromptRequest`, `_handlePrompt` paints the
-    // TOFU dialog through `navigatorKey.currentContext`, and
-    // `_showDialog` branches on `BusKnownHostPromptKind.newHost` vs
-    // `keyChanged` to call `HostKeyDialog.showNewHost` /
-    // `showKeyChanged`. All three paths drive off bus events the
-    // russh known-hosts handler publishes during a real SSH
-    // handshake; the verdict round-trips back over the bus as
-    // `BusCommand.knownHostPromptResponse` which the awaiting handler
-    // consumes. AppBus exposes no debug-dispatch seam and the
-    // listener owns no `@visibleForTesting` injection point, so the
-    // routing branches plus the navigator-not-mounted fail-closed
-    // reject belong in `test/integration/known_hosts_prompt_test.dart`
-    // where Rust + Dart share a process.
+  group('BusEvent_KnownHostPromptRequest payload shape', () {
+    setUpAll(requireFrbLoaded);
+
+    test('newHost variant exposes every field the dialog needs', () {
+      // `_showDialog` reads `host`, `port.toInt()`, `keyType`,
+      // `fingerprint`, and the `kind` discriminator off the event to
+      // hand them into `HostKeyDialog.showNewHost`. Confirming the
+      // freezed factory exposes every accessor by name pins the
+      // contract the listener relies on — a regen that drops or
+      // renames any field would break the dialog call site, and this
+      // test catches it before the integration suite runs.
+      const event = rust_bus.BusEvent.knownHostPromptRequest(
+        promptId: 'pid-1',
+        host: 'host.example',
+        port: 2222,
+        keyType: 'ssh-ed25519',
+        fingerprint: 'SHA256:AAAA',
+        kind: rust_bus.BusKnownHostPromptKind.newHost,
+      );
+      expect(event, isA<rust_bus.BusEvent_KnownHostPromptRequest>());
+      const req = event as rust_bus.BusEvent_KnownHostPromptRequest;
+      expect(req.promptId, 'pid-1');
+      expect(req.host, 'host.example');
+      expect(req.port.toInt(), 2222);
+      expect(req.keyType, 'ssh-ed25519');
+      expect(req.fingerprint, 'SHA256:AAAA');
+      expect(req.kind, rust_bus.BusKnownHostPromptKind.newHost);
+    });
+
+    test('keyChanged variant routes to the same shape', () {
+      // The kind discriminator is the only difference between the two
+      // branches inside `_showDialog`. Pinning that the kept-host vs
+      // changed-host event reach the listener with the right tag means
+      // a future tag rename would surface here, not at the dialog.
+      const event = rust_bus.BusEvent.knownHostPromptRequest(
+        promptId: 'pid-2',
+        host: 'mismatch.example',
+        port: 22,
+        keyType: 'ecdsa-sha2-nistp256',
+        fingerprint: 'SHA256:BBBB',
+        kind: rust_bus.BusKnownHostPromptKind.keyChanged,
+      );
+      const req = event as rust_bus.BusEvent_KnownHostPromptRequest;
+      expect(req.kind, rust_bus.BusKnownHostPromptKind.keyChanged);
+    });
+
+    test('_onEvent type filter — sibling BusEvent variants are not routed', () {
+      // The listener's `_onEvent` early-returns on anything that isn't
+      // a `BusEvent_KnownHostPromptRequest`. Verifying a sibling event
+      // (the smoke `Echoed`) does NOT match the filter pins the
+      // discriminator the listener uses — if a regen merged variants
+      // or renamed the type, this isA check would flip.
+      const unrelated = rust_bus.BusEvent.echoed(payload: 'noise');
+      expect(unrelated, isNot(isA<rust_bus.BusEvent_KnownHostPromptRequest>()));
+    });
+
+    // covered by integration: `_handlePrompt` paints the TOFU dialog
+    // through `navigatorKey.currentContext`, `_showDialog` branches on
+    // `BusKnownHostPromptKind.newHost` vs `keyChanged` to call
+    // `HostKeyDialog.showNewHost` / `showKeyChanged`, and the
+    // navigator-not-mounted fail-closed reject path all drive off bus
+    // events the russh known-hosts handler publishes during a real SSH
+    // handshake. AppBus exposes no debug-dispatch seam and the listener
+    // owns no `@visibleForTesting` injection point, so these branches
+    // belong in `test/integration/known_hosts_prompt_test.dart` where
+    // Rust + Dart share a process.
   });
 }

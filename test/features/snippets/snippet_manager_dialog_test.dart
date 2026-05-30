@@ -314,6 +314,100 @@ void main() {
       expect(descField.controller?.text, 'Restart the web server');
     });
 
+    testWidgets(
+      'edit dialog saves changes back to the store and refreshes the row',
+      (tester) async {
+        // Spec: editing an existing snippet routes through
+        // `_editSnippet` → `_SnippetEditDialog.show(snippet:)` →
+        // `save(...)` on the store. The original row must be replaced
+        // with the new title/command after the dialog closes.
+        fakeStore = FakeSnippetsNotifier([testSnippet]);
+        await openDialog(tester);
+
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+
+        // Rewrite the title — replaces the existing pre-filled text.
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Title'),
+          'Restart Webserver',
+        );
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Store now holds the renamed snippet; the original title is gone.
+        expect(fakeStore._snippets, hasLength(1));
+        expect(fakeStore._snippets.single.title, 'Restart Webserver');
+        expect(find.text('Restart Webserver'), findsOneWidget);
+        expect(find.text('Deploy App'), findsNothing);
+
+        Toast.clearAllForTest();
+        await tester.pump();
+      },
+    );
+
+    testWidgets(
+      'edit dialog with cleared command does not save — spec is "non-empty '
+      'title AND non-empty command", a blank command falls into the early '
+      'return branch in _save',
+      (tester) async {
+        fakeStore = FakeSnippetsNotifier([testSnippet]);
+        await openDialog(tester);
+
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+
+        // Wipe the command field — `_save` requires both fields trimmed
+        // non-empty.
+        await tester.enterText(find.widgetWithText(TextField, 'Command'), '');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Edit dialog is still up (Title field still rendered) and the
+        // store row is unchanged.
+        expect(find.text('Edit Snippet'), findsWidgets);
+        expect(fakeStore._snippets.single.command, testSnippet.command);
+      },
+    );
+
+    testWidgets(
+      'tapping a token chip in the add dialog inserts {{name}} at the caret '
+      'into the command field',
+      (tester) async {
+        // Spec: `_SnippetTokenHints._insert` writes `{{token}}` at the
+        // command-field caret. The chip row documents the five built-in
+        // tokens; tapping `{{host}}` must end up in the command field.
+        fakeStore = FakeSnippetsNotifier();
+        await openDialog(tester);
+
+        await tester.tap(find.text('Add Snippet'));
+        await tester.pumpAndSettle();
+
+        // Seed the command field so the post-insert text is observable.
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Command'),
+          'ssh ',
+        );
+
+        // Tap the `{{host}}` chip — the chip's label text is the token
+        // glyph, which is also rendered with monospace style.
+        await tester.tap(find.text('{{host}}'));
+        await tester.pumpAndSettle();
+
+        // The command-field controller now ends with the inserted token.
+        final commandField = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Command'),
+        );
+        expect(
+          commandField.controller?.text.contains('{{host}}'),
+          isTrue,
+          reason:
+              'Token chip tap must insert the {{token}} marker into the '
+              'command field at the caret position.',
+        );
+      },
+    );
+
     testWidgets('copy button shows a clipboard toast', (tester) async {
       fakeStore = FakeSnippetsNotifier([snippetNoDesc]);
       await openDialog(tester);

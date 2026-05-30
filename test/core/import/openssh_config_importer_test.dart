@@ -145,5 +145,85 @@ void main() {
         reason: 'Imported keys came from disk, not from the in-app generator',
       );
     });
+
+    test('zero-epoch createdAtUnixMs maps to the unix-epoch instant', () {
+      // Spec: the mapper never sanity-checks the timestamp — the Rust
+      // side decides whether `0` is a legitimate "unknown" or a real
+      // value. The Dart side surfaces whatever it received so the
+      // preview cannot silently rewrite the audit field.
+      const row = imp.DbOpenSshImportKey(
+        id: 'k-0',
+        label: 'epoch',
+        privatePem: 'pem',
+        publicOpenssh: 'pub',
+        keyType: 'ssh-rsa',
+        fingerprint: '',
+        createdAtUnixMs: 0,
+      );
+      final e = OpenSshConfigImporter.mapRustImportKey(row);
+      expect(e.createdAt.millisecondsSinceEpoch, 0);
+      expect(e.keyType, 'ssh-rsa');
+    });
+  });
+
+  group('OpenSshConfigImportPreview — constructor argument plumbing', () {
+    test('parsedHosts surfaces verbatim alongside an empty session list', () {
+      // Spec: parsedHosts is the *raw* host-entry count from the
+      // OpenSSH config, before any filter — empty session lists are
+      // legal (e.g. every host was filtered as suspicious or
+      // missing-key) and the preview UI still wants to surface
+      // "we read N hosts but rejected all of them".
+      const preview = OpenSshConfigImportPreview(
+        result: ImportResult(
+          sessions: [],
+          managerKeys: [],
+          mode: ImportMode.merge,
+        ),
+        parsedHosts: 7,
+      );
+      expect(preview.parsedHosts, 7);
+      expect(preview.result.sessions, isEmpty);
+      expect(preview.result.managerKeys, isEmpty);
+      expect(preview.result.mode, ImportMode.merge);
+    });
+
+    test('replace mode threads through the inner ImportResult', () {
+      // Spec: ImportMode is decided at the call site (the preview
+      // dialog's "merge / replace" toggle). The preview constructor
+      // does not override it — the same import payload renders both
+      // modes by varying only the mode field.
+      const preview = OpenSshConfigImportPreview(
+        result: ImportResult(
+          sessions: [],
+          managerKeys: [],
+          mode: ImportMode.replace,
+        ),
+        parsedHosts: 0,
+      );
+      expect(preview.result.mode, ImportMode.replace);
+    });
+  });
+
+  group('mapRustImportSession — non-standard port + label preservation', () {
+    test('high port numbers survive the int round-trip unchanged', () {
+      // Spec: the Rust side already capped the port at u16; the Dart
+      // mapper is a straight assignment. Pin the upper boundary so a
+      // refactor that introduced clamping / nullability would surface
+      // here rather than silently masking the high-port branch.
+      const row = imp.DbOpenSshImportSession(
+        id: 's-port',
+        label: 'edge',
+        folder: 'imports',
+        host: 'edge.example',
+        port: 65535,
+        user: 'admin',
+        authType: ssh.DbOpenSshAuthType.key,
+        keyId: 'k-edge',
+      );
+      final s = OpenSshConfigImporter.mapRustImportSession(row);
+      expect(s.port, 65535);
+      expect(s.host, 'edge.example');
+      expect(s.keyId, 'k-edge');
+    });
   });
 }
