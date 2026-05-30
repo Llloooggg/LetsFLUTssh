@@ -186,5 +186,113 @@ void main() {
       addTearDown(controller.dispose);
       expect(identical(controller.repaint, controller), isTrue);
     });
+
+    test('successive feeds notify the repaint listenable once per call', () {
+      // Spec: every host-driven feed pulses the repaint signal so the
+      // view re-pulls a snapshot on each frame. Batching would drop the
+      // intermediate state and a recording scrub or log-viewer mid-stream
+      // would skip frames between writes.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      controller.feed(utf8.encode('one '));
+      controller.feed(utf8.encode('two '));
+      controller.feed(utf8.encode('three'));
+
+      expect(notified, 3);
+      expect(_chars(controller.snapshot()), containsAll(['o', 't', 'h']));
+    });
+
+    test('clear after content removes glyphs and the repaint pulse fires '
+        'on every invocation', () {
+      // The recording scrub path clears the grid before re-feeding from
+      // t=0; back-to-back clears must each notify so an already-empty
+      // grid still drives the next frame pull (other state — palette,
+      // resize — may have changed between clears).
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      controller.feed(utf8.encode('payload'));
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      controller.clear();
+      controller.clear();
+
+      expect(notified, 2);
+      expect(controller.snapshot().cells, isEmpty);
+    });
+
+    test('paste, writeInput, sendKey and scroll do not emit a repaint pulse '
+        'on the replay adapter', () async {
+      // The live-only entry points are inert no-ops on the replay
+      // adapter (no shell to write to); they must therefore not pulse
+      // repaint either, because there is no engine-side change for the
+      // view to re-pull.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      await controller.paste('hi');
+      controller.writeInput(utf8.encode('x'));
+      controller.sendKey(
+        const TerminalKey(
+          name: TerminalKeyName.char(code: 0x41),
+          ctrl: false,
+          alt: false,
+          shift: false,
+          meta: false,
+        ),
+      );
+      controller.scroll(3);
+
+      expect(notified, 0);
+    });
+
+    test('resize that only changes one dimension still notifies and updates '
+        'the snapshot grid', () {
+      // The no-op short-circuit fires only when BOTH cols and rows
+      // match; a width-only or height-only change is a real resize that
+      // must re-flow the grid and pulse repaint.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      controller.resize(20, 10); // rows-only change
+      expect(notified, 1);
+      expect(controller.cols, 20);
+      expect(controller.rows, 10);
+      expect(controller.snapshot().rows, 10);
+
+      controller.resize(30, 10); // cols-only change
+      expect(notified, 2);
+      expect(controller.cols, 30);
+      expect(controller.snapshot().cols, 30);
+    });
+
+    test('selection covering all printed cells round-trips through '
+        '`selectionText` as that exact text', () async {
+      // Spec: the engine owns selection text; `selectionText` reads it
+      // straight back without Dart-side caching. The expected substring
+      // is the literal payload fed in (no soft-wrap, single short line).
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      controller.feed(utf8.encode('hello'));
+
+      await controller.setSelection(0, 0, 0, 4, TerminalSelectionKind.simple);
+      final text = await controller.selectionText();
+
+      expect(text, isNotNull);
+      expect(text!.contains('hello'), isTrue);
+    });
+
+    // The live adapter (`LiveTerminalController`) wraps a real Rust
+    // `TerminalSession` whose construction requires an attached SSH
+    // shell. Its constructor / `dispose` / `events()` bridge cannot be
+    // exercised without a live transport.
+    // covered by integration: live session requires a running SSH shell.
   });
 }

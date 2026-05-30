@@ -89,5 +89,36 @@ void main() {
       // Ditto — null-aware cancel + null-out leaves the next call
       // hitting an already-null state without throwing.
     });
+
+    test('start() then stop() round-trip leaves the listener detachable', () {
+      // Two cycles in a row catch the case where the first stop()
+      // null-outs `_sub` correctly but a subsequent start() captures
+      // a reference the next stop() then fails to release. Exercised
+      // in production when the user locks → unlocks the vault: the
+      // bootstrap chain re-wires every listener, and any stale handle
+      // would surface as a double-prompt the next time russh requests
+      // a verdict.
+      HostKeyPromptListener.start();
+      HostKeyPromptListener.stop();
+      HostKeyPromptListener.start();
+      expect(HostKeyPromptListener.stop, returnsNormally);
+    });
+  });
+
+  group('event routing — kind → dialog dispatch', () {
+    // covered by integration: `_onEvent` filters on
+    // `BusEvent_KnownHostPromptRequest`, `_handlePrompt` paints the
+    // TOFU dialog through `navigatorKey.currentContext`, and
+    // `_showDialog` branches on `BusKnownHostPromptKind.newHost` vs
+    // `keyChanged` to call `HostKeyDialog.showNewHost` /
+    // `showKeyChanged`. All three paths drive off bus events the
+    // russh known-hosts handler publishes during a real SSH
+    // handshake; the verdict round-trips back over the bus as
+    // `BusCommand.knownHostPromptResponse` which the awaiting handler
+    // consumes. AppBus exposes no debug-dispatch seam and the
+    // listener owns no `@visibleForTesting` injection point, so the
+    // routing branches plus the navigator-not-mounted fail-closed
+    // reject belong in `test/integration/known_hosts_prompt_test.dart`
+    // where Rust + Dart share a process.
   });
 }
