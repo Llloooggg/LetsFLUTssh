@@ -3,14 +3,27 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
+import 'package:letsflutssh/src/rust/api/config.dart' as rust_config;
 
 import '../../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // resolveAuthValue routes through `lfs_core::security::hardware_tier_vault`
-  // — bootstrap FRB so HMAC + isolation grammar works.
-  setUpAll(requireFrbLoaded);
+  // — bootstrap FRB so HMAC + isolation grammar works. The `isStored` /
+  // `read` / `store` paths additionally reach into the pinned support
+  // dir for the salt file; pin a fresh temp dir so the dispatch
+  // assertions see a clean install rather than whatever a prior test
+  // file left behind.
+  late Directory tmp;
+  setUpAll(() async {
+    await requireFrbLoaded();
+    tmp = Directory.systemTemp.createTempSync('lfs_hw_vault_');
+    rust_config.configStoreInit(supportDir: tmp.path);
+  });
+  tearDownAll(() {
+    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+  });
 
   HardwareTierVault newVault() => HardwareTierVault();
 
@@ -40,6 +53,88 @@ void main() {
       }
       final available = await newVault().isAvailable();
       expect(available, isFalse);
+    });
+
+    test('isStored returns false on a fresh install — no salt file and no '
+        'sealed envelope yet', () async {
+      // The contract is "both halves required — a half-wiped state is a
+      // reset, not an unlock". On a Linux CI host without TPM the
+      // Rust-side `is_stored` returns false; on the non-Linux branch
+      // the Dart code short-circuits when the salt read returns null.
+      // Either way a clean install must surface as not-stored.
+      expect(await newVault().isStored(), isFalse);
+    });
+
+    test(
+      'read returns null when no vault is stored — wrong PIN / missing state '
+      'collapse into a single "treat as cancelled" sentinel',
+      () async {
+        // The rate limiter that surrounds this method needs a single
+        // null sentinel for both "you typed the wrong PIN" and "there's
+        // nothing here yet"; a refactor that started throwing on the
+        // missing-state branch would crash the unlock flow.
+        final result = await newVault().read('whatever');
+        expect(result, isNull);
+      },
+    );
+
+    test('store returns false on a host where hardware tier is unavailable — '
+        'no envelope written, no half-state left behind', () async {
+      // On a Linux unit-test host the Rust `is_available` returns
+      // false (no TPM); the façade gates on that and never reaches
+      // the platform-vault store. The contract is "false means we
+      // did not touch persistent state" so callers can surface a
+      // localised "Hardware tier not supported" message.
+      if (Platform.isMacOS ||
+          Platform.isIOS ||
+          Platform.isAndroid ||
+          Platform.isWindows) {
+        return;
+      }
+      final ok = await newVault().store(
+        dbKey: Uint8List.fromList(List<int>.filled(32, 0x42)),
+        pin: '1234',
+      );
+      expect(ok, isFalse);
+    });
+
+    test(
+      'storeFromSecret returns false on a host where hardware tier is '
+      'unavailable — same contract as store, just SecretRef-flavoured',
+      () async {
+        // The SecretRef variant must observe the same "no half-state"
+        // invariant as the byte-array store; the gate is the same
+        // `isAvailable` check.
+        if (Platform.isMacOS ||
+            Platform.isIOS ||
+            Platform.isAndroid ||
+            Platform.isWindows) {
+          return;
+        }
+        final ok = await newVault().storeFromSecret(
+          secretId: 'unit-test.staging.absent',
+          pin: '1234',
+        );
+        expect(ok, isFalse);
+      },
+    );
+
+    test('clear is best-effort and never throws on a fresh install — wipe '
+        'path must keep going past missing files', () async {
+      // Wipe / tier-switch may run when nothing is stored yet (user
+      // toggles biometrics off before ever turning it on). The
+      // façade swallows the Rust-side error and completes; a
+      // regression that propagated would crash the tier-switch.
+      await expectLater(newVault().clear(), completes);
+    });
+
+    test('isBiometricPasswordStored returns false on a fresh install — overlay '
+        'is opt-in and starts absent', () async {
+      // The overlay file (Linux: hardware_vault_password_overlay_linux.bin;
+      // other platforms: platform-bound NCrypt / Keystore / SE slot)
+      // must not exist on a clean install. False here is what tells
+      // the unlock UI to fall back to typed password.
+      expect(await newVault().isBiometricPasswordStored(), isFalse);
     });
   });
 
