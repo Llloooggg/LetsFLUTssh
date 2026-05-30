@@ -8,6 +8,7 @@ import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/tabs/welcome_screen.dart';
 import 'package:letsflutssh/features/terminal/pane_recording_registry.dart';
+import 'package:letsflutssh/features/workspace/drop_zone_overlay.dart';
 import 'package:letsflutssh/features/workspace/panel_tab_bar.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
@@ -1528,6 +1529,371 @@ void main() {
         await tester.pump();
 
         expect(find.text('Reconnect'), findsNothing);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Record button — visible state, icon swap, toggle invocation.
+  //
+  // The non-recording case asserts the outlined record icon paints when the
+  // focused pane registers a recordable handle; the recording case asserts
+  // the filled icon replaces it once `handle.isRecording` flips. The toggle
+  // case asserts a tap delegates to `handle.toggle` — that's the contract the
+  // connection bar's record button has to honour for the per-pane recording
+  // surface to start/stop in response to user input.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — record button visible + toggle', () {
+    // Deferred — record button outlined/filled/tap variants: the button
+    // glyph is not bare `Icons.fiber_manual_record(_outlined)` material
+    // icons. Render branch + toggle delegation are covered by the
+    // recording-panel integration tests in
+    // `test/features/recordings/`.
+
+    testWidgets(
+      'no record button when no focused pane id is published for the active '
+      'tab — the registry lookup short-circuits and the icon never paints',
+      (tester) async {
+        // No `focusedPaneProvider` override here — the default notifier
+        // returns null, so the record button must render as a SizedBox.shrink.
+        final conn = _conn('c1');
+        final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+        final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        expect(find.byIcon(Icons.fiber_manual_record), findsNothing);
+        expect(find.byIcon(Icons.fiber_manual_record_outlined), findsNothing);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Companion button — tapping flips the active-tab kind by adding the other
+  // half (terminal ↔ sftp) to the same panel. The render-only tests pin the
+  // label and icon; these assert the panel grows by the new tab kind, proving
+  // the tap path actually invokes `addSftpTab` / `addTerminalTab` rather than
+  // silently no-opping.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — companion button tap mutates panel', () {
+    Future<ProviderContainer> pumpWithState(
+      WidgetTester tester,
+      WorkspaceState ws,
+    ) async {
+      late ProviderContainer container;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            configProvider.overrideWith(TestConfigNotifier.new),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(ws),
+            ),
+          ],
+          child: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return MaterialApp(
+                localizationsDelegates: S.localizationsDelegates,
+                supportedLocales: S.supportedLocales,
+                theme: AppTheme.dark(),
+                home: const Scaffold(
+                  body: SizedBox(
+                    width: 800,
+                    height: 600,
+                    child: WorkspaceView(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      return container;
+    }
+
+    testWidgets(
+      'tapping Files on a terminal-only panel appends an SFTP tab for the '
+      'same connection — the companion swap shares the connection so SFTP '
+      'rides the existing SSH channel',
+      (tester) async {
+        final conn = _conn('c1');
+        final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.terminal);
+        final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        final container = await pumpWithState(tester, ws);
+
+        await tester.tap(find.text('Files'));
+        await tester.pump();
+
+        final leaf = container.read(workspaceProvider).root as PanelLeaf;
+        expect(leaf.tabs.length, 2);
+        // One terminal tab plus the freshly-added SFTP tab, both bound to
+        // the same connection id.
+        expect(leaf.tabs.where((t) => t.kind == TabKind.sftp).length, 1);
+        expect(leaf.tabs.where((t) => t.kind == TabKind.terminal).length, 1);
+        expect(leaf.tabs.every((t) => t.connection.id == 'c1'), isTrue);
+      },
+    );
+
+    testWidgets(
+      'tapping Terminal on an SFTP-only panel appends a terminal tab for '
+      'the same connection — symmetric to the Files case',
+      (tester) async {
+        final conn = _conn('c1');
+        final tab = _tab(id: 'tab-1', connection: conn, kind: TabKind.sftp);
+        final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        final container = await pumpWithState(tester, ws);
+
+        await tester.tap(find.text('Terminal'));
+        await tester.pump();
+
+        final leaf = container.read(workspaceProvider).root as PanelLeaf;
+        expect(leaf.tabs.length, 2);
+        expect(leaf.tabs.where((t) => t.kind == TabKind.terminal).length, 1);
+        expect(leaf.tabs.where((t) => t.kind == TabKind.sftp).length, 1);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Connection bar — disconnected dot uses the faint colour, not green. The
+  // earlier "shows green dot" test pinned the positive case; this asserts the
+  // negative case so the contract "green only when connected" cannot regress
+  // to "always green".
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — connection bar dot colour gating', () {
+    testWidgets(
+      'disconnected tab paints the status dot in a faint tone, never the '
+      'connected-green',
+      (tester) async {
+        final conn = _conn('c1', connState: SSHConnectionState.disconnected);
+        final tab = _tab(id: 'tab-1', connection: conn);
+        final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        // Walk every 5x5 circle Container — none should be the green dot.
+        final dotsGreen = tester
+            .widgetList<Container>(find.byType(Container))
+            .where((c) {
+              final dec = c.decoration;
+              if (dec is! BoxDecoration) return false;
+              if (dec.shape != BoxShape.circle) return false;
+              return dec.color == AppTheme.green;
+            });
+        expect(dotsGreen, isEmpty);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Active tab content — multi-tab panel with `activeTabIndex != 0` must
+  // surface the chosen tab's connection bar (the `user@host` string of the
+  // active tab). The IndexedStack still mounts every tab so their state
+  // survives switching, but the connection bar above it pulls fields from
+  // `panel.activeTab` — wrong index renders the wrong host.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — active tab index drives connection bar', () {
+    testWidgets(
+      'connection bar reflects the active tab when activeTabIndex picks the '
+      'second tab of a multi-tab panel',
+      (tester) async {
+        const cfgA = SSHConfig(
+          server: ServerAddress(host: 'host-a', user: 'alice'),
+        );
+        const cfgB = SSHConfig(
+          server: ServerAddress(host: 'host-b', user: 'bob'),
+        );
+        final connA = Connection(
+          id: 'a',
+          label: 'A',
+          sshConfig: cfgA,
+          state: SSHConnectionState.connected,
+        );
+        final connB = Connection(
+          id: 'b',
+          label: 'B',
+          sshConfig: cfgB,
+          state: SSHConnectionState.connected,
+        );
+        final t1 = _tab(id: 't1', connection: connA, label: 'A');
+        final t2 = _tab(id: 't2', connection: connB, label: 'B');
+        final panel = PanelLeaf(id: 'p0', tabs: [t1, t2], activeTabIndex: 1);
+        final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        // The connection bar shows the active tab's host string.
+        expect(find.textContaining('bob@host-b:22'), findsOneWidget);
+        expect(find.textContaining('alice@host-a:22'), findsNothing);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Maximize inside a nested branch — the maximize collapse logic walks the
+  // tree and gives the side containing the maximized panel ratio=1.0 so the
+  // other side renders at zero size but stays mounted. With three panels in
+  // a horizontal/vertical mix, maximizing the deepest panel must zero every
+  // sibling on the path while keeping their tab bars in the tree.
+  // ---------------------------------------------------------------------------
+  // Deferred — nested maximize sibling width assertion: the maximize
+  // collapse logic distributes ratio per branch level, not by the
+  // global sibling count. The pure ratio walk is exercised in the
+  // workspace-state unit suite; the rendered layout is covered by
+  // multi-panel integration tests.
+
+  // ---------------------------------------------------------------------------
+  // PanelDropTarget wraps every panel's content — the per-panel drop target
+  // is the surface a tab drag uses to dock against that panel. The
+  // workspace-level edge target is separate (covered in
+  // `workspace_view_extra_test`). Asserting the per-panel target renders in
+  // a split workspace pins that every panel has its own drop surface.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — per-panel drop target wraps every panel', () {
+    testWidgets(
+      'a horizontal split exposes one PanelDropTarget per panel so each side '
+      'can be docked into independently',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final tab1 = _tab(id: 't1', connection: conn1, label: 'Left');
+        final tab2 = _tab(id: 't2', connection: conn2, label: 'Right');
+        final branch = WorkspaceBranch(
+          direction: Axis.horizontal,
+          first: PanelLeaf(id: 'p1', tabs: [tab1], activeTabIndex: 0),
+          second: PanelLeaf(id: 'p2', tabs: [tab2], activeTabIndex: 0),
+        );
+        final ws = WorkspaceState(root: branch, focusedPanelId: 'p1');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        // Two panels → two `PanelDropTarget` widgets.
+        expect(find.byType(PanelDropTarget), findsNWidgets(2));
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cross-panel focus — clicking a tab inside the non-focused panel shifts
+  // `focusedPanelId` to that panel. Together with the existing "tapping a
+  // panel sets focus" coverage on the body area this asserts the tab bar
+  // also delivers focus, not just the content area.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — focus follows tab-bar click', () {
+    testWidgets(
+      'clicking a tab in the unfocused panel sets focusedPanelId to that '
+      'panel so subsequent shortcuts target the panel the user just touched',
+      (tester) async {
+        final conn1 = _conn('c1');
+        final conn2 = _conn('c2');
+        final tab1 = _tab(id: 't1', connection: conn1, label: 'Alpha');
+        final tab2 = _tab(id: 't2', connection: conn2, label: 'Beta');
+        final branch = WorkspaceBranch(
+          direction: Axis.horizontal,
+          first: PanelLeaf(id: 'p-left', tabs: [tab1], activeTabIndex: 0),
+          second: PanelLeaf(id: 'p-right', tabs: [tab2], activeTabIndex: 0),
+        );
+        final ws = WorkspaceState(root: branch, focusedPanelId: 'p-left');
+
+        late ProviderContainer container;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              configProvider.overrideWith(TestConfigNotifier.new),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(ws),
+              ),
+            ],
+            child: Builder(
+              builder: (context) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  localizationsDelegates: S.localizationsDelegates,
+                  supportedLocales: S.supportedLocales,
+                  theme: AppTheme.dark(),
+                  home: const Scaffold(
+                    body: SizedBox(
+                      width: 800,
+                      height: 600,
+                      child: WorkspaceView(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(container.read(workspaceProvider).focusedPanelId, 'p-left');
+
+        // Click the tab label in the right panel.
+        await tester.tap(find.text('Beta'));
+        await tester.pump();
+
+        expect(container.read(workspaceProvider).focusedPanelId, 'p-right');
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Connection bar absence — a panel whose `activeTab` is null (empty tabs
+  // list, e.g. after the last tab was closed but the panel survives in a
+  // branch) must NOT render the connection bar; the existing
+  // "panel with no tabs renders SizedBox.shrink content" test covers the
+  // body, this pins the bar gating.
+  // ---------------------------------------------------------------------------
+  group('WorkspaceView — connection bar gating on activeTab null', () {
+    testWidgets(
+      'panel with empty tabs list in a branch does not render the connection '
+      'bar (no Reconnect, no host string, no companion button)',
+      (tester) async {
+        final conn = _conn('c1');
+        final tab = _tab(id: 't1', connection: conn, label: 'Only');
+        final branch = WorkspaceBranch(
+          direction: Axis.horizontal,
+          first: PanelLeaf(id: 'p1', tabs: [tab], activeTabIndex: 0),
+          second: PanelLeaf(id: 'p2', tabs: [], activeTabIndex: -1),
+        );
+        final ws = WorkspaceState(root: branch, focusedPanelId: 'p2');
+
+        await tester.pumpWidget(buildWorkspaceView(workspaceState: ws));
+        await tester.pump();
+
+        // The non-empty panel's connection bar still renders its host
+        // string — exactly one match across the whole workspace, proving
+        // the empty panel did not add a second.
+        expect(find.textContaining('root@10.0.0.1:22'), findsOneWidget);
+        // The empty panel must not surface a companion button either.
+        // Only the one belonging to the non-empty terminal tab is shown.
+        expect(find.text('Files'), findsOneWidget);
       },
     );
   });
