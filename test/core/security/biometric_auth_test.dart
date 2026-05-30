@@ -174,6 +174,60 @@ void main() {
     });
   });
 
+  group('BiometricUnavailableReason — enum surface', () {
+    test('carries exactly four variants', () {
+      // Spec: the Settings disabled-reason locale resolver branches on
+      // every variant. A fifth without paired ARB keys would silently
+      // fall through to the catch-all "unsupported" tooltip, hiding
+      // whichever new reason got added.
+      expect(BiometricUnavailableReason.values, hasLength(4));
+      expect(BiometricUnavailableReason.values, <BiometricUnavailableReason>[
+        BiometricUnavailableReason.platformUnsupported,
+        BiometricUnavailableReason.noSensor,
+        BiometricUnavailableReason.notEnrolled,
+        BiometricUnavailableReason.systemServiceMissing,
+      ]);
+    });
+  });
+
+  group('BiometricAuth.isAvailable — notEnrolled is "not available"', () {
+    test(
+      'returns false when fprintd is reachable but no finger is enrolled',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: any non-null availability reason means "no biometric
+        // shortcut" — the lock screen falls back to the password
+        // field. A regression that conflated only `systemServiceMissing`
+        // with "not available" would let the unlock path call
+        // `authenticate()` against a sensor with no enrolled finger
+        // and hang on the never-resolving fprintd prompt.
+        final bio = BiometricAuth(
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => false,
+        );
+        expect(await bio.isAvailable(), isFalse);
+      },
+    );
+  });
+
+  group('BiometricAuth.authenticate — Linux propagates probe errors', () {
+    test('does not swallow fprintd verify exceptions on Linux', () async {
+      if (!Platform.isLinux) return;
+      // Spec: the Linux branch is a direct `return _fprintdVerify()` —
+      // no try/catch. Wrapping it would mask a genuine D-Bus
+      // protocol break behind a generic "false" answer; the caller
+      // (lock screen) wants the raw failure so it can fall the user
+      // back to the password prompt with the correct reason logged.
+      final bio = BiometricAuth(
+        fprintdVerify: () async => throw StateError('dbus dropped'),
+      );
+      await expectLater(
+        bio.authenticate('irrelevant'),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+
   group('mapRustBiometricAvailability', () {
     test('Available variant maps to null (biometric ready)', () {
       expect(

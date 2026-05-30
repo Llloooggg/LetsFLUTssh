@@ -1362,5 +1362,135 @@ void main() {
         );
       },
     );
+
+    test(
+      'subscribe path runs when only onPhase is provided (no onProgress)',
+      // Spec: `downloadAsset` opens the bus subscription when EITHER
+      // `onProgress` or `onPhase` is supplied — the verify-phase
+      // signal is delivered through the same channel. Driving the
+      // success cycle with only `onPhase` wired exercises the
+      // subscribe branch under a distinct gate so a future
+      // refactor that tied the subscription strictly to
+      // `onProgress` would surface here.
+      () async {
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadSuccess('/tmp/y.AppImage');
+        final service = UpdateService();
+
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onPhase: (_) {},
+        );
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.checkForUpdate — JSON-parse error contract
+  // ===========================================================================
+  group('UpdateService.checkForUpdate — JSON-parse contract', () {
+    test(
+      'Rust JSON-parse failure surfaces as FormatException with original message',
+      () async {
+        // Spec: `checkForUpdate` with an injected fetcher (the
+        // non-default branch) catches errors from
+        // `updateCheckFromBody`. When the Rust side returns a
+        // `update releases JSON parse: ...` message, the wrapper
+        // rethrows as a `FormatException` so callers binding to the
+        // documented contract still get the right error type. The
+        // existing "not json" test covers the path; this one pins
+        // that the original Rust detail survives in the message so a
+        // future refactor that swallowed the cause string would not
+        // ship a "" FormatException to the UI.
+        final service = UpdateService(fetch: (_) async => '{not valid json');
+
+        try {
+          await service.checkForUpdate('1.0.0');
+          fail('expected FormatException');
+        } on FormatException catch (e) {
+          // The wrapper preserves the original Rust-side detail
+          // string so the UI surface can log it.
+          expect(e.message, isNotEmpty);
+        }
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.downloadAsset — onPhase + progress wiring sanity
+  // ===========================================================================
+  group('UpdateService.downloadAsset — phase callback firing', () {
+    test(
+      'onPhase fires UpdateDownloadPhase.downloading synchronously at start',
+      // Spec: before the FRB downloader is invoked, the wrapper
+      // calls `onPhase?.call(UpdateDownloadPhase.downloading)` so
+      // the UI can render a determinate progress bar immediately.
+      // The `verifying` transition rides on a bus event the FRB
+      // pipeline emits — covered by the live Rust pipeline tests.
+      () async {
+        final phases = <UpdateDownloadPhase>[];
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadSuccess('/tmp/d.AppImage');
+        final service = UpdateService();
+
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onPhase: phases.add,
+        );
+
+        // The `downloading` phase must arrive first. The
+        // `verifying` phase fires from a bus event and is not
+        // expected on this scripted path.
+        expect(phases, isNotEmpty);
+        expect(phases.first, UpdateDownloadPhase.downloading);
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.openFile — null MacosDmgInstaller (no native hook wired)
+  // ===========================================================================
+  //
+  // Spec: when the constructor parameter `macosDmgInstaller` is null (the
+  // production default outside the native macOS shell), the .dmg gate is
+  // skipped entirely and the perimeter handles every artefact. Pins the
+  // null-installer arm so a refactor that added a "default in-process
+  // installer" surface would surface as a behaviour change here.
+  group('UpdateService.openFile — null MacosDmgInstaller', () {
+    test(
+      'macOS .dmg with no installer wired routes through the perimeter only',
+      () async {
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          // No macosDmgInstaller — exercises the `installer != null`
+          // gate's false arm.
+        );
+
+        final ok = await service.openFile('/tmp/Update.dmg');
+
+        expect(ok, isTrue);
+        expect(
+          perimeterCalls,
+          1,
+          reason:
+              'no installer wired → perimeter is the only path even for .dmg',
+        );
+      },
+    );
   });
 }

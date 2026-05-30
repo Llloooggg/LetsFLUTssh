@@ -1052,5 +1052,185 @@ void main() {
 
       expect(find.textContaining('Import failed'), findsOneWidget);
     });
+
+    _testFlow('LfsDecryptionFailedException surfaces the wrong-password copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsDecryptionFailedException`
+      // to `errLfsDecryptFailed` — the dedicated "Wrong master
+      // password or corrupted .lfs archive" string. The catch arm
+      // in `_applyLfsImport` threads the exception through
+      // `localizeError`, so the user sees the credentials-or-
+      // corruption hint rather than the generic Rust error.
+      // Coexists with the existing decryption tests that only
+      // assert the broader "Import failed" wrapper.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const LfsDecryptionFailedException(),
+          lfsDialogResult: (password: 'wrong', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // Stable substring from `errLfsDecryptFailed` so the test
+      // does not pin the whole ARB wording.
+      expect(find.textContaining('Wrong master password'), findsWidgets);
+      // No handle was registered — open threw before stage.
+      expect(log.dropCalls, isEmpty);
+    });
+
+    _testFlow('LfsKnownHostsTooLargeException surfaces the size-MB copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsKnownHostsTooLargeException`
+      // to `errLfsKnownHostsTooLarge` with the rejected vs. limit
+      // sizes formatted as MB. Distinct from
+      // `errLfsArchiveTooLarge` — the known_hosts entry inside a
+      // decrypted archive has its own per-entry cap so a multi-GB
+      // blob can't stall the line-by-line importer.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          applyThrows: const LfsKnownHostsTooLargeException(
+            size: 50 * 1024 * 1024,
+            limit: 10 * 1024 * 1024,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized template embeds the rejected size in MB.
+      expect(find.textContaining('50'), findsWidgets);
+      // Apply threw after open — staged handle must be released.
+      expect(log.dropCalls, ['h-1']);
+    });
+  });
+
+  group('handleQrImportSource — additional arms', () {
+    _testFlow('apply succeeds but `tags` only ⇒ generic head + tag count', (
+      tester,
+    ) async {
+      // Spec: `formatImportSummary` switches the leading template
+      // from `importedSessions(N)` to `importedGeneric(...)` when
+      // `s.sessions == 0` but extras (tags / snippets / keys)
+      // are present. Drives the QR success path through the apply
+      // seam returning a sessions-free result so the generic head
+      // gets exercised — distinct from the "no sessions, no
+      // extras" arm that falls back to `importedSessions(0)`.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(log: log, applyResult: () => _applyResult(sessions: 0, tags: 7)),
+      );
+
+      final source = QrDecodedSource.rust(
+        rust_archive.DbImportOpenResult(
+          handleId: 'qr-h',
+          preview: _previewWith(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton('go', (ctx, ref) async {
+            await handleQrImportSource(
+              context: ctx,
+              ref: ref,
+              source: source,
+              choice: (
+                mode: ImportMode.merge,
+                options: const ExportOptions(
+                  includeSessions: false,
+                  includeTags: true,
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The generic head wraps the tag-count line — the digit
+      // must appear in the rendered toast.
+      expect(find.textContaining('7'), findsWidgets);
+    });
+
+    _testFlow('rolledBack apply on QR path surfaces the restored copy', (
+      tester,
+    ) async {
+      // Spec: `_summaryFromApply` throws
+      // `LfsImportRolledBackException` when the Rust apply reports
+      // `rolledBack: true`. The catch arm in `handleQrImportSource`
+      // routes the exception through `localizeError`, which maps
+      // it to the "data restored" string — same arm the LFS path
+      // uses, exercised here through the QR entry point so a
+      // future change that forgot to throw from `_summaryFromApply`
+      // on the QR side regresses visibly.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(log: log, applyResult: () => _applyResult(rolledBack: true)),
+      );
+
+      final source = QrDecodedSource.rust(
+        rust_archive.DbImportOpenResult(
+          handleId: 'qr-h',
+          preview: _previewWith(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton('go', (ctx, ref) async {
+            await handleQrImportSource(
+              context: ctx,
+              ref: ref,
+              source: source,
+              choice: (
+                mode: ImportMode.replace,
+                options: const ExportOptions(includeSessions: true),
+              ),
+            );
+          }),
+        ),
+      );
+
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.textContaining('restored'), findsWidgets);
+    });
   });
 }

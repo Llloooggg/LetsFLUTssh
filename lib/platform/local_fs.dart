@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/sftp/file_system.dart';
@@ -78,7 +79,7 @@ class LocalFS implements FileSystem {
       // variant. FRB surfaces `Result<_, String>` errors as either
       // an `AnyhowException` or a plain `String`-bearing exception
       // depending on codec; a single broad catch unifies both.
-      throw FileSystemException(_describeError(e), path);
+      throw FileSystemException(describeError(e), path);
     }
 
     final entries = <FileEntry>[];
@@ -177,7 +178,8 @@ class LocalFS implements FileSystem {
   /// Pull a one-line message out of the FRB error envelope so the
   /// `FileSystemException("Directory not found", path)` shape stays
   /// human-readable in the file_browser error toasts.
-  static String _describeError(Object e) {
+  @visibleForTesting
+  static String describeError(Object e) {
     final s = e.toString();
     // FRB throws a wrapper class whose toString includes the full
     // message we passed back from Rust; trim a leading

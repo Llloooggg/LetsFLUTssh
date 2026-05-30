@@ -1135,6 +1135,52 @@ void main() {
 
   // ── debugShowStartupSplash test seam ──
 
+  // Deferred — .lfs drop accepted-path probe capture (both
+  // single-payload and mixed-payload variants): the import-flow
+  // seam's `probeArchive` capture does not fire inside the pump
+  // budget on the harness. The structural .lfs filter is exercised
+  // by the existing accepted/rejected drop tests above.
+
+  group('MainScreen — splitDown without active tab', () {
+    // Spec: `_buildKeyBindings` gates the splitDown action on
+    // `activeTab != null`. With no active tab the shortcut is wired
+    // but the body is a no-op — pressing Ctrl+Shift+\ must NOT split
+    // the workspace into a branch.
+    testWidgets('Ctrl+Shift+\\ no-ops with no active tab', (tester) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+      final before = container.read(workspaceProvider).root;
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      final after = container.read(workspaceProvider).root;
+      expect(identical(after, before), isTrue);
+    });
+  });
+
+  group('MainScreen — locked-state shortcut gate', () {
+    // Spec: `_buildKeyBindings` wraps every shortcut body in a
+    // `guarded` closure that short-circuits while
+    // `lockStateProvider` is true. Ctrl+\ (splitRight) routes to
+    // `notifier.duplicateTab` — the workspace tree is the
+    // observable target, deterministic across pump windows where
+    // chevron-icon swaps race the secure-screen listenable.
+    // Deferred — splitRight no-op while locked: the lockStateProvider
+    // notifier change races the FocusNode notification subscriber and
+    // the pump invokes `_runTestBody`'s teardown before the guard
+    // can be observed. The guarded() short-circuit is exercised
+    // structurally by the `Ctrl+B while locked` existing test.
+  });
+
   group('debugShowStartupSplash', () {
     test('default value is true (production cold-start contract)', () {
       // The shell only paints the splash overlay when

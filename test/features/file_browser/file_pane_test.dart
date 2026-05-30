@@ -3580,6 +3580,185 @@ void main() {
       },
     );
   });
+
+  // ===========================================================================
+  // Rare entry types — symlinks render and route through the standard surface
+  // ===========================================================================
+  group('FilePane — symlink rendering', () {
+    testWidgets(
+      'symlinked directory renders in the list and routes through navigateTo '
+      'on Enter — symlink flag does not gate any UI surface in the pane',
+      (tester) async {
+        // Spec: `FileEntry.isSymlink` is informational only at the
+        // pane level — the row still surfaces, the entry still
+        // counts toward the footer's item count, and a single
+        // selection plus Enter routes through the same
+        // `_activateResult` branch as a non-link directory.
+        // The actual `delete`-vs-`navigate` distinction lives in
+        // the controller's delete path (`controller_test`); the
+        // pane never branches on isSymlink.
+        final entries = [
+          FileEntry(
+            name: 'linked_dir',
+            path: '/home/linked_dir',
+            size: 0,
+            mode: 0x41ED,
+            modTime: now,
+            isDir: true,
+            isSymlink: true,
+          ),
+          FileEntry(
+            name: 'plain.txt',
+            path: '/home/plain.txt',
+            size: 10,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+          ),
+        ];
+        final fs = _MockFS({'/home': entries, '/home/linked_dir': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        // Both entries render — isSymlink does not gate the row.
+        expect(find.text('linked_dir'), findsOneWidget);
+        expect(find.text('plain.txt'), findsOneWidget);
+        // Footer counts both entries.
+        expect(find.textContaining('2 items'), findsOneWidget);
+
+        // Activate the symlink-directory via Enter — the pane does
+        // NOT route a symlink differently; navigateTo is still the
+        // target.
+        await tester.tap(find.text('linked_dir'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/linked_dir');
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(ctrl.currentPath, '/home/linked_dir');
+
+        ctrl.dispose();
+      },
+    );
+  });
+
+  // ===========================================================================
+  // Column gating — non-POSIX backend hides Mode/Owner; per-entry owner probe
+  // ===========================================================================
+  group('FilePane — column gating', () {
+    testWidgets(
+      'POSIX backend with mixed owner strings still shows the Owner column — '
+      'the per-entry probe accepts at least one non-empty owner',
+      (tester) async {
+        // Spec: `_visibleColumns` requires both
+        // `caps.owner == true` AND `entries.any((e) => e.owner.isNotEmpty)`
+        // for the Owner column to render. A POSIX backend where one
+        // entry has a server-supplied owner and another does not
+        // still surfaces the column — the probe is a disjunction,
+        // not an universal-quantification.
+        final entries = [
+          FileEntry(
+            name: 'owned.txt',
+            path: '/home/owned.txt',
+            size: 1,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+            owner: 'alice',
+          ),
+          FileEntry(
+            name: 'anon.txt',
+            path: '/home/anon.txt',
+            size: 1,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+            // No owner supplied — server omitted the attribute.
+          ),
+        ];
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1000,
+                height: 400,
+                child: FilePane(controller: ctrl, paneId: 'test'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Owner'), findsOneWidget);
+        // Mode column also stays visible — POSIX caps cover both.
+        expect(find.text('Mode'), findsOneWidget);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'non-POSIX backend whose entries DO carry an owner string still hides '
+      'the Owner column — capability flag short-circuits the per-entry probe',
+      (tester) async {
+        // Spec: `_visibleColumns` checks `caps.owner` BEFORE the
+        // per-entry probe runs. An object-store backend that
+        // happens to fill `FileEntry.owner` (e.g. an S3 bucket-
+        // owner heuristic) must NOT surface the Owner column —
+        // the backend declares it does not have a per-resource
+        // owner semantic, and the UI honours that flag over the
+        // per-row data.
+        final entries = [
+          FileEntry(
+            name: 'a.txt',
+            path: '/home/a.txt',
+            size: 1,
+            mode: 0,
+            modTime: now,
+            isDir: false,
+            owner: 'bucket-owner',
+          ),
+        ];
+        final fs = _NonPosixMockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1000,
+                height: 400,
+                child: FilePane(controller: ctrl, paneId: 'test'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Owner column header is absent — capability flag wins.
+        expect(find.text('Owner'), findsNothing);
+        // Mode column also absent — same gate.
+        expect(find.text('Mode'), findsNothing);
+
+        ctrl.dispose();
+      },
+    );
+  });
 }
 
 /// MockFS returning a Windows initial directory.

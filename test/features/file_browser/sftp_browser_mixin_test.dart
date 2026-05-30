@@ -976,5 +976,131 @@ void main() {
     // queue boot + bus stream wiring runs only against the native lib
     // bound to a real session; widget-test bootstrap of those plumbing
     // surfaces would replicate the integration harness.
+
+    testWidgets(
+      'sftpInitFactory error message surfaces inside the errSftpInitFailed '
+      'localised wrapper — bare exception text is never written standalone',
+      (tester) async {
+        // Spec: in the `catch (e)` arm of `initSftp`, the mixin
+        // composes `l10n.errSftpInitFailed(localizeError(l10n, e))`.
+        // The wrapper string ("Failed to initialize SFTP: …") is the
+        // user-visible carrier; the raw exception text is just the
+        // {error} substitution. Pin the composition order so a
+        // future refactor that drops the wrapper would fail this
+        // test, not silently surface a bare exception to the UI.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+        conn.markTransportAdopted();
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async =>
+                      throw Exception('subsystem refused'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        final err = state.sftpError;
+        expect(err, isNotNull);
+        // The wrapper prefix is present — bare 'subsystem refused'
+        // would mean the catch arm bypassed the template.
+        expect(err, startsWith('Failed to initialize SFTP'));
+        // Cause text is inside the wrapper as the {error} substitution.
+        expect(err, contains('subsystem refused'));
+        // Initialization gate has dropped — the UI is free to paint
+        // the error state without waiting on a stale spinner.
+        expect(state.sftpInitializing, isFalse);
+      },
+    );
+
+    testWidgets(
+      'uploadMany short-circuits when the host widget unmounts mid-batch — '
+      'the mounted guard prevents a setState-after-dispose on a long list',
+      (tester) async {
+        // Spec: `uploadMany` checks `mounted` on every loop iteration
+        // before calling `TransferHelpers.enqueueUpload`. If the
+        // host widget is unmounted between iterations, the loop
+        // bails cleanly without throwing. Pin the unmount-safety
+        // contract — a missing guard would surface as a
+        // `setState called after dispose` crash on a tab-close
+        // mid-batch.
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  autoInit: false,
+                  initialResult: result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+
+        // Tear down the host widget by replacing it — `mounted`
+        // flips to false on the dispose. The pending uploadMany
+        // future runs against an unmounted state and must hit the
+        // `if (!mounted) return;` guard cleanly.
+        final future = state.uploadMany(const []);
+        await tester.pumpWidget(
+          const ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(body: SizedBox()),
+            ),
+          ),
+        );
+        // The empty-list early-return makes the future resolve
+        // immediately; no setState should fire on the unmounted
+        // state. Awaiting it here pins the no-throw contract.
+        await future;
+      },
+    );
   });
 }

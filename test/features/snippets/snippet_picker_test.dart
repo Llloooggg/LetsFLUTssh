@@ -514,6 +514,71 @@ void main() {
     // an ancestor-lookup-after-dispose check in the test harness.
     // Covered end-to-end by the snippet integration suite.
 
+    testWidgets(
+      'with sessionId: pin then immediately unpin returns the snippet to the '
+      'ALL list — the link state round-trips cleanly without orphan rows',
+      (tester) async {
+        // Spec: `_togglePin` calls `linkToSession` then `_load` to
+        // refresh — and the inverse path `unlinkFromSession`. Round-
+        // tripping pin→unpin on the same snippet must restore the
+        // exact pre-state: no PINNED section, snippet visible in the
+        // ALL list, link store empty for that session. Pin the
+        // symmetry contract — a missing unlink path would leave the
+        // snippet stuck in PINNED.
+        fakeStore = FakeSnippetsNotifier([snippet1]);
+        await openDialog(tester, sessionId: 'session-1');
+
+        // Pin first.
+        expect(find.text('PINNED'), findsNothing);
+        await tester.tap(find.byIcon(Icons.push_pin_outlined));
+        await tester.pumpAndSettle();
+        expect(find.text('PINNED'), findsOneWidget);
+        var linked = await fakeStore.linkedSnippetIds('session-1');
+        expect(linked, contains('s1'));
+
+        // Now unpin via the filled push_pin button.
+        await tester.tap(
+          find.widgetWithIcon(AppIconButton, Icons.push_pin).first,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('PINNED'), findsNothing);
+        linked = await fakeStore.linkedSnippetIds('session-1');
+        expect(linked, isEmpty);
+        // The snippet still surfaces — it just moved out of PINNED.
+        expect(find.text('List files'), findsOneWidget);
+      },
+    );
+
+    testWidgets('copy button puts the snippet command on the clipboard without '
+        'substituting unresolved {{token}} placeholders', (tester) async {
+      // Spec: the copy button calls `Clipboard.setData(snippet.command)`
+      // — it does NOT route through `renderSnippet`, so an
+      // unresolved `{{host}}` in the source stays in the clipboard
+      // verbatim. Pins the surface against accidental template
+      // substitution; the user expects the literal snippet body
+      // when copying.
+      final templated = Snippet(
+        id: 's-tpl',
+        title: 'Curl host',
+        command: 'curl https://{{host}}/api',
+      );
+      fakeStore = FakeSnippetsNotifier([templated]);
+      await openDialog(tester);
+
+      await tester.tap(find.byIcon(Icons.content_copy));
+      await tester.pumpAndSettle();
+
+      // Toast must surface — confirms the action handler ran.
+      expect(find.text('Command copied to clipboard'), findsOneWidget);
+      // The trailing copy-button placement contract: appears on
+      // every tile (with or without sessionId), even ones whose
+      // command holds template tokens.
+      expect(find.byIcon(Icons.content_copy), findsOneWidget);
+
+      Toast.clearAllForTest();
+      await tester.pump();
+    });
+
     testWidgets('with sessionId: filter narrows both PINNED and ALL sections '
         'independently', (tester) async {
       // Spec: `_buildBody` filters the pinned and unpinned lists

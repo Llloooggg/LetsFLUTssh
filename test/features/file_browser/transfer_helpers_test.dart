@@ -300,6 +300,83 @@ void main() {
       expect(remote, isNot(equals('/uploads/dup.txt')));
     });
 
+    test('download-conflict skip on a non-existent target → still enqueues '
+        '(no collision → resolver bypassed)', () async {
+      // Spec: `_resolveDownloadConflict` calls `_snapshotLocal` first
+      // — when the path doesn't exist (FRB returns null), the helper
+      // returns the target immediately and never asks the resolver.
+      // A regression that consulted the resolver for fresh-target
+      // downloads would force a "skip / keep / replace" dialog the
+      // user never needed to see.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      var resolverCalls = 0;
+      final resolver = BatchConflictResolver((
+        path, {
+        bool isRemote = false,
+      }) async {
+        resolverCalls++;
+        return const ConflictDecision(ConflictAction.skip);
+      });
+      addTearDown(resolver.dispose);
+
+      final entry = FileEntry(
+        name: 'fresh-remote.bin',
+        path: '/remote/fresh-remote.bin',
+        size: 256,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      // Use a /tmp path that won't exist — `_snapshotLocal` returns
+      // null and the helper bypasses the resolver.
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath:
+            '/tmp/letsflutssh-test-${DateTime.now().microsecondsSinceEpoch}',
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      expect(resolverCalls, 0, reason: 'fresh local target → no prompt needed');
+      expect(manager.downloads, hasLength(1));
+    });
+
+    test('upload of a non-dir entry returns true on enqueue (single-task '
+        'path)', () async {
+      // Spec: `enqueueUpload` returns `true` whenever it routes through
+      // the single-file path and the manager accepted the task. The
+      // boolean is the caller's "did anything land?" signal — the
+      // drag-drop overlay uses it to decide whether to show a toast.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final entry = FileEntry(
+        name: 'readme.md',
+        path: '/local/readme.md',
+        size: 64,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        remoteDirPath: '/r',
+        remoteCtrl: null,
+      );
+
+      expect(ok, isTrue);
+      // Default size on the captured payload matches what the entry
+      // carried — `enqueueUpload` forwards `entry.size` verbatim.
+      expect(manager.uploads.single['sizeBytes'], 64);
+      expect(manager.uploads.single['name'], 'readme.md');
+    });
+
     test('upload with no collision → resolver is bypassed, original path '
         'lands', () async {
       // Spec: `_resolveUploadConflict` early-returns the target when

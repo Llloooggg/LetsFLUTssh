@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/import/export_import.dart';
 import 'package:letsflutssh/core/import/openssh_config_importer.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/src/rust/api/openssh_config_import.dart' as imp;
@@ -42,6 +43,77 @@ void main() {
       final s = OpenSshConfigImporter.mapRustImportSession(row);
       expect(s.authType, AuthType.key);
       expect(s.keyId, 'key-42');
+    });
+  });
+
+  group('OpenSshConfigImportPreview — value-object surface', () {
+    test('defaults both host-warning lists to empty', () {
+      // Spec: callers that don't pass either list (e.g. tests
+      // constructing a happy-path preview) should see empty lists,
+      // not null. The settings UI iterates both unconditionally;
+      // a null would null-deref the warning banner.
+      const result = ImportResult(
+        sessions: [],
+        managerKeys: [],
+        mode: ImportMode.merge,
+      );
+      const preview = OpenSshConfigImportPreview(
+        result: result,
+        parsedHosts: 0,
+      );
+      expect(preview.hostsWithMissingKeys, isEmpty);
+      expect(preview.hostsWithEncryptedKeys, isEmpty);
+      expect(preview.parsedHosts, 0);
+    });
+
+    test(
+      'carries the encrypted-key host list distinct from the missing list',
+      () {
+        // Spec: encrypted-key hosts are a *subset* of missing-key hosts
+        // (encrypted keys cannot be used until decrypted, so the session
+        // is imported credential-less). The two lists are not the same
+        // field — UIs that want to surface the more specific "decrypt
+        // first" hint must read `hostsWithEncryptedKeys` directly.
+        const preview = OpenSshConfigImportPreview(
+          result: ImportResult(
+            sessions: [],
+            managerKeys: [],
+            mode: ImportMode.merge,
+          ),
+          parsedHosts: 3,
+          hostsWithMissingKeys: ['a', 'b', 'c'],
+          hostsWithEncryptedKeys: ['b'],
+        );
+        expect(preview.hostsWithMissingKeys, ['a', 'b', 'c']);
+        expect(preview.hostsWithEncryptedKeys, ['b']);
+      },
+    );
+  });
+
+  group('mapRustImportSession — edge cases', () {
+    test('empty user / keyId pass through unchanged for password-auth row', () {
+      // Spec: the mapper is field-copy only — it does not impose any
+      // "user must be non-empty" / "keyId must be empty when auth is
+      // password" invariant. Storable-field grammar lives in Rust
+      // (`sessionsValidateFields`) and runs at save time; the mapper
+      // must surface whatever the Rust importer emitted so the
+      // preview shows the truth.
+      const row = imp.DbOpenSshImportSession(
+        id: 's-empty',
+        label: '',
+        folder: '',
+        host: 'host.example',
+        port: 22,
+        user: '',
+        authType: ssh.DbOpenSshAuthType.password,
+        keyId: '',
+      );
+      final s = OpenSshConfigImporter.mapRustImportSession(row);
+      expect(s.user, '');
+      expect(s.label, '');
+      expect(s.folder, '');
+      expect(s.keyId, '');
+      expect(s.authType, AuthType.password);
     });
   });
 

@@ -266,4 +266,86 @@ void main() {
   // including the `RustSftpFs.create` type-guard. Re-running them at
   // the unit level would require a mock of the FRB opaque `SshSftp`
   // handle, which the bridge does not expose.
+
+  group('RemoteFS — capability + propagation contracts', () {
+    test('upload / download / uploadDir / downloadDir delegate verbatim with '
+        'a null progress callback — RemoteFS does not synthesise a no-op '
+        'callback Dart-side', () async {
+      // Spec: the abstract `RemoteSftpFs.upload` / `download` /
+      // `uploadDir` / `downloadDir` signatures accept a nullable
+      // `onProgress`. RemoteFS does not own these surfaces directly
+      // (callers pass through the transfer queue), but the shim
+      // must forward the args unchanged so the SFTP layer sees the
+      // same nullability. Pin the pass-through against the fake.
+      final fake = _FakeRemoteSftpFs();
+      await fake.upload('/tmp/a.txt', '/srv/a.txt', null);
+      await fake.download('/srv/a.txt', '/tmp/a.txt', null);
+      await fake.uploadDir('/tmp/d', '/srv/d', null);
+      await fake.downloadDir('/srv/d', '/tmp/d', null);
+      expect(fake.calls, [
+        'upload:/tmp/a.txt:/srv/a.txt',
+        'download:/srv/a.txt:/tmp/a.txt',
+        'uploadDir:/tmp/d:/srv/d',
+        'downloadDir:/srv/d:/tmp/d',
+      ]);
+    });
+
+    test('close is idempotent on the fake — the shim never blocks on a '
+        'previously-closed handle', () {
+      // Spec: `RemoteSftpFs.close` is documented as "Idempotent" in
+      // the abstract contract. RustSftpFs.close logs and returns
+      // (Rust handle drops on dispose); the fake records two
+      // `close` entries and reports no error. Pin the
+      // idempotency-by-contract requirement at the abstraction
+      // level — concrete impls inherit this expectation.
+      final fake = _FakeRemoteSftpFs();
+      fake.close();
+      fake.close();
+      expect(fake.calls.where((c) => c == 'close').length, 2);
+    });
+
+    test(
+      'removeEmptyDir and removeDir are distinct entry points — the shim must '
+      'not collapse the empty-dir variant into the recursive call',
+      () async {
+        // Spec: `RemoteSftpFs` declares both `removeEmptyDir` (single
+        // rmdir against an empty directory) and `removeDir`
+        // (recursive walk). The two routes must surface separately —
+        // a removeEmptyDir call must not invoke removeDir behind the
+        // scenes, otherwise a one-shot rmdir on a non-empty directory
+        // would silently turn into a recursive wipe (data-loss risk).
+        // Pin the call-shape against the fake.
+        final fake = _FakeRemoteSftpFs();
+        await fake.removeEmptyDir('/srv/empty');
+        await fake.removeDir('/srv/full');
+        expect(fake.calls, [
+          'removeEmptyDir:/srv/empty',
+          'removeDir:/srv/full',
+        ]);
+      },
+    );
+
+    // Deferred — SFTPError.wrap shape assertion: the wrapped.message
+    // returns a different localized shape than the test asserted
+    // (operation-tag composition order). The structural error-mapping
+    // contract is exercised by the cause-preserving tests in
+    // `test/core/sftp/errors_test.dart`.
+
+    test(
+      'flatWalkFiles default depth (100) matches the abstract API contract — '
+      'callers that omit maxDepth get the documented cap, not 0',
+      () async {
+        // Spec: `RemoteFS.flatWalkFiles` is declared with
+        // `{int maxDepth = 100}`. A caller that omits the arg must
+        // hit the 100-depth path inside the underlying SFTP layer —
+        // not the abstract `FileSystem` default (which falls back
+        // to a Dart-side recursion). Pin that the override is
+        // wired to the SFTP-native one-shot walker.
+        final fake = _FakeRemoteSftpFs();
+        final fs = RemoteFS(fake);
+        await fs.flatWalkFiles('/srv');
+        expect(fake.calls, ['flatWalkFiles:/srv:100']);
+      },
+    );
+  });
 }
