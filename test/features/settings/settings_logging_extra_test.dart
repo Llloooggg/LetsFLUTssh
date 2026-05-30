@@ -330,4 +330,159 @@ void main() {
     // Stub to keep group structure stable.
     expect(true, isTrue);
   });
+
+  // ── _LogLevelSelector subtitle for the Off (null) threshold ──
+
+  testWidgets('logging-level subtitle for Off matches localized prose', (
+    tester,
+  ) async {
+    sizeView(tester);
+    // Default AppConfig.defaults has logLevel == null → the selector
+    // renders the Off subtitle. Pin the localized string against the
+    // selector row so the `null` arm of `_subtitleFor` is exercised.
+    await tester.pumpWidget(buildApp());
+    await pumpFrames(tester);
+    final l10n = await loadL10n();
+
+    await tester.scrollUntilVisible(
+      find.text(l10n.loggingLevel),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text(l10n.loggingLevelSubtitleOff), findsOneWidget);
+    // The dropdown trigger collapses to "Off".
+    expect(find.text('Off'), findsWidgets);
+  });
+
+  // ── _LogLevelSelector subtitle for the Info (verbose) threshold ──
+
+  testWidgets('logging-level subtitle for Info matches localized prose', (
+    tester,
+  ) async {
+    sizeView(tester);
+    final cfg = AppConfig.defaults.copyWith(
+      behavior: const BehaviorConfig(logLevel: LogLevel.info),
+    );
+    await tester.pumpWidget(buildApp(initialConfig: cfg));
+    await pumpFrames(tester);
+    final l10n = await loadL10n();
+
+    await tester.scrollUntilVisible(
+      find.text(l10n.loggingLevel),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text(l10n.loggingLevelSubtitleInfo), findsOneWidget);
+  });
+
+  // ── Toggling a chip then toggling it back restores the level set ──
+
+  testWidgets(
+    'toggling the I chip off then on restores Info in visibleLevels',
+    (tester) async {
+      await mountViewerWithEntries(tester, infoCount: 1);
+
+      final infoChip = find.text('I');
+      expect(infoChip, findsWidgets);
+
+      // First tap: Info drops out of the visible set.
+      await tester.tap(infoChip.first);
+      await pumpFrames(tester, 4);
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.info), isFalse);
+
+      // Second tap: the toggle is symmetric and re-adds Info.
+      await tester.tap(infoChip.first);
+      await pumpFrames(tester, 4);
+      expect(LogStore.instance.visibleLevels.contains(LogLevel.info), isTrue);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── Tapping the delete-outline (clear) icon empties the LogStore ──
+
+  testWidgets('tapping the clear icon wipes the in-memory LogStore buffer', (
+    tester,
+  ) async {
+    // Seed an info entry so the store has something to clear; the
+    // _clearAndRefresh handler calls `widget.onClear()` (which routes
+    // through AppLogger.clearLogs) AND `_store.clearAll()` in the same
+    // tick — the latter wipes the in-memory buffer the viewer reads.
+    await mountViewerWithEntries(tester, infoCount: 1);
+    // The buffer carries at minimum the seeded info entry once the
+    // viewer has settled.
+    final deleteIcon = find.byIcon(Icons.delete_outline);
+    expect(deleteIcon, findsWidgets);
+    await tester.tap(deleteIcon.first);
+    // The success toast holds a 3s auto-dismiss timer; pump past it
+    // so no pending timer survives the widget teardown.
+    await pumpFrames(tester, 6);
+
+    // Spec: after clear, the in-memory buffer is empty regardless of
+    // whether the async on-disk wipe finished — the synchronous
+    // `_store.clearAll()` in `_clearAndRefresh` flushes Dart state.
+    expect(LogStore.instance.allEntries, isEmpty);
+    Toast.clearAllForTest();
+  });
+
+  // ── The save-alt (export) icon button mounts on the toolbar ──
+
+  testWidgets('export icon is present in the live viewer toolbar', (
+    tester,
+  ) async {
+    sizeView(tester);
+    final config = AppConfig.defaults.copyWith(
+      behavior: const BehaviorConfig(logLevel: LogLevel.info),
+    );
+    await tester.pumpWidget(buildApp(initialConfig: config));
+    await pumpFrames(tester);
+
+    await tester.scrollUntilVisible(
+      find.byIcon(Icons.save_alt),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // The export icon is the third toolbar button — its presence
+    // arms the `_exportLog` handler. The real FilePicker round-trip
+    // is covered by integration: loggerExportTo runs in a Rust
+    // spawn_blocking task that does not settle deterministically
+    // within the test pump cadence.
+    expect(find.byIcon(Icons.save_alt), findsOneWidget);
+  });
+
+  // ── Filter search field accepts typing without crashing ──
+
+  testWidgets(
+    'typing into the filter field rebuilds the bar without throwing',
+    (tester) async {
+      await mountViewerWithEntries(tester, infoCount: 1);
+
+      // The filter TextField sits inside `_LogFilterBar` — uniquely
+      // identified by its `Icons.search` prefix icon. Walk up from
+      // that icon to the owning TextField, then to its EditableText.
+      final filterField = find.descendant(
+        of: find.ancestor(
+          of: find.byIcon(Icons.search),
+          matching: find.byType(TextField),
+        ),
+        matching: find.byType(EditableText),
+      );
+      expect(filterField, findsOneWidget);
+      // Entering text drives the `onChanged` → `_pushFilter` chain;
+      // the LogStore mutation arm settles past pump cadence (covered
+      // by log_store_test.dart), but the widget rebuild itself must
+      // not throw.
+      await tester.enterText(filterField, 'needle');
+      await pumpFrames(tester, 4);
+      // The viewer is still mounted; the search query lives in
+      // _LiveLogViewerState as transient widget-local state.
+      expect(find.text('Live Log'), findsOneWidget);
+      Toast.clearAllForTest();
+    },
+  );
+
+  // ── Archived-log mounting when logging off + file has content ──
+  // covered by integration: the AppLogger threshold flip + the
+  // `loggerLogFileHasContent` sync probe race the test pump cadence
+  // — the host re-evaluates on a Stream tick the harness does not
+  // drain, so the "Archived log" label is observable only end-to-end.
 }

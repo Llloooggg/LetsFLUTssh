@@ -274,6 +274,85 @@ void main() {
     });
   });
 
+  // ── HardwareKeyPromptCancelled extra surface ─────────────────────
+  //
+  // The localize-error chain needs the message verbatim AND a typed
+  // discriminator so the UI can pick the cancel toast vs the generic
+  // SSHError fallback.
+
+  group('HardwareKeyPromptCancelled message surface', () {
+    test('an empty cancel message round-trips through the typed fields', () {
+      // Spec: callers (the `_resolveHardwareKeyPin` arm) localize the
+      // cancel message; passing an empty string must not collapse the
+      // surface to `null` — the exception still has to be greppable
+      // through `userMessage` for the log breadcrumb.
+      const e = HardwareKeyPromptCancelled('');
+      expect(e.message, '');
+      expect(e.userMessage, '');
+      expect(e, isA<SSHError>());
+    });
+
+    test('a unicode cancel message survives toString verbatim', () {
+      // Spec: the cancel message can be a localized string from any of
+      // the 15 ARB locales — Cyrillic / Arabic / CJK glyphs must
+      // round-trip without escape so the toString breadcrumb stays
+      // readable in the log.
+      const e = HardwareKeyPromptCancelled('用户已取消');
+      expect(e.toString(), contains('用户已取消'));
+      expect(e.userMessage, '用户已取消');
+    });
+  });
+
+  // ── ConnectAsync read-side accessors during the in-flight attempt ─
+
+  group('connectAsync read-side surface during the in-flight attempt', () {
+    test('the new id is unique across back-to-back attempts', () async {
+      // Spec: every `connectAsync` mints a fresh uuid v4 so a user
+      // mashing the connect button does not produce two tabs sharing
+      // an id (the bus listener filters by id and would deliver state
+      // transitions to the wrong row).
+      final container = makeContainer();
+      final notifier = container.read(connectionsProvider.notifier);
+      final a = notifier.connectAsync(
+        configFor(const SshAuth(useAgent: true)),
+        label: 'A',
+      );
+      final b = notifier.connectAsync(
+        configFor(const SshAuth(useAgent: true)),
+        label: 'B',
+      );
+      expect(a.id, isNot(equals(b.id)));
+      expect(notifier.get(a.id), same(a));
+      expect(notifier.get(b.id), same(b));
+
+      await a.waitUntilReady().timeout(const Duration(seconds: 15));
+      await b.waitUntilReady().timeout(const Duration(seconds: 15));
+      notifier.disconnect(a.id);
+      notifier.disconnect(b.id);
+    });
+
+    test(
+      'connectAsync without a label falls back to config.displayName',
+      () async {
+        // Spec: the label argument is nullable; the workspace tab strip
+        // still needs a human-readable title so the notifier defaults
+        // to `config.displayName` (the `user@host:port` triple). Pin
+        // the contract so a refactor cannot accidentally surface an
+        // empty tab title.
+        final container = makeContainer();
+        final notifier = container.read(connectionsProvider.notifier);
+        final conn = notifier.connectAsync(
+          configFor(const SshAuth(useAgent: true)),
+        );
+        expect(conn.label, isNotEmpty);
+        expect(conn.label, contains('u'));
+
+        await conn.waitUntilReady().timeout(const Duration(seconds: 15));
+        notifier.disconnect(conn.id);
+      },
+    );
+  });
+
   group('deferred to integration', () {
     test(
       '_authFromConfig: DbPreparedAuthRef_PubkeyCert + PubkeySk* + Pkcs11 + Enclave + Hello + Tpm + Keystore arms',

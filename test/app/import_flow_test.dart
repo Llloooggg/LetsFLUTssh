@@ -429,6 +429,121 @@ void main() {
       expect(log.dropCalls, ['h-1']);
     });
 
+    _testFlow(
+      'rolledBack apply surfaces errLfsImportRolledBack in the error toast',
+      (tester) async {
+        // Spec: `_summaryFromApply` throws [LfsImportRolledBackException]
+        // when the Rust apply reports `rolledBack: true`. The catch arm
+        // in `_applyLfsImport` routes the exception through `localizeError`,
+        // which maps that exception to the "data restored" string —
+        // distinct from the generic "Import failed" copy.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(rolledBack: true),
+            lfsDialogResult: (password: 'p', mode: ImportMode.replace),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton(
+              'go',
+              (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The localized template embeds "your data has been restored";
+        // assert on a stable substring so the test does not pin the
+        // entire wording of the ARB string.
+        expect(find.textContaining('restored'), findsWidgets);
+        // Apply seam succeeded (no throw) but the handle is consumed
+        // on its way out — drop should NOT fire on the rolled-back
+        // success-shape return.
+        expect(log.applyCalls, hasLength(1));
+        expect(log.dropCalls, isEmpty);
+      },
+    );
+
+    _testFlow('opened preview with recordings drives applyRecordings=true', (
+      tester,
+    ) async {
+      // Spec: when the staged preview reports a non-zero recording
+      // count, `_applyLfsImport` passes `recordings: true` so the
+      // Rust apply step extracts the recordings tree after the DB
+      // transaction commits.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openPreview: _previewWith(recordingCount: 4),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/r.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(log.applyCalls.single.applyRecordings, isTrue);
+    });
+
+    _testFlow('openArchiveWithTypedErrors maps DbImportOpenError_FutureVersion '
+        'to UnsupportedLfsVersionException — error toast carries the version', (
+      tester,
+    ) async {
+      // Spec: the wrapper in `openArchiveWithTypedErrors` rethrows
+      // `DbImportOpenError_FutureVersion` as the typed
+      // `UnsupportedLfsVersionException` so the `localizeError`
+      // chain renders the dedicated "newer archive" template
+      // instead of the generic Rust error string.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const UnsupportedLfsVersionException(
+            found: 99,
+            supported: 3,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized "newer than supported" template embeds the
+      // archive's version number.
+      expect(find.textContaining('99'), findsWidgets);
+      // No handle was registered (open threw) so drop must NOT fire.
+      expect(log.dropCalls, isEmpty);
+    });
+
     _testFlow('replace mode propagates through apply seam', (tester) async {
       final log = _CallLog();
       debugSetImportFlowSeams(

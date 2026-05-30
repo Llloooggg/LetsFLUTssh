@@ -287,9 +287,20 @@ void main() {
     final cfg = rust_sync.syncConfigGet();
     expect(cfg.webdavAuthMethod, 'digest');
   });
-}
 
-/// utf8 encode without pulling dart:convert into the test's imports —
-/// keeps the import block lean and avoids the convert/utf8 name
-/// shadowing the test_test conventions in other helpers.
-List<int> utf8Of(String s) => s.codeUnits;
+  // Deferred — settings-sync section deepening (pre-seeded password
+  // drop, bearer chip, idempotent basic chip, empty remote-path
+  // fallback, URL trim, enable-toggle persistence, formatted last-
+  // pushed timestamp): the section's `_saveConfig` / `_saveSecret`
+  // arms route through Rust verbs whose actor does not drain inside
+  // the `pumpFrames` budget, leaving the test wedged for minutes per
+  // case. Covered end-to-end by the WebDAV integration suite.
+
+  // ── Push / pull verb dispatch ──
+  // covered by integration: `syncStatusProvider.notifier.push()` /
+  // `.pull()` hit a real WebDAV endpoint; the `_showResultToast` per-kind
+  // arms (pushed / pull_applied / up_to_date / skipped / default) are
+  // observable only end-to-end with a real server (or a Rust-side mock
+  // that overrides the orchestrator's HTTP layer, which lives in
+  // `lfs_core::sync::orchestrator`).
+}

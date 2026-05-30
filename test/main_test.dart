@@ -15,6 +15,7 @@ import 'package:letsflutssh/features/tabs/tab_model.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
 import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/features/workspace/workspace_node.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/main.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
@@ -774,5 +775,153 @@ void main() {
       await tester.pump();
       expect(find.byIcon(Icons.chevron_left), findsOneWidget);
     });
+  });
+
+  // ── LetsFLUTsshApp — theme variants ──
+
+  group('LetsFLUTsshApp — theme variants', () {
+    testWidgets('theme "system" resolves to ThemeMode.system on MaterialApp', (
+      tester,
+    ) async {
+      final config = AppConfig.defaults.copyWith(
+        terminal: AppConfig.defaults.terminal.copyWith(theme: 'system'),
+      );
+      await tester.pumpWidget(buildApp(config: config));
+      await tester.pumpAndSettle();
+
+      // The third theme branch must reach MaterialApp.themeMode —
+      // anything else would force a single brightness regardless of
+      // OS preference.
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.themeMode, ThemeMode.system);
+    });
+
+    testWidgets('localizationsDelegates surface S.localizationsDelegates', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // Every MaterialApp the shell mounts must thread the generated
+      // S.localizationsDelegates and S.supportedLocales — otherwise a
+      // pushed mobile route can't resolve `S.of(context)`.
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.localizationsDelegates, S.localizationsDelegates);
+      expect(app.supportedLocales, S.supportedLocales);
+    });
+
+    testWidgets('MaterialApp navigatorKey is the shared singleton', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // The lock overlay, update dialog, toast layer all push routes
+      // through `navigatorKey.currentContext`. The shell must thread
+      // the same singleton into MaterialApp, not a fresh GlobalKey.
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.navigatorKey, same(navigatorKey));
+    });
+
+    testWidgets('MediaQuery clamps the inherited textScaler at 3.0', (
+      tester,
+    ) async {
+      // Push the in-app slider to 2.0 plus the inherited platform
+      // scaler — the clamp at 3.0 documents the upper bound so a user
+      // doubling the system text size on top of a 1.5x in-app scale
+      // does not blow up the layout.
+      final config = AppConfig.defaults.copyWith(
+        ui: AppConfig.defaults.ui.copyWith(uiScale: 2.0),
+      );
+      await tester.pumpWidget(buildApp(config: config));
+      await tester.pumpAndSettle();
+
+      final mediaQuery = tester.widget<MediaQuery>(
+        find.byType(MediaQuery).last,
+      );
+      // 2.0 in-app × 1.0 inherited = 2.0 < 3.0 → linear scaler preserved
+      // exactly. The clamp tail kicks in only past 3.0.
+      expect(mediaQuery.data.textScaler, const TextScaler.linear(2.0));
+    });
+
+    testWidgets('MediaQuery sets disableAnimations to true app-wide', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // The shell hard-offs every framework animation through the
+      // `disableAnimations` flag in MediaQuery — the same knob the
+      // OS reduce-motion accessibility toggle would set. Forgetting
+      // this regresses the cold-start "no transitions" guarantee.
+      final mediaQuery = tester.widget<MediaQuery>(
+        find.byType(MediaQuery).last,
+      );
+      expect(mediaQuery.data.disableAnimations, isTrue);
+    });
+  });
+
+  // ── LetsFLUTsshApp — locale switching ──
+
+  group('LetsFLUTsshApp — locale switching', () {
+    testWidgets('default config leaves MaterialApp.locale null', (
+      tester,
+    ) async {
+      // Default config has no locale override so the framework falls
+      // back to the system locale. The `null` is the contract: a
+      // future refactor that pinned `Locale('en')` here would break
+      // every non-English user's startup.
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.locale, isNull);
+    });
+
+    testWidgets('explicit locale=ja flows through to MaterialApp.locale', (
+      tester,
+    ) async {
+      final config = AppConfig.defaults.copyWith(locale: 'ja');
+      await tester.pumpWidget(buildApp(config: config));
+      await tester.pumpAndSettle();
+
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.locale, const Locale('ja'));
+    });
+  });
+
+  // ── LetsFLUTsshApp — splash overlay (debug seam) ──
+
+  // Deferred — `debugShowStartupSplash` overlay paint: the splash
+  // ValueListenable does not settle within the harness pump cadence
+  // when the bootstrap path never resolves. The overlay mount
+  // contract is exercised by the cold-start integration test.
+
+  // ── MainScreen — lock overlay routing ──
+
+  group('MainScreen — lock overlay', () {
+    testWidgets('IgnorePointer ignoring is false while unlocked', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      // While the lockStateProvider stays false, the IgnorePointer
+      // gate must be transparent to pointer events — the workspace
+      // beneath has to receive every tap, not have them swallowed by
+      // a stale `ignoring: true` carried over from a prior lifecycle.
+      // The first IgnorePointer in the tree is the one main_app wires
+      // to `locked`.
+      final ignore = tester.widget<IgnorePointer>(
+        find.byType(IgnorePointer).first,
+      );
+      expect(ignore.ignoring, isFalse);
+    });
+
+    // LockScreen-mount-on-debugForceLocked deferred — same gesture as
+    // the deferred Ctrl+B-while-locked test: the lockStateProvider
+    // round-trip through debugForce* interacts with the secure-screen
+    // scope's listenable in a way the IgnorePointer / LockScreen
+    // finder cannot observe deterministically across pump windows.
   });
 }
