@@ -436,5 +436,444 @@ void main() {
       final filtered = c.read(filteredSessionsProvider);
       expect(filtered.map((s) => s.id), ['s1']);
     });
+
+    test(
+      'byFolder / countSessionsInFolder return empties for a missing path',
+      () async {
+        final c = makeContainer();
+        await waitForSnapshot(c, (_) => true);
+        final mutator = c.read(sessionMutatorProvider);
+        // No sessions added — the registry returns no ids for any folder.
+        expect(mutator.byFolder('does-not-exist'), isEmpty);
+        expect(mutator.countSessionsInFolder('does-not-exist'), 0);
+      },
+    );
+
+    test('get / folderIdByPath return null for absent rows', () async {
+      final c = makeContainer();
+      await waitForSnapshot(c, (_) => true);
+      final mutator = c.read(sessionMutatorProvider);
+      expect(mutator.get('ghost'), isNull);
+      expect(mutator.folderIdByPath(''), isNull);
+      expect(mutator.folderIdByPath('NotThere'), isNull);
+    });
+
+    test('folders() yields an empty list with no rows', () async {
+      final c = makeContainer();
+      await waitForSnapshot(c, (_) => true);
+      expect(c.read(sessionMutatorProvider).folders(), isEmpty);
+    });
+  });
+
+  group('SessionMutator validation + no-op edge cases (real DB)', () {
+    test('add rejects an out-of-range port via the validator', () async {
+      final c = makeContainer();
+      await waitForSnapshot(c, (_) => true);
+      await expectLater(
+        c.read(sessionMutatorProvider).add(makeSession(id: 'bad', port: 0)),
+        throwsArgumentError,
+      );
+    });
+
+    test('update rejects an invalid host before touching the DB', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+      await expectLater(
+        mutator.update(makeSession(id: 's1', host: '')),
+        throwsArgumentError,
+      );
+    });
+
+    test('updatePartial rejects an absent session', () async {
+      final c = makeContainer();
+      await waitForSnapshot(c, (_) => true);
+      await expectLater(
+        c.read(sessionMutatorProvider).updatePartial(makeSession(id: 'ghost')),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+      'updatePartial stages key data + passphrase when both dirty flags set',
+      () async {
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+        await mutator.updatePartial(
+          makeSession(
+            id: 's1',
+            auth: const SessionAuth(
+              authType: AuthType.key,
+              keyData: 'PEM-BODY',
+              passphrase: 'pp',
+            ),
+          ),
+          keyDataDirty: true,
+          passphraseDirty: true,
+        );
+        // Both `hasStoredKeyData` and `hasStoredPassphrase` flags trip
+        // on the next snapshot once Rust persists the secrets and
+        // republishes `SessionsChanged`.
+        final snap = await waitForSnapshot(
+          c,
+          (s) => s.sessions.any(
+            (x) =>
+                x.id == 's1' &&
+                x.auth.hasStoredKeyData &&
+                x.auth.hasStoredPassphrase,
+          ),
+        );
+        final row = snap.sessions.single;
+        expect(row.auth.hasStoredKeyData, isTrue);
+        expect(row.auth.hasStoredPassphrase, isTrue);
+      },
+    );
+
+    test('moveSession on a missing id is a silent no-op', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Home'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+      // Run + drain — the missing id branch returns silently inside
+      // `_runUndoable`, the snapshot stays unchanged.
+      await mutator.moveSession('ghost', 'Elsewhere');
+      final snap = c.read(sessionWorkspaceProvider);
+      expect(snap.sessions.single.folder, 'Home');
+    });
+
+    test('moveMultiple with an empty id set is a no-op', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+      await mutator.moveMultiple(<String>{}, 'Anywhere');
+      expect(c.read(sessionWorkspaceProvider).sessions.length, 1);
+    });
+
+    test('deleteMultiple with an empty id set is a no-op', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await waitForSnapshot(c, (s) => s.sessions.length == 1);
+      await mutator.deleteMultiple(<String>{});
+      expect(c.read(sessionWorkspaceProvider).sessions.length, 1);
+    });
+
+    test('addEmptyFolder ignores an empty path silently', () async {
+      final c = makeContainer();
+      await waitForSnapshot(c, (_) => true);
+      // No state change expected; the bus would otherwise tick.
+      await c.read(sessionMutatorProvider).addEmptyFolder('');
+      expect(c.read(sessionWorkspaceProvider).emptyFolders, isEmpty);
+    });
+
+    test('renameFolder with empty / same / inverse args no-ops', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Same'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+
+      // All three branches inside renameFolder's no-op guard.
+      await mutator.renameFolder('', 'X');
+      await mutator.renameFolder('Same', '');
+      await mutator.renameFolder('Same', 'Same');
+
+      expect(c.read(sessionWorkspaceProvider).sessions.single.folder, 'Same');
+    });
+
+    test('moveFolder cycle / no-op guards short-circuit', () async {
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Top'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+
+      // Empty path → silent return.
+      await mutator.moveFolder('', 'Anywhere');
+      // Reparent that would yield the same path → silent return.
+      await mutator.moveFolder('Top', '');
+      // Cycle: target sits inside the source → silent return.
+      await mutator.moveFolder('Top', 'Top/Sub');
+
+      expect(c.read(sessionWorkspaceProvider).sessions.single.folder, 'Top');
+    });
+
+    test(
+      'duplicateFolder appends "(1)" / "(2)" on name collision at the root',
+      () async {
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'Proj'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+
+        // First copy lands at "Proj (1)" because the source name collides.
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (1)') ||
+              s.emptyFolders.contains('Proj (1)'),
+        );
+
+        // Second copy collides with both — `_uniqueFolderNameUnder`
+        // walks to "(2)".
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (2)') ||
+              s.emptyFolders.contains('Proj (2)'),
+        );
+
+        final snap = c.read(sessionWorkspaceProvider);
+        final folders = {
+          ...snap.sessions.map((s) => s.folder),
+          ...snap.emptyFolders,
+        };
+        expect(folders, containsAll(['Proj', 'Proj (1)', 'Proj (2)']));
+      },
+    );
+
+    test(
+      'toggleFolderCollapsed on an unknown path silently does nothing',
+      () async {
+        final c = makeContainer();
+        await waitForSnapshot(c, (_) => true);
+        // No folder rows exist — the lookup returns null and the
+        // FRB call is skipped, no exception escapes.
+        await c.read(sessionMutatorProvider).toggleFolderCollapsed('Ghost');
+        expect(c.read(sessionWorkspaceProvider).collapsedFolders, isEmpty);
+      },
+    );
+
+    test(
+      'undo with no history yields false; redo with none yields false',
+      () async {
+        final c = makeContainer();
+        await waitForSnapshot(c, (_) => true);
+        final mutator = c.read(sessionMutatorProvider);
+        // Touching the lazy `_history` actor through both arms covers the
+        // empty-stack returns from `SessionHistory.undo` / `.redo`.
+        expect(await mutator.undo(), isFalse);
+        expect(await mutator.redo(), isFalse);
+        expect(mutator.canUndo, isFalse);
+        expect(mutator.canRedo, isFalse);
+      },
+    );
+  });
+
+  group('Derived providers + filter helpers', () {
+    test(
+      'emptyFoldersProvider / collapsedFoldersProvider / sessionsByIdProvider '
+      'derive from the latest snapshot',
+      () async {
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'Group'));
+        await mutator.addEmptyFolder('SoloEmpty');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.emptyFolders.contains('SoloEmpty') &&
+              s.sessions.any((x) => x.id == 's1'),
+        );
+
+        expect(c.read(emptyFoldersProvider), contains('SoloEmpty'));
+        expect(c.read(collapsedFoldersProvider), isEmpty);
+        final byId = c.read(sessionsByIdProvider);
+        expect(byId.keys, contains('s1'));
+        expect(byId['s1']?.folder, 'Group');
+      },
+    );
+
+    test(
+      'filteredSessionsProvider returns the full list for an empty query',
+      () async {
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1'));
+        await mutator.add(makeSession(id: 's2'));
+        await waitForSnapshot(c, (s) => s.sessions.length == 2);
+        // Search query left at its initial empty value — fast-path
+        // returns the underlying list verbatim.
+        expect(c.read(filteredSessionsProvider).length, 2);
+      },
+    );
+
+    test(
+      'filterSessions Dart fallback agrees with the registry path',
+      () async {
+        // Direct helper call — exercises the Dart projection path that
+        // also serves as the registry fallback for flutter_test contexts
+        // without the FRB native lib loaded.
+        final list = [
+          makeSession(id: 's1', label: 'prod', host: 'web', user: 'root'),
+          makeSession(id: 's2', label: 'dev', host: 'db', user: 'admin'),
+        ];
+        // Empty query → identity.
+        expect(filterSessions(list, '').length, 2);
+        // Query that matches one row's host.
+        final hits = filterSessions(list, 'web');
+        expect(hits.length, 1);
+        expect(hits.single.id, 's1');
+        // Query that matches nothing.
+        expect(filterSessions(list, 'nothing'), isEmpty);
+      },
+    );
+
+    test(
+      'filteredSessionTreeProvider rebuilds tree under empty + filtered query',
+      () async {
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', label: 'web', folder: 'Prod'));
+        await mutator.add(makeSession(id: 's2', label: 'db', folder: 'Prod'));
+        await waitForSnapshot(c, (s) => s.sessions.length == 2);
+
+        // Empty query — the tree carries both rows under the same folder.
+        final fullTree = c.read(filteredSessionTreeProvider);
+        expect(fullTree, isNotEmpty);
+
+        // Narrow the search — provider re-derives.
+        c.read(sessionSearchProvider.notifier).set('web');
+        final filteredTree = c.read(filteredSessionTreeProvider);
+        expect(filteredTree, isNotEmpty);
+      },
+    );
+
+    test(
+      'sessionsLoadingProvider flips false once the workspace stream emits',
+      () async {
+        // Cold-start contract — the sidebar reads the loading flag to
+        // tell "still loading" apart from "no sessions yet". Once the
+        // workspace stream's first emission lands, the flag must flip
+        // to false so the empty-state can render.
+        final c = makeContainer();
+        await waitForSnapshot(c, (_) => true);
+        expect(c.read(sessionsLoadingProvider), isFalse);
+      },
+    );
+
+    test(
+      'sessionsByIdProvider rebuilds with the new id after an add',
+      () async {
+        // Contract — the derived `Map<String, Session>` reflects every
+        // workspace-stream emission. Adding a session puts its id in
+        // the map and removing it drops the entry; the consumer's
+        // `select((m) => m[id])` therefore only rebuilds when ITS
+        // session changes.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+        final byId = c.read(sessionsByIdProvider);
+        expect(byId, hasLength(1));
+        expect(byId['s1']?.id, 's1');
+        await mutator.delete('s1');
+        await waitForSnapshot(c, (s) => s.sessions.isEmpty);
+        expect(c.read(sessionsByIdProvider), isEmpty);
+      },
+    );
+  });
+
+  group('SessionMutator unique-folder-name walk', () {
+    test(
+      'duplicateFolder walks past (1) when both base and (1) collide',
+      () async {
+        // Contract — `_uniqueFolderNameUnder` walks the suffix counter
+        // by reading both the session-derived folder set AND the
+        // `folderMap.values` traversal (via `_composeFolderPath`).
+        // Three duplicates of `Proj` should land under
+        // `Proj (1)`, `Proj (2)`, `Proj (3)` — proving the loop
+        // walks past collisions one-by-one rather than fast-failing.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'Proj'));
+        await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (1)') ||
+              s.emptyFolders.contains('Proj (1)'),
+        );
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (2)') ||
+              s.emptyFolders.contains('Proj (2)'),
+        );
+        await mutator.duplicateFolder('Proj', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.sessions.any((x) => x.folder == 'Proj (3)') ||
+              s.emptyFolders.contains('Proj (3)'),
+        );
+
+        final snap = c.read(sessionWorkspaceProvider);
+        final folders = {
+          ...snap.sessions.map((s) => s.folder),
+          ...snap.emptyFolders,
+        };
+        expect(
+          folders,
+          containsAll(['Proj', 'Proj (1)', 'Proj (2)', 'Proj (3)']),
+        );
+      },
+    );
+
+    test('moveFolder no-op when reparenting into the same parent', () async {
+      // Contract — `moveFolder` computes the resolved `newPath` from
+      // `newParent + folderName`. When `newParent == ''` and the
+      // source already sits at root, the resolved path matches the
+      // current path and the guard returns silently (no `renameFolder`
+      // FRB call). Same-path / cycle / empty checks all hit this arm.
+      final c = makeContainer();
+      final mutator = c.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'Root'));
+      await waitForSnapshot(c, (s) => s.sessions.any((x) => x.id == 's1'));
+      // newParent='' + folder='Root' → newPath='Root' == folderPath.
+      await mutator.moveFolder('Root', '');
+      expect(c.read(sessionWorkspaceProvider).sessions.single.folder, 'Root');
+    });
+
+    test(
+      'duplicateFolder source path with multi-level nesting copies all empties',
+      () async {
+        // Contract — the loop translates every `$sourcePath/X/Y`
+        // empty subfolder to `$newRoot/X/Y`. Nested empty folders
+        // covered here ensure the slice / replacement math runs
+        // through more than the trivial single-level case.
+        final c = makeContainer();
+        final mutator = c.read(sessionMutatorProvider);
+        await mutator.addEmptyFolder('Tree');
+        await mutator.addEmptyFolder('Tree/Inner');
+        await mutator.addEmptyFolder('Tree/Inner/Leaf');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.emptyFolders.contains('Tree') &&
+              s.emptyFolders.contains('Tree/Inner') &&
+              s.emptyFolders.contains('Tree/Inner/Leaf'),
+        );
+
+        await mutator.duplicateFolder('Tree', '');
+        await waitForSnapshot(
+          c,
+          (s) =>
+              s.emptyFolders.contains('Tree (1)/Inner') &&
+              s.emptyFolders.contains('Tree (1)/Inner/Leaf'),
+        );
+        final snap = c.read(sessionWorkspaceProvider);
+        expect(snap.emptyFolders, contains('Tree (1)'));
+        expect(snap.emptyFolders, contains('Tree (1)/Inner'));
+        expect(snap.emptyFolders, contains('Tree (1)/Inner/Leaf'));
+      },
+    );
   });
 }

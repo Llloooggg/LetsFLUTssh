@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
@@ -315,6 +316,328 @@ void main() {
       expect(filtered.length, 1);
       expect(filtered.first.host, '192.168.1.1');
     });
+  });
+
+  group('filterSessions (Dart fallback)', () {
+    Session sx({
+      String id = 's1',
+      String label = 'L',
+      String folder = '',
+      String host = 'h',
+      String user = 'u',
+    }) {
+      return Session(
+        id: id,
+        label: label,
+        folder: folder,
+        server: ServerAddress(host: host, user: user),
+      );
+    }
+
+    // The fallback branch lives below the `try` in `filterSessions` —
+    // direct unit calls into the helper exercise it without needing an
+    // FRB native lib loaded.
+    test(
+      'empty query returns the input list unchanged (identity fast path)',
+      () {
+        final list = [sx(id: 's1'), sx(id: 's2')];
+        final result = filterSessions(list, '');
+        expect(result, same(list));
+      },
+    );
+
+    test('case-insensitive match against label / host / user / folder', () {
+      final list = [
+        sx(id: 's1', label: 'PROD-web', host: '10.0.0.1', user: 'root'),
+        sx(
+          id: 's2',
+          label: 'staging',
+          host: '10.0.0.2',
+          user: 'admin',
+          folder: 'Edge',
+        ),
+      ];
+      // Label match
+      expect(filterSessions(list, 'prod').map((s) => s.id), ['s1']);
+      // User match
+      expect(filterSessions(list, 'ADMIN').map((s) => s.id), ['s2']);
+      // Folder match
+      expect(filterSessions(list, 'edge').map((s) => s.id), ['s2']);
+    });
+  });
+
+  group('SessionWorkspaceSnapshot.empty sentinel', () {
+    test('exposes empty collections so derived providers stay safe', () {
+      const empty = SessionWorkspaceSnapshot.empty;
+      expect(empty.sessions, isEmpty);
+      expect(empty.emptyFolders, isEmpty);
+      expect(empty.collapsedFolders, isEmpty);
+      expect(empty.folderMap, isEmpty);
+    });
+  });
+
+  group('SessionSearchNotifier', () {
+    test('set updates the held query string', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(sessionSearchProvider), '');
+      container.read(sessionSearchProvider.notifier).set('needle');
+      expect(container.read(sessionSearchProvider), 'needle');
+    });
+  });
+
+  // ── Idempotent / guard branches on the FakeSessionNotifier seam ──
+  //
+  // These pin spec contracts that have nothing to do with FRB: the
+  // mutator must short-circuit on empty / cyclic / self-equal inputs
+  // so the Rust DB writes don't get called with malformed arguments,
+  // and the unawaited rebuild fan-out doesn't recurse into itself.
+
+  group('SessionMutator no-op / guard branches', () {
+    late ProviderContainer container;
+    late FakeSessionNotifier fake;
+
+    setUp(() {
+      fake = FakeSessionNotifier();
+      container = ProviderContainer(overrides: fake.overrides());
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await fake.dispose();
+    });
+
+    test('moveFolder with empty source path returns silently', () async {
+      // Spec: `moveFolder` guards against `folderPath.isEmpty` so the
+      // workspace can route every drag-drop event through the same
+      // mutator surface without pre-filtering for the root folder
+      // (which has the empty path).
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.moveFolder('', 'B');
+      await Future<void>.delayed(Duration.zero);
+      // Folder 'A' should stay put.
+      expect(container.read(sessionProvider).first.folder, 'A');
+    });
+
+    test('moveFolder onto its own current parent is a no-op', () async {
+      // Spec: `moveFolder` short-circuits when `newPath == folderPath`
+      // so a drag-and-drop that lands the folder back on the same
+      // parent does not trigger a needless rename cascade.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      // 'A' has no parent — newPath would derive to 'A', identical.
+      await mutator.moveFolder('A', '');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'A');
+    });
+
+    // Deferred — moveFolder cycle rejection (A → A): the
+    // FakeSessionNotifier in this harness shape does not enforce the
+    // `newPath.startsWith('$folderPath/')` cycle guard the way the
+    // production mutator does. The guard branch is exercised by the
+    // integration mutator-pass.
+
+    test('renameFolder with empty / equal paths is a no-op', () async {
+      // Spec: `renameFolder` short-circuits when `oldPath.isEmpty ||
+      // newPath.isEmpty || oldPath == newPath`. The FakeSessionNotifier
+      // mirrors the production guard by leaving the sessions untouched.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.renameFolder('A', 'A');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'A');
+    });
+
+    test('deleteFolder with empty path returns silently', () async {
+      // Spec: `deleteFolder` guards against `folderPath.isEmpty` — the
+      // root folder is not a deletable surface; the UI never offers
+      // that action but the mutator still has to reject it cleanly.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.deleteFolder('');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).length, 1);
+    });
+
+    test('deleteMultiple with an empty id set returns silently', () async {
+      // Spec: `deleteMultiple` guards against an empty input so a
+      // multi-select clear (the user selecting then deselecting every
+      // row) does not fire a DELETE with an empty IN list.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1'));
+      await mutator.add(makeSession(id: 's2'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.deleteMultiple(<String>{});
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).length, 2);
+    });
+
+    test('moveMultiple with an empty id set returns silently', () async {
+      // Spec: `moveMultiple` mirrors `deleteMultiple` — an empty set
+      // short-circuits so the FRB `dbSessionsMoveMultiple` is not
+      // called with a degenerate id list.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.moveMultiple(<String>{}, 'B');
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(sessionProvider).first.folder, 'A');
+    });
+
+    test('duplicateFolder onto its own source path returns silently', () async {
+      // Spec: the cycle guard refuses `targetParent == sourcePath` so
+      // a "paste into self" gesture does not recurse on the freshly
+      // duplicated tree the loop just created.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await Future<void>.delayed(Duration.zero);
+      await mutator.duplicateFolder('A', 'A');
+      await Future<void>.delayed(Duration.zero);
+      // Single original; no copy materialised.
+      expect(container.read(sessionProvider).length, 1);
+    });
+  });
+
+  // ── FakeSessionNotifier surface coverage gaps ────────────────────
+
+  group('SessionMutator additional read accessors', () {
+    late ProviderContainer container;
+    late FakeSessionNotifier fake;
+
+    setUp(() {
+      fake = FakeSessionNotifier();
+      container = ProviderContainer(overrides: fake.overrides());
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await fake.dispose();
+    });
+
+    test('get(unknown id) returns null', () async {
+      // Spec: the `get(String)` accessor is a public read surface used
+      // by `_buildSession` (proxy-resolve), the connect path, and the
+      // session tree's row resolver. An unknown id must yield null
+      // cleanly so callers can render the "session deleted" empty
+      // state without an exception.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      expect(mutator.get('never-existed'), isNull);
+    });
+
+    test(
+      'byFolder returns only the sessions whose folder equals exactly',
+      () async {
+        // Spec: `byFolder` matches the folder field literally — no
+        // prefix recursion. Used by the per-folder count badge in the
+        // sidebar; a folder 'A' must not count 'A/Sub' rows.
+        await _pumpStream(container);
+        final mutator = container.read(sessionMutatorProvider);
+        await mutator.add(makeSession(id: 's1', folder: 'A'));
+        await mutator.add(makeSession(id: 's2', folder: 'A/Sub'));
+        await Future<void>.delayed(Duration.zero);
+        final result = mutator.byFolder('A');
+        expect(result.length, 1);
+        expect(result.first.id, 's1');
+      },
+    );
+
+    test('countSessionsInFolder recurses through sub-folders', () async {
+      // Spec: the recursive count covers both the exact-folder rows
+      // and every descendant row so the confirm-delete dialog can
+      // surface an accurate "will delete N sessions" message.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'A'));
+      await mutator.add(makeSession(id: 's2', folder: 'A/Sub'));
+      await mutator.add(makeSession(id: 's3', folder: 'B'));
+      await Future<void>.delayed(Duration.zero);
+      expect(mutator.countSessionsInFolder('A'), 2);
+      expect(mutator.countSessionsInFolder('B'), 1);
+    });
+
+    test('folders() yields a sorted unique set of folder paths', () async {
+      // Spec: `folders()` powers the "Move to folder" dropdown — must
+      // return distinct entries, sorted, with the root folder
+      // (empty string) filtered out.
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', folder: 'B'));
+      await mutator.add(makeSession(id: 's2', folder: 'A'));
+      await mutator.add(makeSession(id: 's3', folder: 'A'));
+      await mutator.add(makeSession(id: 's4', folder: ''));
+      await Future<void>.delayed(Duration.zero);
+      final folders = mutator.folders();
+      expect(folders, ['A', 'B']);
+    });
+  });
+
+  // ── Derived providers compose off the workspace snapshot ─────────
+
+  group('sessionsByIdProvider', () {
+    test('builds an O(1)-by-id map mirroring the flat list', () async {
+      // Spec: `sessionsByIdProvider` is the dependent-rebuild oracle —
+      // a widget watching `sessionsByIdProvider.select((m) => m[id])`
+      // rebuilds only when that id's row changes. Map content must
+      // match the flat list one-to-one (id → Session).
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
+      final mutator = container.read(sessionMutatorProvider);
+      await mutator.add(makeSession(id: 's1', label: 'A'));
+      await mutator.add(makeSession(id: 's2', label: 'B'));
+      await Future<void>.delayed(Duration.zero);
+
+      final map = container.read(sessionsByIdProvider);
+      expect(map.keys, containsAll(<String>{'s1', 's2'}));
+      expect(map['s1']?.label, 'A');
+      expect(map['s2']?.label, 'B');
+      // Map size matches the flat list — every list entry shows up
+      // exactly once in the map.
+      expect(map.length, container.read(sessionProvider).length);
+    });
+  });
+
+  // ── filteredSessionTreeProvider derives off the workspace snapshot ──
+
+  group('filteredSessionTreeProvider', () {
+    test('returns a List<SessionTreeNode> for an empty workspace', () async {
+      // Spec: even without sessions or empty folders, the tree
+      // provider returns a non-null list (empty when nothing has
+      // been added). The sidebar dereferences `.length` immediately
+      // on every paint — null would crash.
+      final fake = FakeSessionNotifier();
+      final container = ProviderContainer(overrides: fake.overrides());
+      addTearDown(() async {
+        container.dispose();
+        await fake.dispose();
+      });
+      await _pumpStream(container);
+      final tree = container.read(filteredSessionTreeProvider);
+      expect(tree, isA<List<SessionTreeNode>>());
+    });
+
+    // Deferred — empty-folder node materialisation: `SessionTree.build`
+    // routes through `rust_tree.sessionTreeBuild` (FRB), which returns
+    // `const []` when the bridge has not been initialized. Verified by
+    // integration: `test/integration/session_tree_*` covers the
+    // Rust-side folder grouping end-to-end.
   });
 
   group('sessionsLoadingProvider', () {

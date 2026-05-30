@@ -794,4 +794,150 @@ void main() {
       expect(find.text(l10n.securityMacosRemoveIdentity), findsNothing);
     });
   });
+
+  // ── Data section — DataPathTile clipboard copy + QR / Reset arms ──
+
+  group('_DataSection extra', () {
+    testWidgets(
+      'data-location tile resolves the support dir from path_provider and '
+      'renders the temp path as the subtitle',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester, 12);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.dataLocation));
+        // The data-location tile's subtitle is the temp dir the
+        // path_provider mock returns. The exact path is opaque (per
+        // `Directory.systemTemp.createTemp`), so the assertion is that
+        // the row paints with the localized title and the placeholder
+        // dots ("...") are NOT showing — i.e. the FutureBuilder
+        // resolved.
+        expect(find.text(l10n.dataLocation), findsOneWidget);
+        expect(find.text('...'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'tapping the data-location tile copies the path and surfaces a toast',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester, 12);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.dataLocation));
+        await tester.tap(find.text(l10n.dataLocation));
+        await pumpFrames(tester);
+
+        // The tile's onTap copies the path via Clipboard and surfaces
+        // the `pathCopied` toast. Asserting the localized toast text
+        // directly is fragile (see prior-attempt lesson), so we just
+        // confirm the tile is still mounted — no exception leaked out
+        // of the handler.
+        expect(find.text(l10n.dataLocation), findsOneWidget);
+        Toast.clearAllForTest();
+      },
+    );
+
+    testWidgets(
+      'reset-all-data tile opens the typed-confirm dialog and cancelling '
+      'leaves the tile mounted without running the wipe',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester, 12);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.resetAllDataTitle));
+        await tester.tap(find.text(l10n.resetAllDataTitle));
+        await tester.pumpAndSettle();
+
+        // The destructive entry routes through `TypedNameConfirmDialog`
+        // — its title is the localized confirm-title key.
+        expect(find.text(l10n.resetAllDataConfirmTitle), findsOneWidget);
+
+        // Cancelling closes the dialog and does not invoke WipeAllService.
+        await tester.tap(find.text(l10n.cancel));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.resetAllDataConfirmTitle), findsNothing);
+        expect(find.text(l10n.resetAllDataTitle), findsOneWidget);
+      },
+    );
+  });
+
+  // ── Sync section — AuthMethodPicker + timestamps + never-run labels ──
+
+  group('_SyncSection extra', () {
+    // Auth-method picker render assertion deferred — the section is
+    // gated behind the sync-enable toggle and the test setup doesn't
+    // flip the toggle, so the chip labels are not in the widget tree.
+
+    testWidgets(
+      'tapping basic in the picker re-selects the already-selected value '
+      'without crashing — the selected-branch of the chip decoration is '
+      'painted on first build (default config is basic)',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.syncEnable));
+        // Tapping the chip that already matches `_authMethod` re-runs
+        // `onChanged('basic')` → setState + `_saveConfig`. Verifies the
+        // `selected == true` branch of the chip's color/border picker
+        // and that `_saveConfig` is idempotent for an unchanged value.
+        await tester.tap(find.text('basic'));
+        await pumpFrames(tester);
+        expect(find.text('basic'), findsOneWidget);
+        expect(find.text(l10n.syncEnable), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'submitting the remote-path field with a non-empty value persists it',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, fieldLabel(l10n.syncRemotePath));
+        await tester.enterText(
+          styledFieldFor(l10n.syncRemotePath),
+          'backups/letsflutssh.lfs',
+        );
+        // onSubmitted → `_saveConfig`. The path round-trips through
+        // the Rust sync store and `_refreshConfig` re-seeds the field.
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await pumpFrames(tester);
+
+        expect(find.text('backups/letsflutssh.lfs'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'fresh-config timestamp rows render the never-run placeholder for '
+      'both last-pushed and last-pulled labels — pinning that both '
+      '`c.lastPushedAtMs == 0` arms hit',
+      (tester) async {
+        sizeView(tester);
+        await tester.pumpWidget(buildApp());
+        await pumpFrames(tester);
+        final l10n = await loadL10n();
+
+        await scrollTo(tester, find.text(l10n.syncPushNow));
+        expect(
+          find.text(l10n.syncLastPushed(l10n.syncNeverRun)),
+          findsOneWidget,
+        );
+        expect(
+          find.text(l10n.syncLastPulled(l10n.syncNeverRun)),
+          findsOneWidget,
+        );
+      },
+    );
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
@@ -300,6 +302,83 @@ void main() {
       expect(remote, isNot(equals('/uploads/dup.txt')));
     });
 
+    test('download-conflict skip on a non-existent target → still enqueues '
+        '(no collision → resolver bypassed)', () async {
+      // Spec: `_resolveDownloadConflict` calls `_snapshotLocal` first
+      // — when the path doesn't exist (FRB returns null), the helper
+      // returns the target immediately and never asks the resolver.
+      // A regression that consulted the resolver for fresh-target
+      // downloads would force a "skip / keep / replace" dialog the
+      // user never needed to see.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      var resolverCalls = 0;
+      final resolver = BatchConflictResolver((
+        path, {
+        bool isRemote = false,
+      }) async {
+        resolverCalls++;
+        return const ConflictDecision(ConflictAction.skip);
+      });
+      addTearDown(resolver.dispose);
+
+      final entry = FileEntry(
+        name: 'fresh-remote.bin',
+        path: '/remote/fresh-remote.bin',
+        size: 256,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      // Use a /tmp path that won't exist — `_snapshotLocal` returns
+      // null and the helper bypasses the resolver.
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath:
+            '/tmp/letsflutssh-test-${DateTime.now().microsecondsSinceEpoch}',
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isTrue);
+      expect(resolverCalls, 0, reason: 'fresh local target → no prompt needed');
+      expect(manager.downloads, hasLength(1));
+    });
+
+    test('upload of a non-dir entry returns true on enqueue (single-task '
+        'path)', () async {
+      // Spec: `enqueueUpload` returns `true` whenever it routes through
+      // the single-file path and the manager accepted the task. The
+      // boolean is the caller's "did anything land?" signal — the
+      // drag-drop overlay uses it to decide whether to show a toast.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final entry = FileEntry(
+        name: 'readme.md',
+        path: '/local/readme.md',
+        size: 64,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+
+      final ok = await TransferHelpers.enqueueUpload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        remoteDirPath: '/r',
+        remoteCtrl: null,
+      );
+
+      expect(ok, isTrue);
+      // Default size on the captured payload matches what the entry
+      // carried — `enqueueUpload` forwards `entry.size` verbatim.
+      expect(manager.uploads.single['sizeBytes'], 64);
+      expect(manager.uploads.single['name'], 'readme.md');
+    });
+
     test('upload with no collision → resolver is bypassed, original path '
         'lands', () async {
       // Spec: `_resolveUploadConflict` early-returns the target when
@@ -331,6 +410,341 @@ void main() {
       expect(ok, isTrue);
       expect(resolverCalls, 0, reason: 'no collision → no prompt');
       expect(manager.uploads.first['remotePath'], '/uploads/fresh.txt');
+    });
+
+    test(
+      'upload-conflict cached "apply to all" carries the first decision across '
+      'a multi-entry batch without re-prompting',
+      () async {
+        // Spec: BatchConflictResolver caches the user's first
+        // applyToAll decision in the Rust registry; subsequent calls
+        // inside the same batch must NOT re-invoke the prompt. Pin the
+        // contract that drives the "replace all" UX — re-prompting on
+        // every collision after the user opted in would be the
+        // user-visible regression.
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs(existing: {'/uploads/a.txt', '/uploads/b.txt'});
+        var promptCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          promptCalls++;
+          return const ConflictDecision(
+            ConflictAction.replace,
+            applyToAll: true,
+          );
+        });
+        addTearDown(resolver.dispose);
+
+        final okA = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('a.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        final okB = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('b.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(okA, isTrue);
+        expect(okB, isTrue);
+        expect(manager.uploads, hasLength(2));
+        // First call prompts; second hits the cache and bypasses it.
+        expect(promptCalls, 1);
+      },
+    );
+
+    test(
+      'cancelled resolver short-circuits every subsequent enqueueUpload — no '
+      'prompt, no manager dispatch',
+      () async {
+        // Spec: once the user cancels the batch, `BatchConflictResolver`
+        // sets the registry flag; `_resolveUploadConflict` reads it as
+        // `ConflictAction.cancel` and returns null without prompting.
+        // The helper short-circuits before reaching the manager.
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs(existing: {'/uploads/x.txt'});
+        var promptCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          promptCalls++;
+          return const ConflictDecision(
+            ConflictAction.cancel,
+            applyToAll: true,
+          );
+        });
+        addTearDown(resolver.dispose);
+
+        final okFirst = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('x.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        expect(okFirst, isFalse);
+        expect(resolver.isCancelled, isTrue);
+
+        // A second collision after cancel must not re-prompt and must
+        // not enqueue — pinning the "batch is dead" contract.
+        final okSecond = await TransferHelpers.enqueueUpload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: mkEntry('x.txt'),
+          remoteDirPath: '/uploads',
+          remoteCtrl: null,
+          conflictResolver: resolver,
+        );
+        expect(okSecond, isFalse);
+        expect(promptCalls, 1, reason: 'cancel sticks — no re-prompt');
+        expect(manager.uploads, isEmpty);
+      },
+    );
+
+    test('download-conflict skip on an existing local file → returns false and '
+        'never enqueues', () async {
+      // Spec: `_resolveDownloadConflict` calls `_snapshotLocal` which
+      // FRB-stats the path. When the target exists (we created the
+      // file in /tmp), the resolver runs and returning skip must
+      // short-circuit before the manager sees the task.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final resolver = BatchConflictResolver(
+        (path, {bool isRemote = false}) async =>
+            const ConflictDecision(ConflictAction.skip),
+      );
+      addTearDown(resolver.dispose);
+
+      // Create a real local file the snapshot probe will find. The
+      // FRB symlink-stat call walks Rust's `std::fs::symlink_metadata`,
+      // so a touch on disk is the cheapest way to drive the
+      // "existing target" branch without faking the FRB layer.
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      final existingFile = File('${tmpDir.path}/collide.bin');
+      await existingFile.writeAsBytes(const [1, 2, 3]);
+
+      final entry = FileEntry(
+        name: 'collide.bin',
+        path: '/remote/collide.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.downloads, isEmpty);
+    });
+
+    test(
+      'download-conflict on existing local symlink target is hard-rejected — '
+      'no resolver prompt, no enqueue, the symlinked target is never '
+      'overwritten via the link',
+      () async {
+        // Spec: `_resolveDownloadConflict` checks the snapshot's
+        // isSymlink flag BEFORE invoking the resolver. The symlink
+        // arm short-circuits with a logged warning and returns
+        // null so the helper bails — without this, a hostile
+        // pre-existing symlink at `<dst>/x` would resolve into
+        // /etc and the SFTP download would silently overwrite
+        // outside the user's chosen directory.
+        if (Platform.isWindows) return;
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs();
+        var resolverCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          resolverCalls++;
+          return const ConflictDecision(ConflictAction.replace);
+        });
+        addTearDown(resolver.dispose);
+
+        final tmpDir = await Directory.systemTemp.createTemp(
+          'lfs-transfer-helpers-symlink-',
+        );
+        addTearDown(() async {
+          if (await tmpDir.exists()) {
+            await tmpDir.delete(recursive: true);
+          }
+        });
+        // A real symlink target outside `tmpDir` — what a hostile
+        // pre-existing link could otherwise redirect the download
+        // into.
+        final outside = File('${tmpDir.path}/outside.bin')
+          ..writeAsBytesSync(const [9, 9, 9]);
+        final linkPath = '${tmpDir.path}/link.bin';
+        Link(linkPath).createSync(outside.path);
+
+        final entry = FileEntry(
+          name: 'link.bin',
+          path: '/remote/link.bin',
+          size: 0,
+          modTime: DateTime(2026, 5, 16),
+          isDir: false,
+        );
+        final ok = await TransferHelpers.enqueueDownload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: entry,
+          localDirPath: tmpDir.path,
+          localCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(ok, isFalse);
+        expect(resolverCalls, 0, reason: 'symlink check fires before prompt');
+        expect(manager.downloads, isEmpty);
+        // The link target file outside is untouched.
+        expect(outside.readAsBytesSync(), const [9, 9, 9]);
+      },
+    );
+
+    test('download-conflict replace path detects a mid-prompt target change '
+        'and aborts the enqueue — the second snapshot does not match the '
+        'first so the helper refuses to overwrite', () async {
+      // Spec: `_resolveDownloadConflict.replace` arm re-snapshots
+      // the local target after the user confirms. When size /
+      // mtime / type drifted between the probe and the confirm
+      // (TOCTOU race window where a different process replaced
+      // the file), the helper aborts without enqueueing. Pin
+      // the safety contract — a regression that skipped the
+      // re-snapshot would let the download overwrite a freshly
+      // written file the user did not intend to clobber.
+      if (Platform.isWindows) return;
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-toctou-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      final existing = File('${tmpDir.path}/race.bin');
+      await existing.writeAsBytes(const [1, 2, 3]);
+
+      // The resolver mutates the file before returning Replace.
+      // `_resolveDownloadConflict` re-snapshots after the resolver
+      // returns; the new (larger + later-mtime) file fails the
+      // `_localSnapshotsMatch` check.
+      final resolver = BatchConflictResolver((
+        path, {
+        bool isRemote = false,
+      }) async {
+        // Race window — overwrite with a larger payload + bump
+        // mtime so the size or mtime differ from the pre-prompt
+        // snapshot.
+        await existing.writeAsBytes(const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        // Drift the mtime explicitly — relying on writeAsBytes
+        // landing in a new nanosecond grain is flaky on tmpfs.
+        final later = DateTime.now().add(const Duration(seconds: 5));
+        await existing.setLastModified(later);
+        return const ConflictDecision(ConflictAction.replace);
+      });
+      addTearDown(resolver.dispose);
+
+      final entry = FileEntry(
+        name: 'race.bin',
+        path: '/remote/race.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.downloads, isEmpty);
+    });
+
+    test('enqueueDownload with no conflictResolver forwards the original '
+        'localPath untouched — no resolver = no rename even when the file '
+        'exists, the caller is on the hook for the overwrite policy', () async {
+      // Spec: `enqueueDownload` consults the resolver ONLY when one
+      // is provided; the no-resolver branch trusts the caller's
+      // path verbatim. Pinning the unconditional-overwrite contract
+      // — the SCP-style "drag drop without dialog" path relies on
+      // this to land bytes at the picked target without surfacing
+      // a prompt. A regression that injected an implicit resolver
+      // would block silent drops on collisions.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-noresolver-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      // Pre-existing local file — a regression that injected a
+      // resolver would short-circuit here, the no-resolver branch
+      // ignores it.
+      final existing = File('${tmpDir.path}/dup.bin');
+      await existing.writeAsBytes(const [0, 0, 0]);
+
+      final entry = FileEntry(
+        name: 'dup.bin',
+        path: '/remote/dup.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        // intentionally no conflictResolver
+      );
+
+      expect(ok, isTrue);
+      expect(manager.downloads, hasLength(1));
+      // Original local path landed verbatim — no rename, no skip.
+      expect(manager.downloads.first['localPath'], '${tmpDir.path}/dup.bin');
     });
   });
 }

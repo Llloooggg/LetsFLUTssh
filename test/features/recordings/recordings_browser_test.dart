@@ -25,6 +25,7 @@ import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/widgets/core/app_data_row.dart';
 import 'package:letsflutssh/widgets/core/app_empty_state.dart';
+import 'package:letsflutssh/widgets/core/app_icon_button.dart';
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -172,6 +173,147 @@ void main() {
         await tester.pump();
       }
       expect(find.byType(AppDataRow), findsOneWidget);
+    },
+  );
+
+  // Helper: pump a single-row recordings panel + drain async ticks
+  // until the row is visible. Each test seeds its own file before
+  // calling.
+  Future<void> pumpUntilRow(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          home: Scaffold(body: RecordingsPanel()),
+        ),
+      ),
+    );
+    for (var i = 0; i < 80 && find.byType(AppDataRow).evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+  }
+
+  testWidgets('delete trailing button opens the ConfirmDialog; tapping Cancel '
+      'leaves the row in place', (tester) async {
+    // Spec: `_delete` runs `ConfirmDialog.show` first and bails when
+    // it returns false. The Rust delete + rescan should NOT fire and
+    // the row must remain visible. The plaintext recording shape
+    // (asciicast v2 header + one event line) keeps `_scan` returning
+    // a single row deterministically.
+    final root = Directory('${tempDir.path}/recordings/session-del-cancel')
+      ..createSync(recursive: true);
+    File('${root.path}/2026-05-29T12-00-00.cast').writeAsStringSync(
+      '{"version": 2, "width": 80, "height": 24, "timestamp": 1700000000}\n'
+      '[0.5, "o", "hello\\r\\n"]\n',
+    );
+
+    await pumpUntilRow(tester);
+    expect(find.byType(AppDataRow), findsOneWidget);
+
+    // Trailing slot carries the localised delete-recording tooltip.
+    final ctx = tester.element(find.byType(RecordingsPanel));
+    final l10n = S.of(ctx);
+    final deleteBtn = find.byWidgetPredicate(
+      (w) => w is AppIconButton && w.tooltip == l10n.deleteRecording,
+    );
+    expect(deleteBtn, findsOneWidget);
+    await tester.tap(deleteBtn);
+    await tester.pumpAndSettle();
+
+    // ConfirmDialog up: title is `deleteRecording`.
+    expect(find.text(l10n.deleteRecording), findsWidgets);
+    // Cancel the confirmation.
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+
+    // Row still there — the delete short-circuited on cancel.
+    expect(find.byType(AppDataRow), findsOneWidget);
+  });
+
+  testWidgets('delete trailing button opens the ConfirmDialog; tapping Delete '
+      'removes the row from the panel', (tester) async {
+    // Spec: a confirmed delete runs `rust_recorder.recorderDeleteRecording`
+    // against the same `recordingsRoot` pinned for the test, then
+    // re-scans. The list now has zero rows, so the empty state takes
+    // over. Both transitions hit FRB and use the temp dir pinned in
+    // `setUp` via `appResetSupportDirForTests`.
+    final root = Directory('${tempDir.path}/recordings/session-del-accept')
+      ..createSync(recursive: true);
+    File('${root.path}/2026-05-29T13-00-00.cast').writeAsStringSync(
+      '{"version": 2, "width": 80, "height": 24, "timestamp": 1700000000}\n'
+      '[0.25, "o", "bye\\r\\n"]\n',
+    );
+
+    await pumpUntilRow(tester);
+    expect(find.byType(AppDataRow), findsOneWidget);
+
+    final ctx = tester.element(find.byType(RecordingsPanel));
+    final l10n = S.of(ctx);
+    final deleteBtn = find.byWidgetPredicate(
+      (w) => w is AppIconButton && w.tooltip == l10n.deleteRecording,
+    );
+    await tester.tap(deleteBtn);
+    await tester.pumpAndSettle();
+
+    // Tap the destructive Delete action in the confirmation footer.
+    // `ConfirmDialog` defaults `confirmLabel` to `l10n.delete`.
+    await tester.tap(find.text(l10n.delete).last);
+    // Drain the async rescan that follows the FRB delete.
+    for (
+      var i = 0;
+      i < 40 && find.byType(AppEmptyState).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    // The row is gone and the empty-state card is back.
+    expect(find.byType(AppDataRow), findsNothing);
+    expect(find.byType(AppEmptyState), findsOneWidget);
+  });
+
+  testWidgets(
+    'encrypted recording on a no-key tier renders an AppDataRow whose '
+    'primary tap target is null (the play hop is gated)',
+    (tester) async {
+      // Spec: `canPlay` flips off when the row is encrypted and the
+      // active DB-key SecretStore slot is missing. `AppDataRow.onTap`
+      // gets a null callback so the row reads as visually disabled
+      // and tap is a no-op. The delete button stays interactive (no
+      // unlock needed to clean up an orphan).
+      final root = Directory('${tempDir.path}/recordings/session-locked-tap')
+        ..createSync(recursive: true);
+      // The migration sweep renames `.lfsr` files whose first bytes
+      // are not the `LFR1` magic to `.cast`; carrying valid magic
+      // keeps the file at the `.lfsr` extension so the panel sees
+      // `encrypted = true`. The tail is uninteresting — header read
+      // is best-effort and the panel still lists corrupt files.
+      const lfrMagic = <int>[0x4C, 0x46, 0x52, 0x31, 0x01];
+      File(
+        '${root.path}/2026-05-29T14-00-00.lfsr',
+      ).writeAsBytesSync([...lfrMagic, ...List<int>.filled(60, 0)]);
+
+      await pumpUntilRow(tester);
+      expect(find.byType(AppDataRow), findsOneWidget);
+
+      // Inspect the AppDataRow widget directly.
+      final row = tester.widget<AppDataRow>(find.byType(AppDataRow));
+      expect(
+        row.onTap,
+        isNull,
+        reason: 'encrypted + no active DB key → canPlay=false → onTap is null',
+      );
+
+      // Verify the locked hint is part of the secondary line.
+      final ctx = tester.element(find.byType(RecordingsPanel));
+      final l10n = S.of(ctx);
+      expect(find.textContaining(l10n.recordingPlayLocked), findsOneWidget);
     },
   );
 }

@@ -15,6 +15,7 @@ import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/core/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
+import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/frb_pump.dart';
 
@@ -1217,4 +1218,361 @@ void main() {
       expect(allTabs.first.kind, TabKind.terminal);
     });
   });
+
+  group('SessionConnect — ProxyJump', () {
+    testWidgets(
+      'override bastion: connectAsync runs twice, the bastion hop labels '
+      "as user@host:port and the final hop's bastion is the override conn",
+      (tester) async {
+        // Spec: when the final session carries a viaOverride and no
+        // viaSessionId, `_ensureBastion` builds a one-off bastion
+        // SSHConfig from the override and reuses the final session's
+        // auth. Two `connectAsync` calls land on the fake — one for
+        // the bastion (internal: true), one for the final session
+        // (with `bastion` set to the first call's result).
+        final fakeManager = _RecordingConnectionManager();
+        late Future<bool> pending;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [connectionsProvider.overrideWith(() => fakeManager)],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Consumer(
+                builder: (context, ref, _) {
+                  return Scaffold(
+                    body: ElevatedButton(
+                      onPressed: () {
+                        final session = Session(
+                          id: 's-final',
+                          label: 'Final',
+                          server: const ServerAddress(
+                            host: 'target.example.com',
+                            port: 22,
+                            user: 'root',
+                          ),
+                          auth: const SessionAuth(password: 'pw'),
+                          viaOverride: const ProxyJumpOverride(
+                            host: 'bastion.example.com',
+                            port: 2222,
+                            user: 'jump',
+                          ),
+                        );
+                        pending = SessionConnect.connectTerminal(
+                          context,
+                          ref,
+                          session,
+                        );
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.text('Connect'));
+        await pumpUntilFrbSettles(tester, pending);
+
+        // Two connect calls: one bastion (internal), one final.
+        expect(fakeManager.calls, hasLength(2));
+        final bastionCall = fakeManager.calls.first;
+        final finalCall = fakeManager.calls.last;
+        // Bastion goes first, marked internal, label matches override.
+        expect(bastionCall.internal, isTrue);
+        expect(bastionCall.label, 'jump@bastion.example.com:2222');
+        expect(bastionCall.config.server.host, 'bastion.example.com');
+        expect(bastionCall.config.server.port, 2222);
+        expect(bastionCall.config.server.user, 'jump');
+        // Final hop hangs off the bastion's returned Connection.
+        expect(finalCall.internal, isFalse);
+        expect(finalCall.bastion, isNotNull);
+        expect(finalCall.bastion!.id, bastionCall.returnedId);
+        expect(finalCall.config.server.host, 'target.example.com');
+        expect(finalCall.sessionId, 's-final');
+      },
+    );
+
+    testWidgets('viaSessionId resolving to a missing session raises '
+        'ProxyJumpBastionError surfaced as a warning toast', (tester) async {
+      // Spec: `_ensureBastion` reads the bastion id from the session
+      // mutator; when the lookup misses it throws ProxyJumpBastionError.
+      // The catch arm in `_createConnection` turns it into a warning
+      // toast and returns null so no tab is opened.
+      final fakeManager = _RecordingConnectionManager();
+      final fakeSessions = FakeSessionNotifier();
+      late WidgetRef capturedRef;
+      bool? result;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            connectionsProvider.overrideWith(() => fakeManager),
+            ...fakeSessions.overrides(),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                return Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () async {
+                      final session = Session(
+                        id: 's-final',
+                        label: 'Final',
+                        server: const ServerAddress(
+                          host: 'target.example.com',
+                          user: 'root',
+                        ),
+                        auth: const SessionAuth(password: 'pw'),
+                        viaSessionId: 'missing-bastion',
+                      );
+                      result = await SessionConnect.connectTerminal(
+                        context,
+                        ref,
+                        session,
+                      );
+                    },
+                    child: const Text('Connect'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Connect'));
+      await tester.pumpAndSettle();
+
+      // No connect call landed on the manager — bastion lookup
+      // threw before `_createConnection` reached the final
+      // `connectAsync`.
+      expect(fakeManager.calls, isEmpty);
+      // Workspace stays empty.
+      final ws = capturedRef.read(workspaceProvider);
+      expect(collectAllTabs(ws.root), isEmpty);
+      // Return value signals "did not open".
+      expect(result, isFalse);
+      Toast.clearAllForTest();
+    });
+
+    testWidgets(
+      'saved-session bastion: connectAsync runs for both hops and the '
+      "bastion's saved label propagates to the connect call",
+      (tester) async {
+        // Spec: when viaSessionId resolves to a saved session, the
+        // bastion's SSHConfig is taken from the saved row and the
+        // bastion's label drives the connect call's `label` argument.
+        // Internal flag is set on the bastion call.
+        final fakeManager = _RecordingConnectionManager();
+        final bastion = Session(
+          id: 'bastion-1',
+          label: 'Corp Bastion',
+          server: const ServerAddress(
+            host: 'bastion.corp',
+            port: 22,
+            user: 'jump',
+          ),
+          auth: const SessionAuth(password: 'bp'),
+        );
+        final fakeSessions = FakeSessionNotifier(sessions: [bastion]);
+        late Future<bool> pending;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              connectionsProvider.overrideWith(() => fakeManager),
+              ...fakeSessions.overrides(),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Consumer(
+                builder: (context, ref, _) {
+                  return Scaffold(
+                    body: ElevatedButton(
+                      onPressed: () {
+                        final session = Session(
+                          id: 's-final',
+                          label: 'Target',
+                          server: const ServerAddress(
+                            host: 'target.example.com',
+                            user: 'root',
+                          ),
+                          auth: const SessionAuth(password: 'pw'),
+                          viaSessionId: 'bastion-1',
+                        );
+                        pending = SessionConnect.connectTerminal(
+                          context,
+                          ref,
+                          session,
+                        );
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.text('Connect'));
+        await pumpUntilFrbSettles(tester, pending);
+
+        expect(fakeManager.calls, hasLength(2));
+        final bastionCall = fakeManager.calls.first;
+        expect(bastionCall.internal, isTrue);
+        expect(bastionCall.label, 'Corp Bastion');
+        expect(bastionCall.sessionId, 'bastion-1');
+        expect(bastionCall.config.server.host, 'bastion.corp');
+        // The final hop carries the bastion as its parent.
+        expect(fakeManager.calls.last.bastion, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'cycle detection: viaSessionId pointing back at the final session '
+      'short-circuits with ProxyJumpCycleError',
+      (tester) async {
+        // Spec: the visited set seeded with `{fresh.id}` traps a
+        // bastion whose id equals the final session's id. The
+        // resulting ProxyJumpCycleError is surfaced via toast; no
+        // connect call lands.
+        final fakeManager = _RecordingConnectionManager();
+        // The bastion has the same id as the final session — a
+        // self-loop in the chain. Resolve must throw on the visited
+        // check, not on the missing-session check, so seed the same
+        // session id in the mutator.
+        final selfLoop = Session(
+          id: 's-final',
+          label: 'Self',
+          server: const ServerAddress(host: 'self.example.com', user: 'root'),
+          auth: const SessionAuth(password: 'pw'),
+        );
+        final fakeSessions = FakeSessionNotifier(sessions: [selfLoop]);
+        bool? result;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              connectionsProvider.overrideWith(() => fakeManager),
+              ...fakeSessions.overrides(),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: Consumer(
+                builder: (context, ref, _) {
+                  return Scaffold(
+                    body: ElevatedButton(
+                      onPressed: () async {
+                        final session = Session(
+                          id: 's-final',
+                          label: 'Final',
+                          server: const ServerAddress(
+                            host: 'target.example.com',
+                            user: 'root',
+                          ),
+                          auth: const SessionAuth(password: 'pw'),
+                          // viaSessionId points at the final session
+                          // itself — the visited set seeded with
+                          // `{fresh.id}` makes the lookup contains
+                          // bastionSession.id and raises the cycle
+                          // error.
+                          viaSessionId: 's-final',
+                        );
+                        result = await SessionConnect.connectTerminal(
+                          context,
+                          ref,
+                          session,
+                        );
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        // No tab opened, no connect call.
+        expect(fakeManager.calls, isEmpty);
+        expect(result, isFalse);
+        Toast.clearAllForTest();
+      },
+    );
+  });
+}
+
+/// Records every `connectAsync` invocation so ProxyJump tests can
+/// assert on call order, the `internal` flag, the per-hop label /
+/// config, and the `bastion` parent threading. Mirrors the shape of
+/// [_FakeConnectionManager] but keeps a full log instead of just the
+/// last call.
+class _RecordingConnectionManager extends ConnectionsNotifier {
+  final List<_ConnectCall> calls = [];
+
+  @override
+  List<Connection> build() => const [];
+
+  @override
+  Connection connectAsync(
+    SSHConfig config, {
+    String? label,
+    String? sessionId,
+    Connection? bastion,
+    bool internal = false,
+  }) {
+    final id = 'rec-conn-${calls.length}';
+    calls.add(
+      _ConnectCall(
+        config: config,
+        label: label,
+        sessionId: sessionId,
+        bastion: bastion,
+        internal: internal,
+        returnedId: id,
+      ),
+    );
+    return Connection(
+      id: id,
+      label: label ?? config.displayName,
+      sshConfig: config,
+      sessionId: sessionId,
+      state: SSHConnectionState.connected,
+    );
+  }
+}
+
+class _ConnectCall {
+  _ConnectCall({
+    required this.config,
+    required this.label,
+    required this.sessionId,
+    required this.bastion,
+    required this.internal,
+    required this.returnedId,
+  });
+
+  final SSHConfig config;
+  final String? label;
+  final String? sessionId;
+  final Connection? bastion;
+  final bool internal;
+  final String returnedId;
 }

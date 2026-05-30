@@ -355,5 +355,214 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Android Keystore'), findsAtLeastNWidgets(1));
     });
+
+    testWidgets(
+      'TEE variant (strongbox = false, platform = null) renders the label '
+      'without crashing on the optional platform line',
+      (tester) async {
+        // Spec: `KeystoreBadge` accepts a nullable `platform`; the
+        // popover line is conditional on `plat != null && plat.isNotEmpty`.
+        // Passing strongbox = false with a null platform pins the
+        // TEE branch + missing-platform conditional — both arms exercise
+        // the pill build without the StrongBox-specific lines.
+        await tester.pumpWidget(
+          _wrap(const Center(child: KeystoreBadge(label: 'Android Keystore'))),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Android Keystore'), findsAtLeastNWidgets(1));
+      },
+    );
+  });
+
+  group('KeystoreSshDialog — deepening', () {
+    testWidgets(
+      'Unsupported probe surfaces the Android-label fallback reason and the '
+      'Generate CTA is disabled (canGenerate is false on non-Available probe)',
+      (tester) async {
+        // Spec: `_availabilityReason` falls back to
+        // `keystoreKeyAndroidLabel` when the probe variant is
+        // Unsupported (non-Android build / lower-than-min SDK). The
+        // configure step renders the red disabled-with-reason container
+        // and `canGenerate` short-circuits on `!_isAvailable` so the
+        // primary CTA stays disabled even after the label is typed.
+        final backend = _FakeKeystoreBackend(
+          probeResult: const rust_ks.DbKeystoreProbeResult.unsupported(),
+        );
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => KeystoreSshDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        // `canGenerate` short-circuits on `!_isAvailable`; the primary
+        // CTA renders with `onTap: null` so the tap is a no-op. The
+        // backend never sees a generate call.
+        final s = S.of(tester.element(find.byType(KeystoreSshDialog)));
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        expect(backend.calls, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'Other-variant probe surfaces the carrier string as the localized reason',
+      (tester) async {
+        // Spec: the Other-variant probe routes its `field0` payload
+        // straight into the disabled-with-reason text — this lets the
+        // FRB layer ship a localized error string from the Rust side
+        // without the dialog needing to know the cause. Pins the
+        // pass-through branch of `_availabilityReason`.
+        final backend = _FakeKeystoreBackend(
+          probeResult: const rust_ks.DbKeystoreProbeResult.other(
+            'AndroidKeyStore JNI not available in this process',
+          ),
+        );
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => KeystoreSshDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('AndroidKeyStore JNI not available'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'StrongBox toggle is disabled when the probe reports the feature is '
+      'unavailable, even on a StrongBox-eligible algorithm',
+      (tester) async {
+        // Spec: `_strongBoxToggleEnabled` AND's
+        // `_strongBoxFeature && _algoStrongBoxEligible`. With
+        // `strongboxAvailable: false`, the toggle must render the
+        // unavailable subtitle copy regardless of the chosen algorithm
+        // (ECDSA P-256 default is StrongBox-eligible per algorithm).
+        final backend = _FakeKeystoreBackend(
+          probeResult: const rust_ks.DbKeystoreProbeResult.available(
+            strongboxAvailable: false,
+          ),
+        );
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => KeystoreSshDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        // The "not available" subtitle copy renders under the toggle.
+        expect(
+          find.textContaining('StrongBox HSM not available'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'a generate that throws keeps the wizard on configure and surfaces the '
+      'error tail in the localized red text',
+      (tester) async {
+        // Spec: `runGenerateFlow` (in the shared mixin) catches the
+        // throw, assigns the message to `generateError`, and re-renders
+        // the configure step. The red error line appears below the
+        // algorithm radio. Pins the throwing arm — distinct from the
+        // StrongBox-fallback (typed) outcome arm covered above.
+        final backend = _FakeKeystoreBackend(
+          probeResult: const rust_ks.DbKeystoreProbeResult.available(
+            strongboxAvailable: true,
+          ),
+        )..generateError = Exception('fake-keystore-error');
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => KeystoreSshDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'fail-label');
+        await tester.pumpAndSettle();
+        final s = S.of(tester.element(find.byType(KeystoreSshDialog)));
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        // The Exception's toString tail is surfaced verbatim. The
+        // dialog is still on the configure step (Generate CTA visible).
+        expect(find.textContaining('fake-keystore-error'), findsOneWidget);
+        expect(find.text(s.sshKeyGenerateCta), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'completion of a TEE-tier generate (strongbox: false) renders the TEE '
+      'label in the complete step',
+      (tester) async {
+        // Spec: `buildComplete` chooses between the StrongBox label
+        // and the TEE label off `_result.strongbox`. The seeded
+        // outcome here is StrongBoxUnavailable then the user accepts
+        // the fallback — generate succeeds with `strongbox: false`.
+        // Pins the TEE-label arm of the complete step.
+        final backend = _FakeKeystoreBackend(
+          probeResult: const rust_ks.DbKeystoreProbeResult.available(
+            strongboxAvailable: true,
+          ),
+          outcomes: const [
+            rust_ks.DbKeystoreGenerateOutcome.strongBoxUnavailable(),
+            rust_ks.DbKeystoreGenerateOutcome.generated(
+              rust_ks.DbKeystoreImportResult(
+                keyId: 'kid-tee-2',
+                label: 'tee-only',
+                authorizedKeysLine: 'ecdsa-sha2-nistp256 AAAA tee-only',
+                strongbox: false,
+                platform: 'Pixel 4a (Android 13)',
+              ),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () => KeystoreSshDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'tee-only');
+        await tester.pumpAndSettle();
+        final s = S.of(tester.element(find.byType(KeystoreSshDialog)));
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(s.keystoreStrongBoxFallbackConfirm));
+        await tester.pumpAndSettle();
+        // The complete step renders the TEE label; the StrongBox
+        // label belongs to the strongbox = true arm.
+        expect(find.text(s.keystoreKeyTeeLabel), findsOneWidget);
+      },
+    );
   });
 }

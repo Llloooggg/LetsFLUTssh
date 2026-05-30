@@ -10,6 +10,8 @@ import 'package:letsflutssh/app/import_flow.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/core/import/export_import.dart';
+import 'package:letsflutssh/core/import/import_service.dart'
+    show LfsImportRolledBackException;
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
@@ -429,6 +431,121 @@ void main() {
       expect(log.dropCalls, ['h-1']);
     });
 
+    _testFlow(
+      'rolledBack apply surfaces errLfsImportRolledBack in the error toast',
+      (tester) async {
+        // Spec: `_summaryFromApply` throws [LfsImportRolledBackException]
+        // when the Rust apply reports `rolledBack: true`. The catch arm
+        // in `_applyLfsImport` routes the exception through `localizeError`,
+        // which maps that exception to the "data restored" string —
+        // distinct from the generic "Import failed" copy.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(rolledBack: true),
+            lfsDialogResult: (password: 'p', mode: ImportMode.replace),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton(
+              'go',
+              (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The localized template embeds "your data has been restored";
+        // assert on a stable substring so the test does not pin the
+        // entire wording of the ARB string.
+        expect(find.textContaining('restored'), findsWidgets);
+        // Apply seam succeeded (no throw) but the handle is consumed
+        // on its way out — drop should NOT fire on the rolled-back
+        // success-shape return.
+        expect(log.applyCalls, hasLength(1));
+        expect(log.dropCalls, isEmpty);
+      },
+    );
+
+    _testFlow('opened preview with recordings drives applyRecordings=true', (
+      tester,
+    ) async {
+      // Spec: when the staged preview reports a non-zero recording
+      // count, `_applyLfsImport` passes `recordings: true` so the
+      // Rust apply step extracts the recordings tree after the DB
+      // transaction commits.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openPreview: _previewWith(recordingCount: 4),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/r.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(log.applyCalls.single.applyRecordings, isTrue);
+    });
+
+    _testFlow('openArchiveWithTypedErrors maps DbImportOpenError_FutureVersion '
+        'to UnsupportedLfsVersionException — error toast carries the version', (
+      tester,
+    ) async {
+      // Spec: the wrapper in `openArchiveWithTypedErrors` rethrows
+      // `DbImportOpenError_FutureVersion` as the typed
+      // `UnsupportedLfsVersionException` so the `localizeError`
+      // chain renders the dedicated "newer archive" template
+      // instead of the generic Rust error string.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const UnsupportedLfsVersionException(
+            found: 99,
+            supported: 3,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized "newer than supported" template embeds the
+      // archive's version number.
+      expect(find.textContaining('99'), findsWidgets);
+      // No handle was registered (open threw) so drop must NOT fire.
+      expect(log.dropCalls, isEmpty);
+    });
+
     _testFlow('replace mode propagates through apply seam', (tester) async {
       final log = _CallLog();
       debugSetImportFlowSeams(
@@ -819,5 +936,488 @@ void main() {
         expect(after.locale, 'de');
       },
     );
+  });
+
+  // ── Error-localization arms ──────────────────────────────────────────
+
+  group('showLfsImportDialog — error localization arms', () {
+    _testFlow(
+      'LfsArchiveTruncatedException surfaces the truncated-archive copy',
+      (tester) async {
+        // Spec: `localizeError` maps `LfsArchiveTruncatedException` to
+        // `errLfsArchiveTruncated`. The catch arm in `_applyLfsImport`
+        // threads the exception through `localizeError` so the user
+        // sees the dedicated "archive is incomplete" message instead of
+        // the generic Rust error string.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            openThrows: const LfsArchiveTruncatedException(
+              entryName: 'sessions.json',
+            ),
+            lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton(
+              'go',
+              (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The localized template starts with "Archive is incomplete."
+        // Assert on a stable substring so the test does not pin the
+        // whole ARB wording.
+        expect(find.textContaining('incomplete'), findsWidgets);
+        // Open threw before any handle was registered → drop must NOT
+        // fire (no staged resource to release).
+        expect(log.dropCalls, isEmpty);
+      },
+    );
+
+    _testFlow('LfsArchiveTooLargeException surfaces the size-rejected copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsArchiveTooLargeException` to
+      // `errLfsArchiveTooLarge` with the rejected vs. limit sizes
+      // formatted as MB. The "too large" arm rejects before
+      // decryption so the user knows the file was refused on its
+      // size, not on a credential mismatch.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const LfsArchiveTooLargeException(
+            size: 250 * 1024 * 1024,
+            limit: 100 * 1024 * 1024,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/big.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized template embeds the rejected size in MB.
+      expect(find.textContaining('250'), findsWidgets);
+      expect(log.dropCalls, isEmpty);
+    });
+
+    _testFlow('generic exception falls through to "Import failed: <reason>"', (
+      tester,
+    ) async {
+      // Spec: when the exception is not one of the typed LFS arms,
+      // `localizeError` returns a sanitized toString and the
+      // surrounding `importFailed` template still wraps it. Pins the
+      // fallthrough so a future change that ate the original
+      // exception text (returning just "Import failed:") would
+      // regress visibly.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: Exception('disk full'),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.textContaining('Import failed'), findsOneWidget);
+    });
+
+    _testFlow('LfsDecryptionFailedException surfaces the wrong-password copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsDecryptionFailedException`
+      // to `errLfsDecryptFailed` — the dedicated "Wrong master
+      // password or corrupted .lfs archive" string. The catch arm
+      // in `_applyLfsImport` threads the exception through
+      // `localizeError`, so the user sees the credentials-or-
+      // corruption hint rather than the generic Rust error.
+      // Coexists with the existing decryption tests that only
+      // assert the broader "Import failed" wrapper.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const LfsDecryptionFailedException(),
+          lfsDialogResult: (password: 'wrong', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // Stable substring from `errLfsDecryptFailed` so the test
+      // does not pin the whole ARB wording.
+      expect(find.textContaining('Wrong master password'), findsWidgets);
+      // No handle was registered — open threw before stage.
+      expect(log.dropCalls, isEmpty);
+    });
+
+    _testFlow('LfsKnownHostsTooLargeException surfaces the size-MB copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsKnownHostsTooLargeException`
+      // to `errLfsKnownHostsTooLarge` with the rejected vs. limit
+      // sizes formatted as MB. Distinct from
+      // `errLfsArchiveTooLarge` — the known_hosts entry inside a
+      // decrypted archive has its own per-entry cap so a multi-GB
+      // blob can't stall the line-by-line importer.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          applyThrows: const LfsKnownHostsTooLargeException(
+            size: 50 * 1024 * 1024,
+            limit: 10 * 1024 * 1024,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized template embeds the rejected size in MB.
+      expect(find.textContaining('50'), findsWidgets);
+      // Apply threw after open — staged handle must be released.
+      expect(log.dropCalls, ['h-1']);
+    });
+  });
+
+  group('handleQrImportSource — additional arms', () {
+    _testFlow('apply succeeds but `tags` only ⇒ generic head + tag count', (
+      tester,
+    ) async {
+      // Spec: `formatImportSummary` switches the leading template
+      // from `importedSessions(N)` to `importedGeneric(...)` when
+      // `s.sessions == 0` but extras (tags / snippets / keys)
+      // are present. Drives the QR success path through the apply
+      // seam returning a sessions-free result so the generic head
+      // gets exercised — distinct from the "no sessions, no
+      // extras" arm that falls back to `importedSessions(0)`.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(log: log, applyResult: () => _applyResult(sessions: 0, tags: 7)),
+      );
+
+      final source = QrDecodedSource.rust(
+        rust_archive.DbImportOpenResult(
+          handleId: 'qr-h',
+          preview: _previewWith(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton('go', (ctx, ref) async {
+            await handleQrImportSource(
+              context: ctx,
+              ref: ref,
+              source: source,
+              choice: (
+                mode: ImportMode.merge,
+                options: const ExportOptions(
+                  includeSessions: false,
+                  includeTags: true,
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The generic head wraps the tag-count line — the digit
+      // must appear in the rendered toast.
+      expect(find.textContaining('7'), findsWidgets);
+    });
+
+    _testFlow(
+      'apply success with knownHostsApplied=1 carries the known-hosts note '
+      'into the success toast',
+      (tester) async {
+        // Spec: `_summaryFromApply` sets
+        // `knownHostsApplied: apply.knownHostsApplied > 0`. The QR
+        // path threads that through `formatImportSummary`, which
+        // appends the known-hosts note when the flag is true. Pins
+        // the QR-side conversion of the count → bool — without it,
+        // the user would not see that their known_hosts merged.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(sessions: 1, knownHosts: 3),
+          ),
+        );
+
+        final source = QrDecodedSource.rust(
+          rust_archive.DbImportOpenResult(
+            handleId: 'qr-h',
+            preview: _previewWith(hasKnownHosts: true),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton('go', (ctx, ref) async {
+              await handleQrImportSource(
+                context: ctx,
+                ref: ref,
+                source: source,
+                choice: (
+                  mode: ImportMode.merge,
+                  options: const ExportOptions(
+                    includeSessions: true,
+                    includeKnownHosts: true,
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The known-hosts toggle was relayed to applyHandle.
+        expect(log.applyCalls.single.applyKnownHosts, isTrue);
+      },
+    );
+
+    _testFlow(
+      'QR-path success: refreshAfterImport is wired through every applyHandle '
+      'call — the Rust side gets the closure to invalidate caches',
+      (tester) async {
+        // Spec: `_applyRustQrSource` always passes a non-null
+        // `refreshAfterImport` closure to `applyHandle` so the
+        // Rust-side per-table apply can ping the Dart-side stores
+        // mid-transaction (tags, snippets). Pins the wiring — a
+        // regression that dropped the closure would leave the UI
+        // stale after a successful import.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(log: log, applyResult: () => _applyResult(sessions: 1)),
+        );
+
+        final source = QrDecodedSource.rust(
+          rust_archive.DbImportOpenResult(
+            handleId: 'qr-h',
+            preview: _previewWith(),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton('go', (ctx, ref) async {
+              await handleQrImportSource(
+                context: ctx,
+                ref: ref,
+                source: source,
+                choice: (
+                  mode: ImportMode.merge,
+                  options: const ExportOptions(includeSessions: true),
+                ),
+              );
+            }),
+          ),
+        );
+
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        expect(log.applyCalls.single.refreshProvided, isTrue);
+        // QR / paste-link payloads never carry a recordings tree —
+        // pins `recordings: false` on the QR apply contract.
+        expect(log.applyCalls.single.applyRecordings, isFalse);
+      },
+    );
+
+    _testFlow('rolledBack apply on QR path surfaces the restored copy', (
+      tester,
+    ) async {
+      // Spec: `_summaryFromApply` throws
+      // `LfsImportRolledBackException` when the Rust apply reports
+      // `rolledBack: true`. The catch arm in `handleQrImportSource`
+      // routes the exception through `localizeError`, which maps
+      // it to the "data restored" string — same arm the LFS path
+      // uses, exercised here through the QR entry point so a
+      // future change that forgot to throw from `_summaryFromApply`
+      // on the QR side regresses visibly.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(log: log, applyResult: () => _applyResult(rolledBack: true)),
+      );
+
+      final source = QrDecodedSource.rust(
+        rust_archive.DbImportOpenResult(
+          handleId: 'qr-h',
+          preview: _previewWith(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton('go', (ctx, ref) async {
+            await handleQrImportSource(
+              context: ctx,
+              ref: ref,
+              source: source,
+              choice: (
+                mode: ImportMode.replace,
+                options: const ExportOptions(includeSessions: true),
+              ),
+            );
+          }),
+        ),
+      );
+
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.textContaining('restored'), findsWidgets);
+    });
+  });
+
+  // ── openArchiveWithTypedErrors direct surface ────────────────────────
+  //
+  // The wrapper is the only line in `import_flow.dart` that maps the
+  // Rust-side `DbImportOpenError_FutureVersion` arm to the typed
+  // Dart `UnsupportedLfsVersionException`. Exercising it without
+  // running through `_seams` lets us pin the construction shape of
+  // the typed exception (found / supported fields routed verbatim)
+  // independent of the localizer chain.
+
+  group('openArchiveWithTypedErrors — typed-error mapping shape', () {
+    test('UnsupportedLfsVersionException carries the verbatim found/supported '
+        'pair', () {
+      // Spec: the wrapper does `found: e.found.toInt(), supported: '
+      // 'e.supported` without further interpretation. Pin the field
+      // accessors so a future regression that swapped or hard-coded
+      // the values would surface here rather than at the localized
+      // template (which formats the pair via `errLfsUnsupportedVersion`).
+      const e = UnsupportedLfsVersionException(found: 7, supported: 3);
+      expect(e.found, 7);
+      expect(e.supported, 3);
+      expect(e.toString(), contains('v7'));
+    });
+
+    test('LfsImportRolledBackException toString embeds the cause verbatim', () {
+      // Spec: `_summaryFromApply` throws
+      // `LfsImportRolledBackException(cause: apply.errors.join("; "))`
+      // when the Rust apply rolls back. The toString carries the
+      // cause so log breadcrumbs name what the row-level failure was
+      // before the rollback. A regression that ate the cause field
+      // would leave the operator with only "rolled back" in the log.
+      const e = LfsImportRolledBackException(
+        cause: 'session row 3: foreign key conflict',
+      );
+      expect(e.toString(), contains('foreign key conflict'));
+      expect(e.cause, 'session row 3: foreign key conflict');
+    });
+
+    test('LfsArchiveTruncatedException toString embeds the entry name when '
+        'set, omits the "in <entry>" clause when null', () {
+      // Spec: `LfsArchiveTruncatedException.toString` builds an
+      // optional " in <entry>" suffix off the nullable
+      // `entryName` field — the catch arm in `_applyLfsImport`
+      // surfaces this through the log, and the format depends on
+      // whether the truncation was per-entry or whole-archive.
+      const withEntry = LfsArchiveTruncatedException(
+        entryName: 'sessions.json',
+      );
+      const noEntry = LfsArchiveTruncatedException();
+      expect(withEntry.toString(), contains('sessions.json'));
+      expect(noEntry.toString(), isNot(contains(' in ')));
+    });
+
+    test('LfsArchiveTooLargeException pairs the rejected size with the limit '
+        'in its toString — no silent truncation', () {
+      // Spec: the toString format prints both numbers so an
+      // operator scanning the log can see how far past the cap the
+      // file landed (`250 MB vs 100 MB` is a different operational
+      // story from `101 MB vs 100 MB`). A regression that dropped
+      // one of the values would lose that signal.
+      const e = LfsArchiveTooLargeException(size: 262144000, limit: 104857600);
+      expect(e.toString(), contains('262144000'));
+      expect(e.toString(), contains('104857600'));
+    });
+
+    test('LfsKnownHostsTooLargeException toString is distinct from '
+        'LfsArchiveTooLargeException — different localized templates depend '
+        'on the type discriminator', () {
+      // Spec: `_tryLocalizeLfsError` switches on the type
+      // discriminator (`if (error is ...)`). The two too-large
+      // variants share a size/limit shape but the toString prefix
+      // must remain distinct so the log grep stays unambiguous.
+      const archive = LfsArchiveTooLargeException(size: 1, limit: 1);
+      const knownHosts = LfsKnownHostsTooLargeException(size: 1, limit: 1);
+      expect(archive.toString(), startsWith('LfsArchiveTooLargeException'));
+      expect(
+        knownHosts.toString(),
+        startsWith('LfsKnownHostsTooLargeException'),
+      );
+    });
   });
 }

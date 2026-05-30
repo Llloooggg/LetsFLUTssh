@@ -1975,5 +1975,444 @@ void main() {
         findsOneWidget,
       );
     });
+
+    // Spec: when the user is on a non-Sessions page (e.g. Terminal) and
+    // presses system back, PopScope intercepts the pop and resets the
+    // bottom-nav index to 0 — the user is NOT prompted to exit until
+    // they back out a second time from Sessions. Drives line 117 in
+    // `_handlePopScope` (the `_navIndex != 0` arm).
+    testWidgets(
+      'system back on a non-Sessions page resets nav to Sessions instead of exiting',
+      (tester) async {
+        final conn = Connection(
+          id: 'pop-1',
+          label: 'Pop Server',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState(
+                    (b) => b.addTerminalTab(conn, label: 'Pop Server'),
+                  ),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Move to the Terminal page so PopScope's `_navIndex != 0` arm
+        // fires on the next back press.
+        await tester.tap(find.text('Terminal'));
+        await tester.pumpAndSettle();
+        var stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+        expect(stack.index, equals(1));
+
+        final dynamic widgetsApp = tester.state(find.byType(WidgetsApp));
+        // ignore: avoid_dynamic_calls
+        await widgetsApp.didPopRoute();
+        await tester.pumpAndSettle();
+
+        // Reset to Sessions (index 0); no Exit dialog because the back
+        // press was consumed by the nav reset.
+        stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+        expect(stack.index, equals(0));
+        expect(
+          find.textContaining('Active sessions will be disconnected'),
+          findsNothing,
+        );
+      },
+    );
+
+    // Spec: the app-bar Tools button opens the dedicated Tools screen
+    // (SSH keys, snippets, etc.). Drives line 201's `onTap` lambda —
+    // the only place `ToolsScreen.show` is invoked from the mobile
+    // shell.
+    testWidgets('app-bar Tools button opens the Tools screen', (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.build_outlined));
+      await tester.pumpAndSettle();
+      // Tools screen surfaces its localized title in the AppBar.
+      expect(find.text('Tools'), findsWidgets);
+    });
+
+    // Spec: tapping the SFTP companion on the Terminal page should add
+    // an SFTP tab for the current connection AND flip the bottom-nav
+    // to the Files page in one step. Drives lines 237-240 (the
+    // closure passed as `_MobileTerminalPage.onOpenSftp`) plus the
+    // companion button's pressed-state lifecycle (lines 849-854).
+    testWidgets(
+      'tapping the SFTP companion adds an SFTP tab and switches nav to Files',
+      (tester) async {
+        final conn = Connection(
+          id: 'comp-sftp',
+          label: 'Open SFTP',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState(
+                    (b) => b.addTerminalTab(conn, label: 'Open SFTP'),
+                  ),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Terminal'));
+        await tester.pumpAndSettle();
+
+        // The companion is visible when the active terminal is
+        // connected — fold-open icon anchors the button.
+        final companion = find.byIcon(Icons.folder_open);
+        expect(companion, findsOneWidget);
+
+        // Down + up gesture so the inner GestureDetector cycles through
+        // `onTapDown → onTapUp`, exercising the pressed-state lambdas.
+        final gesture = await tester.startGesture(
+          tester.getCenter(companion),
+          kind: PointerDeviceKind.touch,
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        // Nav flipped to Files (index 2) and an SFTP tab for this
+        // connection exists.
+        final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+        expect(stack.index, equals(2));
+        expect(find.text('Open SFTP'), findsWidgets);
+      },
+    );
+
+    // Spec: symmetric path — Files page → Terminal companion adds an
+    // SSH tab and swaps to Terminal. Drives lines 249-252 (the
+    // `onOpenSsh` closure).
+    testWidgets(
+      'tapping the SSH companion on Files adds a terminal tab and switches nav',
+      (tester) async {
+        final conn = Connection(
+          id: 'comp-ssh',
+          label: 'Open SSH',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState(
+                    (b) => b.addSftpTab(conn, label: 'Open SSH'),
+                  ),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Files'));
+        await tester.pumpAndSettle();
+
+        // The Terminal companion sits under a localised tooltip;
+        // tapping it triggers the `onOpenSsh` closure that adds a
+        // terminal tab + flips to nav index 1.
+        await tester.tap(find.byTooltip('Open SSH Terminal'));
+        await tester.pumpAndSettle();
+
+        final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+        expect(stack.index, equals(1));
+      },
+    );
+
+    // Spec: the exit-confirm dialog's Exit button calls
+    // `Navigator.of(context).pop()` on the root navigator — the
+    // confirmed branch of `_confirmExit`. Drives line 364 (and the
+    // surrounding context.mounted guard at 363).
+    testWidgets('confirming Exit on the dialog pops the root route', (
+      tester,
+    ) async {
+      final conn = Connection(
+        id: 'exit-confirm',
+        label: 'Exit Server',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+        state: SSHConnectionState.disconnected,
+      );
+
+      // Wrap the MobileShell in a Navigator so the inner pop has a
+      // route to remove without tearing down the whole test harness.
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ...FakeSessionNotifier().overrides(),
+            sessionsLoadingProvider.overrideWithValue(false),
+            knownHostsStreamProvider.overrideWith(
+              (_) => const Stream<Map<String, String>>.empty(),
+            ),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
+            ),
+            workspaceProvider.overrideWith(
+              () => PrePopulatedWorkspaceNotifier(
+                _buildWorkspaceState(
+                  (b) => b.addTerminalTab(conn, label: 'Exit Server'),
+                ),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Builder(
+              builder: (ctx) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MobileShell(),
+                      ),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      // Trigger system back from Sessions while active tabs are
+      // present → exit-confirm dialog appears.
+      final dynamic widgetsApp = tester.state(find.byType(WidgetsApp));
+      // ignore: avoid_dynamic_calls
+      await widgetsApp.didPopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Active sessions will be disconnected'),
+        findsOneWidget,
+      );
+
+      // Tap the confirm Exit action — `_confirmExit` resolves true and
+      // calls `Navigator.of(context).pop()`, popping the MobileShell
+      // route off the stack. The dialog renders two `Exit` labels: the
+      // first match (`findsAtLeast`) on `Cancel` / second on `Exit` is
+      // brittle; the dialog's primary action is the last `Exit` label
+      // in widget order.
+      await tester.tap(find.text('Exit').last);
+      await tester.pumpAndSettle();
+
+      // The MobileShell route is gone; the initial "open" button is
+      // visible again on the original route.
+      expect(find.byType(MobileShell), findsNothing);
+      expect(find.text('open'), findsOneWidget);
+    });
+
+    // Spec: long-pressing a non-active tab chip opens the close-options
+    // context menu — same chip menu as on the active tab but anchored
+    // to the long-pressed chip's index. Tapping "Close Others" routes
+    // to `WorkspaceNotifier.closeOthers` (line 514's onTap lambda) and
+    // collapses the workspace to that tab; tapping "Close All" routes
+    // to `closeAll` (line 520).
+    testWidgets(
+      'Close Others on the tab chip menu collapses to the long-pressed tab',
+      (tester) async {
+        final conn1 = Connection(
+          id: 'others-1',
+          label: 'Keep Me',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+        final conn2 = Connection(
+          id: 'others-2',
+          label: 'Drop Me',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState((b) {
+                    b.addTerminalTab(conn1, label: 'Keep Me');
+                    b.addTerminalTab(conn2, label: 'Drop Me');
+                  }),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Terminal'));
+        await tester.pumpAndSettle();
+
+        // Long-press the first (non-active) chip → menu opens with
+        // close options.
+        await tester.longPress(find.text('Keep Me'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Close Others'));
+        await tester.pumpAndSettle();
+
+        // "Drop Me" gone, "Keep Me" still present.
+        expect(find.text('Keep Me'), findsOneWidget);
+        expect(find.text('Drop Me'), findsNothing);
+      },
+    );
+
+    // Symmetric to Close Others — exercises the Close All onTap (line
+    // 520). After the action, no tab chip exists for any of the
+    // previously-open connections.
+    testWidgets(
+      'Close All on the tab chip menu closes every tab and auto-switches to Sessions',
+      (tester) async {
+        final conn1 = Connection(
+          id: 'all-1',
+          label: 'A',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+        final conn2 = Connection(
+          id: 'all-2',
+          label: 'B',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...FakeSessionNotifier().overrides(),
+              sessionsLoadingProvider.overrideWithValue(false),
+              knownHostsStreamProvider.overrideWith(
+                (_) => const Stream<Map<String, String>>.empty(),
+              ),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
+              ),
+              workspaceProvider.overrideWith(
+                () => PrePopulatedWorkspaceNotifier(
+                  _buildWorkspaceState((b) {
+                    b.addTerminalTab(conn1, label: 'A');
+                    b.addTerminalTab(conn2, label: 'B');
+                  }),
+                ),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              theme: AppTheme.dark(),
+              home: const MobileShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Terminal'));
+        await tester.pumpAndSettle();
+
+        await tester.longPress(find.text('B'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Close All'));
+        await tester.pumpAndSettle();
+
+        // Both chips gone — auto-switch lands the user back on
+        // Sessions (which renders the SessionPanel).
+        expect(find.text('A'), findsNothing);
+        expect(find.text('B'), findsNothing);
+        expect(find.byType(SessionPanel), findsOneWidget);
+      },
+    );
   });
 }

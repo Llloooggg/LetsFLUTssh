@@ -20,7 +20,8 @@ import '../src/rust/api/recovery.dart'
         recoveryHandleCorruptDb,
         recoveryHandleLegacyState,
         recoveryHandleVaultStateMissing;
-import '../src/rust/api/recovery.dart' show DbRecoveryOutcome;
+import '../src/rust/api/recovery.dart'
+    show DbLegacyStateDetection, DbRecoveryOutcome;
 import '../src/rust/api/security_capabilities.dart' show DbSecurityCapabilities;
 import '../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
@@ -107,6 +108,33 @@ typedef DbReadableProbe = Future<bool> Function();
 /// artefact on disk.
 typedef MigrationRunnerFn = Future<DbMigrationReport> Function();
 
+/// Signature of `rust_recovery.recoveryDetectLegacyState`. Injectable
+/// so tests can canned-emit the "legacy state detected" decision the
+/// recovery path branches on, without seeding a stale on-disk config
+/// + orphan wipe-artefacts to trigger the real Rust detector.
+typedef LegacyStateDetector =
+    Future<DbLegacyStateDetection> Function({
+      required bool hasCurrentSecurityConfig,
+    });
+
+/// Signature of `rust_recovery.recoveryHandleCorruptDb`. Injectable so
+/// tests can drive the corrupt-DB handler's three-way outcome
+/// (`userExited` / `wipedAndRestarted` / `continued`) without
+/// synthesising a SQLCipher mismatch and walking the real recovery
+/// orchestrator (which would pop a dialog the test harness can't
+/// dismiss).
+typedef CorruptDbHandler =
+    Future<DbRecoveryOutcome> Function({required String reason});
+
+/// Signature of `rust_recovery.recoveryHandleLegacyState`. Injectable
+/// alongside [LegacyStateDetector] so the legacy-state branch can be
+/// driven end-to-end through canned decisions in tests.
+typedef LegacyStateHandler =
+    Future<DbRecoveryOutcome> Function({
+      required int configVersionOnDisk,
+      required bool orphanArtefacts,
+    });
+
 class SecurityInitController {
   final WidgetRef ref;
   final bool Function() isMounted;
@@ -119,6 +147,9 @@ class SecurityInitController {
   final DbReadableProbe _verifyReadable;
   final SecurityDialogPrompter _dialogs;
   final MigrationRunnerFn _migrationRunner;
+  final LegacyStateDetector _legacyStateDetector;
+  final CorruptDbHandler _corruptDbHandler;
+  final LegacyStateHandler _legacyStateHandler;
 
   SecurityInitController({
     required this.ref,
@@ -127,10 +158,19 @@ class SecurityInitController {
     DbReadableProbe? verifyReadable,
     SecurityDialogPrompter? dialogPrompter,
     MigrationRunnerFn? migrationRunner,
+    LegacyStateDetector? legacyStateDetector,
+    CorruptDbHandler? corruptDbHandler,
+    LegacyStateHandler? legacyStateHandler,
   }) : _dbFileExists = dbFileExists ?? lfsCoreDbExists,
        _verifyReadable = verifyReadable ?? verifyRustDbReadable,
        _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter(),
-       _migrationRunner = migrationRunner ?? runStartupMigrations;
+       _migrationRunner = migrationRunner ?? runStartupMigrations,
+       _legacyStateDetector =
+           legacyStateDetector ?? rust_recovery.recoveryDetectLegacyState,
+       _corruptDbHandler =
+           corruptDbHandler ?? rust_recovery.recoveryHandleCorruptDb,
+       _legacyStateHandler =
+           legacyStateHandler ?? rust_recovery.recoveryHandleLegacyState;
 
   // ── State fields ────────────────────────────────────────────
 
@@ -315,9 +355,7 @@ class SecurityInitController {
       'Database readability probe failed — handing off to recovery orchestrator',
       name: 'App',
     );
-    final outcome = await rust_recovery.recoveryHandleCorruptDb(
-      reason: 'integrity probe failed',
-    );
+    final outcome = await _corruptDbHandler(reason: 'integrity probe failed');
     await _dispatchRecoveryOutcome(outcome, source: 'handleCorruption');
   }
 
@@ -380,9 +418,7 @@ class SecurityInitController {
     // tier would re-run the same migration pipeline; once that has
     // surfaced a fatal report there is no other tier path left to
     // try.
-    final outcome = await rust_recovery.recoveryHandleCorruptDb(
-      reason: 'migration runner failure',
-    );
+    final outcome = await _corruptDbHandler(reason: 'migration runner failure');
     if (outcome == DbRecoveryOutcome.continued) {
       AppLogger.instance.log(
         'Migration failure: tryOtherTier collapses to exit — no '
@@ -495,7 +531,7 @@ class SecurityInitController {
     // (`migration_config_target_version` + `migration_config_version_on_disk`
     // + `wipe_has_any_state`) into one Rust-side detection. Auxiliary
     // version fields stay on the return for diagnostic logging.
-    final detection = await rust_recovery.recoveryDetectLegacyState(
+    final detection = await _legacyStateDetector(
       hasCurrentSecurityConfig: currentSecurity != null,
     );
     if (!detection.shouldPromptReset) return false;
@@ -505,7 +541,7 @@ class SecurityInitController {
       'orphan=${detection.orphanArtefacts}) — handing off to recovery orchestrator',
       name: 'App',
     );
-    final outcome = await rust_recovery.recoveryHandleLegacyState(
+    final outcome = await _legacyStateHandler(
       configVersionOnDisk: detection.configVersionOnDisk,
       orphanArtefacts: detection.orphanArtefacts,
     );
@@ -802,9 +838,7 @@ class SecurityInitController {
         'reset through the recovery orchestrator',
         name: 'App',
       );
-      final outcome = await rust_recovery.recoveryHandleCorruptDb(
-        reason: 'retry budget exhausted',
-      );
+      final outcome = await _corruptDbHandler(reason: 'retry budget exhausted');
       await _dispatchRecoveryOutcome(
         outcome,
         source: '_retryUnlockUnderDifferentTier exhausted',

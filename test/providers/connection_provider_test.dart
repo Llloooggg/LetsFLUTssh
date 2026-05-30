@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/connection/connection.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 
@@ -124,6 +126,75 @@ void main() {
         connectingTotal: 1,
       );
       expect(connected, isNot(equals(connecting)));
+    });
+
+    test('connectionSummaryProvider buckets connected / connecting sessions '
+        'and includes their session ids', () {
+      // Drive the projection with a seeded `List<Connection>` via the
+      // [StaticConnectionsNotifier] override seam. This exercises the
+      // `if (c.isConnected) { … sid != null }` branch (line 245) and
+      // the `else if (c.isConnecting) { … sid != null }` branch
+      // (line 249) without needing a real bus subscription.
+      final connectedWithSid = Connection(
+        id: 'c1',
+        label: 'A',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h1', user: 'u'),
+        ),
+        sessionId: 's1',
+        state: SSHConnectionState.connected,
+      );
+      final connectedNoSid = Connection(
+        id: 'c2',
+        label: 'Quick',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h2', user: 'u'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final connectingWithSid = Connection(
+        id: 'c3',
+        label: 'B',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h3', user: 'u'),
+        ),
+        sessionId: 's3',
+        state: SSHConnectionState.connecting,
+      );
+      final disconnected = Connection(
+        id: 'c4',
+        label: 'C',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h4', user: 'u'),
+        ),
+        sessionId: 's4',
+        state: SSHConnectionState.disconnected,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          connectionsProvider.overrideWith(
+            () => StaticConnectionsNotifier([
+              connectedWithSid,
+              connectedNoSid,
+              connectingWithSid,
+              disconnected,
+            ]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final summary = container.read(connectionSummaryProvider);
+      // Connected bucket — both `c1` (sid s1) and `c2` (no sid) count
+      // toward `connectedTotal`, but only s1 lands in the id set.
+      expect(summary.connectedTotal, 2);
+      expect(summary.connectedSessionIds, {'s1'});
+      // Connecting bucket — `c3` contributes a sid; the disconnected
+      // entry is dropped from both totals.
+      expect(summary.connectingTotal, 1);
+      expect(summary.connectingSessionIds, {'s3'});
+      expect(summary.activeTotal, 3);
     });
   });
 }

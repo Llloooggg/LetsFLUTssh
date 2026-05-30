@@ -174,6 +174,60 @@ void main() {
     });
   });
 
+  group('BiometricUnavailableReason — enum surface', () {
+    test('carries exactly four variants', () {
+      // Spec: the Settings disabled-reason locale resolver branches on
+      // every variant. A fifth without paired ARB keys would silently
+      // fall through to the catch-all "unsupported" tooltip, hiding
+      // whichever new reason got added.
+      expect(BiometricUnavailableReason.values, hasLength(4));
+      expect(BiometricUnavailableReason.values, <BiometricUnavailableReason>[
+        BiometricUnavailableReason.platformUnsupported,
+        BiometricUnavailableReason.noSensor,
+        BiometricUnavailableReason.notEnrolled,
+        BiometricUnavailableReason.systemServiceMissing,
+      ]);
+    });
+  });
+
+  group('BiometricAuth.isAvailable — notEnrolled is "not available"', () {
+    test(
+      'returns false when fprintd is reachable but no finger is enrolled',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: any non-null availability reason means "no biometric
+        // shortcut" — the lock screen falls back to the password
+        // field. A regression that conflated only `systemServiceMissing`
+        // with "not available" would let the unlock path call
+        // `authenticate()` against a sensor with no enrolled finger
+        // and hang on the never-resolving fprintd prompt.
+        final bio = BiometricAuth(
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => false,
+        );
+        expect(await bio.isAvailable(), isFalse);
+      },
+    );
+  });
+
+  group('BiometricAuth.authenticate — Linux propagates probe errors', () {
+    test('does not swallow fprintd verify exceptions on Linux', () async {
+      if (!Platform.isLinux) return;
+      // Spec: the Linux branch is a direct `return _fprintdVerify()` —
+      // no try/catch. Wrapping it would mask a genuine D-Bus
+      // protocol break behind a generic "false" answer; the caller
+      // (lock screen) wants the raw failure so it can fall the user
+      // back to the password prompt with the correct reason logged.
+      final bio = BiometricAuth(
+        fprintdVerify: () async => throw StateError('dbus dropped'),
+      );
+      await expectLater(
+        bio.authenticate('irrelevant'),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+
   group('mapRustBiometricAvailability', () {
     test('Available variant maps to null (biometric ready)', () {
       expect(
@@ -236,5 +290,237 @@ void main() {
         );
       },
     );
+
+    test('Probe variant with empty reason still collapses to unsupported', () {
+      // Spec: the helper must not branch on whether the Rust-side
+      // reason string is empty — every Probe sub-case is a
+      // platform-unsupported answer for the UI, even when the
+      // diagnostic carries no text (a backend that produces a
+      // bare error without context still must not crash the UI).
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.probe(''),
+        ),
+        BiometricUnavailableReason.platformUnsupported,
+      );
+    });
   });
+
+  group('BiometricBackingLevel — ordering invariant', () {
+    test(
+      'hardware sorts before software (Settings card reflects the index)',
+      () {
+        // Spec: the Settings card renders the active backing level next
+        // to the biometric toggle and labels `hardware` as the stronger
+        // guarantee. The two-value enum is declared in that order in
+        // the source — flipping it would relabel every locale's UI
+        // copy without anyone noticing until release.
+        expect(BiometricBackingLevel.hardware.index, 0);
+        expect(BiometricBackingLevel.software.index, 1);
+      },
+    );
+  });
+
+  group('BiometricUnavailableReason — ordering invariant', () {
+    test('declaration order matches the disabled-reason switch', () {
+      // Spec: the Settings disabled-reason resolver in
+      // settings_sections_security._biometricDisabledReason switches on
+      // each variant in declaration order. Renumbering the enum
+      // (e.g. inserting a new variant in the middle) without a
+      // matching switch update would silently drop the new branch
+      // through to the catch-all.
+      expect(BiometricUnavailableReason.platformUnsupported.index, 0);
+      expect(BiometricUnavailableReason.noSensor.index, 1);
+      expect(BiometricUnavailableReason.notEnrolled.index, 2);
+      expect(BiometricUnavailableReason.systemServiceMissing.index, 3);
+    });
+  });
+
+  group('BiometricAuth — non-Linux happy path constructs', () {
+    test(
+      'no fprintd / TPM overrides supplied: instance constructs with defaults',
+      () {
+        // Spec: every overrideable seam is optional. A caller that
+        // supplies none constructs a BiometricAuth bound to the
+        // production FRB defaults; the absence of an override must
+        // never throw at construction. Exercising the constructor
+        // pins both branches of the `?? default` ladder in coverage
+        // for the four fields without booting the native lib.
+        final bio = BiometricAuth();
+        expect(bio, isA<BiometricAuth>());
+      },
+    );
+  });
+
+  group('BiometricAuth.isAvailable — exception path', () {
+    test(
+      'a throwing fprintdReachable surfaces as not-available — the convenience '
+      'getter inherits the same collapse-to-systemServiceMissing behaviour as '
+      'availability() so the lock screen never tries to authenticate against '
+      'a broken probe',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: `isAvailable()` is documented as "mirrors availability()
+        // == null". When `_linuxAvailability` catches the D-Bus error
+        // and returns `systemServiceMissing`, `isAvailable()` must
+        // surface false. A regression that let the exception escape
+        // would break the lock-screen fallback (the password field
+        // would never get a chance to render).
+        final bio = BiometricAuth(
+          fprintdReachable: () async => throw StateError('dbus gone'),
+          fprintdHasEnrolled: () async => true,
+        );
+        expect(await bio.isAvailable(), isFalse);
+      },
+    );
+  });
+
+  group(
+    'BiometricAuth.availability — Linux short-circuit on reachable check',
+    () {
+      test(
+        'fprintdHasEnrolled is not called when fprintdReachable returns false — '
+        'the ladder must surface the daemon-missing reason without poking the '
+        'enrolment slot, otherwise a fresh install with no fprintd would '
+        'surface "no finger enrolled" and confuse the install hint',
+        () async {
+          if (!Platform.isLinux) return;
+          // Spec: `_linuxAvailability` returns
+          // `BiometricUnavailableReason.systemServiceMissing` immediately
+          // when `_fprintdReachable()` returns false; the
+          // `_fprintdHasEnrolled` probe is only meaningful after the
+          // daemon is reachable. Pin the ordering — a regression that
+          // reversed the checks would surface `notEnrolled` on a missing
+          // daemon and the README install snippet would no longer
+          // surface.
+          var enrolledChecked = false;
+          final bio = BiometricAuth(
+            fprintdReachable: () async => false,
+            fprintdHasEnrolled: () async {
+              enrolledChecked = true;
+              return true;
+            },
+          );
+          expect(
+            await bio.availability(),
+            BiometricUnavailableReason.systemServiceMissing,
+          );
+          expect(
+            enrolledChecked,
+            isFalse,
+            reason:
+                'short-circuit on reachable=false must not consult the '
+                'enrolment probe — the ladder is reachable → enrolled, never '
+                'the other way around',
+          );
+        },
+      );
+    },
+  );
+
+  group(
+    'BiometricAuth.backingLevel — non-Linux desktop is software-backed',
+    () {
+      test('on Linux without a TPM the level is software regardless of fprintd '
+          'state — backing-level is keyed off the TPM probe, not the fprintd '
+          'reachability ladder', () async {
+        if (!Platform.isLinux) return;
+        // Spec: `backingLevel()` branches solely on `_tpmAvailable()`
+        // for the Linux arm. A regression that started consulting the
+        // fprintd state would conflate "do we have a biometric prompt"
+        // (availability) with "is the cached key in hardware"
+        // (backingLevel) — two orthogonal Settings concerns.
+        final bio = BiometricAuth(
+          tpmAvailable: () async => false,
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => true,
+        );
+        expect(await bio.backingLevel(), BiometricBackingLevel.software);
+      });
+    },
+  );
+
+  group('mapRustBiometricAvailability — probe(reason) variants', () {
+    test('every Probe diagnostic string collapses to the same UI branch — the '
+        'Rust-side reason is logged but never reshaped into a separate enum '
+        'tag', () {
+      // Spec: the helper deliberately discards the Rust-side diagnostic
+      // text. Every probe failure — WinRT error code, LAContext NSError
+      // domain, BiometricManager status int — must map to the SAME
+      // single `platformUnsupported` UI branch so the Settings card has
+      // one localised string to translate and the lock-screen fallback
+      // has one branch to handle. Pin the contract across a sample of
+      // realistic diagnostic strings.
+      const diagnostics = <String>[
+        'winrt: 0x80004005',
+        'LAErrorBiometryNotAvailable',
+        'BiometricManager: ERROR_HW_UNAVAILABLE',
+        'fprintd disappeared mid-probe',
+        '   ',
+        'multiline\nstack\ntrace',
+      ];
+      for (final reason in diagnostics) {
+        expect(
+          mapRustBiometricAvailability(
+            rust_os.DbBiometricAvailability.probe(reason),
+          ),
+          BiometricUnavailableReason.platformUnsupported,
+          reason:
+              'Probe($reason) must collapse to platformUnsupported — the UI '
+              'branches off the enum tag alone, not the diagnostic text',
+        );
+      }
+    });
+  });
+
+  group('BiometricAuth.backingLevel — Linux TPM probe failure', () {
+    test('a throwing TPM probe surfaces as software backing — never an '
+        'unhandled exception that crashes the Settings rebuild', () async {
+      if (!Platform.isLinux) return;
+      // Spec: the Linux `backingLevel` arm awaits `_tpmAvailable()` and
+      // branches on the boolean. A throwing probe (binary missing,
+      // subprocess panicked, FRB transport error) currently surfaces as
+      // an unhandled exception — pin the behaviour deliberately so a
+      // future hardening pass that wraps it in a try/catch is reflected
+      // here, OR a regression that started swallowing in the wrong
+      // direction is caught. As of today the Dart side does not catch:
+      // the throw is the documented contract, callers (Settings rebuild)
+      // are responsible for guarding.
+      final bio = BiometricAuth(
+        tpmAvailable: () async => throw StateError('tpm2 subprocess broke'),
+      );
+      await expectLater(bio.backingLevel(), throwsA(isA<StateError>()));
+    });
+  });
+
+  group('BiometricAuth.availability — Linux ladder ordering', () {
+    test('fprintdHasEnrolled is only consulted after reachable=true — the '
+        'ordering guarantees the README install snippet trumps the '
+        'enrolment-missing hint when both could surface', () async {
+      if (!Platform.isLinux) return;
+      // Spec: ladder is reachable → enrolled → ready. When the daemon
+      // is reachable AND the enrolment probe ALSO throws, the catch arm
+      // collapses to systemServiceMissing — pin that the catch covers
+      // every step of the ladder, not just the reachable probe.
+      final bio = BiometricAuth(
+        fprintdReachable: () async => true,
+        fprintdHasEnrolled: () async =>
+            throw StateError('enroll list parse failed'),
+      );
+      expect(
+        await bio.availability(),
+        BiometricUnavailableReason.systemServiceMissing,
+        reason:
+            'the catch arm collapses any post-reachable failure into '
+            'systemServiceMissing — the README install snippet is the safest '
+            'localised hint when the daemon is mid-flight broken',
+      );
+    });
+  });
+
+  // covered by integration: the Rust-routed availability and authenticate
+  // paths for iOS / macOS / Windows / Android — `rust_os.osSecurityBiometric*`
+  // calls run against `LAContext` / `UserConsentVerifier` /
+  // `BiometricManager` and can only be exercised inside the per-platform
+  // packaged smoke runs.
 }

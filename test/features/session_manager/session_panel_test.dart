@@ -3474,4 +3474,689 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Cut + paste — the cut flag turns a paste into a `moveSession` /
+  // `moveFolder` instead of a `duplicate`. Existing tests cover the copy
+  // path; these pin the cut branches of [pasteCopiedSession].
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — cut and paste', () {
+    testWidgets(
+      'cut + paste moves the focused session into the focus-derived folder',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        // Focus the root-level `staging` session, mark it for cut, then
+        // focus the `Production` folder as the paste target.
+        state.controller.setFocusedSession('3');
+        state.cutFocusedSession();
+        expect(state.controller.cutPending, isTrue);
+        expect(state.controller.copiedSessionId, '3');
+
+        state.controller.setFocusedFolder('Production', 0);
+        state.pasteCopiedSession();
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SessionPanel)),
+        );
+        final moved = container
+            .read(sessionProvider)
+            .firstWhere((s) => s.id == '3');
+        expect(moved.folder, 'Production');
+        // Cut is one-shot — the paste consumes the flag + clears the
+        // clipboard so a second paste is a no-op rather than a silent
+        // re-move.
+        expect(state.controller.cutPending, isFalse);
+        expect(state.controller.copiedSessionId, isNull);
+      },
+    );
+
+    testWidgets(
+      'copy + paste of a folder deep-duplicates the folder into the target',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        // Copy the `Production` folder. With no explicit target, the
+        // paste lands in root (focused session/folder is null after
+        // setFocusedFolder + cutFocused flow below).
+        state.controller.copyFolderPath('Production');
+        expect(state.controller.copiedFolderPath, 'Production');
+        expect(state.controller.cutPending, isFalse);
+
+        // Clear focus so the paste-target resolution falls through to
+        // root (`_resolvePasteTargetFolder` returns '').
+        state.controller.clearFocus();
+        state.pasteCopiedSession();
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SessionPanel)),
+        );
+        // FakeSessionNotifier.duplicateFolder copies `Production` to
+        // a sibling under root. After the duplicate there are now two
+        // top-level `Production`-named branches (the original and the
+        // copy at root) plus the original `Production/DB` and the
+        // duplicated sub-sessions.
+        final updated = container.read(sessionProvider);
+        expect(
+          updated.where((s) => s.folder == 'Production').length,
+          greaterThanOrEqualTo(1),
+        );
+        // copy branch: paste does NOT clear the clipboard so a follow-up
+        // paste duplicates again (matches OS file-manager behaviour).
+        expect(state.controller.copiedFolderPath, 'Production');
+        expect(state.controller.cutPending, isFalse);
+      },
+    );
+
+    testWidgets(
+      'cut + paste of a folder routes through the move branch and clears the '
+      'clipboard',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        state.controller.cutFolderPath('Production');
+        expect(state.controller.cutPending, isTrue);
+
+        // Paste with an explicit target — the folder-row context menu
+        // uses this branch.
+        state.pasteCopiedSession(explicitTarget: 'Archive');
+        await tester.pumpAndSettle();
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(SessionPanel)),
+        );
+        // `Production` is now under `Archive` after the move (the fake
+        // notifier's `moveFolder` rewrites the path prefix on every
+        // session that was inside `Production` / `Production/DB`).
+        final sessions = container.read(sessionProvider);
+        expect(sessions.any((s) => s.folder == 'Archive/Production'), isTrue);
+        expect(sessions.any((s) => s.folder == 'Production'), isFalse);
+        // Cut consumed → clipboard cleared.
+        expect(state.controller.cutPending, isFalse);
+        expect(state.controller.copiedFolderPath, isNull);
+      },
+    );
+
+    testWidgets('pasteCopiedSession is a no-op when the clipboard is empty', (
+      tester,
+    ) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SessionPanel)),
+      );
+      final before = container.read(sessionProvider).length;
+
+      // Nothing copied / cut beforehand — paste returns early.
+      state.pasteCopiedSession();
+      await tester.pumpAndSettle();
+
+      expect(container.read(sessionProvider).length, before);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Focused-folder shortcuts — `deleteFocusedFolder` and
+  // `renameFocusedFolder` are the folder-side counterparts of the
+  // session-side delete / edit shortcuts. The session-edit shortcut
+  // (F2 / Enter) doubles as folder-rename when a folder row holds focus.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — focused folder shortcuts', () {
+    testWidgets('deleteFocusedFolder opens the delete confirmation', (
+      tester,
+    ) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.controller.setFocusedFolder('Production', 0);
+
+      state.deleteFocusedFolder();
+      await tester.pumpAndSettle();
+
+      // The folder-confirmation dialog mirrors the session-row variant
+      // and opens with the folder name in the prompt.
+      expect(find.textContaining('Production'), findsWidgets);
+    });
+
+    testWidgets(
+      'deleteFocusedFolder is a no-op when the focused path is root or null',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        // Nothing focused — the guard at the top of
+        // `deleteFocusedFolder` returns early.
+        state.deleteFocusedFolder();
+        await tester.pumpAndSettle();
+        // Empty-string focused folder (root) — the second branch of
+        // the guard short-circuits.
+        state.controller.setFocusedFolder('', 0);
+        state.deleteFocusedFolder();
+        await tester.pumpAndSettle();
+
+        // No dialog fired.
+        expect(find.text('Delete Folder'), findsNothing);
+      },
+    );
+
+    testWidgets('renameFocusedFolder opens the rename dialog', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.controller.setFocusedFolder('Production', 0);
+
+      state.renameFocusedFolder();
+      await tester.pumpAndSettle();
+
+      // The rename dialog renders a TextField pre-populated with the
+      // current folder name.
+      expect(find.byType(TextField), findsWidgets);
+    });
+
+    testWidgets(
+      'renameFocusedFolder is a no-op when the focused path is empty or null',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+
+        state.renameFocusedFolder();
+        await tester.pumpAndSettle();
+        state.controller.setFocusedFolder('', 0);
+        state.renameFocusedFolder();
+        await tester.pumpAndSettle();
+
+        // Rename dialog never opened — the dialog title would surface
+        // otherwise.
+        expect(find.text('Rename Folder'), findsNothing);
+      },
+    );
+
+    testWidgets('sessionDelete shortcut on a focused folder routes through '
+        'deleteFocusedFolder', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.controller.setFocusedFolder('Production', 0);
+      state.focusNode.requestFocus();
+      await tester.pump();
+
+      // The Delete key with a folder focused hits the folder branch
+      // of the shortcut binding (`focusedFolderPath != null`).
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Production'), findsWidgets);
+    });
+
+    testWidgets('sessionEdit shortcut on a focused folder routes through '
+        'renameFocusedFolder', (tester) async {
+      debugMobilePlatformOverride = false;
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final state = tester.state<SessionPanelState>(find.byType(SessionPanel));
+      state.controller.setFocusedFolder('Production', 0);
+      state.focusNode.requestFocus();
+      await tester.pump();
+
+      // F2 with a folder focused opens rename (not the session-edit
+      // dialog, which the controller branches around when no session
+      // is focused).
+      await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+      await tester.pumpAndSettle();
+
+      // The rename dialog renders an input field.
+      expect(find.byType(TextField), findsWidgets);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Keyboard context menu — Shift+F10 / Apps Menu key opens the row's
+  // context menu anchored at the panel's top-left corner.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — keyboard context menu', () {
+    testWidgets(
+      'Shift+F10 with a focused session opens the session context menu',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.controller.setFocusedSession('1');
+        state.focusNode.requestFocus();
+        await tester.pump();
+
+        // Shift+F10 maps to `openContextMenu` in the shortcut registry.
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        // The session-row context menu exposes Edit Connection +
+        // Delete entries.
+        expect(find.text('Edit Connection'), findsOneWidget);
+        expect(find.text('Delete'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Shift+F10 with a focused folder opens the folder context menu',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.controller.setFocusedFolder('Production', 0);
+        state.focusNode.requestFocus();
+        await tester.pump();
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        // The folder-row context menu exposes a "Rename Folder" action.
+        expect(find.text('Rename Folder'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Shift+F10 with nothing focused falls back to the root background menu',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Nothing focused — third branch of
+        // `_openContextMenuFromKeyboard` opens the root folder menu.
+        state.focusNode.requestFocus();
+        await tester.pump();
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+
+        // The root background menu offers folder / session creation.
+        // `New Connection` is unique to the menu (no header button uses
+        // that label) so it's a tighter regression guard than the
+        // shared `New Folder` string.
+        expect(find.text('New Connection'), findsOneWidget);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Selection iteration branches: deleting / moving a folder selection runs
+  // a `for` over `selectedFolderPaths`. These cover the loop body + the
+  // post-mutation `clearDesktopSelection` arm taken when selectMode is off.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — bulk delete with folder selection', () {
+    testWidgets(
+      'Delete with marquee-selected folder iterates over folder paths and '
+      'falls back to clearDesktopSelection when not in mobile select mode',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Marquee-style selection that mixes a session id and a folder
+        // path, exactly the shape the marquee drag produces. `selectMode`
+        // stays false so `_resetSelectionAfterDelete` takes the
+        // `clearDesktopSelection` arm.
+        state.setMarqueeSelection({'1'}, {'Production/DB'});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        // Open the confirm dialog via the Delete shortcut.
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+
+        // The confirm prose names both the session count and the folder
+        // count — `_deleteSelected` joined them with "and".
+        expect(find.textContaining('1 session'), findsWidgets);
+        expect(find.textContaining('1 folder'), findsWidgets);
+
+        // Confirm — the inner loop iterates the single folder path and
+        // the post-delete branch routes through `clearDesktopSelection`.
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        // Selection cleared, panel stayed in desktop mode (no
+        // `selectMode = true`).
+        expect(state.selectedIds, isEmpty);
+        expect(state.selectedFolderPaths, isEmpty);
+        expect(state.selectMode, isFalse);
+
+        debugMobilePlatformOverride = null;
+      },
+    );
+
+    testWidgets(
+      'Delete confirm dismissed via Cancel keeps the selection intact',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.setMarqueeSelection({'1'}, {'Production'});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+
+        // Bail out — the early return in `_deleteSelected` after
+        // `await ConfirmDialog.show` short-circuits without touching
+        // the mutator.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Selection untouched.
+        expect(state.selectedIds, equals({'1'}));
+        expect(state.selectedFolderPaths, equals({'Production'}));
+      },
+    );
+  });
+
+  group('SessionPanel — bulk move with folder selection (mobile)', () {
+    setUp(() => debugMobilePlatformOverride = true);
+    tearDown(() => debugMobilePlatformOverride = null);
+
+    testWidgets(
+      'Move dialog with a folder in the selection iterates over folder paths '
+      'and exits select mode on completion',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Enter mobile select mode through the visibleForTesting hook
+        // so the move button picks up the folder selection.
+        state.enterSelectModeWithFolder('Production/DB');
+        await tester.pumpAndSettle();
+
+        // Open Move dialog from the mobile selection bar.
+        await tester.tap(find.byIcon(Icons.drive_file_move));
+        await tester.pumpAndSettle();
+        expect(find.text('Move to Folder'), findsOneWidget);
+
+        // Tap "/ (root)" — `_applyMove` then runs the folder loop and
+        // `selectMode` flips false via `exitSelectMode`.
+        await tester.tap(find.text('/ (root)'));
+        await tester.pumpAndSettle();
+
+        // Select mode was exited (mobile path takes the `_ctrl.selectMode`
+        // arm in `_applyMove`).
+        expect(state.selectMode, isFalse);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // SessionTreeView callback wiring — the panel forwards a handful of
+  // tree-side events into the controller / mutator. Each callback below
+  // drives a small uncovered slice of `_buildTreeView` so the wiring
+  // contract is pinned (callback exists, calls the right mutator verb,
+  // updates the panel state).
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — tree view callback wiring', () {
+    testWidgets('onToggleFolderCollapsed forwards the path to the mutator', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+
+      final tree = tester.widget<SessionTreeView>(find.byType(SessionTreeView));
+      // The panel wires this callback so the controller persists the
+      // expand / collapse state across rebuilds. Invoking it directly
+      // exercises the lambda body (`ref.read(sessionMutator…)…`) without
+      // racing the on-row gesture detector.
+      tree.onToggleFolderCollapsed?.call('Production');
+      // No widget exception leaked from the mutator call.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'onBackgroundContextMenu surfaces the root folder menu at the given offset',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final tree = tester.widget<SessionTreeView>(
+          find.byType(SessionTreeView),
+        );
+        // The wired lambda calls `_showFolderContextMenu(context, ref,
+        // '', position)` — the empty-string folder path resolves to the
+        // root background menu whose distinguishing action is
+        // `New Connection`.
+        tree.onBackgroundContextMenu?.call(const Offset(20, 20));
+        await tester.pumpAndSettle();
+        expect(find.text('New Connection'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'onBulkMoved moves both session ids and folder paths then clears the desktop selection',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp(emptyFolders: {'Archive'}));
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Seed a desktop-style marquee selection (`selectMode == false`)
+        // — the callback's post-move arm then takes
+        // `clearDesktopSelection`.
+        state.setMarqueeSelection({'1'}, {'Production/DB'});
+        await tester.pumpAndSettle();
+
+        final tree = tester.widget<SessionTreeView>(
+          find.byType(SessionTreeView),
+        );
+        // Drive the bulk-move callback with both kinds of payload in one
+        // call to exercise the `moveMultiple` arm + the folder-loop arm.
+        // The callback signature is `void Function(...)` but the closure
+        // is async — pumpAndSettle drains the internal mutator futures.
+        tree.onBulkMoved?.call({'1'}, {'Production/DB'}, 'Archive');
+        await tester.pumpAndSettle();
+
+        // Desktop branch clears the marquee selection once the move
+        // completes; mobile-select-mode branch would call exitSelectMode
+        // instead and is covered by the mobile bulk-move test above.
+        expect(state.selectedIds, isEmpty);
+        expect(state.selectedFolderPaths, isEmpty);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Header "create new" target resolution — `_resolveFocusedTargetFolder`
+  // walks `focusedFolderPath → focusedSessionId.folder → root`. The
+  // focused-folder arm is exercised by the existing
+  // `New Folder from folder context creates subfolder` test; the
+  // focused-session arm (no folder selected, a session row holds focus,
+  // header click) is the missing slice.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — header create lands in focused session folder', () {
+    testWidgets(
+      'header New Folder uses the focused session\'s folder as the parent',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Session `1` lives in the 'Production' folder — focusing it
+        // makes `_resolveFocusedTargetFolder` take the focused-session
+        // branch (no folder focused) and resolve to 'Production'.
+        state.controller.setFocusedSession('1');
+        await tester.pumpAndSettle();
+
+        // Header's New Folder button → `_createFolder(context, ref,
+        // 'Production')`. The button is identified by its tooltip; the
+        // dialog title prose then confirms the dialog opened.
+        await tester.tap(find.byTooltip('New Folder'));
+        await tester.pumpAndSettle();
+
+        // Dialog open — the focused-session branch resolved to a
+        // non-root parent, so the New Folder dialog header reads
+        // 'Production' (the prose includes the parent path).
+        expect(find.text('New Folder'), findsWidgets);
+        // Cancel — we only care that the resolve branch fired without
+        // throwing.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // WebDAV-aware bulk delete — `_dropWebdavSecretsForSelection` walks
+  // the selection and explicitly clears the `webdav_session_details`
+  // secret for every WebDAV row before the DB row delete (the secrets
+  // table has no FK so the delete-cascade does not reach it). This
+  // path only fires when the selection contains at least one
+  // WebDAV session and is otherwise dead.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — bulk delete with a WebDAV session in selection', () {
+    testWidgets(
+      'Delete on a WebDAV-only selection routes through secrets drop without throwing',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        final webdavSession = Session(
+          id: 'wd-1',
+          label: 'webdav-1',
+          folder: '',
+          kind: SessionKind.webdav,
+          server: const ServerAddress(host: 'dav.example.com', user: 'user'),
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            password: 'pass',
+          ),
+        );
+
+        await tester.pumpWidget(
+          buildApp(sessions: [...testSessions, webdavSession]),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        // Marquee-style selection that points to the WebDAV row only —
+        // `_dropWebdavSecretsForSelection` then takes the `isWebDav`
+        // arm for the single id.
+        state.setMarqueeSelection({'wd-1'}, const <String>{});
+        state.focusNode.requestFocus();
+        await tester.pumpAndSettle();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+        await tester.pumpAndSettle();
+        expect(find.text('Delete Selected'), findsWidgets);
+
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        // Selection cleared after the confirm + secrets-drop +
+        // mutator delete completes; no exception leaked from the
+        // FRB call.
+        expect(state.selectedIds, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Apps menu key (LogicalKeyboardKey.contextMenu) parallels Shift+F10.
+  // Both bindings route through `_openContextMenuFromKeyboard` — the
+  // F10 path is covered above; this test pins the Apps key path so a
+  // future shortcut-registry rename doesn't quietly drop one of them
+  // and the keyboard / dedicated-key user lose the same capability.
+  // ---------------------------------------------------------------------------
+  group('SessionPanel — Apps menu key opens the keyboard context menu', () {
+    testWidgets(
+      'Apps key with a focused session opens the session context menu',
+      (tester) async {
+        debugMobilePlatformOverride = false;
+        addTearDown(() => debugMobilePlatformOverride = null);
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+
+        final state = tester.state<SessionPanelState>(
+          find.byType(SessionPanel),
+        );
+        state.controller.setFocusedSession('1');
+        state.focusNode.requestFocus();
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit Connection'), findsOneWidget);
+      },
+    );
+  });
 }

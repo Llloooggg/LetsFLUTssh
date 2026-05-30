@@ -1116,4 +1116,381 @@ void main() {
       expect(ex.toString(), startsWith('InvalidReleaseSignatureException:'));
     });
   });
+
+  group('ReleaseManifestUnavailableException.toString', () {
+    test('surfaces the exception type and reason string', () {
+      // Distinct from `InvalidReleaseSignatureException` so the
+      // toString contract pins the right type prefix — Settings shows
+      // a "retry, manifest not reachable" toast vs. the
+      // "do not install, reinstall from official releases" warning,
+      // and the toString is the fallback when no locale string applies.
+      const ex = ReleaseManifestUnavailableException(
+        'HTTP 404 on letsflutssh-2.0.0.sha256sums',
+      );
+      final msg = ex.toString();
+      expect(msg, startsWith('ReleaseManifestUnavailableException:'));
+      expect(msg, contains('404'));
+      expect(msg, contains('letsflutssh-2.0.0.sha256sums'));
+    });
+
+    test('empty reason still produces a non-empty message', () {
+      const ex = ReleaseManifestUnavailableException('');
+      expect(ex.toString(), startsWith('ReleaseManifestUnavailableException:'));
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.canLaunchInstaller — per-platform routing
+  // ===========================================================================
+  //
+  // Spec (from update_service source): true only when the host platform is in
+  // `_platformsWithInstaller` = {linux, macos, windows}. The UI relies on this
+  // to pick the label "Install Now" vs "Open Release Page" before the user
+  // taps. A regression that included `android` here would silently relabel the
+  // mobile button to "Install Now" while the path through `openFile` still
+  // routed to the browser fallback.
+  group('UpdateService.canLaunchInstaller', () {
+    test('linux, macos and windows expose canLaunchInstaller=true', () {
+      for (final platform in ['linux', 'macos', 'windows']) {
+        final service = UpdateService(platform: platform);
+        expect(
+          service.canLaunchInstaller,
+          isTrue,
+          reason: '$platform must surface an installer hand-off',
+        );
+      }
+    });
+
+    test('android, ios and unknown expose canLaunchInstaller=false', () {
+      // Android is intentionally NOT listed — the APK install flow
+      // requires REQUEST_INSTALL_PACKAGES + FileProvider + per-app
+      // system prompt that needs a separate implementation. Pinning
+      // the false return guards the docstring promise.
+      for (final platform in ['android', 'ios', 'unknown']) {
+        final service = UpdateService(platform: platform);
+        expect(
+          service.canLaunchInstaller,
+          isFalse,
+          reason: '$platform must NOT advertise an installer hand-off',
+        );
+      }
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.openFile — macOS DMG installer hook
+  // ===========================================================================
+  //
+  // Spec (from update_service.openFile): when the host is macOS, the
+  // artefact ends with `.dmg`, and a `MacosDmgInstaller` is wired in, the
+  // native installer runs first. A `true` return short-circuits the
+  // perimeter hand-off ("the new bundle is already running"); a `false`
+  // return falls back to the `_openInstaller` perimeter call, where the
+  // Finder reveal opens the .dmg so the user can drag the .app over by
+  // hand. Non-.dmg artefacts skip the installer hook entirely even on
+  // macOS — only the file extension drives the gate.
+  group('UpdateService.openFile — macOS DMG installer', () {
+    test(
+      'macOS .dmg artefact: installer returns true → perimeter NOT called',
+      () async {
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          macosDmgInstaller: (path) async {
+            expect(path, '/tmp/Update.dmg');
+            return true;
+          },
+        );
+
+        final ok = await service.openFile('/tmp/Update.dmg');
+
+        expect(ok, isTrue);
+        expect(
+          perimeterCalls,
+          0,
+          reason: 'native installer succeeded → perimeter must not be called',
+        );
+      },
+    );
+
+    test(
+      'macOS .dmg artefact: installer returns false → perimeter fallback fires',
+      () async {
+        var installerCalls = 0;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          macosDmgInstaller: (_) async {
+            installerCalls++;
+            return false;
+          },
+        );
+
+        final ok = await service.openFile('/tmp/Update.dmg');
+
+        expect(ok, isTrue);
+        expect(installerCalls, 1);
+        expect(
+          perimeterCalls,
+          1,
+          reason: 'installer declined → fall through to Finder-reveal path',
+        );
+      },
+    );
+
+    test(
+      'macOS non-.dmg artefact: installer hook skipped, perimeter handles it',
+      () async {
+        // Spec: the installer hook is gated on the `.dmg` extension —
+        // a `.zip` or `.pkg` artefact must NOT invoke the installer
+        // closure even on macOS. The perimeter takes the call.
+        var installerCalls = 0;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          macosDmgInstaller: (_) async {
+            installerCalls++;
+            return true;
+          },
+        );
+
+        final ok = await service.openFile('/tmp/Update.zip');
+
+        expect(ok, isTrue);
+        expect(installerCalls, 0);
+        expect(perimeterCalls, 1);
+      },
+    );
+
+    test(
+      'macOS .DMG (uppercase) artefact: extension check is case-insensitive',
+      () async {
+        // Spec: `path.toLowerCase().endsWith('.dmg')` so a release
+        // artefact named `Update.DMG` still routes through the native
+        // installer. Pins the case-insensitive contract.
+        var installerCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async =>
+              const rust_installer.InstallerLaunchOutcome.launched(),
+          macosDmgInstaller: (_) async {
+            installerCalls++;
+            return true;
+          },
+        );
+
+        await service.openFile('/tmp/Update.DMG');
+
+        expect(installerCalls, 1);
+      },
+    );
+
+    test(
+      'non-macOS host ignores the MacosDmgInstaller hook even on a .dmg path',
+      () async {
+        // Spec: the installer hook is gated on `_platform == "macos"`.
+        // A misconfigured Linux build that wired in a DMG installer
+        // must still route through the perimeter — the hook is a
+        // macOS-only optimization.
+        var installerCalls = 0;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'linux',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          macosDmgInstaller: (_) async {
+            installerCalls++;
+            return true;
+          },
+        );
+
+        await service.openFile('/tmp/x.dmg');
+
+        expect(installerCalls, 0);
+        expect(perimeterCalls, 1);
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.downloadAsset — bus subscription cleanup
+  // ===========================================================================
+  group('UpdateService.downloadAsset — bus subscription lifecycle', () {
+    test(
+      'subscribe path runs when onProgress is provided and finalises cleanly',
+      () async {
+        // Spec: when `onProgress` is supplied, downloadAsset opens a
+        // BusEvent subscription for progress ticks. The `finally` arm
+        // must cancel the subscription even on the success path, or
+        // the test framework reports a leaked stream listener across
+        // subsequent calls. Driving a full success cycle exercises
+        // both the subscribe branch and the cleanup arm.
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadSuccess('/tmp/x.AppImage');
+        final service = UpdateService();
+
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onProgress: (_, _) {},
+        );
+        // Repeat to confirm the cleanup let the next call subscribe
+        // fresh — a leaked subscription would not crash but would
+        // double-count progress ticks on a second call.
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onProgress: (_, _) {},
+        );
+      },
+    );
+
+    test(
+      'subscribe path runs when only onPhase is provided (no onProgress)',
+      // Spec: `downloadAsset` opens the bus subscription when EITHER
+      // `onProgress` or `onPhase` is supplied — the verify-phase
+      // signal is delivered through the same channel. Driving the
+      // success cycle with only `onPhase` wired exercises the
+      // subscribe branch under a distinct gate so a future
+      // refactor that tied the subscription strictly to
+      // `onProgress` would surface here.
+      () async {
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadSuccess('/tmp/y.AppImage');
+        final service = UpdateService();
+
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onPhase: (_) {},
+        );
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.checkForUpdate — JSON-parse error contract
+  // ===========================================================================
+  group('UpdateService.checkForUpdate — JSON-parse contract', () {
+    test(
+      'Rust JSON-parse failure surfaces as FormatException with original message',
+      () async {
+        // Spec: `checkForUpdate` with an injected fetcher (the
+        // non-default branch) catches errors from
+        // `updateCheckFromBody`. When the Rust side returns a
+        // `update releases JSON parse: ...` message, the wrapper
+        // rethrows as a `FormatException` so callers binding to the
+        // documented contract still get the right error type. The
+        // existing "not json" test covers the path; this one pins
+        // that the original Rust detail survives in the message so a
+        // future refactor that swallowed the cause string would not
+        // ship a "" FormatException to the UI.
+        final service = UpdateService(fetch: (_) async => '{not valid json');
+
+        try {
+          await service.checkForUpdate('1.0.0');
+          fail('expected FormatException');
+        } on FormatException catch (e) {
+          // The wrapper preserves the original Rust-side detail
+          // string so the UI surface can log it.
+          expect(e.message, isNotEmpty);
+        }
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.downloadAsset — onPhase + progress wiring sanity
+  // ===========================================================================
+  group('UpdateService.downloadAsset — phase callback firing', () {
+    test(
+      'onPhase fires UpdateDownloadPhase.downloading synchronously at start',
+      // Spec: before the FRB downloader is invoked, the wrapper
+      // calls `onPhase?.call(UpdateDownloadPhase.downloading)` so
+      // the UI can render a determinate progress bar immediately.
+      // The `verifying` transition rides on a bus event the FRB
+      // pipeline emits — covered by the live Rust pipeline tests.
+      () async {
+        final phases = <UpdateDownloadPhase>[];
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadSuccess('/tmp/d.AppImage');
+        final service = UpdateService();
+
+        await service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+          onPhase: phases.add,
+        );
+
+        // The `downloading` phase must arrive first. The
+        // `verifying` phase fires from a bus event and is not
+        // expected on this scripted path.
+        expect(phases, isNotEmpty);
+        expect(phases.first, UpdateDownloadPhase.downloading);
+      },
+    );
+  });
+
+  // ===========================================================================
+  // UpdateService.openFile — null MacosDmgInstaller (no native hook wired)
+  // ===========================================================================
+  //
+  // Spec: when the constructor parameter `macosDmgInstaller` is null (the
+  // production default outside the native macOS shell), the .dmg gate is
+  // skipped entirely and the perimeter handles every artefact. Pins the
+  // null-installer arm so a refactor that added a "default in-process
+  // installer" surface would surface as a behaviour change here.
+  group('UpdateService.openFile — null MacosDmgInstaller', () {
+    test(
+      'macOS .dmg with no installer wired routes through the perimeter only',
+      () async {
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'macos',
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+          // No macosDmgInstaller — exercises the `installer != null`
+          // gate's false arm.
+        );
+
+        final ok = await service.openFile('/tmp/Update.dmg');
+
+        expect(ok, isTrue);
+        expect(
+          perimeterCalls,
+          1,
+          reason:
+              'no installer wired → perimeter is the only path even for .dmg',
+        );
+      },
+    );
+  });
 }

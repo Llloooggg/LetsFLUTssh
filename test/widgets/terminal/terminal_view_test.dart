@@ -783,7 +783,212 @@ void main() {
         findsNothing,
       );
     });
+
+    testWidgets(
+      'a fully inert read-only surface installs no Listener',
+      // `_wrapInteraction` returns the bare grid when none of the
+      // pointer-attracting flags are on (no selection, no mouse
+      // reporting, no onScroll) AND the view does not own the
+      // keyboard. A redundant Listener would still register pointer
+      // routes for an effectively-static surface, paying gesture-
+      // arena cost on every pointer movement above a log-viewer
+      // pane for nothing.
+      (tester) async {
+        final c = _FakeController(
+          snapshotFn: () => _frameWith('A'),
+          live: false,
+        );
+        addTearDown(c.repaintNotifier.dispose);
+
+        await tester.pumpWidget(
+          _app(
+            TerminalView(
+              controller: c,
+              config: const TerminalViewConfig.readOnly(selectable: false),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // The grid renders, no Listener wraps it.
+        expect(find.byType(CustomPaint), findsWidgets);
+        expect(
+          find.descendant(
+            of: find.byType(TerminalView),
+            matching: find.byType(Listener),
+          ),
+          findsNothing,
+        );
+      },
+    );
   });
+
+  group('TerminalView — controller swap', () {
+    testWidgets(
+      'didUpdateWidget rewires repaint listener to the new controller',
+      // Spec (`didUpdateWidget`): when the parent hands the view a
+      // fresh controller (e.g. a tab swap that lands a different
+      // session pane on the same `TerminalView` widget slot), the
+      // old controller's repaint listener is dropped and the new
+      // controller's is attached. Without this rewire, output from
+      // the new session would paint via the *previous* frame source
+      // and Wakeups on the new controller would never repaint.
+      (tester) async {
+        final a = _FakeController(snapshotFn: () => _frameWith('A'));
+        final b = _FakeController(snapshotFn: () => _frameWith('B'));
+        addTearDown(a.repaintNotifier.dispose);
+        addTearDown(b.repaintNotifier.dispose);
+
+        await tester.pumpWidget(
+          _app(
+            TerminalView(
+              controller: a,
+              config: const TerminalViewConfig.interactive(),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(_readPainter(tester).frame.cells.single.ch, 'A'.codeUnitAt(0));
+
+        await tester.pumpWidget(
+          _app(
+            TerminalView(
+              controller: b,
+              config: const TerminalViewConfig.interactive(),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(_readPainter(tester).frame.cells.single.ch, 'B'.codeUnitAt(0));
+
+        // A notify on the *old* controller must not pull a frame
+        // — the listener has been swapped over.
+        final revision = _readPainter(tester).frameRevision;
+        a.notify();
+        await tester.pump();
+        await tester.pump();
+        expect(_readPainter(tester).frameRevision, revision);
+
+        // A notify on the *new* controller bumps the revision.
+        b.notify();
+        await tester.pump();
+        await tester.pump();
+        expect(_readPainter(tester).frameRevision, greaterThan(revision));
+      },
+    );
+  });
+
+  group('TerminalView — read-only select-all', () {
+    testWidgets(
+      'context-menu Select All sets a Lines selection over the whole grid',
+      // Spec (`_selectAll`): the menu action queues a Lines-kind
+      // selection from `(-historySize, 0, 0)` to `(rows-1, cols-1,
+      // rows-1)` so the engine trims trailing blanks per row. The
+      // selection is staged through the controller and the view
+      // re-pulls a frame to paint the highlight.
+      (tester) async {
+        final c = _FakeController(
+          snapshotFn: () => _frameWith('A'),
+          live: false,
+        );
+        addTearDown(c.repaintNotifier.dispose);
+
+        await tester.pumpWidget(
+          _app(
+            TerminalView(
+              controller: c,
+              config: const TerminalViewConfig.readOnly(),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await _rightClickCenter(tester);
+        await tester.tap(find.text(_selectAllLabel));
+        await tester.pumpAndSettle();
+
+        expect(c.setCalls, isNotEmpty);
+        final call = c.setCalls.last;
+        expect(call[4], TerminalSelectionKind.lines);
+        // Covers every column of the bottom row.
+        expect(call[3] as int, 10 - 1, reason: 'end col == cols - 1');
+        expect(call[2] as int, 5 - 1, reason: 'end row == rows - 1');
+        // Start at top-left of history (here history is 0, so 0).
+        expect(call[0], 0);
+        expect(call[1], 0);
+      },
+    );
+
+    testWidgets(
+      'a non-copy key chord leaves the clipboard alone',
+      // `_handleKey` only accepts the three copy activators (Ctrl+C,
+      // Cmd+C, Ctrl+Shift+C); every other chord falls through to
+      // `KeyEventResult.ignored`. A regression that matched on the
+      // bare letter, or wired `_copy` to any modified-C event,
+      // would silently grab the selection on chords like Ctrl+X
+      // and ship it to the clipboard. Verify with Ctrl+X.
+      (tester) async {
+        final c = _FakeController(
+          snapshotFn: () => _frameWith('A'),
+          live: false,
+          selection: 'whatever',
+        );
+        addTearDown(c.repaintNotifier.dispose);
+        final secureWrites = <String>[];
+        SecureClipboard.debugRustWriterOverride = secureWrites.add;
+        TerminalClipboard.debugSetSecureClipboard(
+          SecureClipboard(rustWriter: secureWrites.add),
+        );
+        TerminalClipboard.debugHashOverride = (text) => 'h:${text.length}';
+        TerminalClipboard.debugRustCompareAndClearOverride = (_) => true;
+        addTearDown(() {
+          TerminalClipboard.debugCancelPendingWipe();
+          SecureClipboard.debugResetRustWriter();
+          TerminalClipboard.debugResetHashOverride();
+          TerminalClipboard.debugResetRustCompareAndClear();
+          TerminalClipboard.debugResetSecureClipboard();
+        });
+
+        var stockWrites = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') stockWrites++;
+              return null;
+            });
+        addTearDown(_clearClipboardMock);
+
+        await tester.pumpWidget(
+          _app(
+            TerminalView(
+              controller: c,
+              config: const TerminalViewConfig.readOnly(),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.tapAt(tester.getCenter(find.byType(TerminalView)));
+        await tester.pump();
+
+        await tester.runAsync(() async {
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          await Future<void>.delayed(Duration.zero);
+        });
+        await tester.pump();
+
+        expect(stockWrites, 0);
+        expect(secureWrites, isEmpty);
+      },
+    );
+  });
+
+  // Deferred — Ctrl+C delegates to onCopy hook: the read-only
+  // shortcut binding does not route through the host onCopy callback
+  // in this harness shape (Focus chain differs). The structural
+  // built-in clipboard fallback contract is covered by the parallel
+  // copy tests above.
 }
 
 // Labels resolved from the default (English) localization for menu assertions.

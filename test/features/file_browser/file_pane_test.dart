@@ -3123,6 +3123,642 @@ void main() {
       ctrl.dispose();
     });
   });
+
+  // ===========================================================================
+  // Drag feedback — visible label and icon
+  // ===========================================================================
+  group('FilePane — drag feedback contents', () {
+    testWidgets('multi-selection feedback shows item-count text + copy icon', (
+      tester,
+    ) async {
+      // Contract: when more than one entry is selected, the drag
+      // feedback paints `dragItemCount` (`{N} items`) and the
+      // `file_copy` icon — pinning the multi-vs-single shape that
+      // `_dragIcon` + `_buildDragFeedback` choose between.
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.toggleSelect('/home/a.txt');
+      ctrl.toggleSelect('/home/b.txt');
+      ctrl.toggleSelect('/home/c.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<PaneDragData>>(
+        find.byType(Draggable<PaneDragData>).first,
+      );
+      // Build the feedback widget out-of-tree to inspect its label
+      // and icon without mounting it (Draggable's own feedback only
+      // shows during an active drag gesture).
+      final feedback = draggable.feedback;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(body: Center(child: feedback)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Three selected → `_dragIcon` picks `Icons.file_copy`.
+      expect(find.byIcon(Icons.file_copy), findsOneWidget);
+      // The label uses the localized `dragItemCount` template.
+      expect(find.text('3 items'), findsOneWidget);
+    });
+
+    testWidgets('single-selection feedback shows entry name + per-type icon', (
+      tester,
+    ) async {
+      final entries = [
+        FileEntry(
+          name: 'just_me.txt',
+          path: '/home/just_me.txt',
+          size: 10,
+          mode: 0x81A4,
+          modTime: now,
+          isDir: false,
+        ),
+      ];
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      ctrl.selectSingle('/home/just_me.txt');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      final draggable = tester.widget<Draggable<PaneDragData>>(
+        find.byType(Draggable<PaneDragData>),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: S.localizationsDelegates,
+          supportedLocales: S.supportedLocales,
+          theme: AppTheme.dark(),
+          home: Scaffold(body: Center(child: draggable.feedback)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Single file → `_dragIcon` picks `Icons.insert_drive_file`,
+      // label is the entry name (no localized template).
+      expect(find.byIcon(Icons.insert_drive_file), findsOneWidget);
+      expect(find.text('just_me.txt'), findsOneWidget);
+    });
+  });
+
+  // ===========================================================================
+  // Deep breadcrumb
+  // ===========================================================================
+  group('FilePane — deep breadcrumb', () {
+    testWidgets('a deep path renders every segment + the home-root icon', (
+      tester,
+    ) async {
+      // The breadcrumb parser produces N nav segments for a path
+      // `/a/b/c/d`. Each segment must surface as its own tappable
+      // text node, the root anchor (the home icon on POSIX) must
+      // sit before the first segment, and the leaf segment must
+      // be a sibling of the rest — not collapsed into "…".
+      final fs = _MockFS({
+        '/': [],
+        '/srv': [],
+        '/srv/data': [],
+        '/srv/data/projects': [],
+        '/srv/data/projects/letsflutssh': [],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      await ctrl.navigateTo('/srv/data/projects/letsflutssh');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Every segment renders as a text node — order does not
+      // matter for this assertion; the breadcrumb-navigation
+      // group above pins the leaf-vs-root colour contract.
+      expect(find.text('srv'), findsWidgets);
+      expect(find.text('data'), findsWidgets);
+      expect(find.text('projects'), findsWidgets);
+      expect(find.text('letsflutssh'), findsWidgets);
+      // POSIX root anchor is the home icon button.
+      expect(find.byIcon(Icons.home), findsOneWidget);
+      // Forward-slash separators surface between segments.
+      expect(find.text(' / '), findsWidgets);
+    });
+
+    testWidgets('tapping a mid-path segment navigates to that prefix', (
+      tester,
+    ) async {
+      // Contract: `_buildPathSegments` wires each segment to
+      // `ctrl.navigateTo(buildPathForSegment(bc, i))`. Tapping the
+      // second segment must land on `/srv/data`, not the leaf or
+      // the root.
+      final fs = _MockFS({
+        '/': [],
+        '/srv': [],
+        '/srv/data': [],
+        '/srv/data/projects': [],
+      });
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+      await ctrl.navigateTo('/srv/data/projects');
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      // Tap the second segment (`data`).
+      await tester.tap(find.text('data').first);
+      await tester.pumpAndSettle();
+
+      expect(ctrl.currentPath, '/srv/data');
+    });
+  });
+
+  // ===========================================================================
+  // Path editor — cancel via tap-outside
+  // ===========================================================================
+  group('FilePane — path editor tap outside', () {
+    testWidgets('tapping outside the TextField closes the editor', (
+      tester,
+    ) async {
+      // Contract: `_buildPathEditor` wires `onTapOutside` to
+      // `_pathFocusNode.unfocus()`. The `_onPathFocusChanged`
+      // listener then flips `_editingPath` back to false and the
+      // breadcrumb returns. Pins the cancel-without-submit branch.
+      final fs = _MockFS({'/home': makeEntries()});
+      final ctrl = FilePaneController(fs: fs, label: 'L');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit Path'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+
+      // Tap somewhere clearly outside the TextField (the header
+      // label area is the safest non-editor surface).
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      // Editor collapses back into the breadcrumb.
+      expect(find.byType(TextField), findsNothing);
+      // The previous path stayed put — no navigation on tap-out.
+      expect(ctrl.currentPath, '/home');
+
+      ctrl.dispose();
+    });
+  });
+
+  // ===========================================================================
+  // Keyboard navigation — arrow / Home / End / Enter
+  // ===========================================================================
+  group('FilePane — keyboard navigation', () {
+    testWidgets('ArrowDown with no selection lands on the first entry; '
+        'subsequent ArrowDown advances the cursor by one row', (tester) async {
+      // Spec: `_arrowNavResult` seeds the cursor at index 0 when
+      // no row is selected and the user pressed Down, then walks
+      // the entries list one row per key. The selection always
+      // collapses to a single path — `selectSingle` is the
+      // canonical move.
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Focus the pane via a single tap on an entry, then clear
+      // the selection so the next ArrowDown hits the no-selection
+      // branch.
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      ctrl.clearSelection();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(ctrl.selected, {'/home/a.txt'});
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(ctrl.selected, {'/home/b.txt'});
+
+      ctrl.dispose();
+    });
+
+    testWidgets(
+      'ArrowUp with no selection lands on the LAST entry — the seeded index '
+      'flips polarity based on direction',
+      (tester) async {
+        // Spec: when no row is selected, `_arrowNavResult` seeds
+        // index 0 for Down and `length - 1` for Up; clamps to the
+        // valid range so ArrowUp at the first row stays put.
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        await tester.tap(find.text('a.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.clearSelection();
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/e.txt'});
+
+        // ArrowUp from the bottom moves up one row.
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/d.txt'});
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Home selects the first entry, End selects the last — even when a '
+      'middle row was selected first',
+      (tester) async {
+        // Spec: `_edgeNavResult` -> `_selectEdge(first: ...)` is
+        // a hard jump to the edge, independent of the prior
+        // selection. The two keys reach the opposite ends from
+        // any starting row.
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        await tester.tap(find.text('c.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/c.txt');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/a.txt'});
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/e.txt'});
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Enter on a single-selected directory navigates into it instead of '
+      'firing onTransfer',
+      (tester) async {
+        // Spec: `_activateResult` branches on `entry.isDir`. For
+        // directories, `ctrl.navigateTo` runs and the transfer
+        // callback never fires.
+        FileEntry? transferred;
+        final entries = [
+          FileEntry(
+            name: 'subdir',
+            path: '/home/subdir',
+            size: 0,
+            mode: 0x41ED,
+            modTime: now,
+            isDir: true,
+          ),
+        ];
+        final fs = _MockFS({'/home': entries, '/home/subdir': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          buildApp(controller: ctrl, onTransfer: (e) => transferred = e),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('subdir'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/subdir');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(ctrl.currentPath, '/home/subdir');
+        expect(transferred, isNull);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Enter on a single-selected file fires onTransfer; with multi-select '
+      'the key is ignored',
+      (tester) async {
+        // Spec: `_activateResult` requires exactly one selection.
+        // A multi-selected Enter returns `KeyEventResult.ignored`
+        // — no transfer fires.
+        FileEntry? transferred;
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          buildApp(controller: ctrl, onTransfer: (e) => transferred = e),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('a.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/a.txt');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(transferred, isNotNull);
+        expect(transferred!.name, 'a.txt');
+
+        // Multi-select arm: Enter must not fire onTransfer again.
+        transferred = null;
+        ctrl.toggleSelect('/home/b.txt');
+        await tester.pump();
+        expect(ctrl.selected.length, 2);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(transferred, isNull);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'arrow keys on an empty entry list are no-ops — the selection set '
+      'stays empty and the directory stays open',
+      (tester) async {
+        // Spec: `_arrowNavResult` early-returns `KeyEventResult.ignored`
+        // when `entries.isEmpty`. Pins the empty-state safety net so
+        // a stray arrow press on an empty pane doesn't throw on
+        // `entries.first` / `entries.last` indexing.
+        final fs = _MockFS({'/home': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        // Focus the pane via a tap on the empty-state placeholder.
+        await tester.tap(find.text('Empty directory'));
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pump();
+
+        expect(ctrl.selected, isEmpty);
+        expect(ctrl.currentPath, '/home');
+
+        ctrl.dispose();
+      },
+    );
+  });
+
+  // ===========================================================================
+  // Sort column — owner-asc / owner-desc cycle
+  // ===========================================================================
+  group('FilePane — sort cycle', () {
+    testWidgets(
+      'each column cycles through ascending / descending on repeated taps',
+      (tester) async {
+        // Contract: `FilePaneController.setSort` flips the sort
+        // direction when the same column is re-tapped and resets to
+        // ascending when a different column is tapped. The header
+        // arrow indicator (`↑` / `↓`) follows the active direction.
+        final entries = makeEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        expect(ctrl.sortColumn, SortColumn.name);
+        expect(ctrl.sortAscending, isTrue);
+
+        // First Modified tap: column flips, direction back to asc.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortColumn, SortColumn.modified);
+        expect(ctrl.sortAscending, isTrue);
+
+        // Second Modified tap: same column, direction inverts.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortColumn, SortColumn.modified);
+        expect(ctrl.sortAscending, isFalse);
+
+        // Third Modified tap: direction inverts again.
+        await tester.tap(find.textContaining('Modified'));
+        await tester.pump();
+        expect(ctrl.sortAscending, isTrue);
+      },
+    );
+  });
+
+  // ===========================================================================
+  // Rare entry types — symlinks render and route through the standard surface
+  // ===========================================================================
+  group('FilePane — symlink rendering', () {
+    testWidgets(
+      'symlinked directory renders in the list and routes through navigateTo '
+      'on Enter — symlink flag does not gate any UI surface in the pane',
+      (tester) async {
+        // Spec: `FileEntry.isSymlink` is informational only at the
+        // pane level — the row still surfaces, the entry still
+        // counts toward the footer's item count, and a single
+        // selection plus Enter routes through the same
+        // `_activateResult` branch as a non-link directory.
+        // The actual `delete`-vs-`navigate` distinction lives in
+        // the controller's delete path (`controller_test`); the
+        // pane never branches on isSymlink.
+        final entries = [
+          FileEntry(
+            name: 'linked_dir',
+            path: '/home/linked_dir',
+            size: 0,
+            mode: 0x41ED,
+            modTime: now,
+            isDir: true,
+            isSymlink: true,
+          ),
+          FileEntry(
+            name: 'plain.txt',
+            path: '/home/plain.txt',
+            size: 10,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+          ),
+        ];
+        final fs = _MockFS({'/home': entries, '/home/linked_dir': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        // Both entries render — isSymlink does not gate the row.
+        expect(find.text('linked_dir'), findsOneWidget);
+        expect(find.text('plain.txt'), findsOneWidget);
+        // Footer counts both entries.
+        expect(find.textContaining('2 items'), findsOneWidget);
+
+        // Activate the symlink-directory via Enter — the pane does
+        // NOT route a symlink differently; navigateTo is still the
+        // target.
+        await tester.tap(find.text('linked_dir'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/linked_dir');
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+        expect(ctrl.currentPath, '/home/linked_dir');
+
+        ctrl.dispose();
+      },
+    );
+  });
+
+  // ===========================================================================
+  // Column gating — non-POSIX backend hides Mode/Owner; per-entry owner probe
+  // ===========================================================================
+  group('FilePane — column gating', () {
+    testWidgets(
+      'POSIX backend with mixed owner strings still shows the Owner column — '
+      'the per-entry probe accepts at least one non-empty owner',
+      (tester) async {
+        // Spec: `_visibleColumns` requires both
+        // `caps.owner == true` AND `entries.any((e) => e.owner.isNotEmpty)`
+        // for the Owner column to render. A POSIX backend where one
+        // entry has a server-supplied owner and another does not
+        // still surfaces the column — the probe is a disjunction,
+        // not an universal-quantification.
+        final entries = [
+          FileEntry(
+            name: 'owned.txt',
+            path: '/home/owned.txt',
+            size: 1,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+            owner: 'alice',
+          ),
+          FileEntry(
+            name: 'anon.txt',
+            path: '/home/anon.txt',
+            size: 1,
+            mode: 0x81A4,
+            modTime: now,
+            isDir: false,
+            // No owner supplied — server omitted the attribute.
+          ),
+        ];
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1000,
+                height: 400,
+                child: FilePane(controller: ctrl, paneId: 'test'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Owner'), findsOneWidget);
+        // Mode column also stays visible — POSIX caps cover both.
+        expect(find.text('Mode'), findsOneWidget);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'non-POSIX backend whose entries DO carry an owner string still hides '
+      'the Owner column — capability flag short-circuits the per-entry probe',
+      (tester) async {
+        // Spec: `_visibleColumns` checks `caps.owner` BEFORE the
+        // per-entry probe runs. An object-store backend that
+        // happens to fill `FileEntry.owner` (e.g. an S3 bucket-
+        // owner heuristic) must NOT surface the Owner column —
+        // the backend declares it does not have a per-resource
+        // owner semantic, and the UI honours that flag over the
+        // per-row data.
+        final entries = [
+          FileEntry(
+            name: 'a.txt',
+            path: '/home/a.txt',
+            size: 1,
+            mode: 0,
+            modTime: now,
+            isDir: false,
+            owner: 'bucket-owner',
+          ),
+        ];
+        final fs = _NonPosixMockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SizedBox(
+                width: 1000,
+                height: 400,
+                child: FilePane(controller: ctrl, paneId: 'test'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Owner column header is absent — capability flag wins.
+        expect(find.text('Owner'), findsNothing);
+        // Mode column also absent — same gate.
+        expect(find.text('Mode'), findsNothing);
+
+        ctrl.dispose();
+      },
+    );
+  });
 }
 
 /// MockFS returning a Windows initial directory.
