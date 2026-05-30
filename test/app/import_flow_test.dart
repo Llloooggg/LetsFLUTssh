@@ -935,4 +935,122 @@ void main() {
       },
     );
   });
+
+  // ── Error-localization arms ──────────────────────────────────────────
+
+  group('showLfsImportDialog — error localization arms', () {
+    _testFlow(
+      'LfsArchiveTruncatedException surfaces the truncated-archive copy',
+      (tester) async {
+        // Spec: `localizeError` maps `LfsArchiveTruncatedException` to
+        // `errLfsArchiveTruncated`. The catch arm in `_applyLfsImport`
+        // threads the exception through `localizeError` so the user
+        // sees the dedicated "archive is incomplete" message instead of
+        // the generic Rust error string.
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            openThrows: const LfsArchiveTruncatedException(
+              entryName: 'sessions.json',
+            ),
+            lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+          ),
+        );
+
+        await tester.pumpWidget(
+          _wrapApp(
+            child: _triggerButton(
+              'go',
+              (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        // The localized template starts with "Archive is incomplete."
+        // Assert on a stable substring so the test does not pin the
+        // whole ARB wording.
+        expect(find.textContaining('incomplete'), findsWidgets);
+        // Open threw before any handle was registered → drop must NOT
+        // fire (no staged resource to release).
+        expect(log.dropCalls, isEmpty);
+      },
+    );
+
+    _testFlow('LfsArchiveTooLargeException surfaces the size-rejected copy', (
+      tester,
+    ) async {
+      // Spec: `localizeError` maps `LfsArchiveTooLargeException` to
+      // `errLfsArchiveTooLarge` with the rejected vs. limit sizes
+      // formatted as MB. The "too large" arm rejects before
+      // decryption so the user knows the file was refused on its
+      // size, not on a credential mismatch.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: const LfsArchiveTooLargeException(
+            size: 250 * 1024 * 1024,
+            limit: 100 * 1024 * 1024,
+          ),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/big.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      // The localized template embeds the rejected size in MB.
+      expect(find.textContaining('250'), findsWidgets);
+      expect(log.dropCalls, isEmpty);
+    });
+
+    _testFlow('generic exception falls through to "Import failed: <reason>"', (
+      tester,
+    ) async {
+      // Spec: when the exception is not one of the typed LFS arms,
+      // `localizeError` returns a sanitized toString and the
+      // surrounding `importFailed` template still wraps it. Pins the
+      // fallthrough so a future change that ate the original
+      // exception text (returning just "Import failed:") would
+      // regress visibly.
+      final log = _CallLog();
+      debugSetImportFlowSeams(
+        _seams(
+          log: log,
+          openThrows: Exception('disk full'),
+          lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _wrapApp(
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.textContaining('Import failed'), findsOneWidget);
+    });
+  });
 }

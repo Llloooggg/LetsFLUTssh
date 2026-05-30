@@ -3952,6 +3952,318 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Wave 13 deepening — small-file targets across session_edit_dialog.dart,
+  // session_edit_dialog_auth.dart, session_edit_dialog_connection.dart, and
+  // session_edit_dialog_options.dart. Each group pins one branch the broader
+  // scenarios above don't hit; they share the existing buildApp /
+  // expandAdvanced / fillRequiredFields helpers so the support harness stays
+  // the same shape.
+  // ---------------------------------------------------------------------------
+
+  group(
+    'SessionEditDialog — label fallback to host on WebDAV without label',
+    () {
+      testWidgets(
+        'WebDAV Save with no label and a valid base URL falls back to URL host',
+        // Spec: `_resolveLabel` chains typed > bucket (S3) > host (WebDAV) >
+        // server.host (SSH default). For WebDAV the host falls out of
+        // `webdav::server_address_from_base_url`, so a blank SESSION NAME
+        // pins to that derived host. Pins the WebDAV branch of `_resolveLabel`.
+        (tester) async {
+          await tester.pumpWidget(buildApp());
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('WebDAV'));
+          await tester.pumpAndSettle();
+
+          // Fill base URL + username + credential — leave SESSION NAME blank.
+          await tester.enterText(
+            fieldByHint('https://example.com/remote.php/dav/files/alice/'),
+            'https://dav.example.org',
+          );
+          await tester.enterText(fieldByHint('root'), 'alice');
+          await tester.enterText(fieldByHint('••••••••'), 'token');
+          await tester.pumpAndSettle();
+
+          await tapSaveOnly(tester);
+
+          expect(dialogResult, isA<SaveResult>());
+          final result = dialogResult as SaveResult;
+          // WebDAV branch hits `server.host` which is derived from the
+          // URL's host — `dav.example.org` for this input.
+          expect(result.session.label, 'dav.example.org');
+        },
+      );
+    },
+  );
+
+  group('SessionEditDialog — Options: trusted-cert disabled by skip-verify', () {
+    testWidgets(
+      'WebDAV Advanced renders the trusted-cert textarea as enabled by default',
+      // Spec: `_buildTrustedCertSection` disables the PEM textarea
+      // when `_insecureSkipVerify` is on, because skip-verify wins at
+      // the transport level and the cert list becomes a no-op. By
+      // default (toggle off) the textarea is enabled and the user can
+      // paste a cert. Pins the enabled branch.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+        await expandAdvancedAfterOpen(tester);
+
+        // Locate the PEM textarea by its hint copy — `trustedCertHint`
+        // ARB key resolves to the certificate begin marker.
+        const pemHint = '-----BEGIN CERTIFICATE-----';
+        await tester.ensureVisible(find.text(pemHint));
+        await tester.pumpAndSettle();
+
+        // The PEM TextFormField is rendered and accepts input — the
+        // disabled-branch contract would surface a non-editable field
+        // instead. Typing into it must not throw.
+        final pemField = find.widgetWithText(TextFormField, pemHint);
+        expect(pemField, findsOneWidget);
+        await tester.enterText(
+          pemField,
+          '-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----',
+        );
+        await tester.pumpAndSettle();
+
+        // The text we just typed is present in the field — confirms
+        // the controller accepted the input.
+        expect(
+          find.text(
+            '-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group('SessionEditDialog — Options: accept-any-cert MITM warning', () {
+    testWidgets(
+      'Flipping the accept-any-cert switch surfaces the MITM warning copy',
+      // Spec: `_buildInsecureSkipVerifySection` renders the warning row
+      // (icon + red text) only when `_insecureSkipVerify` is true.
+      // The toggle is the last Switch in the Advanced block for WebDAV
+      // (after S3-path-style which is SSH-only and not in this branch).
+      // Pinning the on-branch via the toggle ensures the warning row
+      // actually surfaces.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+        await expandAdvancedAfterOpen(tester);
+
+        // Warning copy is hidden until the toggle flips on.
+        expect(
+          find.text(
+            'Vulnerable to MITM attacks — anyone on the network can impersonate the server. Use only on trusted private networks.',
+          ),
+          findsNothing,
+        );
+
+        // Tap the Switch — the trusted-cert block is the only Switch
+        // in the WebDAV Advanced render (Record toggle is SSH-only
+        // and not present). Scroll to it first so the gesture lands.
+        final theSwitch = find.byType(Switch);
+        expect(theSwitch, findsOneWidget);
+        await tester.ensureVisible(theSwitch);
+        await tester.pumpAndSettle();
+        await tester.tap(theSwitch, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // The MITM warning copy now renders below the toggle. The
+        // matcher uses the localized `acceptAnyCertWarn` text.
+        expect(
+          find.text(
+            'Vulnerable to MITM attacks — anyone on the network can impersonate the server. Use only on trusted private networks.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+  });
+
+  group('SessionEditDialog — Connection: S3 path-style toggle render', () {
+    testWidgets(
+      'S3 Connection block renders the path-style toggle with help copy',
+      // Spec: `_buildS3Section` includes a Switch + label + hint row
+      // for the addressing-style toggle. Pinning the render confirms
+      // the path-style row mounts so the user can flip between
+      // virtual-hosted style and path style addressing — used for
+      // MinIO / Ceph / older S3-compatible endpoints.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('S3'));
+        await tester.pumpAndSettle();
+
+        // Path-style label + help line both render. The Switch lives
+        // on the same row.
+        expect(find.text('Path-style addressing'), findsOneWidget);
+        expect(find.byType(Switch), findsOneWidget);
+      },
+    );
+
+    // Deferred — S3 path-style Switch flip → save with pathStyle=true:
+    // the `tapSaveOnly` round-trip with the Switch toggle does not
+    // settle into the saved S3Data in this harness shape (Switch
+    // animation + Save dispatch race). The render-side branch is
+    // pinned by the previous test above.
+  });
+
+  group('SessionEditDialog — Auth: WebDAV bearer credential label flips', () {
+    testWidgets(
+      'Tapping the bearer chip flips the credential field label and hint',
+      // Spec: `_buildWebDavCredentialField` chooses the label between
+      // "Password" (basic / digest) and "Bearer token" (bearer). The
+      // hint stays the 8-bullet mask in both cases. Pins the bearer
+      // path of the conditional.
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('WebDAV'));
+        await tester.pumpAndSettle();
+
+        // Default basic — PASSWORD * label.
+        expect(find.text('PASSWORD *'), findsOneWidget);
+
+        // Tap the bearer chip.
+        final bearerChip = find.text('Bearer token').first;
+        await tester.ensureVisible(bearerChip);
+        await tester.pumpAndSettle();
+        await tester.tap(bearerChip, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Now the label routes through the bearer arm. The hint stays
+        // the bullet mask either way (`_maskedSecretHint`).
+        expect(find.text('BEARER TOKEN *'), findsOneWidget);
+        expect(find.text('PASSWORD *'), findsNothing);
+        // Hint mask renders (multiple bullet hints across the form
+        // are possible, so we accept any).
+        expect(find.text('••••••••'), findsWidgets);
+      },
+    );
+  });
+
+  group('SessionEditDialog — Options: tag chip toggling flips touched flag', () {
+    testWidgets(
+      'Tapping a tag chip flips the dialog into "tags touched" — Save returns the populated set',
+      // Spec: `_buildTagsSection.onToggle` flips `_pendingTagsTouched`
+      // and rebuilds with the chip added to `_pendingTagIds`. Save then
+      // carries the set forward through `SaveResult.pendingTagIds`
+      // (rather than the legacy null for "untouched"). Pins the
+      // touched-branch of the dirty discipline.
+      (tester) async {
+        final tags = [Tag(id: 't1', name: 'production', color: '#42A5F5')];
+        await tester.pumpWidget(buildAppWithTags(tags));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Fill required SSH connection so Save can reach the save path.
+        await fillRequiredFields(tester);
+
+        // Expand More options + tap the production chip.
+        await expandAdvancedAfterOpen(tester);
+        final chip = find.text('production');
+        await tester.ensureVisible(chip);
+        await tester.pumpAndSettle();
+        await tester.tap(chip, warnIfMissed: false);
+        await tester.pumpAndSettle();
+
+        // Save. The dialog must close with a SaveResult whose
+        // pendingTagIds carries the toggled id.
+        await tester.ensureVisible(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        // Touched → non-null set. Empty would have been the
+        // "user removed every tag" branch; null is "untouched".
+        expect(result.pendingTagIds, isNotNull);
+        expect(result.pendingTagIds, contains('t1'));
+      },
+    );
+  });
+
+  group('SessionEditDialog — port range: empty port surfaces error', () {
+    testWidgets(
+      'Clearing the port field then saving surfaces the inline port-range error',
+      // Spec: `isValidConnectionPort` rejects empty / non-numeric input
+      // — the port field's inline error renders the `portRange` copy.
+      // Pins the empty-string arm of the validator (different from the
+      // existing out-of-range / non-numeric / 0 tests).
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(fieldByHint('192.168.1.1'), 'host.example.com');
+        // Clear the port — the field starts pre-populated with `22`.
+        await tester.enterText(fieldByHint('22'), '');
+        await tester.enterText(fieldByHint('root'), 'someone');
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
+
+        // The inline error renders the `portRange` copy. Dialog stays
+        // open — no SaveResult delivered.
+        expect(find.textContaining('1-65535'), findsOneWidget);
+        expect(dialogResult, isNull);
+      },
+    );
+  });
+
+  group('SessionEditDialog — folder hydration on edit', () {
+    testWidgets(
+      'Editing a session with a stored folder hydrates the folder controller',
+      // Spec: `initState` seeds `_folderCtrl` with `s?.folder` for
+      // edit mode (or `defaultFolder` for fresh sessions). On Save
+      // the folder round-trips through `_buildSession`. Pins the
+      // edit-mode folder hydration which the existing tests don't
+      // explicitly exercise (the new-session path covers
+      // `defaultFolder` only).
+      (tester) async {
+        final session = Session(
+          id: 'folder-edit-1',
+          label: 'srv',
+          folder: 'Prod/EU',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            hasStoredPassword: true,
+          ),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Save without touching the folder — the round-tripped session
+        // must carry the original folder value.
+        await tapSaveOnly(tester);
+
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.folder, 'Prod/EU');
+        // Original id preserved — edit-mode discipline.
+        expect(result.session.id, 'folder-edit-1');
+      },
+    );
+  });
 }
 
 /// Test override for the workspace tag list provider — surfaces a

@@ -3314,6 +3314,232 @@ void main() {
   });
 
   // ===========================================================================
+  // Keyboard navigation — arrow / Home / End / Enter
+  // ===========================================================================
+  group('FilePane — keyboard navigation', () {
+    testWidgets('ArrowDown with no selection lands on the first entry; '
+        'subsequent ArrowDown advances the cursor by one row', (tester) async {
+      // Spec: `_arrowNavResult` seeds the cursor at index 0 when
+      // no row is selected and the user pressed Down, then walks
+      // the entries list one row per key. The selection always
+      // collapses to a single path — `selectSingle` is the
+      // canonical move.
+      final entries = manyEntries();
+      final fs = _MockFS({'/home': entries});
+      final ctrl = FilePaneController(fs: fs, label: 'Test');
+      await ctrl.init();
+
+      await tester.pumpWidget(buildApp(controller: ctrl));
+      await tester.pump();
+
+      // Focus the pane via a single tap on an entry, then clear
+      // the selection so the next ArrowDown hits the no-selection
+      // branch.
+      await tester.tap(find.text('a.txt'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+      ctrl.clearSelection();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(ctrl.selected, {'/home/a.txt'});
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(ctrl.selected, {'/home/b.txt'});
+
+      ctrl.dispose();
+    });
+
+    testWidgets(
+      'ArrowUp with no selection lands on the LAST entry — the seeded index '
+      'flips polarity based on direction',
+      (tester) async {
+        // Spec: when no row is selected, `_arrowNavResult` seeds
+        // index 0 for Down and `length - 1` for Up; clamps to the
+        // valid range so ArrowUp at the first row stays put.
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        await tester.tap(find.text('a.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.clearSelection();
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/e.txt'});
+
+        // ArrowUp from the bottom moves up one row.
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/d.txt'});
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Home selects the first entry, End selects the last — even when a '
+      'middle row was selected first',
+      (tester) async {
+        // Spec: `_edgeNavResult` -> `_selectEdge(first: ...)` is
+        // a hard jump to the edge, independent of the prior
+        // selection. The two keys reach the opposite ends from
+        // any starting row.
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        await tester.tap(find.text('c.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/c.txt');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/a.txt'});
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pump();
+        expect(ctrl.selected, {'/home/e.txt'});
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Enter on a single-selected directory navigates into it instead of '
+      'firing onTransfer',
+      (tester) async {
+        // Spec: `_activateResult` branches on `entry.isDir`. For
+        // directories, `ctrl.navigateTo` runs and the transfer
+        // callback never fires.
+        FileEntry? transferred;
+        final entries = [
+          FileEntry(
+            name: 'subdir',
+            path: '/home/subdir',
+            size: 0,
+            mode: 0x41ED,
+            modTime: now,
+            isDir: true,
+          ),
+        ];
+        final fs = _MockFS({'/home': entries, '/home/subdir': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          buildApp(controller: ctrl, onTransfer: (e) => transferred = e),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('subdir'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/subdir');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(ctrl.currentPath, '/home/subdir');
+        expect(transferred, isNull);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'Enter on a single-selected file fires onTransfer; with multi-select '
+      'the key is ignored',
+      (tester) async {
+        // Spec: `_activateResult` requires exactly one selection.
+        // A multi-selected Enter returns `KeyEventResult.ignored`
+        // — no transfer fires.
+        FileEntry? transferred;
+        final entries = manyEntries();
+        final fs = _MockFS({'/home': entries});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(
+          buildApp(controller: ctrl, onTransfer: (e) => transferred = e),
+        );
+        await tester.pump();
+
+        await tester.tap(find.text('a.txt'));
+        await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 10));
+        await tester.pumpAndSettle();
+        ctrl.selectSingle('/home/a.txt');
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(transferred, isNotNull);
+        expect(transferred!.name, 'a.txt');
+
+        // Multi-select arm: Enter must not fire onTransfer again.
+        transferred = null;
+        ctrl.toggleSelect('/home/b.txt');
+        await tester.pump();
+        expect(ctrl.selected.length, 2);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        expect(transferred, isNull);
+
+        ctrl.dispose();
+      },
+    );
+
+    testWidgets(
+      'arrow keys on an empty entry list are no-ops — the selection set '
+      'stays empty and the directory stays open',
+      (tester) async {
+        // Spec: `_arrowNavResult` early-returns `KeyEventResult.ignored`
+        // when `entries.isEmpty`. Pins the empty-state safety net so
+        // a stray arrow press on an empty pane doesn't throw on
+        // `entries.first` / `entries.last` indexing.
+        final fs = _MockFS({'/home': []});
+        final ctrl = FilePaneController(fs: fs, label: 'Test');
+        await ctrl.init();
+
+        await tester.pumpWidget(buildApp(controller: ctrl));
+        await tester.pump();
+
+        // Focus the pane via a tap on the empty-state placeholder.
+        await tester.tap(find.text('Empty directory'));
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pump();
+
+        expect(ctrl.selected, isEmpty);
+        expect(ctrl.currentPath, '/home');
+
+        ctrl.dispose();
+      },
+    );
+  });
+
+  // ===========================================================================
   // Sort column — owner-asc / owner-desc cycle
   // ===========================================================================
   group('FilePane — sort cycle', () {

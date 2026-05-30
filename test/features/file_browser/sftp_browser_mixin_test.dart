@@ -856,6 +856,120 @@ void main() {
       },
     );
 
+    testWidgets(
+      'uploadMany short-circuits with an empty list even when sftpResult is '
+      'populated — the resolver finally-arm still runs cleanly',
+      (tester) async {
+        // Spec: the `entries.isEmpty` clause of the guard hits AFTER
+        // the `remote != null` check passes, so this is a different
+        // branch than the "no SFTP" early-return. Cover the explicit
+        // empty-list path with a real result wired in, separate from
+        // the "no result, no entries" combination.
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.disconnected,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  autoInit: false,
+                  initialResult: result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        // Even with a populated `sftpResult`, an empty list trips
+        // the second clause of the guard and the method returns
+        // before building / disposing a conflict resolver.
+        await state.uploadMany(const []);
+        await state.downloadMany(const []);
+      },
+    );
+
+    testWidgets(
+      'disposeSftpBrowser is idempotent — second call after the first is safe '
+      'even when the listener was wired by a successful init',
+      (tester) async {
+        // Spec: `_transferBusSub` is nulled by the first dispose call;
+        // a second call sees the null and short-circuits. Pins the
+        // contract that host classes (`FileBrowserTab`,
+        // `MobileFileBrowser`) can safely call dispose multiple times
+        // — same shape `Object.dispose` enforces elsewhere in the
+        // app.
+        final conn = Connection(
+          id: 'c1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: '10.0.0.1', user: 'root'),
+          ),
+          state: SSHConnectionState.connected,
+        );
+        conn.markTransportAdopted();
+
+        final localCtrl = FilePaneController(fs: _StubFs(), label: 'Local');
+        final remoteCtrl = FilePaneController(fs: _StubFs(), label: 'Remote');
+        addTearDown(() {
+          localCtrl.dispose();
+          remoteCtrl.dispose();
+        });
+        final result = SFTPInitResult(
+          localCtrl: localCtrl,
+          remoteCtrl: remoteCtrl,
+          filesystem: null,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: S.localizationsDelegates,
+              supportedLocales: S.supportedLocales,
+              home: Scaffold(
+                body: _TestBrowser(
+                  connection: conn,
+                  sftpInitFactory: (_) async => result,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final state = tester.state<_TestBrowserState>(
+          find.byType(_TestBrowser),
+        );
+        // Whether or not the underlying bus listener actually wired
+        // (depends on FRB readiness), dispose-twice must remain safe.
+        state.disposeSftpBrowser();
+        state.disposeSftpBrowser();
+      },
+    );
+
     // `_refreshAfterTransferTerminal` integration covered by integration:
     // the function calls `transferSnapshotAll()` against a live Rust
     // transfer queue and dispatches refresh on the matching pane. The

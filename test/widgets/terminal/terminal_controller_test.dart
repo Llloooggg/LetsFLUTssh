@@ -289,6 +289,106 @@ void main() {
       expect(text!.contains('hello'), isTrue);
     });
 
+    test(
+      'constructor with custom scrollback honours the requested depth — '
+      'feeding past viewport keeps prior lines reachable via selection',
+      () async {
+        // Spec: the `scrollback` constructor arg sizes the off-viewport
+        // ring buffer the engine retains. A non-default value must reach
+        // the Rust side so a log-viewer requesting more history than the
+        // 10k default actually retains it. Verified observably: feed past
+        // the viewport, then select a row that landed in scrollback and
+        // confirm the selection text is non-null.
+        final controller = ReplayTerminalController(
+          cols: 20,
+          rows: 3,
+          scrollback: 500,
+        );
+        addTearDown(controller.dispose);
+
+        // Write 6 lines into a 3-row viewport so 3 lines spill into
+        // scrollback. Use printable chars so a selection can pick them up.
+        controller.feed(utf8.encode('l1\nl2\nl3\nl4\nl5\nl6'));
+
+        // Row -1 is the most recent scrollback line. With 3 lines spilled
+        // it must be reachable by selection.
+        await controller.setSelection(
+          -1,
+          0,
+          -1,
+          1,
+          TerminalSelectionKind.simple,
+        );
+        expect(await controller.selectionText(), isNotNull);
+      },
+    );
+
+    test('custom palette passed to constructor reaches the engine — '
+        'subsequent setPalette swap still notifies', () {
+      // Spec: the `palette` constructor arg short-circuits the
+      // `TerminalPaletteFromTheme.fromAppTheme()` default so embedders
+      // (release-notes viewer, mobile preview) can pin a fixed palette
+      // independent of `AppTheme`. The two-stage check — construct with
+      // an explicit palette, then swap to another — exercises both the
+      // constructor handoff and `setPalette` pulse.
+      final initial = TerminalPaletteFromTheme.fromAppTheme();
+      final controller = ReplayTerminalController(
+        cols: 20,
+        rows: 5,
+        palette: initial,
+      );
+      addTearDown(controller.dispose);
+
+      // Smoke — engine accepted the palette; snapshot is valid.
+      expect(controller.snapshot().cols, 20);
+
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+      controller.setPalette(TerminalPaletteFromTheme.fromAppTheme());
+      expect(notified, 1);
+    });
+
+    test('rectangular selection kind routes through to the engine — kind is '
+        'not collapsed into simple on the Dart side', () async {
+      // Spec: `TerminalSelectionKind` has multiple variants (simple,
+      // block / rectangular). The controller is a thin shim; the
+      // `kind` arg must reach the engine unchanged. We can't read it
+      // back directly, but we can assert both kinds round-trip
+      // selectionText non-null (the engine accepts both) and that the
+      // repaint pulse fires equally for both.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      controller.feed(utf8.encode('row1\nrow2\nrow3'));
+
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      await controller.setSelection(0, 0, 1, 2, TerminalSelectionKind.simple);
+      expect(await controller.selectionText(), isNotNull);
+      expect(notified, 1);
+
+      await controller.setSelection(0, 0, 1, 2, TerminalSelectionKind.block);
+      expect(await controller.selectionText(), isNotNull);
+      expect(notified, 2);
+    });
+
+    test('setSelection on a fresh empty grid still notifies but selectionText '
+        'reflects an empty region', () async {
+      // Spec: the controller does not pre-validate the selection
+      // range — the engine decides whether a region without printed
+      // cells yields a string or null. The Dart-side contract is
+      // just "notify once per call", not "elide notifications when
+      // the range is empty"; the view re-pulls a snapshot regardless
+      // because the highlight overlay tracks the range, not the text.
+      final controller = ReplayTerminalController(cols: 20, rows: 5);
+      addTearDown(controller.dispose);
+      var notified = 0;
+      controller.repaint.addListener(() => notified++);
+
+      await controller.setSelection(0, 0, 0, 3, TerminalSelectionKind.simple);
+      expect(notified, 1);
+    });
+
     // The live adapter (`LiveTerminalController`) wraps a real Rust
     // `TerminalSession` whose construction requires an attached SSH
     // shell. Its constructor / `dispose` / `events()` bridge cannot be

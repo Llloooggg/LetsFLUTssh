@@ -463,6 +463,57 @@ void main() {
       expect(find.byIcon(Icons.code), findsOneWidget);
     });
 
+    testWidgets(
+      'after typing a non-matching needle and clearing the search field, the '
+      'full list reappears (filter state tracks the latest input)',
+      (tester) async {
+        // Spec: `_SnippetPickerState._filter` is set from the search
+        // bar `onChanged`; clearing the field re-passes the empty
+        // string and `_matches` falls back to "match everything"
+        // because `filterSnippets([], '')` returns the input. Pins
+        // the round-trip after the empty-results state surfaced.
+        fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+        await openDialog(tester);
+
+        await tester.enterText(find.byType(TextField), 'zzz-no-match');
+        await tester.pumpAndSettle();
+        expect(find.text('No results'), findsOneWidget);
+
+        // Clear the field — filter resets to empty, both snippets return.
+        await tester.enterText(find.byType(TextField), '');
+        await tester.pumpAndSettle();
+        expect(find.text('List files'), findsOneWidget);
+        expect(find.text('Disk usage'), findsOneWidget);
+        expect(find.text('No results'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'with sessionId: a snippet pinned to a sibling session does NOT surface '
+      'in the current session\'s PINNED section',
+      (tester) async {
+        // Spec: `_load` reads `sessionSnippetsProvider(widget.sessionId)`;
+        // pins are scoped per session id. A snippet linked to a
+        // different session must render in ALL only — never the local
+        // PINNED list. Pins the family-provider key dispatch.
+        fakeStore = FakeSnippetsNotifier([snippet1, snippet2]);
+        await fakeStore.linkToSession('s1', 'other-session');
+        await openDialog(tester, sessionId: 'session-1');
+
+        // No pins for `session-1` → no PINNED header even though
+        // `snippet1` is linked to a different session.
+        expect(find.text('PINNED'), findsNothing);
+        // Both snippets render in the (unsectioned) ALL list.
+        expect(find.text('List files'), findsOneWidget);
+        expect(find.text('Disk usage'), findsOneWidget);
+      },
+    );
+
+    // Deferred — unresolved-token render + fill-dialog Run/Cancel:
+    // the `fillSnippetUnresolved` dialog disposes mid-pump and trips
+    // an ancestor-lookup-after-dispose check in the test harness.
+    // Covered end-to-end by the snippet integration suite.
+
     testWidgets('with sessionId: filter narrows both PINNED and ALL sections '
         'independently', (tester) async {
       // Spec: `_buildBody` filters the pinned and unpinned lists

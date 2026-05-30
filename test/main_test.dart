@@ -612,6 +612,153 @@ void main() {
       }
     });
 
+    testWidgets('Ctrl+Shift+Tab (prevTab) cycles backwards across the panel', (
+      tester,
+    ) async {
+      // Spec: `_switchTab(ws, -1)` wraps modulo `tabs.length`. From
+      // active index 0 a backwards step lands on the last tab. The
+      // shortcut entry must wire to that handler — not silently bind
+      // the forward delta.
+      final c1 = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final c2 = Connection(
+        id: 'c2',
+        label: 'Beta',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.2', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final t1 = TabEntry(
+        id: 'tab-1',
+        label: c1.label,
+        connection: c1,
+        kind: TabKind.terminal,
+      );
+      final t2 = TabEntry(
+        id: 'tab-2',
+        label: c2.label,
+        connection: c2,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [t1, t2], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      // Wrap from 0 → 1 (the last index), exercising the
+      // `(0 + -1 + 2) % 2 == 1` wrap arithmetic.
+      final after = container.read(workspaceProvider).root as PanelLeaf;
+      expect(after.activeTabIndex, 1);
+    });
+
+    testWidgets('Ctrl+\\ (splitRight) duplicates the active tab', (
+      tester,
+    ) async {
+      // Spec: the splitRight shortcut (Ctrl+Backslash) routes to
+      // `notifier.duplicateTab` — the same path the toolbar's
+      // duplicate icon takes. Distinct from `splitDown` which calls
+      // `copyToNewPanel(..., Axis.vertical)`.
+      final conn = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      final after = container.read(workspaceProvider).root as PanelLeaf;
+      expect(
+        after.tabs.length,
+        2,
+        reason: 'splitRight should add a sibling tab on the same panel',
+      );
+    });
+
+    testWidgets('Ctrl+Shift+\\ (splitDown) splits the panel into a branch', (
+      tester,
+    ) async {
+      // Spec: the splitDown shortcut (Ctrl+Shift+Backslash) routes to
+      // `notifier.copyToNewPanel(..., Axis.vertical)`. The root flips
+      // from PanelLeaf to a workspace branch.
+      final conn = Connection(
+        id: 'c1',
+        label: 'Alpha',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: '10.0.0.1', user: 'root'),
+        ),
+        state: SSHConnectionState.connected,
+      );
+      final tab = TabEntry(
+        id: 'tab-1',
+        label: conn.label,
+        connection: conn,
+        kind: TabKind.terminal,
+      );
+      final panel = PanelLeaf(id: 'p0', tabs: [tab], activeTabIndex: 0);
+      final ws = WorkspaceState(root: panel, focusedPanelId: 'p0');
+
+      await tester.pumpWidget(buildApp(workspaceState: ws));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp).first),
+      );
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.backslash);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+
+      expect(container.read(workspaceProvider).root, isNot(isA<PanelLeaf>()));
+    });
+
+    // Deferred — Ctrl+Shift+M maximizePanel shortcut: the synthetic key
+    // sequence does not reach the workspace's shortcut handler in this
+    // harness shape (focus chain). The other Ctrl-shortcuts above
+    // cover the dispatch path structurally.
+
     test('AppShortcutRegistry builds a CallbackMap for the MainScreen set', () {
       // Sanity-check the activator collision guard. The MainScreen
       // bindings share the registry path with other panels, but the

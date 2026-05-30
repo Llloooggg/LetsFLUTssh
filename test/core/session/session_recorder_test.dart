@@ -136,6 +136,92 @@ void main() {
   // sequence could arrive at the buffer as `two + one` and replay
   // `twoone`. The dispatch chain pins caller order at the Dart
   // boundary.
+  test(
+    'empty-byte recordOutput / recordInput calls are dropped before they hit '
+    'the dispatch chain — only non-empty events land on disk',
+    () async {
+      // Spec: `_enqueueEvent` early-returns when `bytes.isEmpty`. The
+      // dispatch chain never grows, no FRB call fires, and the
+      // on-disk recording only contains the header + the real
+      // events. Without this gate, every keep-alive / heartbeat
+      // burst would surface as an empty `["o"]` frame in the
+      // asciinema timeline.
+      final rec = await SessionRecorder.open(
+        sessionId: 's-empty',
+        shellLabel: 'bash',
+        width: 80,
+        height: 24,
+      );
+      expect(rec, isNotNull);
+      rec!.recordOutput(const []);
+      rec.recordInput(const []);
+      rec.recordOutput(utf8.encode('real'));
+      final path = await rec.close();
+      final lines = File(path!).readAsLinesSync();
+      // Header + the single real event — the two empty-byte calls
+      // were dropped before the dispatch chain ran.
+      expect(lines, hasLength(2));
+      final out = jsonDecode(lines[1]) as List;
+      expect(out[1], 'o');
+      expect(out[2], 'real');
+    },
+  );
+
+  test('handleId is a stable UUID v4 — `TerminalSession.setRecorder` binds the '
+      'pump worker against the same id the recorder registered', () async {
+    // Spec: `SessionRecorder.open` mints a UUID v4 (`Uuid.v4()`)
+    // and uses it for the FRB queue handle. The same id surfaces
+    // via the `handleId` getter so the terminal pane can wire the
+    // teeing pipe. Pins the contract that the id is non-empty,
+    // matches the v4 shape, and is stable for the recorder's
+    // lifetime (no rotation churn).
+    final rec = await SessionRecorder.open(
+      sessionId: 's-id',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+    );
+    expect(rec, isNotNull);
+    final id = rec!.handleId;
+    // Canonical UUID v4 shape: 8-4-4-4-12 hex with the version
+    // and variant bits at the documented offsets. The exact
+    // regex matches the `uuid` package's v4 output.
+    expect(
+      id,
+      matches(
+        RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-'
+          r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        ),
+      ),
+    );
+    // Stable across multiple reads — no per-call regeneration.
+    expect(rec.handleId, equals(id));
+    await rec.close();
+  });
+
+  // Deferred — recordings root path-shape assertion: the recordings
+  // parent dir does not consistently land under `<tempDir>/recordings`
+  // in this harness because the pinned-support-dir override does not
+  // propagate through the Rust recorder actor before the open call.
+  // The path-shape contract is verified end-to-end by the recordings
+  // integration test.
+
+  // `_rotate` (BusEvent_RecorderRotateRequested handling) covered by
+  // integration: rotation is driven by the Rust-side per-id bus
+  // worker emitting `RecorderRotateRequested`; a unit test would
+  // need to inject a fake event into the broadcast pipe, which the
+  // bridge does not expose. The Rust-side rotate primitive
+  // (`recorder::rotate_to`) carries its own KAT tests in
+  // `lfs_core::recorder::tests`.
+
+  // RecorderStopped timeout branch covered by integration: the
+  // 2-second timeout fires only when the Rust worker crashes
+  // mid-close; reproducing that against a healthy native binary
+  // requires forcibly killing the actor, which the unit harness
+  // does not support. The fallback log path (warn + path return)
+  // is exercised by the recorder failure-mode integration suite.
+
   test('back-to-back recordOutput chunks land in caller order', () async {
     final rec = await SessionRecorder.open(
       sessionId: 's6',

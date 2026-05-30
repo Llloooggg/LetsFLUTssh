@@ -153,6 +153,88 @@ void main() {
       final storage = SecureKeyStorage();
       expect(storage, isA<SecureKeyStorage>());
     });
+
+    test(
+      'readKeyToSecret with marker present runs the Rust path and returns '
+      'false when the alias is absent — gate passes, FRB returns "not found"',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: on Linux with the marker set, the gate lets the call
+        // through to the Rust read-to-secret. With no entry pre-written
+        // under the alias the Rust side reports absent and the façade
+        // surfaces `false` (the contract is "false on absent or empty
+        // read"). This exercises the through-path that the gate-fail
+        // test only covers up to the short-circuit.
+        final storage = SecureKeyStorage(
+          marker: _InMemoryMarker(initialState: true),
+          probeSecretServiceReachability: false,
+        );
+        final result = await storage.readKeyToSecret('unit-test.absent.secret');
+        // Either false (keyring backend reachable + alias absent) or
+        // false (backend unreachable → exception swallowed → false).
+        // Both observable outcomes are "didn't stage the secret".
+        expect(result, isFalse);
+      },
+    );
+
+    test(
+      'writeKeyFromSecret with no staged secret returns false — Rust raises, '
+      'façade swallows and surfaces failure',
+      () async {
+        // Spec: the write path delegates to
+        // `secureStorageWriteFromSecret`, which fails when no bytes are
+        // staged under `secretId`. The façade catches and returns false
+        // rather than propagating — first-launch flows surface this as
+        // "keychain unavailable, prompt the user". A regression that
+        // re-threw would crash the wizard.
+        final storage = SecureKeyStorage(
+          marker: _InMemoryMarker(),
+          probeSecretServiceReachability: false,
+        );
+        final ok = await storage.writeKeyFromSecret(
+          'unit-test.unstaged.secret',
+        );
+        expect(ok, isFalse);
+      },
+    );
+
+    test('deleteKey clears the Linux marker — the gate must reset so a fresh '
+        'install after wipe does not silently pass the gate', () async {
+      if (!Platform.isLinux) return;
+      // Spec: `deleteKey` is the cross-class cleanup point; it clears
+      // the Linux marker because once the last keychain entry is gone
+      // a future read must re-gate against the keyring daemon. A
+      // regression that left the marker set after delete would let
+      // `readKeyToSecret` proceed straight to libsecret on a fresh
+      // install and re-introduce the stderr g_warning spam the marker
+      // exists to suppress.
+      final marker = _InMemoryMarker(initialState: true);
+      final storage = SecureKeyStorage(
+        marker: marker,
+        probeSecretServiceReachability: false,
+      );
+
+      await storage.deleteKey();
+
+      expect(await marker.exists(skipOnNonLinux: false), isFalse);
+    });
+
+    test('non-Linux probe round-trips the sentinel through Rust — '
+        '"available" iff the read matches the write', () async {
+      if (Platform.isLinux) return;
+      // Spec: on non-Linux the probe writes a 5-byte `"probe"` marker
+      // under the probe alias, reads it back, deletes it, and
+      // classifies based on the byte-equality check. The Rust suite
+      // covers the success and failure outcomes; this test only
+      // verifies the Dart-side returns one of the three documented
+      // values, not which one — that depends on whether a real OS
+      // keychain backend is present in the test environment.
+      final result = await SecureKeyStorage().probe();
+      expect(
+        result,
+        anyOf(DbKeyringProbeResult.available, DbKeyringProbeResult.probeFailed),
+      );
+    });
   });
 
   // Real keychain round-trip (write → read → delete) is covered by

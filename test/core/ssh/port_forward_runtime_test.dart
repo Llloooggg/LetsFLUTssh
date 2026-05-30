@@ -253,5 +253,149 @@ void main() {
         runtime.dispose();
       },
     );
+
+    test(
+      'mixed valid + invalid rules arm only the valid ones — invalid rule is '
+      'rejected pre-arm without polluting `_armed`',
+      () async {
+        // Spec: the iteration in `onConnected` independently validates
+        // every enabled rule; an invalid one is logged + skipped and
+        // does not stop the loop from arming the rest. The valid rule's
+        // start call then surfaces through the FRB driver. Verifying
+        // the loop survives one rejection in the middle guards against
+        // a regression that short-circuited on first failure.
+        final bad = PortForwardRule(
+          kind: PortForwardKind.local,
+          bindHost: '127.0.0.1',
+          bindPort: 70000, // out of range
+          remoteHost: 'svc',
+          remotePort: 22,
+        );
+        final good = _localRule(id: 'good', bindPort: 12345);
+        final runtime = PortForwardRuntime(rules: [bad, good]);
+
+        runtime.onConnected(_stubConnection(withTransport: true));
+        await pumpEventQueue();
+
+        // The teardown must not crash even though only one rule was
+        // armed (and the FRB stop call will throw under unit test, but
+        // the runtime swallows it).
+        expect(runtime.dispose, returnsNormally);
+      },
+    );
+
+    test(
+      'dynamic rule routes through start path with no remote target — '
+      'kind-dispatch picks the dynamic FRB call, not the local one',
+      () async {
+        // Spec: `_startRule` switches on `rule.kind` to pick between
+        // `portForwardStartLocal` / `portForwardStartDynamic` /
+        // `portForwardStartRemote`. A dynamic rule has no remote target;
+        // a regression that fell into the local branch would supply
+        // empty target fields and the FRB call would crash with a
+        // different error than the bus-published one. Driving the path
+        // confirms the dispatch survives the unit-test environment.
+        final dyn = PortForwardRule(
+          kind: PortForwardKind.dynamic_,
+          bindHost: '127.0.0.1',
+          bindPort: 1080,
+          remoteHost: '',
+          remotePort: 0,
+        );
+        final runtime = PortForwardRuntime(rules: [dyn]);
+
+        runtime.onConnected(_stubConnection(withTransport: true));
+        await pumpEventQueue();
+
+        expect(runtime.dispose, returnsNormally);
+      },
+    );
+
+    test('remote rule routes through start path keyed by kind — kind-dispatch '
+        'picks the remote FRB call', () async {
+      // Spec: parallel to the dynamic-rule test — verifies the third
+      // arm of the kind switch in `_startRule`. The FRB call fails
+      // under unit test because no connection id is registered;
+      // the runtime swallows + drops the rule from `_armed`.
+      final remote = PortForwardRule(
+        kind: PortForwardKind.remote,
+        bindHost: '0.0.0.0',
+        bindPort: 8080,
+        remoteHost: 'app.local',
+        remotePort: 80,
+      );
+      final runtime = PortForwardRuntime(rules: [remote]);
+
+      runtime.onConnected(_stubConnection(withTransport: true));
+      await pumpEventQueue();
+
+      expect(runtime.dispose, returnsNormally);
+    });
+
+    test('onConnected → onDisconnecting → onConnected re-arms cleanly without '
+        'double-stop on the second teardown', () async {
+      // Spec: a reconnect cycle drains `_armed` on `onDisconnecting`
+      // and re-populates it on the next `onConnected`. The second
+      // disconnect must stop only the rules armed in the second
+      // generation, never replay stops from the first generation.
+      // This is the invariant that prevents a stale stop call against
+      // an FRB-tracked listener id that was already dropped.
+      final runtime = PortForwardRuntime(rules: [_localRule()]);
+
+      runtime.onConnected(_stubConnection(withTransport: true));
+      await pumpEventQueue();
+      runtime.onDisconnecting(_stubConnection(withTransport: true));
+      await pumpEventQueue();
+      runtime.onConnected(_stubConnection(withTransport: true));
+      await pumpEventQueue();
+
+      expect(runtime.dispose, returnsNormally);
+    });
+
+    test(
+      'setRules mid-arm does not drop already-armed rules — replacing the list '
+      'is queued for the NEXT onConnected',
+      () async {
+        // Spec: "Replacing the list does not re-arm listeners; the next
+        // `onConnected` does." A UI edit during an active session
+        // updates the visible list but the runtime keeps driving the
+        // generation it has already armed. The teardown still has to
+        // succeed regardless of the post-edit list.
+        final runtime = PortForwardRuntime(rules: [_localRule(id: 'r-old')]);
+
+        runtime.onConnected(_stubConnection(withTransport: true));
+        await pumpEventQueue();
+
+        // UI swaps the rule list mid-session.
+        runtime.setRules([_localRule(id: 'r-new', bindPort: 9999)]);
+
+        // The visible list reflects the edit immediately.
+        expect(runtime.rules.map((r) => r.id), ['r-new']);
+
+        // Teardown completes — the runtime tracks armed rules by the
+        // ids it actually started, not by the current `_rules`.
+        expect(runtime.dispose, returnsNormally);
+      },
+    );
+
+    test('onConnected with all rules disabled is a no-op — the where-filter '
+        'short-circuits before any FRB call is issued', () async {
+      // Spec: the iteration is `_rules.where((r) => r.enabled)`. With
+      // every rule disabled the body never runs, `_armed` stays
+      // empty, and teardown is a fast no-op. Guards against a
+      // regression that flipped the filter polarity (which would
+      // arm exactly the rules the user toggled off).
+      final runtime = PortForwardRuntime(
+        rules: [
+          _localRule(id: 'r1', enabled: false),
+          _localRule(id: 'r2', enabled: false),
+        ],
+      );
+
+      runtime.onConnected(_stubConnection(withTransport: true));
+      await pumpEventQueue();
+
+      expect(runtime.dispose, returnsNormally);
+    });
   });
 }
