@@ -7,13 +7,16 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/security/terminal_scrubber.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/ssh/transport/ssh_transport.dart';
+import 'package:letsflutssh/features/terminal/broadcast_controller.dart';
 import 'package:letsflutssh/features/terminal/pane_recording_registry.dart';
 import 'package:letsflutssh/features/terminal/terminal_pane.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/providers/broadcast_provider.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/connections_notifier.dart';
 import 'package:letsflutssh/src/rust/api/terminal.dart' as rust_terminal;
+import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/terminal/connection_progress.dart';
 
 import '../../helpers/frb_bootstrap.dart';
@@ -1065,4 +1068,397 @@ void main() {
   // local SSH server, so those paths defer to integration tests rather
   // than running under a stub that would only re-pin the no-session
   // early-return branches we already cover above.
+
+  // ── Additional connect-phase branch coverage ─────────────────────────────
+
+  group('sendCommand newline-suffix branch', () {
+    testWidgets(
+      'sendCommand with a trailing newline still early-returns on a null '
+      'session — both branches of the suffix terminator are exception-free',
+      (tester) async {
+        // The trailing-newline conditional inside sendCommand picks
+        // between `command` and `'$command\n'`. The null-session guard
+        // sits BEFORE that branch in the source, so both arms must
+        // tolerate the no-session pre-condition without throwing.
+        // Exercising both shapes pins the public no-op contract: the
+        // caller never has to special-case the connect phase.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        final paneKey = GlobalKey<TerminalPaneState>();
+        await tester.pumpWidget(_host(conn, container, paneKey: paneKey));
+        await tester.pump();
+
+        // Two shapes — newline-suffixed and bare.
+        paneKey.currentState!.sendCommand('echo hi\n');
+        paneKey.currentState!.sendCommand('ls -la');
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'sendCommand must early-return on a null session for both '
+              'newline-suffixed and bare command strings — callers should '
+              'not have to gate on the live-session phase.',
+        );
+      },
+    );
+  });
+
+  group('connected-then-disposed mid open', () {
+    testWidgets(
+      'connected connection whose `openTerminalSession` resolves after the '
+      'pane is unmounted does not throw — the post-open `mounted` guard '
+      'absorbs the late completion',
+      (tester) async {
+        // _openSessionAndAttach checks `mounted` after the async
+        // openTerminalSession completes. With a transport that throws
+        // synchronously the catch branch's `if (!mounted) return` is the
+        // load-bearing guard. We mount, unmount, and pump frames to
+        // drain the late completion — no exception should surface.
+        final conn = _makeConnectedConnection(
+          _ThrowingOpenSessionTransport(Exception('late session open failure')),
+        );
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(_host(conn, container));
+        await tester.pump();
+        // Tear the tree down before the catch's setState would fire.
+        await tester.pumpWidget(const SizedBox.shrink());
+        // Drain any pending microtasks from the catch path.
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'A late openTerminalSession failure must not call setState '
+              'on a disposed pane — the mounted guard inside the catch '
+              'is the contract under test.',
+        );
+      },
+    );
+  });
+
+  group('hasError accessor', () {
+    testWidgets('hasError flips to true on the disconnected-with-error path — '
+        'public accessor mirrors the private `_error` field', (tester) async {
+      // The `hasError` getter is the public surface other widgets read
+      // to decide whether the pane is in a renderable error state.
+      // After `_onConnectFailed` fires, `_error` is non-null and
+      // `hasError` must read true; this is the documented contract for
+      // consumers like the workspace bar.
+      final conn = _makeDisconnectedConnection(errorDetail: 'refused');
+      addTearDown(conn.dispose);
+      final container = _container(conn);
+      addTearDown(container.dispose);
+
+      final paneKey = GlobalKey<TerminalPaneState>();
+      await tester.pumpWidget(_host(conn, container, paneKey: paneKey));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        paneKey.currentState!.hasError,
+        isTrue,
+        reason:
+            'hasError must read true once _onConnectFailed has pumped a '
+            'localized error into _error — the bar reads this to swap '
+            'its status badge.',
+      );
+    });
+
+    testWidgets(
+      'hasError stays false on the pre-session connecting branch — no '
+      '`_error` set means the accessor reports the clean state',
+      (tester) async {
+        // While the pane is still parked on `_connectAndOpenShell` and
+        // no error has surfaced, `hasError` must read false. The
+        // contract is symmetric to the on-error case above.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        final paneKey = GlobalKey<TerminalPaneState>();
+        await tester.pumpWidget(_host(conn, container, paneKey: paneKey));
+        await tester.pump();
+
+        expect(
+          paneKey.currentState!.hasError,
+          isFalse,
+          reason:
+              'Pre-session connecting must report hasError=false so the bar '
+              'shows the connecting indicator instead of the error badge.',
+        );
+      },
+    );
+  });
+
+  group('session accessor', () {
+    testWidgets(
+      'session getter reads null while the connect phase has not opened a '
+      'shell — exposed for tests so the spec is observable',
+      (tester) async {
+        // The `@visibleForTesting` `session` getter exposes the private
+        // `_session`. While the pane is still in the connecting branch,
+        // no session has been opened, so the accessor must read null.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        final paneKey = GlobalKey<TerminalPaneState>();
+        await tester.pumpWidget(_host(conn, container, paneKey: paneKey));
+        await tester.pump();
+
+        expect(paneKey.currentState!.session, isNull);
+      },
+    );
+
+    testWidgets(
+      'session getter stays null after a throwing `openTerminalSession` — '
+      'the catch path never installs the half-built session into `_session`',
+      (tester) async {
+        // The catch in `_openSessionAndAttach` runs the localized-error
+        // setState but must NOT install the (never-constructed) session.
+        // The `session` accessor must therefore read null after the
+        // failure — the contract that downstream code (zoom, scroll,
+        // search) can early-return on `session == null` to detect the
+        // failure path.
+        final conn = _makeConnectedConnection(
+          _ThrowingOpenSessionTransport(Exception('failed open')),
+        );
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        final paneKey = GlobalKey<TerminalPaneState>();
+        await tester.pumpWidget(_host(conn, container, paneKey: paneKey));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          paneKey.currentState!.session,
+          isNull,
+          reason:
+              'A failed openTerminalSession must leave _session at null so '
+              'every "if (_session == null) return" guard fires.',
+        );
+      },
+    );
+  });
+
+  group('broadcast wiring gate', () {
+    testWidgets(
+      'a pane with BOTH paneId and tabId still does NOT register a sink while '
+      'the session is null — `_attachBroadcast` only runs after open succeeds',
+      (tester) async {
+        // `_attachBroadcast` runs only inside the success branch of
+        // `_openSessionAndAttach`. While the pane is in the connecting
+        // phase, no sink should be registered — the broadcast controller
+        // for the tab must have an empty sinks map. We probe the
+        // controller via the family provider and assert.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          _host(conn, container, paneId: 'pane-bc', tabId: 'tab-bc'),
+        );
+        await tester.pump();
+
+        final controller = container.read(
+          broadcastControllerProvider('tab-bc'),
+        );
+        expect(
+          controller.driverId,
+          isNull,
+          reason:
+              'No driver should be set before a session opens — the pane '
+              'never promotes itself.',
+        );
+        expect(
+          controller.receiverIds,
+          isEmpty,
+          reason:
+              'No receivers either — registerSink only fires from '
+              '_attachBroadcast on session-open success.',
+        );
+      },
+    );
+
+    testWidgets(
+      'broadcastFrom while the pane has no session is a no-op — the receiver '
+      'fan-out filters absent sinks, so a stray broadcast cannot fault',
+      (tester) async {
+        // Even when the controller has a driver/receiver wired by other
+        // panes, a fan-out from this pane while its own session is null
+        // must not throw. The pane itself never calls `_broadcastInput`
+        // from the connecting phase (no key path runs), so this test
+        // exercises the cross-pane safety: fanning to the controller
+        // from outside lands in the receiver loop which has its own
+        // `if (sink == null) continue` filter.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          _host(conn, container, paneId: 'pane-r', tabId: 'tab-r'),
+        );
+        await tester.pump();
+
+        final controller = container.read(broadcastControllerProvider('tab-r'));
+        // Promote a fictional driver pane, mark this pane a receiver
+        // (without a registered sink — its session is null), and fan
+        // a synthetic key. The controller's `if (sink == null) continue`
+        // is the load-bearing line.
+        controller.setDriver('fake-driver');
+        controller.toggleReceiver('pane-r');
+        controller.broadcastFrom(
+          'fake-driver',
+          BroadcastBytes(Uint8List.fromList([0x41])),
+        );
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'A broadcast targeting a receiver pane whose session is null '
+              'must skip the absent sink, not fault the driver loop.',
+        );
+      },
+    );
+  });
+
+  group('theme repush guard', () {
+    testWidgets(
+      'a brightness toggle between rebuilds with no live session does NOT '
+      'crash — `_maybeRepushPalette` short-circuits at `_session == null`',
+      (tester) async {
+        // Every build calls `_maybeRepushPalette` which checks
+        // `_session == null` first. With a connecting connection (no
+        // session yet) the guard fires every rebuild regardless of
+        // brightness; the global `_paletteIsDark` is never written.
+        // Toggling the theme between pumps verifies the guard is robust.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        final priorBrightness = AppTheme.isDark
+            ? Brightness.dark
+            : Brightness.light;
+        addTearDown(() => AppTheme.setBrightness(priorBrightness));
+
+        AppTheme.setBrightness(Brightness.dark);
+        await tester.pumpWidget(_host(conn, container));
+        await tester.pump();
+
+        AppTheme.setBrightness(Brightness.light);
+        // Force a rebuild via a pumpWidget with the same content.
+        await tester.pumpWidget(_host(conn, container));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  group('focus surface autofocus arms', () {
+    testWidgets(
+      'a pane mounted with isActiveTab=true but isFocused=false does NOT '
+      'autofocus — the `&&` gate requires both flags',
+      (tester) async {
+        // The Focus widget's `autofocus` is `isActiveTab && isFocused`.
+        // Only one true is not enough; the pane must not steal focus.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          _host(conn, container, isActiveTab: true, isFocused: false),
+        );
+        await tester.pump();
+
+        expect(
+          _paneHasFocus(tester),
+          isFalse,
+          reason:
+              'A pane that is the foreground tab but NOT the focused pane '
+              'within that tab must not autofocus — keyboard ownership '
+              'belongs to the actually-focused pane.',
+        );
+      },
+    );
+
+    testWidgets(
+      'a pane mounted with isActiveTab=false and isFocused=false also does '
+      'not autofocus — both flags off, focus stays elsewhere',
+      (tester) async {
+        // Symmetric coverage to the isFocused=true case in the existing
+        // suite. Pinning that the inactive/unfocused arm is also clean
+        // closes the four-way truth table.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          _host(conn, container, isActiveTab: false, isFocused: false),
+        );
+        await tester.pump();
+
+        expect(_paneHasFocus(tester), isFalse);
+      },
+    );
+  });
+
+  group('pre-focus on backgrounded tab transitioning to focused-only', () {
+    testWidgets(
+      'didUpdateWidget does NOT regrab focus when only isFocused flips while '
+      'isActiveTab stays false — the && gate keeps both halves required',
+      (tester) async {
+        // Pre-condition: backgrounded tab (isActiveTab=false). Flipping
+        // isFocused from false→true must NOT regrab focus because the
+        // tab is still backgrounded; only when isActiveTab also flips
+        // true does the pane reclaim keyboard ownership.
+        final conn = _makeConnectingConnection();
+        addTearDown(conn.dispose);
+        final container = _container(conn);
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          _host(conn, container, isActiveTab: false, isFocused: false),
+        );
+        await tester.pump();
+        expect(_paneHasFocus(tester), isFalse);
+
+        await tester.pumpWidget(
+          _host(conn, container, isActiveTab: false, isFocused: true),
+        );
+        await tester.pump();
+
+        expect(
+          _paneHasFocus(tester),
+          isFalse,
+          reason:
+              'isFocused flipping true alone is not enough — the tab must '
+              'also be in the foreground (isActiveTab=true) for the pane to '
+              'reclaim focus.',
+        );
+      },
+    );
+  });
 }

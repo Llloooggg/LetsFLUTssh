@@ -114,6 +114,9 @@ void main() {
     LegacyStateDetector? legacyStateDetector,
     CorruptDbHandler? corruptDbHandler,
     LegacyStateHandler? legacyStateHandler,
+    MigrationRunnerFn? migrationRunner,
+    DbFileExistsProbe? dbFileExists,
+    DbSecurityCapabilities? capabilitiesOverride,
   }) async {
     SecurityInitController? ctrl;
     final autoLockNotifier = autoLock ?? FakeAutoLockNotifier();
@@ -133,7 +136,7 @@ void main() {
           // crashes on FRB-not-initialised. Seed the software-only
           // snapshot so the await resolves immediately.
           securityCapabilitiesProvider.overrideWith(
-            (ref) async => _softwareOnlyCaps,
+            (ref) async => capabilitiesOverride ?? _softwareOnlyCaps,
           ),
         ],
         child: MaterialApp(
@@ -150,6 +153,8 @@ void main() {
                 legacyStateDetector: legacyStateDetector,
                 corruptDbHandler: corruptDbHandler,
                 legacyStateHandler: legacyStateHandler,
+                migrationRunner: migrationRunner,
+                dbFileExists: dbFileExists,
               );
               return const SizedBox.shrink();
             },
@@ -163,6 +168,10 @@ void main() {
     return (ctrl: ctrl!, container: container);
   }
 
+  /// Empty migration report — every artefact already at target.
+  /// Routes `_runMigrations` through the `noOp` short-circuit so the
+  /// bootstrap flow proceeds to `_initSecurity` without raising a
+  /// toast or stepping the recovery orchestrator.
   group('handleCorruption readiness gate', () {
     testWidgets('flips ready + loads auto-lock when the probe reads clean', (
       tester,

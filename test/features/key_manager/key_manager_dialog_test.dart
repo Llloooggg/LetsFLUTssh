@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/hardware_tier.dart';
 import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/features/key_manager/key_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -916,6 +917,659 @@ void main() {
       },
     );
   });
+
+  group('KeyManagerPanel row icon picker', () {
+    // Spec: `_rowIcon` selects the left-side glyph from the row's
+    // backend discriminator. Each branch swaps the icon — software
+    // → vpn_key, FIDO2 → usb, PKCS#11 → memory, Enclave/Hello →
+    // shield_outlined, TPM → memory, Keystore → security. Asserting
+    // the AppDataRow's `icon` property hits the branch directly
+    // without depending on theme-dependent badge geometry.
+
+    AppDataRow rowFor(WidgetTester tester) =>
+        tester.widget<AppDataRow>(find.byType(AppDataRow));
+
+    testWidgets('software row uses the vpn_key glyph as the fallback', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'sw', label: 'Soft', backend: 'software')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.vpn_key);
+    });
+
+    testWidgets('FIDO2 row picks the usb glyph from the `_isFido2Row` arm', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'sk', label: 'Key', backend: 'fido2')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.usb);
+    });
+
+    testWidgets(
+      'pre-v9 sk-ed25519 keyType (legacy backend tag absent) still picks '
+      'the usb glyph via the keyType fallback',
+      (tester) async {
+        // Spec: `_isFido2Row` ORs the `backend == fido2` check with a
+        // keyType prefix match so rows that landed before the schema
+        // v9 migration still render as hardware-bound.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'legacy',
+                label: 'Old YubiKey',
+                keyType: 'sk-ed25519',
+                backend: 'software',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(rowFor(tester).icon, Icons.usb);
+      },
+    );
+
+    testWidgets(
+      'sk-ecdsa-sha2-nistp256 keyType (FIDO2 ECDSA wire tag) falls through '
+      'to the usb glyph',
+      (tester) async {
+        // Spec: `_isFido2Row` matches the `sk-ecdsa-sha2-` prefix; the
+        // wire-format ECDSA P-256 tag lands in that branch.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'sk-ec',
+                label: 'YubiKey ECDSA',
+                keyType: 'sk-ecdsa-sha2-nistp256@openssh.com',
+                backend: 'software',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(rowFor(tester).icon, Icons.usb);
+      },
+    );
+
+    testWidgets('PKCS#11 row picks the memory glyph', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'p11',
+              label: 'Smart card',
+              backend: 'pkcs11',
+              pkcs11ModulePath: '/usr/lib/opensc-pkcs11.so',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.memory);
+    });
+
+    testWidgets('Enclave row picks the shield_outlined glyph', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'enc', label: 'Mac', backend: 'enclave')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.shield_outlined);
+    });
+
+    testWidgets('Hello row picks the shield_outlined glyph', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'hl', label: 'Hello key', backend: 'hello')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.shield_outlined);
+    });
+
+    testWidgets('TPM row picks the memory glyph', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'tpm',
+              label: 'TPM',
+              backend: 'tpm',
+              tpmProvider: 'tss-esapi',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.memory);
+    });
+
+    testWidgets('Keystore row picks the security glyph', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [_meta(id: 'ks', label: 'Pixel', backend: 'keystore')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(rowFor(tester).icon, Icons.security);
+    });
+  });
+
+  group('KeyManagerPanel row marker text', () {
+    testWidgets(
+      'a generated row appends "Generated" to the secondary line so the user '
+      'can tell minted-here from imported',
+      (tester) async {
+        // Spec: `_buildKeyEntry` composes `keyType  •  YYYY-MM-DD$genSuffix`
+        // where `genSuffix = '  •  Generated'` when `entry.isGenerated`. The
+        // tail substring is the only durable marker — the keyType and date
+        // appear in both branches.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              SshKeyMetadata(
+                id: 'gen',
+                label: 'My key',
+                publicKey: 'pub-gen',
+                keyType: 'ssh-ed25519',
+                createdAt: DateTime(2024, 1, 1),
+                isGenerated: true,
+                privateFingerprint: 'priv-gen',
+                publicFingerprint: 'pub-gen',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        // The row carries `Generated` inside the secondary line as a
+        // trailing marker; match the full secondary substring.
+        expect(find.textContaining('Generated'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'an imported (non-generated) row leaves the secondary without the '
+      'Generated suffix',
+      (tester) async {
+        // Spec: the same `_buildKeyEntry` composer leaves `genSuffix`
+        // empty when `entry.isGenerated == false`, so the secondary
+        // line is just `keyType  •  YYYY-MM-DD` with no trailing tag.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(id: 'imp', label: 'Imported key', keyType: 'ssh-ed25519'),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Generated'), findsNothing);
+      },
+    );
+  });
+
+  group('KeyManagerPanel Add menu — hardware tier override', () {
+    // The dialog test buildApp() runs without `debugDesktopPlatformOverride`,
+    // so the menu reflects the host's real `Platform.is*` for the TPM-blob
+    // import sub-arm. The override only injects the *tier list* — TPM-import
+    // still gates on `Platform.isLinux` inside the menu builder.
+    tearDown(() => debugHardwareTiersOverride = null);
+
+    testWidgets(
+      'an Enclave-only platform surfaces the "Add hardware-bound key" item '
+      'and the popup carries a divider between common and hardware items',
+      (tester) async {
+        // Spec: `_buildAddMenuItems` appends a `PopupMenuDivider` only
+        // when the hardware-tier list is non-empty. Enclave maps to the
+        // localized `sshKeyAddHardwareBound` label.
+        debugHardwareTiersOverride = const [HardwareTier.appleEnclave];
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        expect(find.text('Add hardware-bound key'), findsOneWidget);
+        expect(find.byType(PopupMenuDivider), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a Windows Hello tier surfaces the "Windows Hello SSH key" entry',
+      (tester) async {
+        // Spec: tier `windowsHello` maps to the `helloWizardTitle` label.
+        debugHardwareTiersOverride = const [HardwareTier.windowsHello];
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        expect(find.text('Windows Hello SSH key'), findsOneWidget);
+      },
+    );
+
+    testWidgets('an Android Keystore tier surfaces the "Android Hardware Key" '
+        'entry', (tester) async {
+      // Spec: tier `androidKeystore` maps to `keystoreWizardTitle`.
+      debugHardwareTiersOverride = const [HardwareTier.androidKeystore];
+      await tester.pumpWidget(buildApp(seed: const []));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Key'));
+      await tester.pumpAndSettle();
+      expect(find.text('Android Hardware Key'), findsOneWidget);
+    });
+
+    testWidgets(
+      'with no hardware tiers and FRB probes false (test-mode default), the '
+      'menu drops the divider and renders only the common paths',
+      (tester) async {
+        // Spec: `_buildAddMenuItems` skips the divider when the hardware
+        // section is empty. In flutter_test, `_fido2Available` and
+        // `_pkcs11Available` both catch FRB StateError → `false`, so an
+        // empty tier override collapses the hardware section entirely.
+        debugHardwareTiersOverride = const [];
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        expect(find.byType(PopupMenuDivider), findsNothing);
+        // The hardware-tier labels must be gone.
+        expect(find.text('Add hardware-bound key'), findsNothing);
+        expect(find.text('Windows Hello SSH key'), findsNothing);
+        expect(find.text('Generate TPM-backed SSH key'), findsNothing);
+        expect(find.text('Android Hardware Key'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'the + Add trigger renders the arrow_drop_down chevron so the popup '
+      'affordance reads distinct from a one-shot button',
+      (tester) async {
+        // Spec: `_AddMenuTrigger` always pairs the `+` icon with the
+        // `arrow_drop_down` chevron; the chevron is the visual signal
+        // that the control opens a menu rather than firing once.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+      },
+    );
+  });
+
+  group('KeyManagerPanel multi-badge stacking', () {
+    testWidgets(
+      'a stub Enclave row renders both the Enclave backend badge and the '
+      'imported-stub pill so the user reads tier + ownership in one glance',
+      (tester) async {
+        // Spec: `_KeyRowBadges` appends badges in this fixed order: the
+        // backend pill, then the `_StubBadge` when `importedAsStub`,
+        // then `_ExpiredBadge` when the cert is past `valid_before`.
+        // A stub Enclave row hits the first two arms.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'stub-enc',
+                label: 'Old Mac',
+                backend: 'enclave',
+                importedAsStub: true,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(EnclaveBadge), findsOneWidget);
+        expect(find.text('Imported stub'), findsOneWidget);
+      },
+    );
+
+    testWidgets('a stub Hello row pairs the Hello badge with the stub pill', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'stub-hl',
+              label: 'Old PC',
+              backend: 'hello',
+              importedAsStub: true,
+              helloCredentialName: 'lfssh-stub',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(HelloBadge), findsOneWidget);
+      expect(find.text('Imported stub'), findsOneWidget);
+    });
+
+    testWidgets('a stub TPM row pairs the TPM badge with the stub pill', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            _meta(
+              id: 'stub-tpm',
+              label: 'Old laptop TPM',
+              backend: 'tpm',
+              tpmProvider: 'tss-esapi',
+              importedAsStub: true,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(TpmBadge), findsOneWidget);
+      expect(find.text('Imported stub'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a stub Keystore row pairs the Keystore badge with the stub pill',
+      (tester) async {
+        await tester.pumpWidget(
+          buildApp(
+            seed: [
+              _meta(
+                id: 'stub-ks',
+                label: 'Old Pixel',
+                backend: 'keystore',
+                importedAsStub: true,
+                keystoreStrongBox: true,
+                keystorePlatform: 'Pixel 7 (Android 13)',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(KeystoreBadge), findsOneWidget);
+        expect(find.text('Imported stub'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a software no-cert row collapses _KeyRowBadges to a shrunk SizedBox '
+      'so the row trailing slot does not paint stray empty padding',
+      (tester) async {
+        // Spec: when none of the badge predicates hit (no backend pill,
+        // no stub pill, no expired cert), the badge container returns
+        // `SizedBox.shrink()`. Asserting "no Imported stub / Expired"
+        // text + "no backend badges" pins that branch — the trailing
+        // slot still hosts the action buttons but no badge cluster.
+        await tester.pumpWidget(
+          buildApp(
+            seed: [_meta(id: 'plain', label: 'Plain')],
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(HardwareKeyBadge), findsNothing);
+        expect(find.byType(EnclaveBadge), findsNothing);
+        expect(find.byType(HelloBadge), findsNothing);
+        expect(find.byType(TpmBadge), findsNothing);
+        expect(find.byType(KeystoreBadge), findsNothing);
+        expect(find.byType(Pkcs11Badge), findsNothing);
+        expect(find.text('Imported stub'), findsNothing);
+        expect(find.text('Expired'), findsNothing);
+      },
+    );
+  });
+
+  group('KeyManagerPanel _AddKeyDialog modes', () {
+    testWidgets(
+      'opening Paste PEM titles the dialog with the add-key label (the empty '
+      'initial PEM puts the dialog in add mode, not import mode)',
+      (tester) async {
+        // Spec: `_AddKeyDialog.build` picks the dialog title from
+        // `isImport = widget.initialPem.isNotEmpty`. The Paste PEM path
+        // opens it with an empty PEM, so the title resolves to
+        // `s.addKey`. The toolbar trigger also reads `Add Key` — both
+        // surfaces use the same key so the title appears twice.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Paste PEM'));
+        await tester.pumpAndSettle();
+        // Dialog title + toolbar trigger both render `Add Key`. The
+        // dialog also exposes the PEM textarea decoration label that
+        // is unique to the add/import dialog.
+        expect(find.text('Paste Private Key (PEM)'), findsOneWidget);
+        expect(find.text('Add Key'), findsWidgets);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'submitting the Paste PEM dialog with an empty label and empty PEM is '
+      'a no-op — the dialog stays open and no Toast surface fires',
+      (tester) async {
+        // Spec: `_AddKeyDialog._doSubmit` returns early when `label` or
+        // `pem` is empty (after trim). The primary button's `onTap` is
+        // still wired, so a tap must not close the dialog when both
+        // fields are blank. This is the validation gate.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Paste PEM'));
+        await tester.pumpAndSettle();
+        // Tap the dialog's primary `Add Key` button — there are now two
+        // `Add Key` widgets (toolbar + dialog primary); pick the last
+        // (the bottom action button) since the toolbar trigger is the
+        // first one rendered.
+        final addButtons = find.text('Add Key');
+        expect(addButtons, findsWidgets);
+        await tester.tap(addButtons.last);
+        await tester.pumpAndSettle();
+        // Validation gate keeps the dialog on screen.
+        expect(find.text('Paste Private Key (PEM)'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'cancelling the Paste PEM dialog dismisses it and leaves the panel '
+      'visible with the toolbar still reachable',
+      (tester) async {
+        // Spec: `AppButton.cancel` calls `Navigator.pop(context)` —
+        // the dialog tears down (the PEM controller wipes itself) and
+        // the underlying panel + toolbar stay mounted.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Paste PEM'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.text('Paste Private Key (PEM)'), findsNothing);
+        // Toolbar trigger remains.
+        expect(find.text('Add Key'), findsOneWidget);
+      },
+    );
+  });
+
+  group('KeyManagerPanel _GenerateKeyDialog interactions', () {
+    testWidgets(
+      'the generate dialog seeds Ed25519 as the active chip (the default '
+      'enum variant)',
+      (tester) async {
+        // Spec: `_GenerateKeyDialogState._type` initializes to
+        // `SshKeyType.ed25519`. The chip's `active` flag drives the
+        // accent border + tint; asserting the chip exists confirms
+        // the type-filter rendered the software set.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Generate Key').first);
+        await tester.pumpAndSettle();
+        // Software chips render — sk-* variants are filtered out.
+        expect(find.text('Ed25519'), findsOneWidget);
+        expect(find.text('RSA 2048'), findsOneWidget);
+        expect(find.text('RSA 4096'), findsOneWidget);
+        expect(find.text('FIDO2 Ed25519'), findsNothing);
+        expect(find.text('FIDO2 ECDSA P-256'), findsNothing);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'tapping RSA 2048 swaps the active selection — the chip survives the '
+      'setState rebuild without the dialog closing',
+      (tester) async {
+        // Spec: `_GenerateKeyDialogState`'s `Wrap` of `AppPickerChip`
+        // calls `setState(_type = t)` on tap. After the rebuild the
+        // dialog stays open (no Navigator.pop in the chip callback)
+        // and all three chips remain rendered.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Generate Key').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('RSA 2048'));
+        await tester.pumpAndSettle();
+        // Dialog stays open; chip labels still present.
+        expect(find.text('Ed25519'), findsOneWidget);
+        expect(find.text('RSA 2048'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'submitting the generate dialog with an empty label is a no-op — '
+      'the dialog stays open and no key generation fires',
+      (tester) async {
+        // Spec: `_GenerateKeyDialogState._doGenerate` returns early
+        // when `_labelCtrl.text.trim()` is empty so the user cannot
+        // mint an unlabelled key. The dialog stays mounted, so the
+        // chip set is still findable after the bogus tap.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Generate Key').first);
+        await tester.pumpAndSettle();
+        // Tap the dialog's primary Generate button. There are now
+        // multiple matches (toolbar Add Key dropdown is closed, but
+        // the menu item label `Generate Key` matches the dialog
+        // title + primary button + the menu item that may have been
+        // dismissed). Pick the last.
+        final genButtons = find.text('Generate Key');
+        await tester.tap(genButtons.last);
+        await tester.pumpAndSettle();
+        // The dialog must still be on screen — empty label gate kept
+        // it open without firing the FRB keygen.
+        expect(find.text('Key Type'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'cancelling the generate dialog dismisses it and the panel + + Add '
+      'trigger remain available',
+      (tester) async {
+        // Spec: `AppButton.cancel` pops the dialog without firing
+        // generation. The chip surface tears down and the toolbar
+        // returns to the foreground.
+        await tester.pumpWidget(buildApp(seed: const []));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add Key'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Generate Key').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.text('Key Type'), findsNothing);
+        expect(find.text('Add Key'), findsOneWidget);
+      },
+    );
+  });
+
+  group('KeyManagerPanel cert remove action', () {
+    testWidgets('the cert-remove confirm dialog hosts both the Cancel and the '
+        'destructive Remove certificate action buttons', (tester) async {
+      // Spec: `_removeCertificate` opens an `AppDialog` whose action
+      // list is `[Cancel, AppButton.destructive(label: certRemove)]`.
+      // Asserting both button labels appear together pins the action
+      // bar shape so a future copy tweak does not silently drop one.
+      await tester.pumpWidget(
+        buildApp(
+          seed: [
+            SshKeyMetadata(
+              id: 'crm2',
+              label: 'Has cert',
+              publicKey: 'pub-crm2',
+              keyType: 'ssh-ed25519',
+              createdAt: DateTime(2024, 1, 1),
+              isGenerated: false,
+              privateFingerprint: 'priv-crm2',
+              publicFingerprint: 'pub-crm2',
+              certFingerprint: 'SHA256:cert-ok',
+              validity: CertValidity(
+                from: DateTime(2099, 1, 1),
+                to: DateTime(2099, 12, 31),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove certificate'));
+      await tester.pumpAndSettle();
+      // Both action labels in the confirm dialog.
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Remove certificate'), findsWidgets);
+      // Dismiss via Cancel so no FRB delete fires.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('KeyManagerPanel delete confirm shape', () {
+    testWidgets(
+      'the delete confirm dialog quotes the row label in the body so the '
+      'user sees which row they are about to delete',
+      (tester) async {
+        // Spec: `_deleteKey` interpolates `entry.label` into
+        // `s.deleteKeyConfirm(entry.label)`. The localized message
+        // template wraps the label in double quotes. Cancel-only flow
+        // (real `delete` is FRB-deep, integration-covered).
+        await tester.pumpWidget(
+          buildApp(
+            seed: [_meta(id: '1', label: 'CI deploy')],
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Delete Key'));
+        await tester.pumpAndSettle();
+        // The label is quoted inside the localized body copy.
+        expect(find.textContaining('"CI deploy"'), findsOneWidget);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+      },
+    );
+  });
+
+  // Deferred — _AddKeyDialog import-mode (pre-filled PEM) titles the
+  // dialog with `importKey` instead of `addKey`:
+  //   covered by integration: the panel's `_importKey` route reads the
+  //   PEM via the native FilePicker + Rust PEM parser before opening
+  //   the dialog, so the import-mode shape can't be reached without
+  //   FRB. Sibling integration test in `key_manager_panel_test.dart`
+  //   (`@frb_global_store`) exercises the round-trip.
 
   // Paths deferred to integration / sibling real-DB coverage:
   //
