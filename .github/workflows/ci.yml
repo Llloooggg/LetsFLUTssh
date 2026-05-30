@@ -422,7 +422,18 @@ jobs:
         if: matrix.target == 'x86_64-pc-windows-msvc'
         shell: bash
         run: |
-          choco install -y strawberryperl --no-progress
+          # Pin Strawberry Perl by version + require checksum
+          # validation so the choco install satisfies the
+          # Scorecard Pinned-Dependencies rule (alert #82). The
+          # embedded SHA256 of the underlying MSI lives inside the
+          # nupkg's chocolateyInstall.ps1; --require-checksums makes
+          # choco refuse the install if the embedded checksum is
+          # missing or mismatched. To bump: download
+          #   https://community.chocolatey.org/api/v2/package/strawberryperl/
+          # extract the nupkg, read tools/chocolateyInstall.ps1, and
+          # update the version pin below.
+          choco install -y strawberryperl --version=5.42.2.1 \
+            --require-checksums --no-progress
           printf '%s\n' 'C:\Strawberry\perl\bin' >> "$GITHUB_PATH"
           printf '%s\n' 'C:\Strawberry\c\bin' >> "$GITHUB_PATH"
           # Sanity probe + a diagnostic `where perl` so a future
