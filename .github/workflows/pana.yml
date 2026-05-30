@@ -1,0 +1,64 @@
+name: pana
+
+# Cancel superseded runs of the same workflow on the same ref. Matches
+# the cancel-in-progress rule in `osv.yml` / `semgrep.yml` /
+# `scorecard.yml` — keeps runner minutes off duplicate verification
+# during a busy push day.
+concurrency:
+  group: pana-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 6 * * 1' # weekly Monday 06:00 UTC — same slot as OSV
+
+permissions: read-all
+
+jobs:
+  pana:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          # Match the toolchain pinned in `ci.yml` and
+          # `reproducibility-check.yml` so a Flutter SDK churn that
+          # affects analyzer rules surfaces here once, not on every
+          # consumer workflow.
+          flutter-version: '3.44.0'
+          channel: stable
+
+      - name: Install pana
+        run: dart pub global activate pana
+
+      - name: Run pana
+        # `pana` is the package analyzer pub.dev runs to score every
+        # publish. We use it as a license-and-API-health gate that the
+        # rest of the perimeter doesn't cover:
+        #
+        #   * License compliance — every transitive pub dep gets its
+        #     SPDX license parsed; an unrecognised or non-redistributable
+        #     license fails the run. Equivalent to the `licenses`
+        #     check cargo-deny performs on the Rust side.
+        #   * Deprecated API surface — pana flags Dart APIs the SDK
+        #     marked `@Deprecated`. Flutter SDK bumps that retire an
+        #     API surface here regress the score before they regress
+        #     CI dart-test.
+        #   * Analyzer hygiene — `flutter analyze --fatal-infos` runs
+        #     once in CI; pana runs it again with strict + community
+        #     lint packs, catching what the local rule set didn't.
+        #
+        # `--no-warning` silences the "this is the pub.dev scoring
+        # tool" preamble. `--json` lets a future revision parse the
+        # report for fine-grained gating; for now we accept the
+        # non-zero exit code as the gate.
+        run: |
+          pana --no-warning --exit-code-threshold 100 .

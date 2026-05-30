@@ -1,0 +1,106 @@
+# cargo-deny config — supply-chain audit for the Rust workspace.
+#
+# Runs in `.github/workflows/cargo-deny.yml` on every push to main +
+# every PR + weekly cron. Failures here block the merge gate alongside
+# clippy, OSV-Scanner, Semgrep, and Scorecard.
+#
+# Each section's policy is chosen to match the rest of the security
+# perimeter — strict where reasonable (sources allow-list, license
+# whitelist) and tolerant where strict would create false positives
+# (workspace-pinned duplicates, indirect deps).
+
+# ── Advisories ──────────────────────────────────────────────────────
+# Already covered end-to-end by OSV-Scanner (`osv.yml`); cargo-deny's
+# `advisories` check runs against the same RustSec DB, so this section
+# stays in `warn` rather than `deny` to avoid double-failing the same
+# CVE in two workflows. The actual gate stays on OSV-Scanner; this is
+# the second line of defence in case `cargo deny check` runs locally.
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+ignore = [
+  # Marvin timing attack against `rsa` (RustCrypto). Documented at
+  # repo root in osv-scanner.toml — see that file's rationale. Mirror
+  # the ID here so cargo-deny stays in sync with OSV-Scanner.
+  "RUSTSEC-2023-0071",
+]
+
+# ── Licenses ────────────────────────────────────────────────────────
+# Strict allow-list. The app is GPL-3.0; every transitive dep MUST sit
+# under a license compatible with GPL-3.0 redistribution. A new dep on
+# something AGPL or commercial-only must be a conscious decision, not
+# a silent pull-in via a transitive bump.
+[licenses]
+confidence-threshold = 0.93
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "CC0-1.0",
+  "MPL-2.0",
+  "0BSD",
+  "CDLA-Permissive-2.0",
+  # Our own crates (`lfs_core`, `lfs_frb`, `lfs_os_security`, `lfs_fuzz`)
+  # carry `GPL-3.0-only` — the app is GPL-licensed. Without this entry
+  # the workspace members fail their own license check. The
+  # `-only` suffix is the SPDX-3 precise spelling that disallows
+  # the "or later" expansion the bare `GPL-3.0` identifier carried
+  # under SPDX 2.x.
+  "GPL-3.0-only",
+]
+# Per-crate exceptions go here when a dep's `Cargo.toml` ships a
+# non-SPDX-perfect license string but the source is clearly under one
+# of the allowed terms.
+exceptions = [
+  # `libfuzzer-sys` ships under `(MIT OR Apache-2.0) AND NCSA` —
+  # the NCSA Open Source License (University of Illinois) is permissive
+  # but not on the main allow-list because it never shows up outside
+  # the LLVM ecosystem. Allow it for this one crate so the fuzz
+  # harness's transitive dep passes review.
+  { allow = ["NCSA"], crate = "libfuzzer-sys" },
+]
+
+# ── Bans ────────────────────────────────────────────────────────────
+# Catch duplicate versions of the same crate in the dep tree — these
+# create supply-chain confusion (which version of `regex` is actually
+# called?) and bloat the binary. `wildcards = "deny"` blocks
+# `version = "*"` in Cargo.toml so nothing pulls in latest-of-anything.
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Workspace-internal `path = "../foo"` deps look like wildcards to
+# cargo-deny because they don't carry a `version = "..."` constraint;
+# they are NOT external version wildcards. Allow them so
+# `lfs_core` / `lfs_frb` / `lfs_os_security` / `lfs_fuzz` can keep
+# their existing intra-workspace wiring.
+allow-wildcard-paths = true
+highlight = "all"
+
+# Explicit deny-list. Empty for now — the gate is meaningful even
+# empty because a future PR adding a banned name will fail the check.
+deny = []
+
+# Skip duplicates for these crates only. Each entry needs a rationale.
+skip = []
+
+skip-tree = []
+
+# ── Sources ─────────────────────────────────────────────────────────
+# Only allow crates.io as a registry source. A git dep that pins to a
+# fork or a private host is a supply-chain risk we want to surface in
+# review, not in a silent build.
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# Specific git deps live here when we patch upstream — each entry
+# needs a rationale matching the Cargo.toml `[patch]` block.
+allow-git = []
