@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/sftp/errors.dart';
 import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 
@@ -402,5 +403,134 @@ void main() {
         expect(fake.calls, ['flatWalkFiles:/srv:100']);
       },
     );
+
+    test(
+      'SFTPError raised from the underlying SFTP propagates through RemoteFS '
+      'unchanged — the shim never re-wraps a typed error into a new layer',
+      () async {
+        // Spec: every `RemoteFS` delegate forwards the underlying
+        // SFTP call. When the SFTP layer already raises a typed
+        // `SFTPError`, the shim must not wrap it again — the
+        // UI catches `SFTPError` and surfaces `userMessage`. A
+        // double-wrap would make the inner cause unreachable
+        // through `e.cause` because the outer wrap would have a
+        // chain of two `SFTPError` layers instead of one.
+        final fake = _ThrowingSftpFs();
+        final fs = RemoteFS(fake);
+        await expectLater(
+          fs.list('/srv'),
+          throwsA(
+            isA<SFTPError>().having(
+              (e) => e.message,
+              'message',
+              'native list failed',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'RemoteFS.exists forwards the SFTPError raised by the native probe — '
+      'the shim does NOT swallow it into false, otherwise an EACCES on a '
+      'no-read dir would let the conflict resolver clobber the remote file',
+      () async {
+        // Spec: per RustSftpFs.exists doc, a permission / IO error
+        // from the underlying stat must propagate; only a clean
+        // "no such file" returns false. RemoteFS is a thin delegate
+        // so the propagation contract carries through verbatim.
+        final fake = _ThrowingSftpFs();
+        final fs = RemoteFS(fake);
+        await expectLater(fs.exists('/srv/locked'), throwsA(isA<SFTPError>()));
+      },
+    );
+
+    test(
+      'RemoteFS.dirSize surfaces a native dirSizeRecursive failure as the '
+      'raw exception — callers handle the failure at a higher layer',
+      () async {
+        // Spec: RemoteFS.dirSize is a single forward to
+        // `sftp.dirSizeRecursive`. There is no Dart-side try/catch;
+        // a native failure bubbles up exactly as it landed.
+        final fake = _ThrowingSftpFs();
+        final fs = RemoteFS(fake);
+        await expectLater(fs.dirSize('/srv/data'), throwsA(isA<StateError>()));
+      },
+    );
   });
+}
+
+/// Fake that raises typed errors on every call so the propagation tests
+/// can pin the contract: `SFTPError` round-trips through `RemoteFS`
+/// unchanged (no double-wrap), bare exceptions bubble verbatim.
+class _ThrowingSftpFs implements RemoteSftpFs {
+  @override
+  Future<String> getwd() async => throw const SFTPError('native getwd failed');
+
+  @override
+  Future<List<FileEntry>> list(String path) async =>
+      throw const SFTPError('native list failed');
+
+  @override
+  Future<int> dirSizeRecursive(String path, int maxDepth) async =>
+      throw StateError('native dirSizeRecursive failed');
+
+  @override
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth) async =>
+      throw const SFTPError('native flatWalkFiles failed');
+
+  @override
+  Future<bool> exists(String path) async =>
+      throw const SFTPError('native exists failed (EACCES)');
+
+  @override
+  Future<void> mkdir(String path) async =>
+      throw const SFTPError('native mkdir failed');
+
+  @override
+  Future<void> remove(String path) async =>
+      throw const SFTPError('native remove failed');
+
+  @override
+  Future<void> removeEmptyDir(String path) async =>
+      throw const SFTPError('native removeEmptyDir failed');
+
+  @override
+  Future<void> removeDir(String path) async =>
+      throw const SFTPError('native removeDir failed');
+
+  @override
+  Future<void> rename(String oldPath, String newPath) async =>
+      throw const SFTPError('native rename failed');
+
+  @override
+  Future<void> upload(
+    String localPath,
+    String remotePath,
+    void Function(TransferProgress)? onProgress,
+  ) async => throw const SFTPError('native upload failed');
+
+  @override
+  Future<void> download(
+    String remotePath,
+    String localPath,
+    void Function(TransferProgress)? onProgress,
+  ) async => throw const SFTPError('native download failed');
+
+  @override
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async => throw const SFTPError('native uploadDir failed');
+
+  @override
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async => throw const SFTPError('native downloadDir failed');
+
+  @override
+  void close() {}
 }

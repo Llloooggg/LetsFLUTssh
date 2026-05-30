@@ -271,5 +271,83 @@ void main() {
       expect(AppLogger.instance.enabled, isTrue);
       expect(AppLogger.instance.threshold, LogLevel.warn);
     });
+
+    test(
+      'liveEntries broadcasts each admitted line on the in-memory stream so '
+      'the Settings → Logs viewer can render without re-reading the file',
+      () async {
+        // Spec: every `log()` call that survives the threshold gate
+        // emits a `LogEntry` on `liveEntries` with the resolved level,
+        // tag, sanitized message, and any continuations. The viewer
+        // depends on this to paint pre-history of the current process
+        // — a regression that stopped emitting would leave a blank tab
+        // until the next call site fired.
+        await AppLogger.instance.setThreshold(LogLevel.info);
+        final entries = <LogEntry>[];
+        final sub = AppLogger.instance.liveEntries.listen(entries.add);
+        addTearDown(sub.cancel);
+
+        AppLogger.instance.log('viewer line', name: 'Stream');
+        // Stream emit happens inside `log()` synchronously after the
+        // backend append; one event-loop tick is enough.
+        await Future<void>.delayed(Duration.zero);
+
+        expect(entries, hasLength(greaterThanOrEqualTo(1)));
+        final emitted = entries.firstWhere((e) => e.tag == 'Stream');
+        expect(emitted.message, 'viewer line');
+        expect(emitted.level, LogLevel.info);
+      },
+    );
+
+    test(
+      'setThreshold(value) is a no-op when the value already equals the '
+      'current threshold — repeated identical flips do not reopen the sink',
+      () async {
+        // Spec: `setThreshold(value)` short-circuits when value ==
+        // _threshold, so re-applying the same level (config replay,
+        // hot-reload) does not pay another `_openSink` round-trip.
+        // Observe by counting `openSink` calls on the fake backend.
+        await AppLogger.instance.setThreshold(LogLevel.warn);
+        final firstOpenCount = backend.openCount;
+
+        await AppLogger.instance.setThreshold(LogLevel.warn);
+        await AppLogger.instance.setThreshold(LogLevel.warn);
+
+        expect(
+          backend.openCount,
+          firstOpenCount,
+          reason: 'identical setThreshold must not reopen the sink',
+        );
+      },
+    );
+
+    test(
+      'setThreshold(null) after a non-null threshold closes the sink',
+      () async {
+        // Spec: the closing branch in `setThreshold` runs
+        // `_closeSink` which calls `_backend.closeSink`. Toggling from
+        // info → null must observe a `closeCount` bump on the fake.
+        await AppLogger.instance.setThreshold(LogLevel.info);
+        final beforeClose = backend.closeCount;
+        await AppLogger.instance.setThreshold(null);
+        expect(backend.closeCount, greaterThan(beforeClose));
+      },
+    );
+
+    test('dispose() closes the sink, cancels the live stream, and clears the '
+        'threshold so a subsequent log call is a silent no-op', () async {
+      // Spec: `dispose()` resets threshold to null, cancels the
+      // bus subscription, closes the sink, and closes the
+      // `_entriesController`. Post-dispose `log()` calls must not
+      // crash and must not reach the backend.
+      await AppLogger.instance.setThreshold(LogLevel.info);
+      await AppLogger.instance.dispose();
+      backend.lines.clear();
+
+      AppLogger.instance.log('after dispose', name: 'D');
+      expect(backend.lines, isEmpty);
+      expect(AppLogger.instance.threshold, isNull);
+      expect(AppLogger.instance.enabled, isFalse);
+    });
   });
 }

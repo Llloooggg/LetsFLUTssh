@@ -361,6 +361,77 @@ void main() {
       expect(binding.updateLocalizations, [ru]);
     });
   });
+
+  // Spec — locale-specific plural forms must render correctly per
+  // language. The English bundle has only `one` / `other`, Russian has
+  // `one` / `few` / `many` / `other`. Pin a few representative locales
+  // so a regression that hard-coded the English ternary plural would
+  // surface as the wrong word ending in the notification.
+  group('notificationText — non-English plural surfaces', () {
+    test('Russian renders the few-form for 3 connections', () async {
+      final ru = await S.delegate.load(const Locale('ru'));
+      // Spec: ru arb defines `few` for 2/3/4 and `other` for the rest.
+      // 3 connections must select the `few` arm, not the English-style
+      // plural fallback. A regression that collapsed to a ternary would
+      // render the singular Russian form here, which is grammatically
+      // wrong.
+      final text = notificationText(ru, 3);
+      expect(text, contains('3'));
+      // The `few` arm in ru includes "активных подключения" (genitive
+      // plural-few). The exact full string lives in the arb; pin the
+      // distinguishing substring so localisation tweaks that preserve
+      // the few form pass and an accidental collapse to `other` fails.
+      expect(text, contains('активных'));
+    });
+
+    test('Russian renders the zero-form for 0 connections (locale-specific '
+        'plural, not English fallback)', () async {
+      final ru = await S.delegate.load(const Locale('ru'));
+      // Spec: ru arb defines an explicit `=0{Нет активных подключений}`
+      // arm. A regression that lost the =0 special case would render
+      // the generic plural ("0 активных подключений"), which is correct
+      // but loses the user-facing "Нет" prefix the arb deliberately
+      // surfaces. Pin the special case so an arb refactor catches.
+      expect(notificationText(ru, 0), 'Нет активных подключений');
+    });
+  });
+
+  // Spec — the no-op branches in `onConnectionCountChanged` are the
+  // safety net for a misconfigured caller. Cover each individually so
+  // coverage names exactly which guard surfaced.
+  group('ForegroundServiceManager — no-op branches by surface', () {
+    test('positive→positive while running fires update, not start — start was '
+        'already paid on the 0→positive transition', () async {
+      // Spec: the second positive count must take the update branch,
+      // not re-start. A regression that re-fired start would race the
+      // live notification and on Android produce two heads-up
+      // notifications.
+      final binding = FakeBinding();
+      final manager = ForegroundServiceManager(binding: binding);
+      manager.init();
+      await manager.onConnectionCountChanged(1);
+      await manager.onConnectionCountChanged(1);
+      expect(binding.startCounts, [1]);
+      expect(binding.updateCounts, [1]);
+    });
+
+    test('0→0 while NOT running is a complete no-op — neither start, update, '
+        'nor stop fires', () async {
+      // Spec: the `else if (activeCount == 0 && _running)` arm is the
+      // only branch that consults `stopService`. With _running=false
+      // and count=0 every conditional in the chain misses, and the
+      // method completes silently. A regression that collapsed the
+      // chain into a single "stop if count==0" would call stopService
+      // on a never-started binding and on Android the plugin throws.
+      final binding = FakeBinding();
+      final manager = ForegroundServiceManager(binding: binding);
+      manager.init();
+      await manager.onConnectionCountChanged(0);
+      expect(binding.startCounts, isEmpty);
+      expect(binding.updateCounts, isEmpty);
+      expect(binding.stopCount, 0);
+    });
+  });
 }
 
 /// Captures the `S` bundle each start/update was called with so the

@@ -4228,6 +4228,145 @@ void main() {
     );
   });
 
+  // ---------------------------------------------------------------------------
+  // Connection-section deepening — extra branches in
+  // session_edit_dialog_connection.dart that the broad scenarios above don't
+  // exercise. Each pins one render or wiring contract on the per-kind
+  // transport block + ProxyJump dropdown.
+  // ---------------------------------------------------------------------------
+  group('SessionEditDialog — connection deepening', () {
+    Future<void> selectKind(WidgetTester tester, String chipLabel) async {
+      await tester.tap(find.text(chipLabel));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'auto-label hint reshapes when the kind chip flips between SSH / WebDAV '
+      '/ S3 — the SESSION NAME placeholder names the save-time anchor',
+      (tester) async {
+        // Spec: `_autoLabelHint` returns a kind-specific placeholder
+        // (`sessionNameAutoFromHost` for SSH, `sessionNameAutoFromUrl`
+        // for WebDAV, `sessionNameAutoFromBucket` for S3). Pins the
+        // chip-flip → placeholder-flip contract — the hint is the
+        // user-facing signal of what the save path will derive from
+        // when the SESSION NAME field is left blank.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // SSH default: "Auto from host"
+        expect(find.text('Auto from host'), findsOneWidget);
+
+        await selectKind(tester, 'WebDAV');
+        expect(find.text('Auto from URL host'), findsOneWidget);
+        expect(find.text('Auto from host'), findsNothing);
+
+        await selectKind(tester, 'S3');
+        expect(find.text('Auto from default bucket'), findsOneWidget);
+        expect(find.text('Auto from URL host'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'ProxyJump "Saved session" dropdown lists eligible candidate sessions '
+      'so a user can pick a bastion from the workspace',
+      (tester) async {
+        // Spec: `_proxyCandidates` runs the workspace sessions through
+        // the Rust cycle-detection probe; in this test, no live FRB
+        // means the probe path won't filter (empty workspace), but the
+        // dropdown still renders. We pin the saved-mode arm: opening
+        // the dropdown surfaces a validator-driven Required marker
+        // when nothing is picked (covered) AND the menu items render
+        // is at least the empty state. The render of the DropdownButton
+        // itself confirms `_buildSavedSessionDropdown` mounted.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester);
+        await expandAdvanced(tester);
+        await tester.ensureVisible(find.text('Saved session'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Saved session'));
+        await tester.pumpAndSettle();
+
+        // Dropdown is present — the form field renders inside the
+        // Padding(top: AppSpacing.sm) wrapper. Pins the saved-mode
+        // branch render distinctly from the validator-failure test.
+        expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'S3 path-style toggle render keeps its hint copy beside the Switch',
+      (tester) async {
+        // Spec: `_buildS3Section` renders a Switch + `s3PathStyle` label
+        // + `s3PathStyleHint` help row. Pinning the hint copy confirms
+        // the Row block is mounted and the user sees the explanation of
+        // virtual-hosted vs path-style addressing before they flip it.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'S3');
+
+        // The hint copy is the dim sub-line under the bold label.
+        // Pins the help-row render (separate from the Switch render
+        // checked elsewhere).
+        final ctx = tester.element(find.byType(SessionEditDialog));
+        final l10n = S.of(ctx);
+        expect(find.text(l10n.s3PathStyleHint), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'WebDAV base-URL field renders the localized hint copy as its placeholder',
+      (tester) async {
+        // Spec: `_buildWebDavSection` mounts a StyledFormField for
+        // the base URL whose hint pulls from `webDavBaseUrlHint`. The
+        // hint is the user's nudge to paste the full
+        // `https://example.com/remote.php/dav/files/alice/` URL —
+        // truncating to host-only at this stage would lose path
+        // semantics for Nextcloud / per-user share roots.
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await selectKind(tester, 'WebDAV');
+
+        // The hint copy renders as placeholder under the BASE URL label.
+        expect(
+          find.text('https://example.com/remote.php/dav/files/alice/'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ProxyJump "None" mode renders no dropdown and no custom host row — the '
+      'default state mounts the chips only',
+      (tester) async {
+        // Spec: `_buildProxyJumpSection` renders the saved-session
+        // dropdown ONLY when `_proxyMode == saved` and the custom
+        // host/port/user fields ONLY when `_proxyMode == custom`. The
+        // default `None` mode hides both. Pins the default branch so
+        // a regression that left a stale custom row visible would fail
+        // here (the user would see proxy-host inputs they didn't ask for).
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        await fillRequiredFields(tester);
+        await expandAdvanced(tester);
+
+        // The default chip is "None" — neither the dropdown nor the
+        // bastion host placeholder should be present.
+        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+        expect(find.text('bastion.example.com'), findsNothing);
+      },
+    );
+  });
+
   group('SessionEditDialog — folder hydration on edit', () {
     testWidgets(
       'Editing a session with a stored folder hydrates the folder controller',

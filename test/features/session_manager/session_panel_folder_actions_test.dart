@@ -413,4 +413,143 @@ void main() {
       expect(s2.folder, 'Prod/DB');
     },
   );
+
+  testWidgets(
+    'cut on a folder + paste into a sibling moves the folder via the explicit '
+    'target path (mutator.moveFolder is called with the right pair)',
+    (tester) async {
+      // Contract — the context-menu Cut entry routes to
+      // `_ctrl.cutFolderPath(folderPath)`. Right-clicking a sibling
+      // folder and tapping Paste lands on `pasteCopiedSession` with an
+      // `explicitTarget` of the sibling path; the cut-pending branch
+      // routes to `mutator.moveFolder(folderPath, target)`. Pins the
+      // cut-pending arm of the folder-side paste — the copy/duplicate
+      // path covered separately produces a `-copy` row, while a cut
+      // rewrites the existing folder in place.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      // Cut `Production` then right-click `Archive` and paste — moves
+      // Production under Archive.
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('Cut'));
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Archive');
+      // The paste row only appears when the controller has a clipboard
+      // entry — pin that the cut produced one, then exercise paste.
+      expect(find.text('Paste'), findsOneWidget);
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+
+      // The fake's `moveFolder` rebuilds child paths under the new
+      // parent — the previously-`Production/DB` row becomes
+      // `Archive/Production/DB`; `Production` itself becomes
+      // `Archive/Production`.
+      final s1 = fake.state.firstWhere((s) => s.id == 's1');
+      final s2 = fake.state.firstWhere((s) => s.id == 's2');
+      expect(s1.folder, 'Archive/Production');
+      expect(s2.folder, 'Archive/Production/DB');
+    },
+  );
+
+  testWidgets(
+    'copy then cut on a different folder replaces the clipboard entry — only '
+    'the latest target lands on paste (mutually-exclusive clipboard slots)',
+    (tester) async {
+      // Contract — `_copiedSessionId`, `_copiedFolderPath`, and
+      // `_cutPending` live as a single mutually-exclusive slot on the
+      // controller (`copyFolderPath` clears the cut bit, `cutFolderPath`
+      // sets it). A user who copies one folder, then cuts another,
+      // must see only the cut target on subsequent paste. Pins the
+      // mutual-exclusion guarantee — a stale-copy bug would surface as
+      // a duplicate-instead-of-move on the next paste.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      // Copy `Production` first.
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('Copy'));
+      await tester.pumpAndSettle();
+
+      // Cut `Archive` next — overrides the clipboard slot.
+      await rightClickText(tester, 'Archive');
+      await tester.tap(find.text('Cut'));
+      await tester.pumpAndSettle();
+
+      // Right-click `Production` and paste — the explicit target is
+      // `Production`. The cut-pending branch on `Archive` fires
+      // `moveFolder('Archive', 'Production')` which under the fake's
+      // `renameFolder` rewrites the empty-folder slot from `Archive` to
+      // `Production/Archive`. `Production` itself + the session under
+      // it stay put — the cut only moves the clipboarded path.
+      await rightClickText(tester, 'Production');
+      expect(find.text('Paste'), findsOneWidget);
+      await tester.tap(find.text('Paste'));
+      await tester.pumpAndSettle();
+
+      // Production's own session row was not touched — only the cut
+      // target moved. (If the stale copy from before the cut had
+      // leaked through, the `Production` slot would have been
+      // duplicated under `Production/Production` instead.)
+      final s1 = fake.state.firstWhere((s) => s.id == 's1');
+      expect(s1.folder, 'Production');
+      // The cut routed `Archive` under the right-clicked `Production`.
+      // `Archive` no longer exists at root; the rewritten slot lives
+      // at `Production/Archive` (fake.renameFolder semantics).
+      expect(fake.emptyFolders.contains('Archive'), isFalse);
+      expect(fake.emptyFolders.contains('Production/Archive'), isTrue);
+    },
+  );
+
+  testWidgets(
+    'new folder dialog: Cancel before typing returns null and `addEmptyFolder` '
+    'is not called',
+    (tester) async {
+      // Contract — `_createFolder` early-returns on null or
+      // trimmed-empty results. The dialog's Cancel button pops with
+      // null; `addEmptyFolder` must not land on the mutator. Pins the
+      // cancel arm of the new-folder dialog — distinct from the
+      // rename-cancel test above because the create path joins the
+      // parent path differently and a regression here would silently
+      // emit an empty-named folder ("Production/").
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      final beforeFolders = Set<String>.of(fake.emptyFolders);
+
+      await rightClickText(tester, 'Production');
+      await tester.tap(find.text('New Folder'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // No mutation — the empty-folder set is identical to the snapshot.
+      expect(fake.emptyFolders, beforeFolders);
+    },
+  );
+
+  testWidgets(
+    'folder context menu — Paste row is hidden when the controller has no '
+    'clipboard entry (action surface follows disable-vs-hide)',
+    (tester) async {
+      // Contract — the Paste item is gated on
+      // `_ctrl.hasClipboardEntry`. CLAUDE.md's disable-vs-hide rule
+      // says action surfaces hide unusable entries (vs config surfaces
+      // which disable + explain); the context menu is an action
+      // surface, so a fresh controller without a copy / cut renders
+      // the menu without the Paste row at all. Pins the hide arm —
+      // without it, the user would see a dead "Paste" entry on first
+      // right-click.
+      await tester.pumpWidget(pumpPanel());
+      await tester.pumpAndSettle();
+
+      await rightClickText(tester, 'Production');
+      // Other vocabulary still present (sanity check the menu opened).
+      expect(find.text('Copy'), findsOneWidget);
+      // Paste row absent because the controller has no clipboard entry.
+      expect(find.text('Paste'), findsNothing);
+    },
+  );
 }

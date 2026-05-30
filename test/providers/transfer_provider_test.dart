@@ -349,16 +349,161 @@ void main() {
     });
   });
 
-  // The notifier's FRB-deep enqueue / cancel / refresh pipeline
-  // (`enqueueDownload`, `enqueueUpload`, `cancel`, `cancelAll`,
-  // `_doRefresh`, `_safeSnapshot`, `_displayName`) requires a real
-  // Rust transfer queue + a connected SFTP session — see
-  // `test/integration/transfer_queue_test.dart` for the end-to-end
-  // coverage. The state-machine transitions (queued → running →
-  // completed/failed/cancelled) are property-tested on the Rust
-  // side under `lfs_core::transfer`; the Dart side just mirrors
-  // the snapshot stream produced there. covered by integration:
-  // batch progress aggregation + cancel/retry semantics rely on
-  // worker-pool scheduling that the Dart-side fake cannot fake
-  // without re-implementing the Rust state machine.
+  group('TransfersNotifier — FRB-routed surfaces', () {
+    test('cancel on a never-enqueued id returns false — the FRB call routes '
+        'to the Rust registry which has no row for the id, so the operation '
+        'is idempotent (no-op on missing id)', () async {
+      // Spec: `TransfersNotifier.cancel` wraps `transferCancel`. The
+      // Rust side returns `false` when the id is not present in the
+      // registry. The notifier surfaces that as-is so a caller that
+      // races a cancel against a terminal task does not see a thrown
+      // exception. Pin the contract — a regression that converted
+      // the Rust `false` into a thrown error would crash the
+      // panel's per-row cancel button when the user clicked it on
+      // a task that had already completed.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(transfersProvider.notifier);
+      final cancelled = await notifier.cancel(
+        'no-such-id-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      expect(cancelled, isFalse);
+    });
+
+    test(
+      'deleteHistory on a list of unknown ids walks every id and never '
+      'throws — the per-id catch arm swallows the missing-row return',
+      () async {
+        // Spec: `deleteHistory(ids)` iterates and calls
+        // `transferDropTerminal` per id. The Rust call returns false
+        // for a missing id; the notifier loop continues. Pinning
+        // the contract that the loop's individual try/catch is the
+        // gate — without it, a Bulk-Clear of a stale id list would
+        // halt mid-iteration and leave the rest of the rows on
+        // disk.
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(transfersProvider.notifier);
+        await notifier.deleteHistory([
+          'ghost-a-${DateTime.now().microsecondsSinceEpoch}',
+          'ghost-b-${DateTime.now().microsecondsSinceEpoch}',
+        ]);
+        // No throw; subsequent state read still works.
+        expect(container.read(transfersProvider).history, isEmpty);
+      },
+    );
+
+    test('clearHistory on an empty registry returns without throwing — the '
+        'Rust side reports 0 dropped and the notifier carries on', () async {
+      // Spec: `clearHistory` wraps `transferClearHistory`. The FRB
+      // call returns the count of dropped rows; the notifier
+      // discards the count and only cares about the success arm.
+      // An empty registry reports 0; the call must not throw.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(transfersProvider.notifier);
+      await notifier.clearHistory();
+      // Re-read after clear — the snapshot stays empty + no
+      // exception surfaced.
+      expect(container.read(transferHistoryProvider), isEmpty);
+    });
+
+    test(
+      'cancelAll on an empty registry walks the empty snapshot without '
+      'firing any cancel — fire-and-forget contract on no-active-rows',
+      () async {
+        // Spec: `cancelAll` calls `_safeSnapshot` and walks every
+        // active entry. An empty registry yields an empty list;
+        // the cancel loop never iterates. The unawaited helper
+        // resolves without throwing so the panel's "Cancel all"
+        // button stays usable on a fresh app boot.
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(transfersProvider.notifier);
+        notifier.cancelAll();
+        // Drain microtasks so the unawaited `_cancelAllAsync` lands.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Still no active entries; no throw.
+        expect(container.read(activeTransfersProvider), isEmpty);
+      },
+    );
+
+    test(
+      'enqueueDownload on a non-existent connection-id still returns a '
+      'task id — the Rust queue accepts the row even when the SSH '
+      'session is unbound (the worker fails it later, asynchronously)',
+      () async {
+        // Spec: `enqueueDownload` mints a UUID v4 and forwards to
+        // `transferEnqueue`. The Rust side registers the row + lazy-
+        // inits the worker pool; the unbound session id will surface
+        // as a `TransferTaskError` event downstream, but the
+        // enqueue itself does not fail. Pinning the contract that
+        // the helper always returns an id — UI callers chain on
+        // the returned id for cancel / progress tracking, and a
+        // null / empty return would break the wiring on the very
+        // first transfer.
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(transfersProvider.notifier);
+        final id = await notifier.enqueueDownload(
+          connectionId:
+              'no-such-session-${DateTime.now().microsecondsSinceEpoch}',
+          name: 'remote.bin',
+          remotePath: '/srv/remote.bin',
+          localPath: '/tmp/remote.bin',
+          sizeBytes: 0,
+        );
+        expect(id, isNotEmpty);
+        // UUID v4 shape — same regex as session_recorder uses.
+        expect(
+          id,
+          matches(
+            RegExp(
+              r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-'
+              r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'enqueueUpload on a non-existent connection-id returns a fresh task '
+      'id distinct from the download path — every call mints a new UUID',
+      () async {
+        // Spec: `enqueueUpload` mirrors the download contract. Two
+        // back-to-back enqueues mint two distinct UUIDs (Uuid.v4()
+        // never collides in practice). Pin the id-uniqueness +
+        // upload-path return value.
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(transfersProvider.notifier);
+        final a = await notifier.enqueueUpload(
+          connectionId: 'no-session-a',
+          name: 'a.bin',
+          localPath: '/tmp/a.bin',
+          remotePath: '/srv/a.bin',
+        );
+        final b = await notifier.enqueueUpload(
+          connectionId: 'no-session-b',
+          name: 'b.bin',
+          localPath: '/tmp/b.bin',
+          remotePath: '/srv/b.bin',
+        );
+        expect(a, isNot(equals(b)));
+      },
+    );
+  });
+
+  // The state-machine transition mapping
+  // (queued → running → completed / failed / cancelled) plus the
+  // running entry's percent / message formatting + `_displayName`
+  // POSIX/Win basename normalisation route through `_doRefresh`,
+  // which only fires after a real `BusEvent_TransferTaskState` lands
+  // from the Rust worker pool. The end-to-end coverage lives in
+  // `test/integration/transfer_queue_test.dart`. The bus-subscribe
+  // catch (lines 92-93) protects against a missing AppBus singleton
+  // — a state the harness guarantees against by always loading FRB.
+  // covered by integration: worker-driven state mapping needs the
+  // full SSH/SFTP loopback which the unit harness does not spin up.
 }

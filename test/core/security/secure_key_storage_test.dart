@@ -235,6 +235,117 @@ void main() {
         anyOf(DbKeyringProbeResult.available, DbKeyringProbeResult.probeFailed),
       );
     });
+
+    test(
+      'isAvailable composes onto probe() — the absent marker (libsecret '
+      'gate fails) keeps Linux at "available" when reachability is '
+      'short-circuited but read paths gate the actual keychain hit',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: `isAvailable` is `(await probe()) == available`. With
+        // `probeSecretServiceReachability: false` the probe always
+        // returns `available` on Linux regardless of marker state —
+        // `isAvailable` must therefore return true even when the
+        // marker is absent. The marker only gates the read paths,
+        // not the wizard probe.
+        final storage = SecureKeyStorage(
+          marker: _InMemoryMarker(),
+          probeSecretServiceReachability: false,
+        );
+        expect(await storage.isAvailable(), isTrue);
+      },
+    );
+
+    test(
+      'writeKeyFromSecret with a missing secret does NOT lay down the Linux '
+      'marker — the gate must only flip on a successful keychain write',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: `writeKeyFromSecret` calls `_marker.set()` ONLY after
+        // the underlying Rust write succeeded. A regression that set
+        // the marker before the try block (or after the catch) would
+        // let a failed write strand the gate in the "ok to probe
+        // libsecret" state without an actual keychain entry behind
+        // it — re-introducing the stderr spam the marker exists to
+        // suppress.
+        final marker = _InMemoryMarker();
+        final storage = SecureKeyStorage(
+          marker: marker,
+          probeSecretServiceReachability: false,
+        );
+        final ok = await storage.writeKeyFromSecret(
+          'unit-test.unstaged.secret',
+        );
+        expect(ok, isFalse);
+        expect(await marker.exists(skipOnNonLinux: false), isFalse);
+      },
+    );
+
+    test(
+      'deleteBiometricKey leaves the Linux marker untouched — only deleteKey '
+      'is the cross-class cleanup point that clears the gate',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: per the class doc, `deleteBiometricKey` does not
+        // clear the marker because another class (`SecureKeyStorage`
+        // for the T1 DB key) may still hold an entry. Only the
+        // top-level `deleteKey` clears the gate. A regression that
+        // wired the biometric delete to the marker clear would let
+        // a tier flip wipe a still-valid Linux gate.
+        final marker = _InMemoryMarker(initialState: true);
+        final storage = SecureKeyStorage(
+          marker: marker,
+          probeSecretServiceReachability: false,
+        );
+        await storage.deleteBiometricKey();
+        expect(await marker.exists(skipOnNonLinux: false), isTrue);
+      },
+    );
+
+    test(
+      'readKeyToSecret short-circuits without ever calling the Rust path '
+      'when the Linux marker is absent — pure-Dart gate, no FRB hop',
+      () async {
+        if (!Platform.isLinux) return;
+        // Spec: the gate runs before the FRB call inside
+        // `readKeyToSecret`. With the marker absent the method must
+        // return false without invoking the Rust read at all. The
+        // observable: every call into the marker stand-in is
+        // accounted for, and the test completes synchronously enough
+        // that no FRB-bound delay surfaces.
+        final marker = _InMemoryMarker();
+        final storage = SecureKeyStorage(
+          marker: marker,
+          probeSecretServiceReachability: false,
+        );
+        final stopwatch = Stopwatch()..start();
+        final result = await storage.readKeyToSecret('any-secret-id');
+        stopwatch.stop();
+        expect(result, isFalse);
+        // Pure-Dart short-circuit: the gate alone should not take
+        // anywhere near the round-trip cost of an FRB call. Keep
+        // the bound loose so a busy CI runner doesn't flake.
+        expect(stopwatch.elapsed.inMilliseconds, lessThan(500));
+      },
+    );
+
+    test(
+      'DbKeyringProbeResult enum vocabulary covers the three observable '
+      'classifications surfaced to Settings — no silent variant additions',
+      () {
+        // Spec: the enum values drive the localized reason strings in
+        // Settings → Security; a new variant without a matching ARB
+        // key would render as a blank tooltip. Pin the value set so
+        // adding a fourth classification trips the test (and the
+        // engineer adds the corresponding string keys).
+        expect(DbKeyringProbeResult.values, hasLength(3));
+        expect(DbKeyringProbeResult.values.map((v) => v.name).toSet(), {
+          'available',
+          'linuxNoSecretService',
+          'probeFailed',
+        });
+      },
+    );
   });
 
   // Real keychain round-trip (write → read → delete) is covered by

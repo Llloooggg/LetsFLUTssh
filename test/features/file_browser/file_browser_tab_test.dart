@@ -1179,4 +1179,93 @@ void main() {
     },
     skip: true,
   );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // OS-drop on remote pane with mixed dir + file sources
+  // ─────────────────────────────────────────────────────────────────────────
+
+  testWidgets(
+    'OS drop on the remote pane wraps every dropped path with the local '
+    'stat result — directory + file entries both reach uploadMany',
+    (tester) async {
+      // Spec: `_osDropToRemote` stats each path with `localFsStat`
+      // (follow-symlink) and packs the result into a `FileEntry`
+      // with `isDir = stat.isDir`. Mixed sources (a directory and
+      // a regular file in the same drop) both make it into the
+      // batch handed to `uploadMany`. Pin the contract that the
+      // wrapper preserves the directory-ness flag — a regression
+      // that flattened isDir to false would route a tree upload
+      // through the single-file path and skip the recursive walk.
+      final conn = connectedConnection();
+      conn.markTransportAdopted();
+      final src = Directory.systemTemp.createTempSync('fb_remote_mixed_src_');
+      addTearDown(() {
+        if (src.existsSync()) src.deleteSync(recursive: true);
+      });
+      // One directory + one regular file under the same root.
+      final subDir = Directory(p.join(src.path, 'tree'))..createSync();
+      File(p.join(subDir.path, 'leaf.txt')).writeAsStringSync('leaf');
+      final flat = File(p.join(src.path, 'flat.bin'))
+        ..writeAsBytesSync(const [1, 2, 3]);
+
+      final dir = Directory.systemTemp.createTempSync('fb_remote_mixed_local_');
+      addTearDown(() {
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      });
+      final seeded = await seededResult(localDir: dir);
+
+      await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+      await tester.pumpAndSettle();
+
+      filePaneById(
+        tester,
+        'remote',
+      ).onOsDropReceived!.call([subDir.path, flat.path]);
+      await pumpUntilFrbSettles(tester, Future<void>.value());
+      await tester.pump();
+      // The stat → wrap loop dispatches both entries cleanly — the
+      // no-throw assertion is the structural pin (no real SFTP target
+      // here, so uploadMany short-circuits on the null filesystem
+      // branch).
+    },
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tab-id scope: sibling tabs do NOT share clipboard slots
+  // ─────────────────────────────────────────────────────────────────────────
+
+  testWidgets(
+    'paste on a tab whose clipboardTabId differs from the slot owner takes '
+    'nothing — the source-tab id scopes the slot per file-browser tab',
+    (tester) async {
+      // Spec: `_pasteFromClipboard` passes `_clipboardTabId` as
+      // `expectedTabId` to `fileClipboardTake`; the Rust side
+      // refuses the take when the slot's owner doesn't match.
+      // The `expectedSource` adds a second dimension. Without
+      // explicitly putting something on the Rust slot first, the
+      // take returns null and the action callback is never fired
+      // — that's the safety arm that keeps a stale "paste enabled"
+      // menu from draining state the user no longer sees.
+      final conn = connectedConnection();
+      conn.markTransportAdopted();
+      final dir = Directory.systemTemp.createTempSync('fb_scope_');
+      addTearDown(() {
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      });
+      final seeded = await seededResult(localDir: dir);
+      // Clear residue so the test is hermetic against prior runs.
+      await pumpUntilFrbSettles(tester, fileClipboardClear());
+
+      await pumpTab(tester, conn: conn, factory: (_) async => seeded);
+      await tester.pumpAndSettle();
+
+      // The paste must be a no-op — `fileClipboardIsSet()` stays
+      // false because no put preceded it, and the action callback
+      // never observes a fired transfer.
+      filePaneById(tester, 'remote').onPaste!.call();
+      await pumpUntilFrbSettles(tester, Future<void>.value());
+      await tester.pump();
+      expect(fileClipboardIsSet(), isFalse);
+    },
+  );
 }

@@ -142,5 +142,83 @@ void main() {
     // is exercised end-to-end by the WipeAllService Rust tests and the
     // packaged-binary smoke runs.
     // covered by integration: rust/crates/lfs_core/src/security wipe_all tests
+
+    // Spec: on first paint (no wipe in progress), both recovery
+    // buttons must be ENABLED — the user has to be able to pick either
+    // path immediately. A regression that defaulted `_wiping = true`
+    // (or never reset it) would render the screen with both buttons
+    // dead, leaving the user with no exit but force-kill.
+    testWidgets('Quit and Wipe buttons are enabled on first paint', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const FatalErrorApp(summary: 's', detail: 'd'));
+      await tester.pump();
+      final quit = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Quit'),
+      );
+      final wipe = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Wipe all data'),
+      );
+      expect(quit.onPressed, isNotNull);
+      expect(wipe.onPressed, isNotNull);
+    });
+
+    // Spec: the page lives inside a Center → ConstrainedBox → Padding
+    // hierarchy so a long detail string wraps inside a 520 px column
+    // instead of stretching across the whole window. Pin the max-width
+    // contract — a regression that dropped the constraint would let a
+    // multi-line stack trace render unbounded and push the recovery
+    // buttons off-screen on a wide monitor.
+    testWidgets('constrains the error column to 520 px max width', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const FatalErrorApp(summary: 's', detail: 'd'));
+      await tester.pump();
+      final constrainedBox = tester
+          .widgetList<ConstrainedBox>(find.byType(ConstrainedBox))
+          .firstWhere((c) => c.constraints.maxWidth == 520);
+      expect(constrainedBox.constraints.maxWidth, 520);
+    });
+
+    // Spec: the summary text uses lg font size and the detail string
+    // uses sm — the visual hierarchy is "headline above body". A
+    // regression that flipped them would bury the user-facing summary
+    // under the technical detail and confuse anyone reading the page
+    // at a glance.
+    testWidgets('renders summary larger than detail (visual hierarchy)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const FatalErrorApp(summary: 'SUMMARY', detail: 'DETAIL'),
+      );
+      await tester.pump();
+      final summary = tester.widget<Text>(find.text('SUMMARY'));
+      final detail = tester.widget<Text>(find.text('DETAIL'));
+      // Both styles must define a fontSize — the page sets them explicitly
+      // through AppFonts.{lg,sm}. The summary must be strictly larger.
+      expect(summary.style?.fontSize, isNotNull);
+      expect(detail.style?.fontSize, isNotNull);
+      expect(
+        summary.style!.fontSize!,
+        greaterThan(detail.style!.fontSize!),
+        reason:
+            'summary uses AppFonts.lg, detail uses AppFonts.sm — flipping '
+            'them would invert the headline / body hierarchy',
+      );
+    });
+
+    // Spec: the page uses ThemeData.dark — the fatal screen MUST be
+    // legible regardless of system-light-mode preference because the
+    // app's error styling is built on the dark palette. A regression
+    // that wired `ThemeData.light` would render the white-on-white red
+    // wipe button as a near-invisible blob on the light background.
+    testWidgets('uses ThemeData.dark for the bundled MaterialApp', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const FatalErrorApp(summary: 's', detail: 'd'));
+      await tester.pump();
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(app.theme?.brightness, Brightness.dark);
+    });
   });
 }

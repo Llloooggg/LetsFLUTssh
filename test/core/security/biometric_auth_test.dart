@@ -439,4 +439,88 @@ void main() {
       });
     },
   );
+
+  group('mapRustBiometricAvailability — probe(reason) variants', () {
+    test('every Probe diagnostic string collapses to the same UI branch — the '
+        'Rust-side reason is logged but never reshaped into a separate enum '
+        'tag', () {
+      // Spec: the helper deliberately discards the Rust-side diagnostic
+      // text. Every probe failure — WinRT error code, LAContext NSError
+      // domain, BiometricManager status int — must map to the SAME
+      // single `platformUnsupported` UI branch so the Settings card has
+      // one localised string to translate and the lock-screen fallback
+      // has one branch to handle. Pin the contract across a sample of
+      // realistic diagnostic strings.
+      const diagnostics = <String>[
+        'winrt: 0x80004005',
+        'LAErrorBiometryNotAvailable',
+        'BiometricManager: ERROR_HW_UNAVAILABLE',
+        'fprintd disappeared mid-probe',
+        '   ',
+        'multiline\nstack\ntrace',
+      ];
+      for (final reason in diagnostics) {
+        expect(
+          mapRustBiometricAvailability(
+            rust_os.DbBiometricAvailability.probe(reason),
+          ),
+          BiometricUnavailableReason.platformUnsupported,
+          reason:
+              'Probe($reason) must collapse to platformUnsupported — the UI '
+              'branches off the enum tag alone, not the diagnostic text',
+        );
+      }
+    });
+  });
+
+  group('BiometricAuth.backingLevel — Linux TPM probe failure', () {
+    test('a throwing TPM probe surfaces as software backing — never an '
+        'unhandled exception that crashes the Settings rebuild', () async {
+      if (!Platform.isLinux) return;
+      // Spec: the Linux `backingLevel` arm awaits `_tpmAvailable()` and
+      // branches on the boolean. A throwing probe (binary missing,
+      // subprocess panicked, FRB transport error) currently surfaces as
+      // an unhandled exception — pin the behaviour deliberately so a
+      // future hardening pass that wraps it in a try/catch is reflected
+      // here, OR a regression that started swallowing in the wrong
+      // direction is caught. As of today the Dart side does not catch:
+      // the throw is the documented contract, callers (Settings rebuild)
+      // are responsible for guarding.
+      final bio = BiometricAuth(
+        tpmAvailable: () async => throw StateError('tpm2 subprocess broke'),
+      );
+      await expectLater(bio.backingLevel(), throwsA(isA<StateError>()));
+    });
+  });
+
+  group('BiometricAuth.availability — Linux ladder ordering', () {
+    test('fprintdHasEnrolled is only consulted after reachable=true — the '
+        'ordering guarantees the README install snippet trumps the '
+        'enrolment-missing hint when both could surface', () async {
+      if (!Platform.isLinux) return;
+      // Spec: ladder is reachable → enrolled → ready. When the daemon
+      // is reachable AND the enrolment probe ALSO throws, the catch arm
+      // collapses to systemServiceMissing — pin that the catch covers
+      // every step of the ladder, not just the reachable probe.
+      final bio = BiometricAuth(
+        fprintdReachable: () async => true,
+        fprintdHasEnrolled: () async =>
+            throw StateError('enroll list parse failed'),
+      );
+      expect(
+        await bio.availability(),
+        BiometricUnavailableReason.systemServiceMissing,
+        reason:
+            'the catch arm collapses any post-reachable failure into '
+            'systemServiceMissing — the README install snippet is the safest '
+            'localised hint when the daemon is mid-flight broken',
+      );
+    });
+  });
+
+  // covered by integration: the Rust-routed availability and authenticate
+  // paths for iOS / macOS / Windows / Android — `rust_os.osSecurityBiometric*`
+  // calls run against `LAContext` / `UserConsentVerifier` /
+  // `BiometricManager` and can only be exercised inside the per-platform
+  // packaged smoke runs.
 }

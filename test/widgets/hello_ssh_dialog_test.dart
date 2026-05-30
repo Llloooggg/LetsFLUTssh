@@ -8,11 +8,15 @@ import 'package:letsflutssh/widgets/ssh_keys/hello_ssh_dialog.dart';
 /// reaching FRB; captures the last generate call so tests can pin
 /// what the wizard handed across the boundary.
 class _FakeBackend extends HelloBackend {
-  _FakeBackend({required this.probeResult, this.generateThrows = false})
-    : super();
+  _FakeBackend({
+    required this.probeResult,
+    this.generateThrows = false,
+    this.generateTier = rust_hello.DbHelloTpmTier.hardware,
+  }) : super();
 
   final rust_hello.DbHelloProbeResult probeResult;
   final bool generateThrows;
+  final rust_hello.DbHelloTpmTier generateTier;
   String? capturedLabel;
   rust_hello.DbHelloAlgo? capturedAlgo;
 
@@ -33,7 +37,7 @@ class _FakeBackend extends HelloBackend {
       keyId: 'hello-key-id',
       label: label,
       authorizedKeysLine: 'ecdsa-sha2-nistp256 AAAA... $label',
-      tier: rust_hello.DbHelloTpmTier.hardware,
+      tier: generateTier,
     );
   }
 }
@@ -237,5 +241,146 @@ void main() {
       );
       expect(find.text('Windows Hello'), findsOneWidget);
     });
+
+    testWidgets('renders without the optional credential-name line', (
+      tester,
+    ) async {
+      // Spec: `HelloBadge` accepts a nullable `credentialName`; the
+      // mono-styled CNG persistent-key row is appended only when the
+      // name is non-empty. Passing null must still build cleanly so
+      // the row-renderer in the key-manager (which routes through the
+      // shared badge) can render rows whose CNG name was not loaded yet.
+      await tester.pumpWidget(_wrap(const HelloBadge(label: 'Hello')));
+      expect(find.text('Hello'), findsOneWidget);
+    });
+  });
+
+  group('HelloSshDialog — deepening', () {
+    testWidgets(
+      'provider-unavailable probe surfaces both the localized title and the '
+      'transport-layer error tail returned by the FRB probe',
+      (tester) async {
+        // Spec: `_availabilityReason` concatenates the localized
+        // "Hello unavailable" line with the probe-returned detail when
+        // the variant is `ProviderUnavailable`. The disabled-with-reason
+        // arm of `buildConfigure` is the only place this string is
+        // assembled — pinning the tail confirms the branch routes
+        // through the variant-specific arm and not the generic Unsupported.
+        final backend = _FakeBackend(
+          probeResult: const rust_hello.DbHelloProbeResult.providerUnavailable(
+            'PCP provider not registered',
+          ),
+        );
+        await _open(tester, backend: backend);
+        expect(
+          find.textContaining('PCP provider not registered'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'generate button is disabled until the label field has a non-blank value',
+      (tester) async {
+        // Spec: `canGenerate` requires `_isAvailable && labelCtrl.text.trim()
+        // .isNotEmpty`. With an empty label, the primary CTA must
+        // render with `onTap: null` — pressing it does NOT call
+        // `runGenerateFlow`, so no generate call lands on the backend.
+        final backend = _FakeBackend(
+          probeResult: const rust_hello.DbHelloProbeResult.available(
+            tier: rust_hello.DbHelloTpmTier.hardware,
+          ),
+        );
+        await _open(tester, backend: backend);
+        final s = S.of(tester.element(find.byType(HelloSshDialog)));
+        // Tap with empty label; the CTA is disabled, so no generate
+        // fires. The captured-label/algo stay null.
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        expect(backend.capturedLabel, isNull);
+        expect(backend.capturedAlgo, isNull);
+      },
+    );
+
+    testWidgets(
+      'algorithm radio defaults to ECDSA P-256 and flipping to P-384 routes '
+      'that algo into the generate call',
+      (tester) async {
+        // Spec: the configure step renders three radio tiles; the
+        // `_algo` state defaults to `ecdsaP256`. Tapping the P-384
+        // radio flips `_algo`, which `runGenerate` then forwards as
+        // the `algo` argument on the backend call. Pins the radio →
+        // FRB argument plumbing distinct from the default-arm test.
+        final backend = _FakeBackend(
+          probeResult: const rust_hello.DbHelloProbeResult.available(
+            tier: rust_hello.DbHelloTpmTier.hardware,
+          ),
+        );
+        await _open(tester, backend: backend);
+        final s = S.of(tester.element(find.byType(HelloSshDialog)));
+        // Flip the algorithm radio to P-384.
+        await tester.tap(find.text(s.sshKeyHelloAlgorithmEcdsa384));
+        await tester.pumpAndSettle();
+        // Provide a label and fire generate.
+        await tester.enterText(find.byType(TextField).first, 'p384-key');
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        expect(backend.capturedAlgo, rust_hello.DbHelloAlgo.ecdsaP384);
+      },
+    );
+
+    testWidgets(
+      'completion arm for a software-KSP generated key surfaces the honest '
+      '"Software-gated" note above the authorized_keys box',
+      (tester) async {
+        // Spec: `buildComplete` checks the captured `_result.tier` —
+        // when `softwareKsp`, the orange note line is rendered above
+        // the authorized-keys box. Pins the completion arm of the
+        // tier conditional: the user must see the "this key is NOT
+        // TPM-backed" warning after the wizard finishes, even on the
+        // complete screen where they'd otherwise just see the
+        // authorized_keys line and assume hardware backing.
+        await _widenViewport(tester);
+        final backend = _FakeBackend(
+          probeResult: const rust_hello.DbHelloProbeResult.available(
+            tier: rust_hello.DbHelloTpmTier.softwareKsp,
+          ),
+          generateTier: rust_hello.DbHelloTpmTier.softwareKsp,
+        );
+        HelloSshResult? captured;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                onPressed: () async {
+                  captured = await HelloSshDialog.show(ctx, backend: backend);
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        // Provide a label and fire generate to move to the complete step.
+        await tester.enterText(find.byType(TextField).first, 'soft-key');
+        await tester.pumpAndSettle();
+        final s = S.of(tester.element(find.byType(HelloSshDialog)));
+        await tester.tap(find.text(s.sshKeyGenerateCta));
+        await tester.pumpAndSettle();
+        // Complete-arm renders the "Software-gated" note above the
+        // authorized_keys box. The captured tier flows back through
+        // the result on Close.
+        expect(
+          find.textContaining(s.helloSoftwareGatedWarning),
+          findsAtLeastNWidgets(1),
+        );
+        await tester.tap(find.text(s.close));
+        await tester.pumpAndSettle();
+        expect(captured, isNotNull);
+        expect(captured!.tier, rust_hello.DbHelloTpmTier.softwareKsp);
+      },
+    );
   });
 }

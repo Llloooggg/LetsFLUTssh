@@ -1094,6 +1094,61 @@ void main() {
       const b = Pkcs11FrbBackend();
       expect(b, isA<Pkcs11Backend>());
     });
+
+    test(
+      'Pkcs11ImportResult round-trips its constructor arguments — the wizard '
+      'returns this to the caller via Navigator.pop so the row labels in the '
+      'key-list panel match what the user typed',
+      () {
+        // Spec: `Pkcs11ImportResult` is a frozen tuple of (keyId, label).
+        // The caller-side `await Pkcs11ImportDialog.show` returns this
+        // straight through. Pin the field exposure — a regression that
+        // renamed the field would silently drop the label from the
+        // success toast.
+        const r = Pkcs11ImportResult(keyId: 'abc', label: 'My YubiKey');
+        expect(r.keyId, 'abc');
+        expect(r.label, 'My YubiKey');
+      },
+    );
+  });
+
+  group('Pkcs11ImportDialog — native picker fallback', () {
+    testWidgets(
+      'native FilePicker missing in tests → catch arm logs and returns null, '
+      'the wizard adds no row',
+      (tester) async {
+        // Spec: `_nativePickModule` wraps `FilePicker.pickFiles` in
+        // try/catch — `MissingPluginException` (the unit-test default
+        // when no platform plugin is registered) lands on the catch
+        // and returns null. The caller (`_pickCustomModule`) treats
+        // null the same as the user-dismissed branch: no row is
+        // added, no `loadModule` fires. Pinning the safety net — a
+        // regression that re-threw the platform exception would
+        // crash the wizard the moment the user tapped "Custom".
+        final backend = _RecordingBackend();
+        // No `pickModuleFile` seam → the dialog routes through
+        // `_nativePickModule` which lacks a platform handler in
+        // flutter_test and throws `MissingPluginException`.
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                onPressed: () => Pkcs11ImportDialog.show(ctx, backend: backend),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Custom module...'));
+        await tester.pumpAndSettle();
+        // Catch arm returned null → no probe fired, no row added.
+        expect(backend.loadedPaths, isEmpty);
+        // Still on the module step with the empty-state copy.
+        expect(find.textContaining('No PKCS#11 module found'), findsOneWidget);
+      },
+    );
   });
 
   group('Pkcs11ImportDialog — picker + probe extras', () {

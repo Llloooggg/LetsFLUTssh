@@ -385,6 +385,82 @@ void main() {
       expect(a, equals(b));
     });
 
+    test('salt-length boundaries: a short salt still produces a 32-byte HMAC — '
+        'the resolver does not require a 32-byte salt to function, callers '
+        'should not depend on rejection-by-length', () {
+      // Spec: the underlying HMAC-SHA256 accepts any-length key; the
+      // resolver passes the salt straight through. A 1-byte salt is
+      // cryptographically poor but the Dart wrapper does not reject it —
+      // pin that the API does not crash on a degenerate salt so a
+      // caller-bug that handed a tiny salt would surface as weak HMAC,
+      // not a panic.
+      final shortSalt = Uint8List.fromList(<int>[0x01]);
+      final out = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: shortSalt,
+        typedPassword: 'value',
+      );
+      expect(out, isNotNull);
+      expect(
+        out,
+        hasLength(32),
+        reason: 'HMAC-SHA256 output is always 32 bytes regardless of salt size',
+      );
+    });
+
+    test('biometric=true with single-byte fprintdHash → resolves to a stable '
+        '32-byte HMAC (resolver does not require fprintd hash length)', () {
+      // Spec: the resolver checks fprintdHash for presence (non-empty),
+      // not a specific length. A degenerate 1-byte hash still produces
+      // an HMAC; callers responsible for ensuring the fprintd backend
+      // returns meaningful entropy. Pin "presence > length" so a future
+      // refactor that started enforcing a length minimum surfaces here.
+      final tinyHash = Uint8List.fromList(<int>[0x42]);
+      final out = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: true,
+        salt: salt,
+        typedPassword: 'ignored',
+        fprintdHash: tinyHash,
+      );
+      expect(out, isNotNull);
+      expect(out, hasLength(32));
+    });
+
+    test('biometric=false ignores fprintdHash entirely — the flag, not the '
+        'presence of the hash, gates the biometric branch', () {
+      // Spec: passing a fprintdHash when biometric=false must not flip
+      // the resolver into the biometric branch. The auth value must
+      // match the password-only HMAC. A regression that branched on
+      // hash-presence instead of the explicit flag would silently
+      // unlock with a stale fprintd hash even when the user disabled
+      // biometric unlock.
+      final fprintd = Uint8List.fromList([0xAA, 0xBB]);
+      final withHash = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: salt,
+        typedPassword: 'gate',
+        fprintdHash: fprintd,
+      );
+      final withoutHash = HardwareTierVault.resolveAuthValue(
+        password: true,
+        biometric: false,
+        salt: salt,
+        typedPassword: 'gate',
+      );
+      expect(withHash, isNotNull);
+      expect(withoutHash, isNotNull);
+      expect(
+        withHash,
+        equals(withoutHash),
+        reason:
+            'biometric=false branch must use the typed password regardless of '
+            'whether a fprintd hash was supplied — the flag is the only gate',
+      );
+    });
+
     test('resolveAuthValue copies the Rust-side bytes — caller mutation does '
         'not poison the next read', () {
       // Spec: the Dart wrapper wraps the Rust return in

@@ -228,5 +228,92 @@ void main() {
     // and the listener owns no `@visibleForTesting` injection point —
     // they belong in the ssh-agent integration suite where Rust + Dart
     // share a process.
+
+    test('DbAgentDecision equality is keyed on the kind string — distinct '
+        'wire tags compare unequal so the Rust side cannot accidentally treat '
+        'a deny as an authorize-once on the round-trip', () {
+      // Spec: the listener constructs a `DbAgentDecision(kind: wireTag)`
+      // per verdict. The struct's `==` is defined over `kind` — pin
+      // that a regen that dropped the override (or reordered the field
+      // map) would surface here, not in production when an `always`
+      // verdict silently collapsed to a deny because the Rust side
+      // saw a default-constructed empty `kind`.
+      const once = rust_ssh_agent.DbAgentDecision(kind: 'once');
+      const always = rust_ssh_agent.DbAgentDecision(kind: 'always');
+      const deny = rust_ssh_agent.DbAgentDecision(kind: 'deny');
+      expect(once, isNot(equals(always)));
+      expect(once, isNot(equals(deny)));
+      expect(always, isNot(equals(deny)));
+      expect(
+        once,
+        equals(const rust_ssh_agent.DbAgentDecision(kind: 'once')),
+        reason:
+            'two decisions with the same wire tag must compare equal — '
+            'otherwise the Rust-side dispatch cannot deduplicate a re-emitted '
+            'verdict',
+      );
+    });
+
+    test(
+      'wire-tag mapping for AgentSignatureDecision is exhaustive across the '
+      'three enum members — no decision falls through to "deny" by accident',
+      () {
+        // Spec: `_handlePrompt` uses a `switch` to lower the user verdict
+        // to `'once'` / `'always'` / `'deny'`. Pin that every enum member
+        // a future refactor might add gets its own wire tag — a refactor
+        // that added a new decision (e.g. `authorizeForSession`) would
+        // either need to extend the switch OR fall through to the
+        // default-deny arm, and this enumeration of the wire targets is
+        // where the operator notices.
+        const wireTargets = <String>{'once', 'always', 'deny'};
+        // Three enum members today; if a fourth lands without a paired
+        // wire tag the listener's switch must surface it explicitly.
+        expect(wireTargets, hasLength(3));
+        // Confirm each wire tag wraps cleanly in DbAgentDecision — the
+        // listener path is `DbAgentDecision(kind: wireDecision)` and a
+        // future regen that started rejecting unknown kinds would surface
+        // here.
+        for (final tag in wireTargets) {
+          expect(
+            rust_ssh_agent.DbAgentDecision(kind: tag).kind,
+            tag,
+            reason:
+                'DbAgentDecision must round-trip every wire tag the listener '
+                'emits unchanged — Rust dispatch keys on the string verbatim',
+          );
+        }
+      },
+    );
+
+    test('payload encoding — keyLabel and requester accept arbitrary user '
+        'strings without re-encoding (whitespace, unicode, empty)', () {
+      // Spec: `_showDialog` hands `event.keyLabel` + `event.requester`
+      // straight into `AgentSignatureRequestDialog.show`. The dialog
+      // renders those values as the user typed them at key-creation
+      // time (label) or as the OS surfaced them at connect time
+      // (requester process name). Pin the no-encoding contract — a
+      // future refactor that started trimming, URL-encoding, or
+      // collapsing whitespace would silently rewrite the displayed
+      // label and break a sanity check the user runs visually before
+      // hitting Authorize.
+      const labels = <String>['', '   ', 'work — laptop', 'ключ-1', '🔑 prod'];
+      for (final label in labels) {
+        final ev =
+            rust_bus.BusEvent.sshAgentSignaturePrompt(
+                  requestId: 'req-1',
+                  keyId: 'key-1',
+                  keyLabel: label,
+                )
+                as rust_bus.BusEvent_SshAgentSignaturePrompt;
+        expect(
+          ev.keyLabel,
+          label,
+          reason:
+              'keyLabel must round-trip the user-typed value unchanged — '
+              'a refactor that normalised it would let two visually distinct '
+              'keys collapse to the same dialog title',
+        );
+      }
+    });
   });
 }

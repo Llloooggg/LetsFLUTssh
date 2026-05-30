@@ -565,5 +565,186 @@ void main() {
       expect(ok, isFalse);
       expect(manager.downloads, isEmpty);
     });
+
+    test(
+      'download-conflict on existing local symlink target is hard-rejected — '
+      'no resolver prompt, no enqueue, the symlinked target is never '
+      'overwritten via the link',
+      () async {
+        // Spec: `_resolveDownloadConflict` checks the snapshot's
+        // isSymlink flag BEFORE invoking the resolver. The symlink
+        // arm short-circuits with a logged warning and returns
+        // null so the helper bails — without this, a hostile
+        // pre-existing symlink at `<dst>/x` would resolve into
+        // /etc and the SFTP download would silently overwrite
+        // outside the user's chosen directory.
+        if (Platform.isWindows) return;
+        final manager = _CapturingTransfersNotifier();
+        final fs = _RecordingFs();
+        var resolverCalls = 0;
+        final resolver = BatchConflictResolver((
+          path, {
+          bool isRemote = false,
+        }) async {
+          resolverCalls++;
+          return const ConflictDecision(ConflictAction.replace);
+        });
+        addTearDown(resolver.dispose);
+
+        final tmpDir = await Directory.systemTemp.createTemp(
+          'lfs-transfer-helpers-symlink-',
+        );
+        addTearDown(() async {
+          if (await tmpDir.exists()) {
+            await tmpDir.delete(recursive: true);
+          }
+        });
+        // A real symlink target outside `tmpDir` — what a hostile
+        // pre-existing link could otherwise redirect the download
+        // into.
+        final outside = File('${tmpDir.path}/outside.bin')
+          ..writeAsBytesSync(const [9, 9, 9]);
+        final linkPath = '${tmpDir.path}/link.bin';
+        Link(linkPath).createSync(outside.path);
+
+        final entry = FileEntry(
+          name: 'link.bin',
+          path: '/remote/link.bin',
+          size: 0,
+          modTime: DateTime(2026, 5, 16),
+          isDir: false,
+        );
+        final ok = await TransferHelpers.enqueueDownload(
+          manager: manager,
+          remoteFs: fs,
+          connectionId: 'conn-1',
+          entry: entry,
+          localDirPath: tmpDir.path,
+          localCtrl: null,
+          conflictResolver: resolver,
+        );
+
+        expect(ok, isFalse);
+        expect(resolverCalls, 0, reason: 'symlink check fires before prompt');
+        expect(manager.downloads, isEmpty);
+        // The link target file outside is untouched.
+        expect(outside.readAsBytesSync(), const [9, 9, 9]);
+      },
+    );
+
+    test('download-conflict replace path detects a mid-prompt target change '
+        'and aborts the enqueue — the second snapshot does not match the '
+        'first so the helper refuses to overwrite', () async {
+      // Spec: `_resolveDownloadConflict.replace` arm re-snapshots
+      // the local target after the user confirms. When size /
+      // mtime / type drifted between the probe and the confirm
+      // (TOCTOU race window where a different process replaced
+      // the file), the helper aborts without enqueueing. Pin
+      // the safety contract — a regression that skipped the
+      // re-snapshot would let the download overwrite a freshly
+      // written file the user did not intend to clobber.
+      if (Platform.isWindows) return;
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-toctou-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      final existing = File('${tmpDir.path}/race.bin');
+      await existing.writeAsBytes(const [1, 2, 3]);
+
+      // The resolver mutates the file before returning Replace.
+      // `_resolveDownloadConflict` re-snapshots after the resolver
+      // returns; the new (larger + later-mtime) file fails the
+      // `_localSnapshotsMatch` check.
+      final resolver = BatchConflictResolver((
+        path, {
+        bool isRemote = false,
+      }) async {
+        // Race window — overwrite with a larger payload + bump
+        // mtime so the size or mtime differ from the pre-prompt
+        // snapshot.
+        await existing.writeAsBytes(const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        // Drift the mtime explicitly — relying on writeAsBytes
+        // landing in a new nanosecond grain is flaky on tmpfs.
+        final later = DateTime.now().add(const Duration(seconds: 5));
+        await existing.setLastModified(later);
+        return const ConflictDecision(ConflictAction.replace);
+      });
+      addTearDown(resolver.dispose);
+
+      final entry = FileEntry(
+        name: 'race.bin',
+        path: '/remote/race.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        conflictResolver: resolver,
+      );
+
+      expect(ok, isFalse);
+      expect(manager.downloads, isEmpty);
+    });
+
+    test('enqueueDownload with no conflictResolver forwards the original '
+        'localPath untouched — no resolver = no rename even when the file '
+        'exists, the caller is on the hook for the overwrite policy', () async {
+      // Spec: `enqueueDownload` consults the resolver ONLY when one
+      // is provided; the no-resolver branch trusts the caller's
+      // path verbatim. Pinning the unconditional-overwrite contract
+      // — the SCP-style "drag drop without dialog" path relies on
+      // this to land bytes at the picked target without surfacing
+      // a prompt. A regression that injected an implicit resolver
+      // would block silent drops on collisions.
+      final manager = _CapturingTransfersNotifier();
+      final fs = _RecordingFs();
+      final tmpDir = await Directory.systemTemp.createTemp(
+        'lfs-transfer-helpers-noresolver-',
+      );
+      addTearDown(() async {
+        if (await tmpDir.exists()) {
+          await tmpDir.delete(recursive: true);
+        }
+      });
+      // Pre-existing local file — a regression that injected a
+      // resolver would short-circuit here, the no-resolver branch
+      // ignores it.
+      final existing = File('${tmpDir.path}/dup.bin');
+      await existing.writeAsBytes(const [0, 0, 0]);
+
+      final entry = FileEntry(
+        name: 'dup.bin',
+        path: '/remote/dup.bin',
+        size: 16,
+        modTime: DateTime(2026, 5, 16),
+        isDir: false,
+      );
+      final ok = await TransferHelpers.enqueueDownload(
+        manager: manager,
+        remoteFs: fs,
+        connectionId: 'conn-1',
+        entry: entry,
+        localDirPath: tmpDir.path,
+        localCtrl: null,
+        // intentionally no conflictResolver
+      );
+
+      expect(ok, isTrue);
+      expect(manager.downloads, hasLength(1));
+      // Original local path landed verbatim — no rename, no skip.
+      expect(manager.downloads.first['localPath'], '${tmpDir.path}/dup.bin');
+    });
   });
 }
