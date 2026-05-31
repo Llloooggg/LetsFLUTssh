@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "Identifiant",
   "protocol": "Protocole",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Type",
   "folder": "Dossier",
   "nSubitems": "{count, plural, =0{0 élément} =1{1 élément} other{{count} éléments}}",

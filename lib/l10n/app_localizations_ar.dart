@@ -1455,6 +1455,12 @@ class SAr extends S {
   String get protocol => 'البروتوكول';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'النوع';
 
   @override

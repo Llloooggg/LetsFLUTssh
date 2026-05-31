@@ -4469,7 +4469,8 @@ class FilePaneController extends ChangeNotifier {
 | File | Class | Purpose |
 |------|-------|---------|
 | `session_panel.dart` | `SessionPanel` | Sidebar: tree view + search + actions + bulk select. Header has "New Folder" and "New Connection" buttons. State (multi-select, focus, marquee, clipboard) lives on `SessionPanelController`; the widget is wired through `AnimatedBuilder`. Build / lifecycle / shortcut bindings / bulk-ops / sidebar layout in this file; per-section helpers in part siblings (`session_panel_widgets`, `session_panel_session_actions`, `session_panel_folder_actions`). |
-| `session_panel_widgets.dart` | — | Static helper widgets (`_PanelHeader`, `_SearchBar`, `_EmptyState`, `_SessionDetailsPanel`, `_DetailRow`, `_SidebarFooter`). Pure StatelessWidget extraction. |
+| `session_panel_widgets.dart` | — | Helper widgets (`_PanelHeader`, `_SearchBar`, `_EmptyState`, `_SessionDetailsPanel`, `_DetailRow`, `_SidebarFooter`). Mostly StatelessWidget extraction; `_SessionDetailsPanel` is the one `StatefulWidget` — it fetches the focused WebDAV / S3 session's transport tuple async (see [Session details panel](#session-details-panel) below). |
+| `session_details_rows.dart` | `sessionDetailRows` | Pure presentation slice: maps a focused `Session` (+ the async-fetched `DbWebDavSessionDetails` / `DbS3SessionDetails`) to the ordered `(label, value)` rows the details panel renders. No Flutter widgets, no FRB calls — unit-tested directly. |
 | `session_panel_session_actions.dart` | — (`extension _SessionActions`) | Per-session context menu (desktop) / bottom sheet (mobile) + add / edit / move / dialog wrappers + `_confirmDelete`. |
 | `session_panel_folder_actions.dart` | — (`extension _FolderActions`) | Per-folder context menu / bottom sheet + create / rename / delete folder + folder-name input dialog. |
 | `session_panel_controller.dart` | `SessionPanelController` | Headless `ChangeNotifier` holding the panel's selection set, focused session / folder, marquee progress, and copied-session clipboard. Same pattern as [`FilePaneController`](#filepanecontroller) |
@@ -4504,6 +4505,14 @@ class SessionConnect {
   }
 }
 ```
+
+#### Session details panel
+
+The read-only properties panel pinned below the tree (desktop only) shows the focused session's transport at a glance. `_SessionDetailsPanel` holds the focus-time state; `sessionDetailRows` (in `session_details_rows.dart`) is the pure row picker it calls each build.
+
+- **SSH renders synchronously.** Host / login / port live on the in-memory `Session` row (mirrored off `ssh_session_details` at load), so the SSH branch needs no fetch — rows are `Name · Host · Login · Protocol · Port`.
+- **WebDAV / S3 fetch async.** Their transport tuple lives only on the `webdav_session_details` / `s3_session_details` join tables, never on the in-memory `Session`. The panel calls `dbWebdavSessionDetailsGet` / `dbS3SessionDetailsGet` keyed on the focused id and fills the rows once the result lands: WebDAV → `Name · Base URL · Login · Protocol`; S3 → `Name · Endpoint · Region · Bucket · Prefix · Protocol`. Empty optional fields (an AWS-default empty endpoint, an unset prefix) drop their row rather than render blank, so a half-configured session shows only what it has. Secrets (`password` / `secret_access_key`) and the trusted-cert PEM are never fetched here — they don't cross FRB on read.
+- **Two refresh triggers, no caching.** `didUpdateWidget` re-fetches when the focused id / kind changes (focus moved — the previous session's details are cleared first so they can't flash under the new name); a `BusTopic.sessions` subscription re-fetches on every `SessionsChanged` (the edit dialog just saved new transport details for the still-focused session). A monotonic fetch token drops late results from a focus that has already moved on. Nothing is held past the current focus — Rust stays the source of truth, matching the "don't cache Rust-owned data in Dart" rule.
 
 #### Session panel input model
 

@@ -177,7 +177,14 @@ while IFS=$'\t' read -r SHA MSG; do
   DEPBOT_SKIP=false
   if echo "$MSG" | grep -qE '^(build|fix|refactor|perf|security)(\([a-z0-9_-]+\))?: bump |^Bump .+ from .+ to '; then
     BODY=$(git log -1 --format='%b' "$SHA" 2>/dev/null || true)
-    DEP_NAME=$(echo "$BODY" | grep -oE '^[[:space:]]*-?[[:space:]]*dependency-name:[[:space:]]*[^[:space:]]+' | head -1 | sed 's/.*dependency-name:[[:space:]]*//')
+    # A hand-authored dep bump (or any `build(deps): bump …` without
+    # Dependabot's body trailer) has no `dependency-name:` line, so the
+    # grep legitimately matches nothing. Under `set -o pipefail` that
+    # makes the whole substitution exit non-zero and `set -e` aborts —
+    # `|| true` keeps DEP_NAME empty, which the `[ -n "$DEP_NAME" ]`
+    # guards below already treat as "no trailer → fall through to the
+    # type-based bump".
+    DEP_NAME=$(echo "$BODY" | grep -oE '^[[:space:]]*-?[[:space:]]*dependency-name:[[:space:]]*[^[:space:]]+' | head -1 | sed 's/.*dependency-name:[[:space:]]*//' || true)
     if [ -n "$DEP_NAME" ] && echo "$DEP_NAME" | grep -q '/'; then
       DEPBOT_SKIP=true
     elif echo "$BODY" | grep -qE '^[[:space:]]*dependency-type:[[:space:]]*indirect\b'; then

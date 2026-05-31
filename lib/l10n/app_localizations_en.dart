@@ -1482,6 +1482,12 @@ class SEn extends S {
   String get protocol => 'Protocol';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Type';
 
   @override

@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "Đăng nhập",
   "protocol": "Giao thức",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Loại",
   "folder": "Thư mục",
   "nSubitems": "{count} mục",

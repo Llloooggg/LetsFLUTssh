@@ -460,6 +460,8 @@
   "errWithCause": "{error}（{cause}）",
   "login": "用户名",
   "protocol": "协议",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "类型",
   "folder": "文件夹",
   "nSubitems": "{count} 个项目",

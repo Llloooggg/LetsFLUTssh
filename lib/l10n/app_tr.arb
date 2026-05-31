@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "Kullanıcı adı",
   "protocol": "Protokol",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Tür",
   "folder": "Klasör",
   "nSubitems": "{count} öğe",

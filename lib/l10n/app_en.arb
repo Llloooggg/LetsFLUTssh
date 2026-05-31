@@ -888,6 +888,8 @@
   },
   "login": "Login",
   "protocol": "Protocol",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Type",
   "folder": "Folder",
   "nSubitems": "{count, plural, =0{0 items} =1{1 item} other{{count} items}}",

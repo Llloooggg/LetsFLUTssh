@@ -460,6 +460,8 @@
   "errWithCause": "{error}（{cause}）",
   "login": "ログイン",
   "protocol": "プロトコル",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "タイプ",
   "folder": "フォルダー",
   "nSubitems": "{count} 個のアイテム",

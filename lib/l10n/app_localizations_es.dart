@@ -1504,6 +1504,12 @@ class SEs extends S {
   String get protocol => 'Protocolo';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Tipo';
 
   @override

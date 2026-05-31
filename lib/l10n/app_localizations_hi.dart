@@ -1447,6 +1447,12 @@ class SHi extends S {
   String get protocol => 'प्रोटोकॉल';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'प्रकार';
 
   @override

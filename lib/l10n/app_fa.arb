@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "نام کاربری",
   "protocol": "پروتکل",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "نوع",
   "folder": "پوشه",
   "nSubitems": "{count} مورد",
