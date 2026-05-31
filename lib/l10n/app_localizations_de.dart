@@ -1503,6 +1503,12 @@ class SDe extends S {
   String get protocol => 'Protokoll';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Typ';
 
   @override

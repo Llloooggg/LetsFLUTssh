@@ -1410,6 +1410,12 @@ class SZh extends S {
   String get protocol => '协议';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => '类型';
 
   @override

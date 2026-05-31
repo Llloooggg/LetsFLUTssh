@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/bus/app_bus.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../widgets/core/shortcut_registry.dart';
@@ -10,6 +13,7 @@ import '../../providers/session_provider.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import '../../widgets/core/app_bordered_box.dart';
 import '../../widgets/core/app_dialog.dart';
 import '../../widgets/core/app_divider.dart';
@@ -23,6 +27,7 @@ import '../../widgets/core/status_indicator.dart';
 import '../workspace/workspace_controller.dart';
 import '../workspace/workspace_node.dart';
 import '../tags/tag_assign_dialog.dart';
+import 'session_details_rows.dart';
 import 'session_edit_dialog.dart';
 import 'session_panel_controller.dart';
 import 'session_save_persistence.dart';

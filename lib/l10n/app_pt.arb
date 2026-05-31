@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "Login",
   "protocol": "Protocolo",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Tipo",
   "folder": "Pasta",
   "nSubitems": "{count, plural, =0{0 itens} =1{1 item} other{{count} itens}}",

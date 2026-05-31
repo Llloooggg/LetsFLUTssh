@@ -1417,6 +1417,12 @@ class SJa extends S {
   String get protocol => 'プロトコル';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'タイプ';
 
   @override

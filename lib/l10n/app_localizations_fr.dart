@@ -1510,6 +1510,12 @@ class SFr extends S {
   String get protocol => 'Protocole';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Type';
 
   @override

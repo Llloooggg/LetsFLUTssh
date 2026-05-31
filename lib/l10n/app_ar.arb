@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "تسجيل الدخول",
   "protocol": "البروتوكول",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "النوع",
   "folder": "المجلد",
   "nSubitems": "{count} عنصر",

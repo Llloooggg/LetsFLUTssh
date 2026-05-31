@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "लॉगिन",
   "protocol": "प्रोटोकॉल",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "प्रकार",
   "folder": "फ़ोल्डर",
   "nSubitems": "{count} आइटम",

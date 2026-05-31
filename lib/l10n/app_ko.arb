@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "로그인",
   "protocol": "프로토콜",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "유형",
   "folder": "폴더",
   "nSubitems": "{count}개 항목",

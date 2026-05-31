@@ -2643,6 +2643,18 @@ abstract class S {
   /// **'Protocol'**
   String get protocol;
 
+  /// No description provided for @bucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Bucket'**
+  String get bucket;
+
+  /// No description provided for @prefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefix'**
+  String get prefix;
+
   /// No description provided for @typeLabel.
   ///
   /// In en, this message translates to:

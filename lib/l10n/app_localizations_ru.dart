@@ -1459,6 +1459,12 @@ class SRu extends S {
   String get protocol => 'Протокол';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Тип';
 
   @override

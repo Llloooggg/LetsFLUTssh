@@ -1440,6 +1440,12 @@ class SFa extends S {
   String get protocol => 'پروتکل';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'نوع';
 
   @override

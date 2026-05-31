@@ -1442,6 +1442,12 @@ class SVi extends S {
   String get protocol => 'Giao thức';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Loại';
 
   @override

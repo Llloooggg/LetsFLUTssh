@@ -1447,6 +1447,12 @@ class STr extends S {
   String get protocol => 'Protokol';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => 'Tür';
 
   @override

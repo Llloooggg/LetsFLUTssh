@@ -74,6 +74,14 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 - SSH sessions show a terminal glyph; WebDAV sessions show a cloud outline; S3 sessions show a bucket-shaped inventory outline. The icon colour still tracks connection state (green = connected, yellow = connecting, faint = disconnected) — only the shape changes between protocols.
 
+### Details panel
+
+- The panel pinned below the session tree (desktop) shows the focused session's transport at a glance — no need to open the edit dialog to check where a row points.
+- **SSH:** name, host, login, protocol, port.
+- **WebDAV:** name, base URL, login, protocol.
+- **S3:** name, endpoint, region, bucket, prefix, protocol. Fields you left blank (an empty endpoint for plain AWS, an unset prefix) are simply omitted.
+- Passwords, secret keys, and trusted certificates are never shown here. Right-click any row to copy its value.
+
 ### Drag-and-drop
 
 - Drag a session onto another folder / the root area.

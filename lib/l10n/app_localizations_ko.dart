@@ -1415,6 +1415,12 @@ class SKo extends S {
   String get protocol => '프로토콜';
 
   @override
+  String get bucket => 'Bucket';
+
+  @override
+  String get prefix => 'Prefix';
+
+  @override
   String get typeLabel => '유형';
 
   @override

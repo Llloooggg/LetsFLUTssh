@@ -460,6 +460,8 @@
   "errWithCause": "{error} ({cause})",
   "login": "Логин",
   "protocol": "Протокол",
+  "bucket": "Bucket",
+  "prefix": "Prefix",
   "typeLabel": "Тип",
   "folder": "Папка",
   "nSubitems": "{count} элемент(ов)",

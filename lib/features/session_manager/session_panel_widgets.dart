@@ -172,7 +172,19 @@ class _EmptyState extends StatelessWidget {
 
 /// Properties panel shown below the session tree on desktop.
 /// Displays details of the selected session or folder.
-class _SessionDetailsPanel extends StatelessWidget {
+///
+/// SSH details (host / login / port) sit on the in-memory [Session]
+/// row, so they render synchronously. WebDAV and S3 keep their
+/// transport tuple on a join table — this widget fetches it async via
+/// FRB ([rust_db.dbWebdavSessionDetailsGet] /
+/// [rust_db.dbS3SessionDetailsGet]) keyed on the focused session id,
+/// re-fetching when focus moves (a new id / kind) or when a
+/// [BusEvent.sessionsChanged] lands (the edit dialog saved new
+/// transport details for the same focused session). The fetched
+/// details are never cached past the current focus — Rust stays the
+/// source of truth, and a stale focus token / unmount drops late
+/// results.
+class _SessionDetailsPanel extends StatefulWidget {
   final Session? session;
   final String? folderPath;
   final int folderItemCount;
@@ -183,28 +195,84 @@ class _SessionDetailsPanel extends StatelessWidget {
     this.folderItemCount = 0,
   });
 
-  /// Build the per-kind detail rows. SSH carries the host /
-  /// login / port tuple on the in-memory row; WebDAV and S3
-  /// keep their transport details on the matching join table
-  /// (the dialog edit flow fetches them async) — the panel
-  /// shows the protocol tag and the label so it does not
-  /// surface stale empty rows for those kinds.
-  List<(String, String)> _rowsForSession(Session s, S l10n) {
-    final name = s.label.isNotEmpty ? s.label : s.displayName;
-    switch (s.kind) {
-      case SessionKind.webdav:
-        return [(l10n.name, name), (l10n.protocol, 'WebDAV')];
-      case SessionKind.s3:
-        return [(l10n.name, name), (l10n.protocol, 'S3')];
-      case SessionKind.ssh:
-        return [
-          (l10n.name, name),
-          (l10n.host, s.host),
-          (l10n.login, s.user),
-          (l10n.protocol, 'SSH'),
-          (l10n.port, s.port.toString()),
-        ];
+  @override
+  State<_SessionDetailsPanel> createState() => _SessionDetailsPanelState();
+}
+
+class _SessionDetailsPanelState extends State<_SessionDetailsPanel> {
+  rust_db.DbWebDavSessionDetails? _webdav;
+  rust_db.DbS3SessionDetails? _s3;
+
+  /// Monotonic guard so a slow fetch for a session that lost focus
+  /// before its FRB call returned can't overwrite the current one.
+  int _fetchToken = 0;
+
+  StreamSubscription<BusEvent>? _busSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // `BusTopic.sessions` carries only `SessionsChanged`, so any event
+    // on it means session/detail state moved — re-fetch the focused
+    // session's transport tuple in case the edit dialog just saved it.
+    _busSub = AppBus.instance
+        .subscribe(BusTopic.sessions)
+        .listen((_) => _fetchDetails());
+    _fetchDetails();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SessionDetailsPanel old) {
+    super.didUpdateWidget(old);
+    final oldSession = old.session;
+    final newSession = widget.session;
+    if (oldSession?.id != newSession?.id ||
+        oldSession?.kind != newSession?.kind) {
+      // Focus moved — drop the previous session's details so its rows
+      // never flash under the new session's name, then load afresh.
+      _webdav = null;
+      _s3 = null;
+      _fetchDetails();
     }
+  }
+
+  /// Load the async transport tuple for the focused WebDAV / S3
+  /// session. SSH and folders carry everything they need synchronously
+  /// so they no-op here. A pre-FRB callsite (cold start) or a missing
+  /// row throws / returns null — caught and logged, leaving the panel
+  /// on name + protocol.
+  Future<void> _fetchDetails() async {
+    final s = widget.session;
+    final token = ++_fetchToken;
+    if (s == null) return;
+    try {
+      switch (s.kind) {
+        case SessionKind.webdav:
+          final d = await rust_db.dbWebdavSessionDetailsGet(sessionId: s.id);
+          if (!mounted || token != _fetchToken) return;
+          setState(() => _webdav = d);
+        case SessionKind.s3:
+          final d = await rust_db.dbS3SessionDetailsGet(sessionId: s.id);
+          if (!mounted || token != _fetchToken) return;
+          setState(() => _s3 = d);
+        case SessionKind.ssh:
+          return;
+      }
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'Session details panel fetch failed',
+        name: 'SessionPanel',
+        error: e,
+        stackTrace: st,
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _busSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -213,15 +281,19 @@ class _SessionDetailsPanel extends StatelessWidget {
     final theme = Theme.of(context);
 
     final List<(String, String)> rows;
-    if (session != null) {
-      final s = session!;
-      rows = _rowsForSession(s, l10n);
-    } else if (folderPath != null && folderPath!.isNotEmpty) {
-      final folderName = folderPath!.split('/').last;
+    if (widget.session != null) {
+      rows = sessionDetailRows(
+        session: widget.session!,
+        l10n: l10n,
+        webdav: _webdav,
+        s3: _s3,
+      );
+    } else if (widget.folderPath != null && widget.folderPath!.isNotEmpty) {
+      final folderName = widget.folderPath!.split('/').last;
       rows = [
         (l10n.name, folderName),
         (l10n.typeLabel, l10n.folder),
-        (l10n.subitems, l10n.nSubitems(folderItemCount)),
+        (l10n.subitems, l10n.nSubitems(widget.folderItemCount)),
       ];
     } else {
       return const SizedBox.shrink();
