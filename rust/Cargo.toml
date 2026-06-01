@@ -124,7 +124,7 @@ argon2 = "0.5"
 # ship OpenSSL out of the box, broken everywhere else. Same PRAGMA key
 # wire format on both variants; flipping the feature is transparent
 # to the encrypted-DB on disk.
-rusqlite = { version = "0.31", default-features = false, features = [
+rusqlite = { version = "0.40", default-features = false, features = [
     "bundled-sqlcipher-vendored-openssl",
 ] }
 # No async wrapper — DB calls run on `tokio::task::spawn_blocking`
