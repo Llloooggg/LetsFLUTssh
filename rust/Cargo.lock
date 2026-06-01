@@ -2437,7 +2437,7 @@ dependencies = [
  "secret-service",
  "security-framework",
  "security-framework-sys",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "subtle",
  "tempfile",
  "thiserror 2.0.18",

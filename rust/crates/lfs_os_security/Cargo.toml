@@ -47,7 +47,7 @@ thiserror = { workspace = true }
 # iOS terminal copies arm the same gate), so the dep lives in
 # the cross-target list. Workspace pin keeps a single source of
 # truth for the version.
-sha2 = "0.10"
+sha2 = "0.11"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
