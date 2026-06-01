@@ -141,7 +141,7 @@ serde_json = "1"
 # = false` drops `flate2`/`bzip2` etc. — we only ever write Stored
 # (uncompressed) entries; AES-GCM after the ZIP makes deflate redundant
 # and pulling flate2 would balloon binary size for no win.
-zip = { version = "2", default-features = false }
+zip = { version = "8", default-features = false }
 # Deflate compression for the QR export payload. The Dart side
 # wraps the UTF-8 JSON in `Deflate(...).getBytes()` then base64url-
 # encodes it. The Rust QR orchestrator mirrors that exactly so the
