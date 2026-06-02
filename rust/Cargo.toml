@@ -60,7 +60,7 @@ log = { version = "0.4", features = ["std"] }
 russh = { version = "0.61", default-features = false, features = ["flate2", "ring", "rsa"] }
 # russh's forked ssh-key crate. russh pulls it transitively (the
 # `internal-russh-forked-` prefix is the upstream's choice — pin
-# matches the exact version russh 0.60 resolves to). We re-declare
+# matches the exact version russh 0.61 resolves to). We re-declare
 # it as a direct dep only to flip on the `ppk` feature, which
 # russh itself does not re-export. Same crate, same version —
 # Cargo unions the feature set, no duplicate compile.

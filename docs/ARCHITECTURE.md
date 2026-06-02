@@ -1482,7 +1482,7 @@ sequenceDiagram
 
 Persistence: `db::ssh_keys` carries three FIDO2 columns (`credential_id BLOB`, `application_string TEXT`, `has_user_verification INTEGER`). Software keys leave the columns NULL / 0; `sk-*` rows populate all three at import. The row's `key_type` short tag is `sk-ed25519` or `sk-ecdsa-p256`; the connect dispatch maps these back to `ssh_key::Algorithm::SkEd25519` / `SkEcdsaSha2NistP256` through `ssh::sk::algorithm_from_key_type`.
 
-Wire format: the `FidoSigner` impl of russh's `Signer` (publicly re-exported at the crate root in `russh = "0.59"`, see `russh/src/lib_inner.rs`) SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in. The signer impl lives at `lfs_core::ssh::sk_signer::FidoSigner`; the shared byte-layout helpers (mpint encoding, ECDSA DER → SSH mpint, public-key blob construction) live at `lfs_core::ssh::wire` so subsequent hardware-bound `Signer` impls (PKCS#11, TPM 2.0, Apple Secure Enclave, Windows NCrypt, Android Hardware Keystore) reuse them — see [Hardware-bound SSH signer wire helpers](#hardware-bound-ssh-signer-wire-helpers) below.
+Wire format: the `FidoSigner` impl of russh's `Signer` (publicly re-exported at the crate root in `russh = "0.61"`, see `russh/src/lib_inner.rs`) SHA-256-hashes the SSH userauth signature input, asks the device for an assertion against `(rp_id=application, clientDataHash)`, then composes the OpenSSH `sk-*` signature trailer — `64-byte raw Ed25519 sig || u8 flags || u32 counter` for sk-ed25519, `string mpint r || string mpint s || u8 flags || u32 counter` for sk-ecdsa-p256 — and appends `string(algo_name) || string(sk_signature)` as a single length-prefixed SSH string to the buffer russh handed in. The signer impl lives at `lfs_core::ssh::sk_signer::FidoSigner`; the shared byte-layout helpers (mpint encoding, ECDSA DER → SSH mpint, public-key blob construction) live at `lfs_core::ssh::wire` so subsequent hardware-bound `Signer` impls (PKCS#11, TPM 2.0, Apple Secure Enclave, Windows NCrypt, Android Hardware Keystore) reuse them — see [Hardware-bound SSH signer wire helpers](#hardware-bound-ssh-signer-wire-helpers) below.
 
 Capability ladder. The runtime probe `fido2::is_available()` returns true when at least one transport is reachable on the host — the dispatcher consults `brokers::current_transport()` which probes both the OS broker (`webauthn.dll` / ASAuthorization / Credential Manager) and the direct HID stack. Desktop (Linux + Windows + macOS) keeps the key manager's "Import hardware key (sk-*)" row enabled whenever either path works; the per-OS label in Settings ("Windows Hello / security key" / "System security key dialog" / etc., from `fido2BrokerWindowsLabel` / `fido2BrokerMacosLabel` / `fido2BrokerIosLabel` / `fido2BrokerAndroidLabel`) names which one the dispatcher will pick. iOS / Android route exclusively through the broker — Credential Manager covers USB-host / NFC / BLE / StrongBox passkey transparently, so the direct USB-host JNI bridge originally tracked for Android is dropped. CoreNFC ISO7816 + CoreBluetooth CTAP2 standalone drivers on iOS are likewise unneeded — ASAuthorization handles iOS NFC at the OS layer.
 
@@ -2937,7 +2937,7 @@ Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (de
 
 #### PPK codec — PuTTY's private key format
 
-PuTTY `.ppk` import is handled **Rust-side**. `lfs_core::keys::import_ppk(ppk_text, passphrase)` parses PPK v2 and v3 via russh-keys' `PrivateKey::from_ppk` (gated on the `ppk` cargo feature on the forked ssh-key crate) and re-encodes the result as an OpenSSH PEM so the rest of the import path stays format-agnostic. The format internals — the v2 SHA-1 KDF / v3 Argon2id derivation, the HMAC tamper check, the RSA component reordering into the openssh-key-v1 envelope — live inside russh-keys, not here.
+PuTTY `.ppk` import is handled **Rust-side**. `lfs_core::keys::import_ppk(ppk_text, passphrase)` parses PPK v2 and v3 via `PrivateKey::from_ppk` (accessed through `russh::keys::ssh_key`, gated on the `ppk` cargo feature we flip on the forked ssh-key crate `internal-russh-forked-ssh-key`) and re-encodes the result as an OpenSSH PEM so the rest of the import path stays format-agnostic. The format internals — the v2 SHA-1 KDF / v3 Argon2id derivation, the HMAC tamper check, the RSA component reordering into the openssh-key-v1 envelope — live inside the forked ssh-key crate, not here.
 
 **What the wrapper adds: a DoS guard.** Before handing off, `validate_ppk_argon2_params` inspects a v3 header's `Argon2-Memory` and rejects anything above a 1 GiB working-memory ceiling, so a crafted PPK can't DoS the importer with puttygen's tunable Argon2id cost. The connect-time PPK branch shares the same guard.
 
@@ -3056,11 +3056,11 @@ If a caller ever collides two of these shortcuts into one `buildCallbackMap` (un
 
 ### 3.12 Snippets (`core/snippets/`)
 
-Reusable shell command templates with optional placeholder substitution. Persisted in the rusqlite `Snippets` table (schema in `lfs_core::db`); pinned per-session via the `SessionSnippets` junction table. The model is a flat `Snippet { id, title, command, description }`; rendering happens at execution time via `snippet_template.dart`.
+Reusable shell command templates with optional placeholder substitution. Persisted in the rusqlite `Snippets` table (schema in `lfs_core::db`); pinned per-session via the `SessionSnippets` junction table. The model is a flat `Snippet { id, title, command, description }`. The `{{name}}` token machine lives Rust-side in `lfs_core::snippet_template` (per the "Rust owns grammar" rule); `core/snippets/snippet_template.dart` is a thin FRB wrapper (`renderSnippet` → `snippetTemplateRender`, `fillSnippetUnresolved` → `snippetTemplateFillUnresolved`).
 
 #### Template grammar
 
-`renderSnippet(Snippet snippet, Map<String, String> context)` returns a `SnippetRender { rendered, unresolved }`. `{{name}}` is the only placeholder syntax. Whitespace inside the curly braces is trimmed (`{{  host  }}` ≡ `{{host}}`). Tokens that don't resolve against `context` are left in the output as-is and listed in `unresolved` (in first-seen order, deduplicated) so the picker can prompt for them.
+`renderSnippet(Snippet snippet, Map<String, String> context)` (FRB wrapper over `lfs_core::snippet_template::render`) returns a `SnippetRender { rendered, unresolved }`. `{{name}}` is the only placeholder syntax. Whitespace inside the curly braces is trimmed (`{{  host  }}` ≡ `{{host}}`). Tokens that don't resolve against `context` are left in the output as-is and listed in `unresolved` (in first-seen order, deduplicated) so the picker can prompt for them.
 
 | Built-in key | Source at the picker |
 |---|---|
@@ -3233,7 +3233,7 @@ The recordings tree is owned by `lfs_core::recorder::browser`. Listing (`list_re
 
 ### 3.14 Rust Security/Transport Core (`rust/`)
 
-The SSH/SFTP/keypair stack and every cryptographic envelope run entirely on a Rust workspace at `rust/` (`russh = "0.59"`, `russh-sftp = "2.1"`, `russh-keys = "0.6.16"` with the PPK feature, `rusqlite` with `bundled-sqlcipher-vendored-openssl`, RustCrypto family for AES-GCM / HKDF / Argon2id / Ed25519). The Dart side carries widgets, Riverpod state, theme, l10n, and thin command/event subscribers — no protocol parsing, no key material, no plaintext secrets ever live there outside the user-typed-just-now window. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock SSH certificates and FIDO2-SSH (sk-* keys) without forking anything.
+The SSH/SFTP/keypair stack and every cryptographic envelope run entirely on a Rust workspace at `rust/` (`russh = "0.61"` with the `ring` backend, `russh-sftp = "2.3"`, `internal-russh-forked-ssh-key = "=0.6.18"` with the `ppk` feature, `rusqlite` with `bundled-sqlcipher-vendored-openssl`, RustCrypto family for AES-GCM / HKDF / Argon2id / Ed25519). The Dart side carries widgets, Riverpod state, theme, l10n, and thin command/event subscribers — no protocol parsing, no key material, no plaintext secrets ever live there outside the user-typed-just-now window. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock SSH certificates and FIDO2-SSH (sk-* keys) without forking anything.
 
 #### Workspace layout (hexagonal: ports + adapters)
 
@@ -3266,7 +3266,7 @@ rust/
 
 #### Boundary contract (FRB)
 
-Defined in [`flutter_rust_bridge.yaml`](../flutter_rust_bridge.yaml) at the project root. Codegen reads `lfs_frb::api`, walks every public item, and emits typed Dart bindings into `lib/src/rust/`. Run via `make rust-codegen` after editing `rust/crates/lfs_frb/src/api.rs`.
+Defined in [`flutter_rust_bridge.yaml`](../flutter_rust_bridge.yaml) at the project root. Codegen reads `lfs_frb::api`, walks every public item, and emits typed Dart bindings into `lib/src/rust/`. Run via `make rust-codegen` after editing any module under `rust/crates/lfs_frb/src/api/` (the `api.rs` file just declares the submodules; the public surface lives in `api/*.rs`).
 
 Translation rules in the adapter:
 
@@ -3305,13 +3305,13 @@ When in doubt: the adapter contains *delegation* + Dart-shape adapters; orchestr
 
 `lfs_frb` is the FRB adapter: typed Dart bindings under `lib/src/rust/`, opaque handle registry for long-lived Rust objects, FRB Streams over `tokio::sync::mpsc`. Adapter rule: marshal Dart-friendly types in, delegate to `lfs_core`, marshal results back. No `unsafe`, no business logic.
 
-**`russh` pin — 0.59.** Versions 0.60+ depend on the RustCrypto release-candidate set (`pkcs8-0.11.0-rc.11`, `ed25519-3.0.0-rc.4`, etc.) and `pkcs8-0.11.0-rc.11` fails to build against the latest stable `pkcs5-0.8.0`. Bump back to the latest stable `russh` once that RC set graduates and `pkcs8` 0.11 ships stable.
+**`russh` pin — 0.61 on the `ring` backend.** russh defaults to `aws-lc-rs`, which pulls the vendored `aws-lc-sys` C codebase. Two problems for our matrix: Windows ARM64 trips on `stdalign_check.c` during the C compile (MSVC-on-ARM64 treats AWS-LC config warnings as errors), and the 200k+ LOC C build dominates Android + Windows wall-clock (an 8→22 min regression observed). `ring` is russh's pure-Rust + minimal-C alternative — builds cleanly on every target, ships prebuilt ARM/ARM64 assembly, functionally equivalent SSH crypto. The pin keeps the rest of russh's defaults (`flate2`, `rsa`). 0.60.x also closed GHSA-f5v4-2wr6-hqmg (pre-auth DoS via unbounded allocation in the keyboard-interactive auth handler).
 
 #### Security baseline
 
 The first lines of defence beyond Rust's safe-by-default ownership / borrow rules:
 
-- **`#[lints.rust] unsafe_code = "forbid"`** on `lfs_core` — no raw FFI / pointer surgery in code we write here. Transitive dependencies (`russh`, `tokio`, `ring`, `aws-lc-rs`) still use `unsafe` internally — that's their audit perimeter.
+- **`#[lints.rust] unsafe_code = "forbid"`** on `lfs_core` — no raw FFI / pointer surgery in code we write here. Transitive dependencies (`russh`, `tokio`, `ring`) still use `unsafe` internally — that's their audit perimeter.
 - **`zeroize::Zeroizing`** wraps secret buffers (passwords today, key material at 1.2/1.4, signing payloads at 1.11/1.12) so the local owned copy clears on drop. Cannot reach copies `russh` or `tokio` hold internally — best-effort hardening on the perimeter we control.
 - **`subtle::ConstantTimeEq`** for crypto-material equality (MAC compares, hash compares) — never `==` for anything an attacker could time. `subtle` lives in `[workspace.dependencies]` ahead of need; first concrete use lands at 1.4 alongside the PPK HMAC verify.
 - Workspace dep pinning in `[workspace.dependencies]` — every cross-crate version bump touches one place, so a `cargo audit` finding has one knob to twist.
