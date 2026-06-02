@@ -576,17 +576,17 @@ The FRB surface for SFTP stays unchanged with this layer in place — provider p
 **`TransfersNotifier`** runtime shape:
 
 - Queue: `[task1, task2, task3, ...]`
-- Workers: `2` (configurable)
-- Max history: `500` entries
-- Timeout: `30 min` per task
+- Workers: `4` (`DEFAULT_WORKER_COUNT`, parameterised on `WorkerPool::spawn`)
+- History: unbounded in memory — terminal tasks stay until the user clears them (per-row drop or "clear history"); no automatic cap
 - States: `queued → running → completed / failed / cancelled`
 - Streams: `onChange → UI updates`, `onHistoryChange → history`
 
 ```dart
 class TransfersNotifier extends Notifier<TransferState> {
-  // Parallelism + maxHistory + taskTimeout live on the Rust side
-  // (lfs_core::transfer::WorkerPool + retention policy); the Dart
-  // notifier mirrors snapshots only.
+  // Worker parallelism lives on the Rust side
+  // (lfs_core::transfer::WorkerPool); the Dart notifier mirrors
+  // snapshots only. History is kept in insertion order until the
+  // user clears it — there is no automatic cap or per-task timeout.
 
   Future<void> enqueue({
     required TransferDirection direction,
@@ -610,7 +610,7 @@ class TransfersNotifier extends Notifier<TransferState> {
 }
 ```
 
-**Cancellation:** routes through `lfs_frb::api::transfer::transfer_cancel`; the Rust worker checks the cancel flag at every chunk boundary and aborts cooperatively. Timeout shares the same path — the Rust pool's deadline timer enqueues the cancel.
+**Cancellation:** routes through `lfs_frb::api::transfer::transfer_cancel`; the Rust worker checks the cancel flag at every chunk boundary and aborts cooperatively. There is no per-task deadline timer — a stuck task is cancelled by the user, not auto-timed-out.
 
 **Queue processing:** owned by `lfs_core::transfer::WorkerPool` (a tokio task pool). Dart's notifier is a passive mirror that re-emits when `BusEvent::TransferTask*` lands.
 
@@ -623,7 +623,7 @@ stateDiagram-v2
     queued --> cancelled: cancel() before start
     running --> completed: run() returns
     running --> failed: run() throws (non-cancel)
-    running --> cancelled: _cancelledIds check / 30-min timeout
+    running --> cancelled: cancel flag check at chunk boundary
     completed --> [*]: moves to history
     failed --> [*]: moves to history
     cancelled --> [*]: moves to history
