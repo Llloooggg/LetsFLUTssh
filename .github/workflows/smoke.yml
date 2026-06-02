@@ -1,0 +1,216 @@
+name: Smoke
+
+# Build + launch smoke across every shipped platform (iOS via the
+# simulator — no signing / Apple Developer account needed). Validates
+# that a freshly built artefact actually starts on each OS runtime, the
+# layer unit tests can't cover. Heavy, so it does NOT run on every PR:
+# manual dispatch + after a release tag. The auto-update apply mechanic
+# (AppImage self-replace) is smoke-tested in `make rust-test`
+# (lfs_os_security::installer_launch) on every CI run already; this
+# workflow covers the per-platform "does the packaged app launch" half.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions: read-all
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.44.0'
+
+jobs:
+  linux-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Install Linux build + headless-launch deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libtss2-dev libudev-dev \
+            ninja-build libgtk-3-dev xvfb
+      - name: Activate Rust toolchain
+        working-directory: rust
+        run: cargo --version
+      - name: Build Linux release
+        run: flutter build linux --release
+      - name: Launch smoke (headless under xvfb)
+        # Start the app under a virtual display; if it is still alive
+        # after the warm-up window it cleared engine boot + Rust core
+        # init + first frame without crashing. A startup crash exits
+        # early and the liveness check fails the job.
+        run: |
+          BIN=build/linux/x64/release/bundle/letsflutssh
+          test -x "$BIN" || { echo "::error::missing $BIN"; exit 1; }
+          xvfb-run -a "$BIN" &
+          APP=$!
+          sleep 20
+          if kill -0 "$APP" 2>/dev/null; then
+            echo "App alive after 20s — startup smoke passed"
+            kill "$APP" 2>/dev/null || true
+          else
+            echo "::error::App exited during startup"
+            wait "$APP" || true
+            exit 1
+          fi
+
+  windows-desktop:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build Windows release
+        run: flutter build windows --release
+      - name: Launch smoke
+        # Windows runners have a session/display; start the exe, wait,
+        # and confirm the process is still running before killing it.
+        shell: pwsh
+        run: |
+          $bin = "build\windows\x64\runner\Release\letsflutssh.exe"
+          if (-not (Test-Path $bin)) { Write-Error "missing $bin"; exit 1 }
+          $p = Start-Process -FilePath $bin -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) {
+            Write-Error "App exited during startup (code $($p.ExitCode))"
+            exit 1
+          }
+          Write-Host "App alive after 20s — startup smoke passed"
+          Stop-Process -Id $p.Id -Force
+
+  macos-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-latest, macos-13]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build macOS release
+        run: flutter build macos --release
+      - name: Launch smoke
+        # `open -W` would block; launch the bundle binary directly and
+        # liveness-check it, mirroring the Linux/Windows jobs. The app is
+        # unsigned but locally built (no quarantine xattr), so Gatekeeper
+        # does not block a direct exec.
+        run: |
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          test -n "$APP" || { echo "::error::no .app built"; exit 1; }
+          BIN="$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$APP/Contents/Info.plist")"
+          "$BIN" &
+          PID=$!
+          sleep 20
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "App alive after 20s — startup smoke passed"
+            kill "$PID" 2>/dev/null || true
+          else
+            echo "::error::App exited during startup"
+            exit 1
+          fi
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build APK (arm64 + x86_64 split)
+        run: flutter build apk --release --split-per-abi
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install + launch smoke on emulator
+        # The emulator runs an x86_64 system image, so install the
+        # x86_64 split apk. After boot, install + monkey-launch once and
+        # scan logcat for a fatal crash signature.
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2
+        with:
+          api-level: 34
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            APK=$(ls build/app/outputs/flutter-apk/*x86_64*.apk | head -1)
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell monkey -p com.llloooggg.letsflutssh -c android.intent.category.LAUNCHER 1
+            sleep 20
+            if adb logcat -d | grep -E "FATAL EXCEPTION|ANR in com.llloooggg.letsflutssh"; then
+              echo "::error::App crashed on launch"; exit 1
+            fi
+            echo "No fatal crash after launch — Android smoke passed"
+
+  ios-simulator:
+    # iOS smoke needs NO signing / Apple Developer account — a simulator
+    # build runs on the iOS runtime unsigned. This is a sim-target build,
+    # not the released device .ipa (which would need signing), so it
+    # validates "the app launches on iOS" rather than the exact shipped
+    # binary.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build for the iOS simulator (unsigned)
+        run: flutter build ios --simulator --debug
+      - name: Boot a simulator, install + launch smoke
+        run: |
+          DEVICE=$(xcrun simctl create smoke-iphone \
+            com.apple.CoreSimulator.SimDeviceType.iPhone-15 || true)
+          # Fall back to any available iPhone runtime if the named type
+          # isn't present on the runner image.
+          xcrun simctl boot "${DEVICE:-booted}" || xcrun simctl boot booted || true
+          APP=$(find build/ios/iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          test -n "$APP" || { echo "::error::no simulator .app built"; exit 1; }
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")
+          xcrun simctl install booted "$APP"
+          xcrun simctl launch booted "$BUNDLE_ID"
+          sleep 15
+          # `simctl launch` prints the pid; if the process is gone the
+          # app crashed on startup.
+          if xcrun simctl spawn booted launchctl list | grep -q "$BUNDLE_ID"; then
+            echo "App running on the simulator — iOS smoke passed"
+          else
+            echo "::error::App not running after launch"; exit 1
+          fi
