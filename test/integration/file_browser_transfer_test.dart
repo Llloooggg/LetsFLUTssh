@@ -97,10 +97,19 @@ void main() {
 
   setUp(() async {
     for (final entry in sftpRoot.listSync()) {
-      if (entry is Directory) {
-        entry.deleteSync(recursive: true);
-      } else {
-        entry.deleteSync();
+      try {
+        if (entry is Directory) {
+          entry.deleteSync(recursive: true);
+        } else {
+          entry.deleteSync();
+        }
+      } on PathNotFoundException {
+        // A still-settling SFTP operation from the previous test (the
+        // transfer driver finalises on Rust's runtime after the test's
+        // assertion-level `_waitForFile` already returned) can remove or
+        // rename an entry between `listSync()` and `deleteSync()`. The
+        // entry being already gone is exactly the clean state this loop
+        // is reaching for, so a vanished path is not an error.
       }
     }
     rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 0);
