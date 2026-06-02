@@ -690,7 +690,7 @@ class Session {
   final String id;            // UUID
   final String label;         // display name
   final String folder;        // folder path: "Production/Web" (separator /)
-  final SessionKind kind;     // ssh (default) or webdav — picks the transport
+  final SessionKind kind;     // ssh (default) / webdav / s3 — picks the transport
   final ServerAddress server; // host, port, user
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
@@ -700,6 +700,7 @@ class Session {
   bool get isValid;           // true if host, port, user, and hasCredentials (highlighted orange when false)
   bool get isSsh;             // kind == SessionKind.ssh
   bool get isWebDav;          // kind == SessionKind.webdav
+  bool get isS3;              // kind == SessionKind.s3
 
   bool? extrasBool(String key); // typed reads — null when missing or wrong-typed
   String? extrasStr(String key);
