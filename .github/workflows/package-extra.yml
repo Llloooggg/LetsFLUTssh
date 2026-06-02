@@ -140,7 +140,11 @@ jobs:
           }
           PKG
           chown -R builder:builder .
-          sudo -u builder makepkg -f
+          # --nodeps: this is a -bin package whose package() only copies
+          # the prebuilt bundle; the runtime depends() are metadata for
+          # the installing user's pacman, not needed (or installed) to
+          # build here, so skip makepkg's dependency-resolution check.
+          sudo -u builder makepkg -f --nodeps
           PKGFILE=$(ls letsflutssh-*.pkg.tar.zst | head -1)
           mv "$PKGFILE" "letsflutssh-${VERSION}-linux-x64.pkg.tar.zst"
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "letsflutssh-${VERSION}-linux-x64.pkg.tar.zst"
