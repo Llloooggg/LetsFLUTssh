@@ -55,8 +55,20 @@ jobs:
 
   automerge:
     needs: [version-bump]
-    # Run even if version-bump was skipped (github-actions updates)
-    if: always() && github.actor == 'dependabot[bot]' && !failure()
+    # Runs after version-bump (so the bump commit lands before auto-merge
+    # is enabled) but is NOT gated on its success: a `version-bump`
+    # failure must not strand the PR. `gh pr merge --auto` waits for the
+    # required checks on whatever the final head is, so a successful bump
+    # is still picked up; a failed bump just means the dep merges without
+    # a version bump (it rides the next release).
+    #
+    # Known issue (defect, not yet fixed here): `version-bump` fails on
+    # `dependabot/pub/*` PRs — its checkout with `secrets.RELEASE_TOKEN`
+    # can't authenticate ("could not read Username"). RELEASE_TOKEN is
+    # present in the Dependabot secret store, so this is a token
+    # value/scope/expiry problem to verify in repo settings, not a
+    # workflow bug. Decoupling automerge keeps pub deps merging meanwhile.
+    if: always() && github.actor == 'dependabot[bot]' && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: write
