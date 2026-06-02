@@ -2167,25 +2167,33 @@ OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsec
 #### SshKeysMutator
 
 Central SSH key store. The schema + DAO live Rust-side under
-`lfs_core::db::ssh_keys` (rusqlite + bundled SQLCipher); the Dart
-notifier is an `AsyncNotifier<List<SshKeyEntry>>` that reads / writes
-through the FRB DAO surface in `lib/src/rust/api/db.dart` and never
-holds a SQLite handle directly.
+`lfs_core::db::ssh_keys` (rusqlite + bundled SQLCipher). Like the
+session layer (§3.4), the provider side is **split** so no Rust-owned
+data is cached in a long-lived Dart object: a `StreamProvider` hydrates
+from FRB + the `KeysChanged` bus, read providers derive from it, and
+`SshKeysMutator` is a plain `const`-constructible class (not an
+`AsyncNotifier`) holding only the FRB write pass-throughs.
 
 ```dart
-final sshKeysProvider =
-    AsyncNotifierProvider<SshKeysMutator, List<SshKeyEntry>>(
-      SshKeysMutator.new,
-    );
+// Source of truth — re-fetches on every BusEvent::KeysChanged.
+final sshKeysStreamProvider = StreamProvider<List<SshKeyEntry>>(...);
 
-class SshKeysMutator extends AsyncNotifier<List<SshKeyEntry>> {
-  // build() returns the metadata-only list (PEM bytes stripped).
-  // Every Riverpod watcher of sshKeysProvider sees a credential-
-  // stripped projection — no PEM bytes pinned in the Dart heap on
-  // every list refresh. The rare paths that genuinely need the PEM
-  // (archive export staging) call loadAll() explicitly.
+// Back-compat alias: synchronous credential-stripped list, empty while
+// the first stream emission is in flight. Derives from the stream.
+final sshKeysProvider = Provider<List<SshKeyEntry>>(...);
+
+// The mutation surface.
+final sshKeysMutatorProvider = Provider<SshKeysMutator>(...);
+
+class SshKeysMutator {
+  const SshKeysMutator();
+  // Metadata-only listing (PEM bytes stripped) — id, label, public
+  // half, key type, timestamps, isGenerated, plus Rust-computed
+  // SHA-256 fingerprints. Paths that genuinely need PEM bytes (none
+  // on the Dart side today — archive export reads keys Rust-side)
+  // call `dbSshKeysListAll` over FRB directly; the mutator no longer
+  // exposes a PEM-bearing `loadAll`.
   Future<Map<String, SshKeyMetadata>> loadAllMetadata();
-  Future<Map<String, SshKeyEntry>>    loadAll();   // PEM-bearing
   Future<void> save(SshKeyEntry entry);            // upsert one
   Future<void> saveAll(Map<String, SshKeyEntry>);  // single-tx replace-all
   Future<void> delete(String id);
@@ -2193,8 +2201,6 @@ class SshKeysMutator extends AsyncNotifier<List<SshKeyEntry>> {
   Future<SshKeyEntry> importKey(String pem, String label); // delegates to
                                                             // top-level
                                                             // importSshKey
-  void invalidateCache();   // dropped on unlock so post-DB-open reads pull
-                            // fresh rows
 }
 
 // Top-level helper — keypair generation lives outside the notifier
@@ -2917,7 +2923,7 @@ does the heavy lifting:
 
 The Dart `ImportSummary` is rebuilt from the Rust `DbApplyResult` row counts (`sessionsApplied`, `foldersApplied`, `keysApplied`, `tagsApplied`, `snippetsApplied`, `knownHostsApplied`) plus two loss counters: `ImportResult.skippedSessions` (decode-time parse loss, surfaced verbatim) and `DbApplyResult.linksSkipped` (apply-time M2M-link drops — `session_tags` / `folder_tags` / `session_snippets` rows whose target was not in the import set so the insert FK-failed, or that were malformed). The link count matters most in Merge mode, where a dropped link is otherwise silent (the import continues and the per-row error never reaches the UI). `formatImportSummary()` in `utils/format.dart` renders it as the success toast (`Imported N sessions, K SSH keys, T tags, S snippets, … — M associations dropped (targets missing)`) so users see what was actually persisted instead of only the session count. `SqliteException`s that carry a PEM private key in their bound parameters are run through `redactSecrets()` in `utils/sanitize.dart` before reaching the toast or the log file.
 
-**Cache refresh.** Rust writes through the DB directly without going through Dart-side per-store add callbacks, so the in-memory `sessionStore`/`tagStore`/`snippetStore` caches are stale until reloaded. The caller passes a `refreshAfterImport` thunk that calls `sessionStore.load()` + `tagStore.loadAll()` + `snippetStore.loadAll()`; `applyResultViaRust` invokes it once on success. Riverpod `FutureProvider`s (`sshKeysProvider`, `tagsProvider`, `snippetsProvider`) get invalidated by the surrounding flow (`import_flow.dart::_invalidateImportProviders`).
+**Cache refresh.** Rust writes through the DB directly, then publishes the matching `*Changed` bus events. Stream-backed readers self-heal: sessions ride `sessionsWorkspaceStreamProvider` (re-fetches on `SessionsChanged`) and SSH keys ride `sshKeysStreamProvider` (`KeysChanged`), so neither needs an explicit reload. Only tags + snippets still hold Dart-cached `AsyncNotifier` state: `import_flow.dart::_refreshStores` (passed as the `refreshAfterImport` thunk `applyResultViaRust` invokes on success) calls `tagsProvider.notifier.loadAll()` + `snippetsProvider.notifier.loadAll()`, and `_invalidateImportProviders` invalidates `tagsProvider` + `snippetsProvider` so the family providers (`sessionTagsProvider`, `sessionSnippetsProvider`) recompute.
 
 **Config restore stays Dart-side.** The Rust apply ignores the `config_json` field on `DbStagedImport` — `config.json` is a Dart-managed artefact (see [§3.6 → Migration framework](#migration-framework)) and the caller restores it via `ref.read(configProvider.notifier).update((_) => importResult.config!)` after `applyResultViaRust` returns.
 
@@ -4044,8 +4050,12 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `folderTagsProvider` | `FutureProvider.family<List<Tag>, String>` | `tag_provider.dart` |
 | `snippetsProvider` | `AsyncNotifierProvider<SnippetsNotifier, List<Snippet>>` | `snippet_provider.dart` |
 | `sessionSnippetsProvider` | `FutureProvider.family<List<Snippet>, String>` | `snippet_provider.dart` |
-| `sshKeysProvider` | `AsyncNotifierProvider<SshKeysMutator, List<SshKeyEntry>>` | `key_provider.dart` |
-| `knownHostsProvider` | `NotifierProvider<KnownHostsMutator, Map<String, String>>` | `known_hosts_provider.dart` |
+| `sshKeysStreamProvider` | `StreamProvider<List<SshKeyEntry>>` | `key_provider.dart` — FRB (`db_ssh_keys_*`) + `BusTopic::Keys`; source of truth for the key readers |
+| `sshKeysProvider` | `Provider<List<SshKeyEntry>>` | derives the credential-stripped list from `sshKeysStreamProvider` (back-compat alias) |
+| `sshKeysMutatorProvider` | `Provider<SshKeysMutator>` | `key_provider.dart` — the FRB write surface (save / delete / import); plain `const`-constructible class |
+| `knownHostsStreamProvider` | `StreamProvider<Map<String, String>>` | `known_hosts_provider.dart` — FRB + `BusTopic::KnownHosts`; source of truth |
+| `knownHostsProvider` | `Provider<Map<String, String>>` | derives from `knownHostsStreamProvider` (back-compat alias) |
+| `knownHostsMutatorProvider` | `Provider<KnownHostsMutator>` | `known_hosts_provider.dart` — the FRB write surface |
 
 #### Updates, version, terminal broadcast
 

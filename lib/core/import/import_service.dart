@@ -83,11 +83,13 @@ class ImportSelection {
 /// caller routes through [applyOpenedHandle] instead — no Dart-side
 /// staging round-trip.
 ///
-/// The caller is expected to refresh any in-memory caches (Riverpod
-/// providers, store `_sessions` lists) after this call returns — the Rust
-/// path writes through the DB directly without going through the per-store
-/// add callbacks. `refreshAfterImport` runs once on success so the caller
-/// can wire it to `sessionStore.loadAll()` + provider invalidation.
+/// The caller is expected to refresh any in-memory caches after this
+/// call returns. Stream-backed readers (sessions, SSH keys) self-heal
+/// off the `*Changed` bus events the Rust apply publishes; only the
+/// tag + snippet `AsyncNotifier`s still hold Dart-cached state.
+/// `refreshAfterImport` runs once on success so the caller can wire it
+/// to `tagsProvider.notifier.loadAll()` + `snippetsProvider.notifier.loadAll()`
+/// plus provider invalidation.
 ///
 /// In replace mode, any failure is wrapped in [LfsImportRolledBackException]
 /// so the UI surfaces the dedicated "data restored" message — the Rust
