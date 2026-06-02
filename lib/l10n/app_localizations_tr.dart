@@ -54,6 +54,10 @@ class STr extends S {
   String get credentialPromptRememberSession => 'Bu oturum için hatırla';
 
   @override
+  String get passwordBlankPromptHint =>
+      'Bağlanırken sorulması için boş bırakın';
+
+  @override
   String get retry => 'Yeniden Dene';
 
   @override

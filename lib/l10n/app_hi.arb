@@ -14,6 +14,7 @@
   "credentialPromptHint": "कनेक्ट पूरा करने के लिए इसे डालें। यह डिस्क पर कभी सेव नहीं होता।",
   "credentialPromptHintForSession": "“{session}” से कनेक्ट पूरा करने के लिए इसे डालें। यह डिस्क पर कभी सेव नहीं होता।",
   "credentialPromptRememberSession": "इस सेशन के लिए याद रखें",
+  "passwordBlankPromptHint": "कनेक्ट पर पूछने के लिए खाली छोड़ें",
   "retry": "पुनः प्रयास करें",
   "import_": "आयात करें",
   "export_": "निर्यात करें",

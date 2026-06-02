@@ -54,6 +54,10 @@ class SRu extends S {
   String get credentialPromptRememberSession => 'Запомнить на эту сессию';
 
   @override
+  String get passwordBlankPromptHint =>
+      'Оставьте пустым — спросит при коннекте';
+
+  @override
   String get retry => 'Повторить';
 
   @override

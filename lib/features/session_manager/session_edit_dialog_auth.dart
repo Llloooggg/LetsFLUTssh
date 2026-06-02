@@ -265,7 +265,12 @@ extension _AuthSection on _SessionEditDialogState {
     return StyledFormField(
       label: S.of(context).password,
       controller: _passwordCtrl,
-      hint: hasStored ? S.of(context).savedTypeToChange : _maskedSecretHint,
+      // A blank SSH password is valid — the connect actor prompts for
+      // it on connect (the credential overlay) rather than failing, so
+      // hint that leaving it empty is a deliberate "ask each time".
+      hint: hasStored
+          ? S.of(context).savedTypeToChange
+          : S.of(context).passwordBlankPromptHint,
       obscure: _obscurePassword,
       suffixIcon: GestureDetector(
         onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),

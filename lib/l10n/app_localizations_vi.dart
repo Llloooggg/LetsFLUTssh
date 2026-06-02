@@ -54,6 +54,9 @@ class SVi extends S {
   String get credentialPromptRememberSession => 'Ghi nhớ cho phiên này';
 
   @override
+  String get passwordBlankPromptHint => 'Để trống để hỏi khi kết nối';
+
+  @override
   String get retry => 'Thử lại';
 
   @override

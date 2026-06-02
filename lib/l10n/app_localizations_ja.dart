@@ -53,6 +53,9 @@ class SJa extends S {
   String get credentialPromptRememberSession => 'このセッションの間は記憶する';
 
   @override
+  String get passwordBlankPromptHint => '空欄にすると接続時に尋ねます';
+
+  @override
   String get retry => '再試行';
 
   @override

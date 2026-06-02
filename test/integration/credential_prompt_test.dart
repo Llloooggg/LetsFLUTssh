@@ -130,6 +130,60 @@ void main() {
       notifier.disconnect(conn.id);
     },
   );
+
+  test(
+    'password auth with no stored password prompts, then connects',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(connectionsProvider.notifier);
+
+      String? promptId;
+      String? kind;
+      final sub = AppBus.instance
+          .subscribe(rust_bus.BusTopic.securityPrompt)
+          .listen((e) {
+            if (e is rust_bus.BusEvent_CredentialPromptRequest) {
+              promptId = e.promptId;
+              kind = e.kindWireName;
+            }
+          });
+      addTearDown(() => sub.cancel());
+
+      final conn = notifier.connectAsync(
+        SSHConfig(
+          server: ServerAddress(
+            host: '127.0.0.1',
+            port: serverInfo.port,
+            user: 'u',
+          ),
+          // Empty password — the "ask on connect" case (quick-connect or
+          // a session whose password was deliberately not stored).
+          auth: const SshAuth(password: ''),
+        ),
+        label: 'no-password',
+      );
+
+      await _waitUntil(() => promptId != null, const Duration(seconds: 10));
+      expect(kind, 'password');
+      expect(conn.state, isNot(SSHConnectionState.connected));
+
+      rust_cred.credentialPromptResolveSubmit(
+        promptId: promptId!,
+        secretBytes: utf8.encode(serverInfo.password),
+        rememberForSession: false,
+      );
+
+      await _waitForState(
+        conn,
+        SSHConnectionState.connected,
+        const Duration(seconds: 15),
+      );
+      expect(conn.state, SSHConnectionState.connected);
+
+      notifier.disconnect(conn.id);
+    },
+  );
 }
 
 Future<void> _waitUntil(bool Function() done, Duration timeout) async {

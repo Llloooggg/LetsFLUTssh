@@ -53,6 +53,9 @@ class SKo extends S {
   String get credentialPromptRememberSession => '이 세션 동안 기억';
 
   @override
+  String get passwordBlankPromptHint => '비워 두면 연결 시 묻습니다';
+
+  @override
   String get retry => '재시도';
 
   @override

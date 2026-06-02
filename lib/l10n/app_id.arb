@@ -14,6 +14,7 @@
   "credentialPromptHint": "Masukkan untuk menyelesaikan koneksi. Tidak pernah ditulis ke disk.",
   "credentialPromptHintForSession": "Masukkan untuk menyelesaikan koneksi ke “{session}”. Tidak pernah ditulis ke disk.",
   "credentialPromptRememberSession": "Ingat untuk sesi ini",
+  "passwordBlankPromptHint": "Kosongkan untuk ditanya saat connect",
   "retry": "Coba Lagi",
   "import_": "Impor",
   "export_": "Ekspor",

@@ -54,6 +54,10 @@ class SFr extends S {
   String get credentialPromptRememberSession => 'Mémoriser pour cette session';
 
   @override
+  String get passwordBlankPromptHint =>
+      'Laisser vide pour demander à la connexion';
+
+  @override
   String get retry => 'Réessayer';
 
   @override

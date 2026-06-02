@@ -207,6 +207,12 @@ abstract class S {
   /// **'Remember for this session'**
   String get credentialPromptRememberSession;
 
+  /// No description provided for @passwordBlankPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank to be asked on connect'**
+  String get passwordBlankPromptHint;
+
   /// No description provided for @retry.
   ///
   /// In en, this message translates to:

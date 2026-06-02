@@ -14,6 +14,7 @@
   "credentialPromptHint": "输入后即可完成连接。绝不写入磁盘。",
   "credentialPromptHintForSession": "输入后即可完成连接到“{session}”。绝不写入磁盘。",
   "credentialPromptRememberSession": "在本次会话中记住",
+  "passwordBlankPromptHint": "留空则在连接时询问",
   "retry": "重试",
   "import_": "导入",
   "export_": "导出",

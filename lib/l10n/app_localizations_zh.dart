@@ -53,6 +53,9 @@ class SZh extends S {
   String get credentialPromptRememberSession => '在本次会话中记住';
 
   @override
+  String get passwordBlankPromptHint => '留空则在连接时询问';
+
+  @override
   String get retry => '重试';
 
   @override

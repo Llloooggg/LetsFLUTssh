@@ -55,6 +55,10 @@ class SDe extends S {
   String get credentialPromptRememberSession => 'Für diese Sitzung merken';
 
   @override
+  String get passwordBlankPromptHint =>
+      'Leer lassen, um beim Verbinden zu fragen';
+
+  @override
   String get retry => 'Erneut versuchen';
 
   @override

@@ -14,6 +14,7 @@
   "credentialPromptHint": "Введите его, чтобы завершить подключение. На диск не записывается.",
   "credentialPromptHintForSession": "Введите его, чтобы завершить подключение к «{session}». На диск не записывается.",
   "credentialPromptRememberSession": "Запомнить на эту сессию",
+  "passwordBlankPromptHint": "Оставьте пустым — спросит при коннекте",
   "retry": "Повторить",
   "import_": "Импорт",
   "export_": "Экспорт",

@@ -14,6 +14,7 @@
   "credentialPromptHint": "برای تکمیل اتصال آن را وارد کنید. هرگز روی دیسک نوشته نمی‌شود.",
   "credentialPromptHintForSession": "برای تکمیل اتصال به «{session}» آن را وارد کنید. هرگز روی دیسک نوشته نمی‌شود.",
   "credentialPromptRememberSession": "برای این نشست به خاطر بسپار",
+  "passwordBlankPromptHint": "خالی بگذارید تا هنگام اتصال پرسیده شود",
   "retry": "تلاش مجدد",
   "import_": "وارد کردن",
   "export_": "خروجی گرفتن",

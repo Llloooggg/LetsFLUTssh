@@ -54,6 +54,10 @@ class SFa extends S {
   String get credentialPromptRememberSession => 'برای این نشست به خاطر بسپار';
 
   @override
+  String get passwordBlankPromptHint =>
+      'خالی بگذارید تا هنگام اتصال پرسیده شود';
+
+  @override
   String get retry => 'تلاش مجدد';
 
   @override

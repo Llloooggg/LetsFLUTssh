@@ -968,11 +968,34 @@ async fn run_auth_with_credential_prompts(
     id: ConnId,
     mut args: ConnectArgs,
 ) -> Result<Session, Error> {
-    use crate::security::credential_prompt::{self, CredentialPromptKind, CredentialResponse};
+    use crate::security::credential_prompt::CredentialPromptKind;
     let app = crate::app::instance();
     // The dialog caption keys off the session id; quick-connect has
     // none, so fall back to the connection id for a stable label.
     let session_id = args.session_id.clone().unwrap_or_else(|| id.clone());
+
+    // Password auth with no stored secret → prompt once up front. An
+    // empty password just bounces off the server, and a *wrong* typed
+    // password comes back as a generic `AuthFailed` with no reliable
+    // re-prompt signal (unlike the key passphrase's typed
+    // `PassphraseIncorrect`), so this is a single proactive prompt, not
+    // a retry loop. A cancel falls through and the as-is attempt
+    // surfaces the auth error.
+    if let ConnectAuthRef::Password { secret_id } = &args.auth {
+        let empty = app
+            .secrets
+            .get(secret_id)
+            .map(|b| b.is_empty())
+            .unwrap_or(true);
+        if empty {
+            if let Some(secret) =
+                prompt_credential(&session_id, CredentialPromptKind::Password).await
+            {
+                app.secrets.put(secret_id, &secret);
+            }
+        }
+    }
+
     let mut attempts: u8 = 0;
     loop {
         let err = match run_auth(args.clone()).await {
@@ -988,27 +1011,41 @@ async fn run_auth_with_credential_prompts(
             return Err(err);
         }
         attempts += 1;
-
-        let prompt_id = crate::id::random_uuid_v4();
-        let receiver = credential_prompt::instance().register(prompt_id.clone());
-        app.bus.publish(crate::bus::Event::CredentialPromptRequest {
-            prompt_id,
-            session_id: session_id.clone(),
-            kind_wire_name: CredentialPromptKind::Passphrase.wire_name().to_string(),
-        });
-        match tokio::time::timeout(CREDENTIAL_PROMPT_TIMEOUT, receiver).await {
-            Ok(Ok(CredentialResponse::Submit { secret, .. })) => {
+        match prompt_credential(&session_id, CredentialPromptKind::Passphrase).await {
+            Some(secret) => {
                 // Stage the typed passphrase into the pubkey's
                 // passphrase slot (minting a transient id when the row
                 // carried no stored passphrase) and retry the dispatch.
                 let slot = ensure_passphrase_slot(&mut args.auth);
                 app.secrets.put(&slot, &secret);
             }
-            // Cancel, a dropped sender (registry cleared on lock /
-            // teardown), or the answer window elapsing all end the
-            // attempt with the original error.
-            _ => return Err(err),
+            // Cancel / timeout / dropped sender end the attempt with
+            // the original error.
+            None => return Err(err),
         }
+    }
+}
+
+/// Fire a `CredentialPromptRequest` of `kind` and await the user's
+/// answer, bounded by [`CREDENTIAL_PROMPT_TIMEOUT`]. Returns the typed
+/// secret bytes on Submit; `None` on Cancel, timeout, or a dropped
+/// sender (registry cleared on lock / teardown).
+async fn prompt_credential(
+    session_id: &str,
+    kind: crate::security::credential_prompt::CredentialPromptKind,
+) -> Option<Vec<u8>> {
+    use crate::security::credential_prompt::{self, CredentialResponse};
+    let app = crate::app::instance();
+    let prompt_id = crate::id::random_uuid_v4();
+    let receiver = credential_prompt::instance().register(prompt_id.clone());
+    app.bus.publish(crate::bus::Event::CredentialPromptRequest {
+        prompt_id,
+        session_id: session_id.to_string(),
+        kind_wire_name: kind.wire_name().to_string(),
+    });
+    match tokio::time::timeout(CREDENTIAL_PROMPT_TIMEOUT, receiver).await {
+        Ok(Ok(CredentialResponse::Submit { secret, .. })) => Some(secret),
+        _ => None,
     }
 }
 

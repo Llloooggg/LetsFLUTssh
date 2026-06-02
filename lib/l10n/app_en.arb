@@ -21,6 +21,7 @@
     }
   },
   "credentialPromptRememberSession": "Remember for this session",
+  "passwordBlankPromptHint": "Leave blank to be asked on connect",
   "retry": "Retry",
   "import_": "Import",
   "export_": "Export",

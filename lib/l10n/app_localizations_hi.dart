@@ -54,6 +54,9 @@ class SHi extends S {
   String get credentialPromptRememberSession => 'इस सेशन के लिए याद रखें';
 
   @override
+  String get passwordBlankPromptHint => 'कनेक्ट पर पूछने के लिए खाली छोड़ें';
+
+  @override
   String get retry => 'पुनः प्रयास करें';
 
   @override

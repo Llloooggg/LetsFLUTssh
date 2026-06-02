@@ -14,6 +14,7 @@
   "credentialPromptHint": "Nhập để hoàn tất kết nối. Không bao giờ ghi vào ổ đĩa.",
   "credentialPromptHintForSession": "Nhập để hoàn tất kết nối tới “{session}”. Không bao giờ ghi vào ổ đĩa.",
   "credentialPromptRememberSession": "Ghi nhớ cho phiên này",
+  "passwordBlankPromptHint": "Để trống để hỏi khi kết nối",
   "retry": "Thử lại",
   "import_": "Nhập",
   "export_": "Xuất",

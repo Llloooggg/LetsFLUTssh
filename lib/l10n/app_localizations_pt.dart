@@ -55,6 +55,10 @@ class SPt extends S {
   String get credentialPromptRememberSession => 'Lembrar nesta sessão';
 
   @override
+  String get passwordBlankPromptHint =>
+      'Deixe em branco para perguntar ao conectar';
+
+  @override
   String get retry => 'Tentar novamente';
 
   @override

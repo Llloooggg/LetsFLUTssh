@@ -54,6 +54,9 @@ class SAr extends S {
   String get credentialPromptRememberSession => 'التذكر لهذه الجلسة';
 
   @override
+  String get passwordBlankPromptHint => 'اتركه فارغًا ليُطلب عند الاتصال';
+
+  @override
   String get retry => 'إعادة المحاولة';
 
   @override

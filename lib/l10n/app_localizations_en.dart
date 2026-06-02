@@ -54,6 +54,9 @@ class SEn extends S {
   String get credentialPromptRememberSession => 'Remember for this session';
 
   @override
+  String get passwordBlankPromptHint => 'Leave blank to be asked on connect';
+
+  @override
   String get retry => 'Retry';
 
   @override

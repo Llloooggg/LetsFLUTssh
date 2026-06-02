@@ -55,6 +55,9 @@ class SEs extends S {
   String get credentialPromptRememberSession => 'Recordar durante esta sesión';
 
   @override
+  String get passwordBlankPromptHint => 'Déjalo vacío para pedirlo al conectar';
+
+  @override
   String get retry => 'Reintentar';
 
   @override

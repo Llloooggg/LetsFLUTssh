@@ -14,6 +14,7 @@
   "credentialPromptHint": "Introdúcela para terminar de conectar. Nunca se guarda en disco.",
   "credentialPromptHintForSession": "Introdúcela para terminar de conectar a «{session}». Nunca se guarda en disco.",
   "credentialPromptRememberSession": "Recordar durante esta sesión",
+  "passwordBlankPromptHint": "Déjalo vacío para pedirlo al conectar",
   "retry": "Reintentar",
   "import_": "Importar",
   "export_": "Exportar",

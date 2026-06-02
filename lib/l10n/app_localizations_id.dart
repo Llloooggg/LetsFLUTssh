@@ -54,6 +54,9 @@ class SId extends S {
   String get credentialPromptRememberSession => 'Ingat untuk sesi ini';
 
   @override
+  String get passwordBlankPromptHint => 'Kosongkan untuk ditanya saat connect';
+
+  @override
   String get retry => 'Coba Lagi';
 
   @override

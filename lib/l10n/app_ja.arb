@@ -14,6 +14,7 @@
   "credentialPromptHint": "接続を完了するには入力してください。ディスクには保存されません。",
   "credentialPromptHintForSession": "「{session}」への接続を完了するには入力してください。ディスクには保存されません。",
   "credentialPromptRememberSession": "このセッションの間は記憶する",
+  "passwordBlankPromptHint": "空欄にすると接続時に尋ねます",
   "retry": "再試行",
   "import_": "インポート",
   "export_": "エクスポート",
