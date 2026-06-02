@@ -4032,9 +4032,9 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `biometricKeyVaultProvider` | `Provider<BiometricKeyVault>` | `security_provider.dart` |
 | `keychainPasswordGateProvider` | `Provider<KeychainPasswordGate>` | `security_provider.dart` |
 | `hardwareTierVaultProvider` | `Provider<HardwareTierVault>` | `security_provider.dart` |
-| `securityCapabilitiesProvider` | `FutureProvider<SecurityCapabilities>` | `security_provider.dart` — orchestrator-driven capability snapshot |
+| `securityCapabilitiesProvider` | `FutureProvider<DbSecurityCapabilities>` | `security_provider.dart` — orchestrator-driven capability snapshot |
 | `hardwareProbeDetailProvider` | `FutureProvider<HardwareProbeDetail>` | `security_provider.dart` — typed unavailability reason for the hardware-vault Settings card |
-| `keyringProbeDetailProvider` | `FutureProvider<KeyringProbeResult>` | `security_provider.dart` — typed unavailability reason for the keychain Settings card |
+| `keyringProbeDetailProvider` | `FutureProvider<DbKeyringProbeResult>` | `security_provider.dart` — typed unavailability reason for the keychain Settings card |
 | `securityStateProvider` | `NotifierProvider<SecurityStateNotifier, SecurityState>` | `security_provider.dart` — current tier + modifiers + DB key holder |
 | `lockStateProvider` | `NotifierProvider<LockStateNotifier, bool>` | `core/security/lock_state.dart` |
 | `autoLockMinutesProvider` | `NotifierProvider<AutoLockMinutesNotifier, int>` | `auto_lock_provider.dart` |
