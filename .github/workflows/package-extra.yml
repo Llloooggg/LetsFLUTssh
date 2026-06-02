@@ -10,8 +10,9 @@ name: Extra Linux packages
 # The tarball is the same self-contained bundle the .deb / .AppImage
 # ship; these jobs just re-wrap it in each distro's package format with
 # the matching runtime-dependency names. The FIDO udev rule
-# (70-letsflutssh-fido.rules) is installed here too — the .deb omits it
-# (tracked gap).
+# (70-letsflutssh-fido.rules) is installed here too, matching the .deb /
+# AppImage so a hardware key works without manual udev setup on any
+# Linux package.
 
 on:
   release:
