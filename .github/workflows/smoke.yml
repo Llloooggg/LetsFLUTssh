@@ -142,27 +142,36 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: recursive
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-      - name: Build debug APK
-        # The release signingConfig block in app/build.gradle.kts throws
-        # at configure time when key.properties is absent (it gates every
-        # gradle invocation, debug included) unless `allowDebugRelease` is
-        # set. Gradle reads `ORG_GRADLE_PROJECT_*` env vars as `-P`
-        # properties, so this falls the build back to the debug keystore —
-        # no signing key needed in CI. The fat debug apk still compiles
-        # Kotlin + the cargokit Rust core and carries the x86_64 ABI the
-        # emulator runs.
+          cache: false
+      # Mirror build-release.yml's build-android setup: the cargokit
+      # gradle plugin invokes cargo per ABI to produce liblfs_frb.so, so
+      # the Android Rust targets + cargo-ndk must be present, and the Dart
+      # codegen must run before the build — without this the Android build
+      # resolves a different dependency graph and the Kotlin compile fails.
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+      - name: Install cargo-ndk
+        run: cargo install --locked --version 4.1.2 cargo-ndk
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Build APKs (per-ABI, debug keystore)
+        # Same `--release --split-per-abi` as the shipped build;
+        # allowDebugRelease falls the signing config back to the debug
+        # keystore (app/build.gradle.kts gates every gradle invocation on
+        # key.properties otherwise), so no signing secret is needed for a
+        # smoke build.
         env:
           ORG_GRADLE_PROJECT_allowDebugRelease: 'true'
-        run: flutter build apk --debug
+        run: flutter build apk --release --split-per-abi
       - name: Enable KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -181,7 +190,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            APK=build/app/outputs/flutter-apk/app-debug.apk
+            APK=$(ls build/app/outputs/flutter-apk/*x86_64*.apk | head -1)
             adb install -r "$APK"
             adb logcat -c
             adb shell monkey -p com.llloooggg.letsflutssh -c android.intent.category.LAUNCHER 1
