@@ -300,7 +300,7 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `transport/rust_transport.dart` | `RustTransport` | Routes channel-ops calls into FRB (`lfs_core::ssh`). The Rust connection actor builds the authenticated session; this wrapper bridges the channel-ops surface and materialises shell + direct-tcpip channels as Dart streams. ProxyJump dialled child sessions adopt the parent's session via `RustTransport.adopt(session)` rather than re-connecting on the bridge. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`, plus the `useAgent` flag (`Session.toSSHConfig` sets it from `authType == AuthType.agent`); the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). When `useAgent` is set, `ConnectionsNotifier._authFromConfig` short-circuits to `SshAuthAgent` before the auth composer runs — the system ssh-agent owns the credential and no SecretStore staging is required. |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
-| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | UI-side notifier that mirrors the `known_hosts` table in `letsflutssh.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
+| `providers/known_hosts_provider.dart` | `KnownHostsMutator` | UI-side notifier that mirrors the `known_hosts` table in `letsflutssh.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError`, `ProxyJumpBastionError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
@@ -366,10 +366,10 @@ If the user has an encrypted key with no stored or passed passphrase, the connec
 
 **Verbose connection log (`ssh/verbose_log.rs`).** russh emits its handshake / userauth diagnostics through the `log` crate — kex / cipher / host-key algorithms, the offered public-key algorithms, `server-sig-algs`, the per-method accept/reject lines. `verbose_log` installs a process-global `log::Log` that forwards those records (sanitised through the same redactor as every other log line) into the opt-in file log via the CoreLog bus, tagged `[<connId>]` from a `tokio::task_local` bound around the connect future (`run_connect_driver` wraps `run_auth` in `verbose_log::scoped(id, …)`). Gated by `AppConfig.ssh.verbose_connection_log` (default off) — `default_client_config` syncs the flag from the config store before each handshake, so a Settings toggle takes effect on the next connect; when off, `log`'s max level is `Off` and no `log`-using crate even formats its arguments. The trace lands only in the file log, never on the pre-terminal connection screen: it is hundreds of lines per connect and would drown the high-level phase view. This is the `ssh -vvv` material that explains an algorithm-level rejection the per-attempt remaining-methods detail can't.
 
-#### KnownHostsNotifier
+#### KnownHostsMutator
 
 ```dart
-class KnownHostsNotifier extends Notifier<Map<String, String>> {
+class KnownHostsMutator extends Notifier<Map<String, String>> {
   // Subscribes to BusTopic::KnownHosts in build(); every mutation
   // anywhere in the workspace fires a BusEvent::KnownHostsChanged
   // and the listener triggers reload().
@@ -394,7 +394,7 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
 }
 ```
 
-The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsNotifier` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
+The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsMutator` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
 
 While the host-key prompt is on screen the connect driver's `ssh_timeout_sec` cap is suspended — the wall-clock spent waiting on the user does not count against the network budget. See [§3.5 Connect timeout](#connect-timeout--ssh_timeout_sec-with-prompt-pause) for the pause-aware-timeout machinery.
 
@@ -1147,7 +1147,7 @@ The JSON decoder silently ignores any key outside the typed
 hand-edited configs, so a config that picks up a stray field still
 parses.
 
-Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
+Stores (`SessionNotifier`, `SshKeysMutator`, `KnownHostsMutator`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
 #### Tier resolution at startup (`SecurityInitController.bootstrap`)
 
@@ -2151,7 +2151,7 @@ OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsec
 
 **Linux gating:** libsecret emits a non-recoverable `g_warning` to stderr on any call that tries to unlock a locked keyring, and Dart cannot intercept the warning. To keep the console quiet for users who never opt into keychain storage, a shared [`LinuxKeychainMarker`](../lib/core/security/linux_keychain_marker.dart) tracks opt-in with a marker file (`keychain_enabled`) inside the app-support dir. `SecureKeyStorage.writeKey` creates it on success, `deleteKey` clears it, and `readKey` / the `isAvailable` probe refuse to touch libsecret on Linux until the marker is present. `BiometricKeyVault` uses the same marker for its libsecret fallback path so a fresh install on a no-keyring host (WSL, headless container, minimal desktop) never probes libsecret until the user has successfully written at least one secret through either class. The marker is instance-based (injectable `pathFactory`) so tests can point it at a temp dir without binding the `path_provider` channel; `LinuxKeychainMarker.defaultInstance` is the production singleton both callers default to. First write on opt-in still talks to libsecret so any real failure surfaces through the normal error path.
 
-#### SshKeysNotifier
+#### SshKeysMutator
 
 Central SSH key store. The schema + DAO live Rust-side under
 `lfs_core::db::ssh_keys` (rusqlite + bundled SQLCipher); the Dart
@@ -2161,11 +2161,11 @@ holds a SQLite handle directly.
 
 ```dart
 final sshKeysProvider =
-    AsyncNotifierProvider<SshKeysNotifier, List<SshKeyEntry>>(
-      SshKeysNotifier.new,
+    AsyncNotifierProvider<SshKeysMutator, List<SshKeyEntry>>(
+      SshKeysMutator.new,
     );
 
-class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
+class SshKeysMutator extends AsyncNotifier<List<SshKeyEntry>> {
   // build() returns the metadata-only list (PEM bytes stripped).
   // Every Riverpod watcher of sshKeysProvider sees a credential-
   // stripped projection — no PEM bytes pinned in the Dart heap on
@@ -2190,7 +2190,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
 Future<SshKeyEntry> generateSshKeyPair(SshKeyType type, String label);
 // Routes to lfs_frb::api::keys::keys_generate_{ed25519,rsa} which
 // runs on tokio's blocking pool. Returned entry is unsaved — caller
-// decides whether to persist via SshKeysNotifier.save / .importForMerge.
+// decides whether to persist via SshKeysMutator.save / .importForMerge.
 
 class SshKeyEntry {
   final String id, label, privateKey, publicKey, keyType;
@@ -2714,7 +2714,7 @@ class DeepLinkHandler {
 | `import_service.dart` | Thin Dart wrapper over the Rust apply driver: `applyResultViaRust(ImportResult, refreshAfterImport)` serialises the result to the staged-import JSON envelope, calls `dbImportStage` + `dbImportApply` (FRB → `lfs_core::archive::apply_pending_import`), then runs the caller's cache-refresh hook. Hosts `ImportSummary` (per-type counters consumed by the success toast) and `LfsImportRolledBackException` (raised on replace-mode failure so the UI shows "data restored" — the surrounding sqlite transaction guarantees the rollback). All collisions, junction inserts, folder-hierarchy reconstruction, and replace-mode rollback live Rust-side now |
 | `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for the SSH-config import UI in Settings → Data — see [§5.5 Settings](#55-settings-featuressettings) |
-| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `SshKeysNotifier.importForMerge` so fingerprint-duplicate keys are not re-added |
+| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `SshKeysMutator.importForMerge` so fingerprint-duplicate keys are not re-added |
 
 #### .lfs format
 
@@ -2873,7 +2873,7 @@ manifest whose `schema_version` is greater than
 
 | Mode | Behavior |
 |------|----------|
-| **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `SshKeysNotifier.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
+| **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `SshKeysMutator.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
 | **Replace** | Full replacement of sessions from archive. Tags / snippets / known_hosts are additionally wiped when the corresponding `includeX` flag from the preview dialog is set — so a user who checks "Tags" with an empty archive ends up with zero tags. Unchecked types are left untouched. A failure at any step triggers a full rollback of the snapshot (sessions + folders + config + tags + snippets + known_hosts) |
 
 #### Apply driver — Rust-routed
@@ -4017,8 +4017,8 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `folderTagsProvider` | `FutureProvider.family<List<Tag>, String>` | `tag_provider.dart` |
 | `snippetsProvider` | `AsyncNotifierProvider<SnippetsNotifier, List<Snippet>>` | `snippet_provider.dart` |
 | `sessionSnippetsProvider` | `FutureProvider.family<List<Snippet>, String>` | `snippet_provider.dart` |
-| `sshKeysProvider` | `AsyncNotifierProvider<SshKeysNotifier, List<SshKeyEntry>>` | `key_provider.dart` |
-| `knownHostsProvider` | `NotifierProvider<KnownHostsNotifier, Map<String, String>>` | `known_hosts_provider.dart` |
+| `sshKeysProvider` | `AsyncNotifierProvider<SshKeysMutator, List<SshKeyEntry>>` | `key_provider.dart` |
+| `knownHostsProvider` | `NotifierProvider<KnownHostsMutator, Map<String, String>>` | `known_hosts_provider.dart` |
 
 #### Updates, version, terminal broadcast
 
@@ -4501,8 +4501,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected). State + lifecycle + MarqueeMixin overrides + tree helpers in this file; drag & drop, pointer handlers, and the per-row build chain in `session_tree_view_internals.dart`. |
 | `session_tree_view_internals.dart` | — (`extension _Internals`) | Drag & drop (`_canAcceptDrop` / `_canAcceptBulkDrop` / `_handleDrop`), pointer handlers (`_onPointerDown` / `_onPointerMove` / `_clampedIndex` / `_onPointerUp`), and the per-row build chain (`_buildDragTarget` / `_buildTreeRow` / `_buildDragFeedback` / `_buildFolderContent` / `_onFolderTap` / `_buildFolderTile` / `_onSessionTap` / `_buildSessionTile`). |
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. **Single-form layout, no tabs** — the dialog body is one vertical `SingleChildScrollView` with three section composers (`Identity` block at the top — name + kind picker; `Connection` section with the per-protocol transport block; `Authentication` section with the per-protocol credential block; `More options` collapsible holding tags + ProxyJump + port-forwarding row + record-session toggle). The kind picker is the single lever and is visible from every scroll position — flipping it reshapes the Connection / Authentication sections in place rather than swapping hidden tabs. **The SSH connect surface is one smart-paste field** (`_connectCtrl`, labelled `CONNECT TO`) that accepts `[user@]host[:port]`; on every edit a listener parses the text through `rust_sessions.sessionsParseSshTarget` (Rust `lfs_core::sessions::parse_ssh_target`) and writes the result into `_hostCtrl` / `_portCtrl` / `_userCtrl` so the existing save path and Rust-side validators keep reading the same tuple. Parse failures leave the previous good values in place (mid-typing edge case); the field's validator surfaces `connectStringInvalid` ("Invalid format — expected user@host:port") on Save, plus a separate `required` verdict when the parser tolerates a bare host but no user prefix is present. Per-section composers live in part siblings: `session_edit_dialog_connection.dart` (extension `_ConnectionSection` — `_buildIdentityBlock`, `_buildConnectionBlock`, the kind picker, and the per-protocol SSH / WebDAV / S3 sub-builders; the SSH branch is just the smart-paste field — ProxyJump moved to More options), `session_edit_dialog_auth.dart` (extension `_AuthSection` — `_buildAuthBlock` dispatch + `_buildSshAuthSection` / `_buildWebDavAuthSection` / `_buildS3AuthSection`; SSH = ssh-agent toggle + password / key store / inline-PEM / passphrase; WebDAV = method chips + credential field whose label flips to "BEARER TOKEN *" for bearer + self-signed-cert fingerprint pin; S3 = single `SECRET ACCESS KEY *` field; the "Key from manager" picker renders each row's backend badge via the shared `HardwareKeyBadge` / `Pkcs11Badge` / `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` widgets), `session_edit_dialog_options.dart` (extension `_AdvancedSection` — `_buildAdvancedBlock` rendered inside an `AnimatedSize` expander; tags universally — applicable to every kind; ProxyJump editor + port-forwarding row + Manage button opening `SessionForwardsDialog` + record-session toggle for SSH only because WebDAV / S3 transports never open a shell to record), and `session_edit_dialog_results.dart` (the `SessionDialogResult` sealed hierarchy + `SaveResult` / `WebDavSaveData` / `S3SaveData` payloads the dialog pops). The smart-paste validator collapses the old per-field SSH validators (host required, port range, user required) into one verdict; WebDAV / S3 keep their per-field `*`-suffixed labels because those transport shapes don't compose into a single string. `_save` rejects an invalid form with a `Toast.show(level: warning)` ("Fill the required fields marked *") plus the form-level inline-error path (red border + error text per `StyledFormField`), so a stray empty required field surfaces both globally and locally without needing tab routing. The disabled ssh-agent toggle on mobile binds a no-op `onTap` so a tap on it is absorbed at the HoverRegion layer instead of bubbling through to the dialog's `barrierDismissible` and closing the form. Selecting "Use system ssh-agent" stamps `AuthType.agent` on the session row and clears the per-row key / password slots — the connect path reads `SshAuth.useAgent` (set by `Session.toSSHConfig` from `authType`) and short-circuits to `SshAuthAgent` inside `ConnectionsNotifier._authFromConfig` before the auth composer runs. Mobile builds keep the toggle visible but disabled — the agent endpoint is desktop-only because Android / iOS have no system ssh-agent equivalent to dial. |
-| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionsNotifier. Async to support key store lookup |
-| `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
+| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionsNotifier. Async to support key store lookup. Also carries the quick-connect path ("open a terminal tab with an `SSHConfig` directly", without saving a session) — there is no longer a dedicated quick-connect dialog widget. |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link). The bottom badge switches between a neutral "No passwords in QR" info and an orange warning (`qrContainsCredentialsWarning`) depending on the `containsCredentials` flag the caller passes — so the screen doesn't claim there are no passwords when the user enabled `includePasswords` / `includeManagerKeys` in the preceding export dialog |
 | `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and `.lfs`. Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator. Widget is a thin `AnimatedBuilder` shell over `UnifiedExportController` — selection / options / cached-size logic lives in the controller so it can be tested without a widget tree |
 | `unified_export_controller.dart` | `UnifiedExportController`, `ExportPreset` | Headless `ChangeNotifier` driving the dialog: session selection set, `ExportOptions` with preset helpers, mutually-exclusive key-scope flags, cached payload / credential / empty-folder sizing. Same pattern as [`FilePaneController`](#filepanecontroller) — widget-local state that does not belong in a Riverpod provider |
@@ -4873,7 +4872,7 @@ For complex dialogs (e.g. with tabs between header and content), compose from th
 - `AppDialogHeader({title, onClose})` — header bar
 - `AppDialogFooter({actions})` — footer bar (uses `Wrap` layout — actions flow to the next line on narrow mobile screens)
 - `AppButton` — compact button (`.cancel()`, `.primary()`, `.secondary()`, `.destructive()`); lives in `lib/widgets/core/app_button.dart` and is re-exported from `app_dialog.dart` so dialog callsites don't need a second import. Used outside dialogs too (settings rows, toasts, wizard steps).
-- `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
+- `AppProgressBarDialog.show(context, reporter)` — non-dismissible labelled progress bar (see [§7 ProgressReporter](#progressreporter)). Replaced the old `AppProgressBarDialog` spinner — every long operation must report phase/step so users see what is happening and how far it has progressed.
 
 Static helper: `AppDialog.show<T>(context, builder:)` wraps `showDialog` with `AnimationStyle.noAnimation` and consistent barrier settings.
 
@@ -4996,7 +4995,7 @@ StyledFormField({
   ValueChanged<String>? onSubmitted,
 })
 ```
-Reusable styled form field combining `FieldLabel` + `StyledInput`. Eliminates duplication across `SessionEditDialog`, `QuickConnectDialog`, and `LfsImportDialog`. Uses `AppFonts.mono()` for input text, `AppTheme.bg3` fill, `AppTheme.radiusSm` borders. Set `fixedHeight: true` for compact bottom-sheet layouts (wraps input in `SizedBox(height: controlHeightMd)` with zero vertical padding).
+Reusable styled form field combining `FieldLabel` + `StyledInput`. Eliminates duplication across `SessionEditDialog` and `LfsImportDialog`. Uses `AppFonts.mono()` for input text, `AppTheme.bg3` fill, `AppTheme.radiusSm` borders. Set `fixedHeight: true` for compact bottom-sheet layouts (wraps input in `SizedBox(height: controlHeightMd)` with zero vertical padding).
 
 `FieldLabel(text)` — standalone uppercase label widget. `StyledInput(controller, ...)` — standalone text input with full decoration, accepts `labelText` and `contentPadding` overrides for non-standard layouts (e.g. `.lfs` import dialog).
 
@@ -6142,7 +6141,7 @@ Connection {
 }
 ```
 
-`Connection` does not own a `KnownHostsNotifier` reference; the host-key verification flow runs entirely Rust-side (`lfs_core::known_hosts` + the FRB-side `BusEvent::KnownHostPromptRequest` round-trip), and the Dart `KnownHostsNotifier` is a UI-side notifier on the same backing table without any per-connection link.
+`Connection` does not own a `KnownHostsMutator` reference; the host-key verification flow runs entirely Rust-side (`lfs_core::known_hosts` + the FRB-side `BusEvent::KnownHostPromptRequest` round-trip), and the Dart `KnownHostsMutator` is a UI-side notifier on the same backing table without any per-connection link.
 
 ### TabEntry
 
@@ -6894,7 +6893,7 @@ missing magic, or no manifest are rejected with
 `UnsupportedLfsVersionException`. See the .lfs format table in §3.9 for
 the full layout.
 
-Export decrypts known_hosts via `KnownHostsNotifier.exportToString()`. Import returns content for caller to import via `KnownHostsNotifier.importFromString()`.
+Export decrypts known_hosts via `KnownHostsMutator.exportToString()`. Import returns content for caller to import via `KnownHostsMutator.importFromString()`.
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
