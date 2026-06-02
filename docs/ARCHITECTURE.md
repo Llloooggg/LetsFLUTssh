@@ -186,8 +186,8 @@ lib/
 ├── core/                             # Domain logic + I/O, renders nothing. Zero package:flutter (UI / plugins / Riverpod / l10n / terminal widgets); only flutter_rust_bridge + pure Dart. Enforced by test/core/no_flutter_in_core_test.dart
 │   ├── bus/                          # `AppBus` — Dart-side wrapper over the FRB bus subscription. Single global event hub the prompt listeners and notifiers subscribe to.
 │   ├── logs/                         # `LogStore` (AppLogger's opt-in file sink read-back) + the settings logging-config parser
-│   ├── s3/                           # S3 `FileSystem` (`RustS3Fs`) over the Rust `lfs_core::s3` transport
-│   ├── webdav/                       # WebDAV `FileSystem` (`RustWebDavFs`) over the Rust `lfs_core::webdav` transport
+│   ├── s3/                           # `S3FileSystem` (`FileSystem` impl) over the Rust `lfs_core::s3` transport
+│   ├── webdav/                       # `WebDavFileSystem` (`FileSystem` impl) over the Rust `lfs_core::webdav` transport
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
 │   │   ├── rust_db_init.dart         # `lfsCoreDbExists` (existence probe) / `verifyRustDbReadable` (post-unlock SELECT probe) / `ensureRustDbOpen({key, secretId})` (Rust handle bring-up). `dbClose` is invoked directly through the FRB-bridged `lib/src/rust/api/app.dart` shim from auto-lock + the controller.
 │   │   ├── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
