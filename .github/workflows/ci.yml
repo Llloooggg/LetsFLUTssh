@@ -400,52 +400,32 @@ jobs:
         if: matrix.ndk == true
         run: cargo install --locked --version 4.1.2 cargo-ndk
 
-      - name: Install Strawberry Perl with full CPAN core (Windows MSVC)
-        # The `windows-2025-vs2026` runner image puts Git-bundled
-        # MSYS2 perl (`C:\Program Files\Git\usr\bin\perl.exe`)
-        # first on PATH. That perl ships a stripped-down `@INC` (no
-        # `Locale::Maketext::Simple`, `Params::Check`, `IPC::Cmd`),
-        # and `openssl-sys`'s build script invokes `perl Configure`
-        # which `require`s those modules. Cargo's child resolves
-        # plain `perl` via PATH lookup, so the fix is to force
-        # Strawberry (`C:\Strawberry\perl\bin`) ahead of Git's perl.
+      - name: Put Strawberry Perl ahead of MSYS2 perl on PATH (Windows MSVC)
+        # The windows runner ships Strawberry Perl preinstalled at
+        # `C:\Strawberry` with a full CPAN core (`Locale::Maketext::Simple`,
+        # `Params::Check`, `IPC::Cmd`). `openssl-sys`'s build script runs
+        # `perl Configure` for SQLCipher's vendored OpenSSL and needs
+        # those modules. build-release.yml's Windows build relies on the
+        # same preinstalled Strawberry implicitly — its `flutter build
+        # windows` runs under pwsh, where Strawberry is already first on
+        # PATH — so there is no separate install step there either.
         #
-        # `choco install -y strawberryperl` ensures Strawberry is
-        # present with a full CPAN core. The bash `printf` writes
-        # plain ASCII to `$GITHUB_PATH` — a previous attempt used
-        # PowerShell's `Out-File -Encoding utf8` which silently
-        # emitted a BOM that the runner's GITHUB_PATH parser
-        # mis-handled (Strawberry never made it to PATH; cargo
-        # kept resolving to MSYS2 perl). Bash redirection writes
-        # one line per entry with a trailing `\n`, no encoding
-        # surprise.
+        # This job runs in `shell: bash` (Git Bash), which forces its own
+        # MSYS2 perl (`C:\Program Files\Git\usr\bin\perl.exe`, stripped
+        # `@INC`) ahead on PATH. Prepend Strawberry in front of it.
+        # `printf` writes plain ASCII to `$GITHUB_PATH`; PowerShell
+        # `Out-File -Encoding utf8` emits a BOM the GITHUB_PATH parser
+        # mis-handles (Strawberry never reaches PATH, cargo re-elects
+        # MSYS2 perl).
+        #
+        # The probe is the guard: if a future runner image drops
+        # Strawberry or a module, this step fails loudly here instead of
+        # deep inside an openssl-sys build error.
         if: matrix.target == 'x86_64-pc-windows-msvc'
         shell: bash
         run: |
-          # Pin Strawberry Perl by version AND explicit SHA256 of the
-          # underlying MSI so the choco install satisfies the
-          # Scorecard Pinned-Dependencies rule (alert #82).
-          # `--checksum`/`--checksum-type` are the literals Scorecard
-          # scans for; `--require-checksums` adds belt-and-braces by
-          # making choco refuse the install if the embedded checksum
-          # is missing or mismatched.
-          #
-          # The MSI SHA256 below mirrors the value embedded in the
-          # nupkg's tools/chocolateyInstall.ps1 (`checksum64`) for
-          # this exact version. To bump:
-          #   1. download https://community.chocolatey.org/api/v2/package/strawberryperl/
-          #   2. unzip the .nupkg
-          #   3. read tools/chocolateyInstall.ps1
-          #   4. update both --version and --checksum below
-          choco install -y strawberryperl --version=5.42.2.1 \
-            --checksum=1b473a709e4d69128f52b30426a423f44d181cefc6460e88b4f519f534cc6583 \
-            --checksum-type=sha256 \
-            --require-checksums --no-progress
           printf '%s\n' 'C:\Strawberry\perl\bin' >> "$GITHUB_PATH"
           printf '%s\n' 'C:\Strawberry\c\bin' >> "$GITHUB_PATH"
-          # Sanity probe + a diagnostic `where perl` so a future
-          # regression is visible from the workflow log without
-          # spelunking openssl-sys build script output.
           /c/Strawberry/perl/bin/perl.exe -e 'use Locale::Maketext::Simple; use Params::Check; use IPC::Cmd; print "Strawberry Perl ready: ", $^V, "\n"'
           echo "GITHUB_PATH after prepend (one entry per line):"
           cat "$GITHUB_PATH"
