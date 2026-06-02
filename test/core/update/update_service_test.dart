@@ -1368,6 +1368,71 @@ void main() {
   });
 
   // ===========================================================================
+  // UpdateService.openFile — Android apk install
+  // ===========================================================================
+  //
+  // Spec (from update_service.openFile): on Android with an injected
+  // AndroidApkInstaller, openFile hands the apk path to that installer and
+  // returns its result (true on launched / needsPermission, false → release
+  // page). With no installer wired it falls through to the perimeter, which
+  // returns UnsupportedPlatform → false. canLaunchInstaller mirrors this:
+  // true iff the installer is wired.
+  group('UpdateService.openFile — Android apk install', () {
+    test(
+      'hands the apk to the injected installer and returns its result',
+      () async {
+        String? handedPath;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'android',
+          androidApkInstaller: (path) async {
+            handedPath = path;
+            return true;
+          },
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile(
+          '/data/.../letsflutssh-android-arm64.apk',
+        );
+
+        expect(ok, isTrue);
+        expect(handedPath, '/data/.../letsflutssh-android-arm64.apk');
+        expect(perimeterCalls, 0, reason: 'apk install bypasses the perimeter');
+        expect(service.canLaunchInstaller, isTrue);
+      },
+    );
+
+    test(
+      'installer false result propagates (UI falls back to release page)',
+      () async {
+        final service = UpdateService(
+          platform: 'android',
+          androidApkInstaller: (_) async => false,
+        );
+        expect(await service.openFile('/tmp/x.apk'), isFalse);
+      },
+    );
+
+    test('no installer wired → unsupported, canLaunchInstaller false', () async {
+      var installerCalls = 0;
+      final service = UpdateService(
+        platform: 'android',
+        openInstaller: (_, _) async {
+          installerCalls++;
+          return const rust_installer.InstallerLaunchOutcome.unsupportedPlatform();
+        },
+      );
+      expect(service.canLaunchInstaller, isFalse);
+      expect(await service.openFile('/tmp/x.apk'), isFalse);
+      expect(installerCalls, 1, reason: 'falls through to the perimeter');
+    });
+  });
+
+  // ===========================================================================
   // UpdateService.openFile — macOS DMG installer hook
   // ===========================================================================
   //

@@ -176,6 +176,14 @@ typedef AppImageReplacer =
       required String appimagePath,
     });
 
+/// Signature for the Android apk install hand-off (the
+/// `lib/platform/android/apk_installer.dart` MethodChannel adapter).
+/// Injected into [UpdateService] from `updateServiceProvider` so the
+/// core layer stays Flutter-free; `null` off Android. Returns `true`
+/// when the system installer (or the install-permission screen) was
+/// launched.
+typedef AndroidApkInstaller = Future<bool> Function(String path);
+
 /// Checks GitHub releases for updates and downloads assets.
 ///
 /// HTTP operations are injected for testability — production code uses
@@ -218,6 +226,11 @@ class UpdateService {
   /// assert the call without actually terminating the test runner.
   final void Function() _exitProcess;
 
+  /// Android apk install hand-off (system package installer). `null`
+  /// off Android and in tests that don't exercise the apk path; wired
+  /// from `updateServiceProvider` on Android.
+  final AndroidApkInstaller? _androidApkInstaller;
+
   UpdateService({
     HttpFetcher? fetch,
     InstallerOpener? openInstaller,
@@ -227,6 +240,7 @@ class UpdateService {
     AppImageReplacer? replaceAppImage,
     String? Function()? appImagePathEnv,
     void Function()? exitProcess,
+    this._androidApkInstaller,
   }) : _fetch = fetch ?? defaultFetch,
        _openInstaller = openInstaller ?? _defaultOpenInstaller,
        _platform = platform ?? _hostPlatform(),
@@ -447,10 +461,9 @@ class UpdateService {
   /// separately in [canLaunchInstaller] because its apply path depends
   /// on the install method, not just the OS.
   ///
-  /// Android is intentionally NOT listed — the APK install flow requires
-  /// REQUEST_INSTALL_PACKAGES + FileProvider + per-app system prompt
-  /// that needs a separate implementation; until that lands, Android
-  /// uses the browser-fallback path like iOS.
+  /// Android is handled separately in [canLaunchInstaller] via the
+  /// injected [AndroidApkInstaller] (REQUEST_INSTALL_PACKAGES +
+  /// FileProvider + system installer prompt); Linux is method-dependent.
   static const _platformsWithInstaller = {'macos', 'windows'};
 
   /// True when [openFile] can be expected to launch a native installer
@@ -467,6 +480,12 @@ class UpdateService {
     if (_platform == 'linux') {
       return _linuxInstall == rust_update.DbLinuxInstall.appImage ||
           _linuxInstall == rust_update.DbLinuxInstall.portable;
+    }
+    // Android can self-install only when the apk installer adapter is
+    // wired (it is, on a real Android build); otherwise fall back to the
+    // release page like iOS.
+    if (_platform == 'android') {
+      return _androidApkInstaller != null;
     }
     return _platformsWithInstaller.contains(_platform);
   }
@@ -507,6 +526,18 @@ class UpdateService {
     if (_platform == 'linux' &&
         _linuxInstall == rust_update.DbLinuxInstall.appImage) {
       if (await _tryAppImageSelfReplace(path)) return true;
+    }
+    if (_platform == 'android') {
+      final installer = _androidApkInstaller;
+      if (installer != null) {
+        AppLogger.instance.log(
+          'Handing apk to the system installer: $path',
+          name: 'UpdateService',
+        );
+        // true on "launched" / "needsPermission"; false routes the UI
+        // to the release-page fallback.
+        return installer(path);
+      }
     }
     if (_platform == 'macos') {
       final installer = _macosDmgInstaller;

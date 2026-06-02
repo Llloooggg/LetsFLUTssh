@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/update/update_service.dart';
+import '../platform/android/apk_installer.dart';
 import '../src/rust/api/macos_installer.dart' as rust_macos_installer;
 import '../src/rust/api/update_http.dart' as rust_update;
 import '../src/rust/api/update_metadata.dart' as rust_update_meta;
@@ -99,9 +100,15 @@ final updateServiceProvider = Provider<UpdateService>((ref) {
   final rust_update_meta.DbLinuxInstall? linuxInstall = Platform.isLinux
       ? rust_update_meta.updateLinuxInstallMethod()
       : null;
+  // On Android, wire the apk install hand-off (system package
+  // installer). Other platforms get null and use their own apply path.
+  final AndroidApkInstaller? androidApkInstaller = Platform.isAndroid
+      ? ApkInstaller.install
+      : null;
   return UpdateService(
     macosDmgInstaller: installer,
     linuxInstall: linuxInstall,
+    androidApkInstaller: androidApkInstaller,
   );
 });
 
