@@ -119,6 +119,11 @@ jobs:
         run: |
           APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           test -n "$APP" || { echo "::error::no .app built"; exit 1; }
+          # Apple Silicon SIGKILLs an unsigned arm64 binary on launch.
+          # Ad-hoc sign (no certificate / dev account) so the locally
+          # built app runs — this is a launch smoke, not a notarization
+          # check.
+          codesign --force --deep --sign - "$APP"
           BIN="$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$APP/Contents/Info.plist")"
           "$BIN" &
           PID=$!
@@ -146,8 +151,12 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - name: Build APK (arm64 + x86_64 split)
-        run: flutter build apk --release --split-per-abi
+      - name: Build debug APK
+        # Debug build: debug-signed, so it needs no android/key.properties
+        # (the release build gate); still compiles the Kotlin + the Rust
+        # core via cargokit, and the fat debug apk includes the x86_64
+        # ABI the emulator runs.
+        run: flutter build apk --debug
       - name: Enable KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -166,7 +175,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            APK=$(ls build/app/outputs/flutter-apk/*x86_64*.apk | head -1)
+            APK=build/app/outputs/flutter-apk/app-debug.apk
             adb install -r "$APK"
             adb logcat -c
             adb shell monkey -p com.llloooggg.letsflutssh -c android.intent.category.LAUNCHER 1
