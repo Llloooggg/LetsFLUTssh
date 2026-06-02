@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Conexão descartada",
   "errSshNotConnected": "Não conectado",
   "errConnectionFailed": "Conexão falhou",
+  "errConnectionLostReconnect": "Conexão perdida — a sessão foi desconectada (suspensão ou rede). Reconecte-a pela lista de sessões.",
   "errConnectionTimedOutSeconds": "Conexão expirou após {seconds} segundos",
   "errSessionClosed": "Sessão encerrada",
   "errSftpInitFailed": "Falha ao inicializar SFTP: {error}",

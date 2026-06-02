@@ -1309,6 +1309,10 @@ class SFr extends S {
   String get errConnectionFailed => 'Échec de la connexion';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Connexion perdue — la session a été déconnectée (veille ou réseau). Reconnecte-la depuis la liste des sessions.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Délai de connexion dépassé après $seconds secondes';
   }

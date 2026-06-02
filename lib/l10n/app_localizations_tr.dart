@@ -1249,6 +1249,10 @@ class STr extends S {
   String get errConnectionFailed => 'Bağlantı başarısız';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Bağlantı koptu — oturum kesildi (uyku veya ağ). Oturum listesinden yeniden bağlan.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return '$seconds saniye sonra bağlantı zaman aşımına uğradı';
   }

@@ -1303,6 +1303,10 @@ class SEs extends S {
   String get errConnectionFailed => 'Conexión fallida';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Conexión perdida — la sesión se desconectó (suspensión o red). Vuelve a conectarla desde la lista de sesiones.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Conexión agotada tras $seconds segundos';
   }

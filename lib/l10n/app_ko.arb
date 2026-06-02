@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "연결이 폐기되었습니다",
   "errSshNotConnected": "연결되지 않았습니다",
   "errConnectionFailed": "연결에 실패했습니다",
+  "errConnectionLostReconnect": "연결이 끊겼습니다 — 세션 연결이 끊어졌습니다(절전 또는 네트워크). 세션 목록에서 다시 연결하세요.",
   "errConnectionTimedOutSeconds": "{seconds}초 후 연결 시간이 초과되었습니다",
   "errSessionClosed": "세션이 종료되었습니다",
   "errSftpInitFailed": "SFTP 초기화 실패: {error}",

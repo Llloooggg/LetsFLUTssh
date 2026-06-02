@@ -2331,6 +2331,12 @@ abstract class S {
   /// **'Connection failed'**
   String get errConnectionFailed;
 
+  /// No description provided for @errConnectionLostReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection lost — the session was disconnected (sleep or network). Reconnect it from the session list.'**
+  String get errConnectionLostReconnect;
+
   /// No description provided for @errConnectionTimedOutSeconds.
   ///
   /// In en, this message translates to:

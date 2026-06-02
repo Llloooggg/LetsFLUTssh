@@ -246,6 +246,18 @@ String? _localizeFrbKind(S l10n, Object error) {
       return l10n.errSshHostKeyRejected('?', 0);
     case rust_frb_err.DbFrbErrorKind.timeout:
       return l10n.errConnectionTimedOut;
+    case rust_frb_err.DbFrbErrorKind.transport:
+    case rust_frb_err.DbFrbErrorKind.sessionUnavailable:
+      return l10n.errConnectionLostReconnect;
+    case rust_frb_err.DbFrbErrorKind.io:
+      // A transport that dropped under the app (sleep/wake, network
+      // loss) surfaces as an io error whose detail names a closed
+      // channel / reset peer — route it to the friendly reconnect
+      // message rather than the generic fallback. Other io errors
+      // (real filesystem / pipe faults) keep falling through.
+      return _isTransportDropDetail(wire.detail)
+          ? l10n.errConnectionLostReconnect
+          : null;
     case rust_frb_err.DbFrbErrorKind.generic:
     case rust_frb_err.DbFrbErrorKind.connect:
     case rust_frb_err.DbFrbErrorKind.handshake:
@@ -253,13 +265,10 @@ String? _localizeFrbKind(S l10n, Object error) {
     case rust_frb_err.DbFrbErrorKind.keyParse:
     case rust_frb_err.DbFrbErrorKind.passphraseRequired:
     case rust_frb_err.DbFrbErrorKind.passphraseIncorrect:
-    case rust_frb_err.DbFrbErrorKind.io:
     case rust_frb_err.DbFrbErrorKind.db:
     case rust_frb_err.DbFrbErrorKind.sftp:
-    case rust_frb_err.DbFrbErrorKind.sessionUnavailable:
     case rust_frb_err.DbFrbErrorKind.recorder:
     case rust_frb_err.DbFrbErrorKind.archive:
-    case rust_frb_err.DbFrbErrorKind.transport:
     case rust_frb_err.DbFrbErrorKind.vault:
     case rust_frb_err.DbFrbErrorKind.vaultCorrupt:
     case rust_frb_err.DbFrbErrorKind.vaultPlatformUnsupported:
@@ -282,6 +291,49 @@ String? _localizeFrbKind(S l10n, Object error) {
       // have dedicated localized templates — fall through to the
       // generic path so the detail text still surfaces sanitized.
       return null;
+  }
+}
+
+/// True when an io-kind error detail names a dropped transport (a
+/// closed channel, reset peer, broken pipe, premature EOF) rather than
+/// a filesystem/pipe fault — the sleep/wake and network-loss case.
+bool _isTransportDropDetail(String detail) {
+  final d = detail.toLowerCase();
+  return d.contains('channel closed') ||
+      d.contains('connection reset') ||
+      d.contains('reset by peer') ||
+      d.contains('broken pipe') ||
+      d.contains('not connected') ||
+      d.contains('connection closed') ||
+      d.contains('unexpected eof') ||
+      d.contains('early eof') ||
+      d.contains('connection aborted');
+}
+
+/// True when [error] is a dropped-transport condition — an SSH channel
+/// closed after sleep/wake, a peer reset, or a session that went away —
+/// rather than a programming fault. The global error boundary
+/// (`showGlobalErrorDialog`) uses this to surface a friendly "reconnect"
+/// toast instead of the generic "unexpected error" crash dialog: a
+/// transport that died while the machine slept is an expected runtime
+/// condition, not a bug. Returns false on a non-envelope error or when
+/// the FRB parser isn't available yet (cold-start boundary), so the
+/// generic dialog still covers genuine faults.
+bool isTransportDropError(Object error) {
+  if (error is! String || !error.startsWith('{')) return false;
+  try {
+    final wire = rust_frb_err.frbErrorFromWire(wire: error);
+    switch (wire.kind) {
+      case rust_frb_err.DbFrbErrorKind.transport:
+      case rust_frb_err.DbFrbErrorKind.sessionUnavailable:
+        return true;
+      case rust_frb_err.DbFrbErrorKind.io:
+        return _isTransportDropDetail(wire.detail);
+      default:
+        return false;
+    }
+  } catch (_) {
+    return false;
   }
 }
 

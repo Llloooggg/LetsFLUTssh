@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart';
 import '../utils/logger.dart';
 import '../utils/sanitize.dart';
 import '../widgets/core/app_dialog.dart';
@@ -21,9 +22,23 @@ import '../widgets/core/toast.dart';
 /// on a null / unmounted context — the outer callback already checked
 /// before calling in.
 void showGlobalErrorDialog(BuildContext context, Object error) {
+  final l10n = S.of(context);
+
+  // A dropped SSH transport (sleep/wake, network loss, peer reset) is an
+  // expected runtime condition, not a crash — surface a friendly
+  // "reconnect" toast instead of the alarming "unexpected error" dialog
+  // with a raw `{"kind":"io","detail":"channel closed"}` line.
+  if (isTransportDropError(error)) {
+    Toast.show(
+      context,
+      message: localizeError(l10n, error),
+      level: ToastLevel.warning,
+    );
+    return;
+  }
+
   final errorDetail = redactSecrets(error.toString());
   final loggingEnabled = AppLogger.instance.enabled;
-  final l10n = S.of(context);
 
   try {
     showDialog<void>(

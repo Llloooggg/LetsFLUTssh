@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Koneksi telah dibuang",
   "errSshNotConnected": "Tidak terhubung",
   "errConnectionFailed": "Koneksi gagal",
+  "errConnectionLostReconnect": "Koneksi terputus — sesi terputus (sleep atau jaringan). Sambungkan ulang dari daftar sesi.",
   "errConnectionTimedOutSeconds": "Koneksi habis waktu setelah {seconds} detik",
   "errSessionClosed": "Sesi ditutup",
   "errSftpInitFailed": "Gagal menginisialisasi SFTP: {error}",

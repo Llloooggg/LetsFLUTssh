@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "تم التخلص من الاتصال",
   "errSshNotConnected": "غير متصل",
   "errConnectionFailed": "فشل الاتصال",
+  "errConnectionLostReconnect": "انقطع الاتصال — فُصلت الجلسة (سكون أو شبكة). أعد الاتصال بها من قائمة الجلسات.",
   "errConnectionTimedOutSeconds": "انتهت مهلة الاتصال بعد {seconds} ثانية",
   "errSessionClosed": "تم إغلاق الجلسة",
   "errSftpInitFailed": "فشلت تهيئة SFTP: {error}",

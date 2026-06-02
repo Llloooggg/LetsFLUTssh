@@ -1228,6 +1228,10 @@ class SJa extends S {
   String get errConnectionFailed => '接続に失敗しました';
 
   @override
+  String get errConnectionLostReconnect =>
+      '接続が切断されました — セッションが切断されました（スリープまたはネットワーク）。セッション一覧から再接続してください。';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return '$seconds 秒後に接続がタイムアウトしました';
   }

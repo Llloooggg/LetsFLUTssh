@@ -1285,6 +1285,10 @@ class SEn extends S {
   String get errConnectionFailed => 'Connection failed';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Connection lost — the session was disconnected (sleep or network). Reconnect it from the session list.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Connection timed out after $seconds seconds';
   }

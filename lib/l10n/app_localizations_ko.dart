@@ -1227,6 +1227,10 @@ class SKo extends S {
   String get errConnectionFailed => '연결에 실패했습니다';
 
   @override
+  String get errConnectionLostReconnect =>
+      '연결이 끊겼습니다 — 세션 연결이 끊어졌습니다(절전 또는 네트워크). 세션 목록에서 다시 연결하세요.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return '$seconds초 후 연결 시간이 초과되었습니다';
   }

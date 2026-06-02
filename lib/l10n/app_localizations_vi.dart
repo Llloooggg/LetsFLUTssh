@@ -1245,6 +1245,10 @@ class SVi extends S {
   String get errConnectionFailed => 'Kết nối thất bại';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Mất kết nối — phiên đã ngắt (ngủ hoặc mạng). Kết nối lại từ danh sách phiên.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Kết nối đã hết thời gian chờ sau $seconds giây';
   }

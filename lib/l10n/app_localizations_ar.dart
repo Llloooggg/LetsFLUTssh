@@ -1255,6 +1255,10 @@ class SAr extends S {
   String get errConnectionFailed => 'فشل الاتصال';
 
   @override
+  String get errConnectionLostReconnect =>
+      'انقطع الاتصال — فُصلت الجلسة (سكون أو شبكة). أعد الاتصال بها من قائمة الجلسات.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'انتهت مهلة الاتصال بعد $seconds ثانية';
   }

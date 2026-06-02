@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Verbindung beendet",
   "errSshNotConnected": "Nicht verbunden",
   "errConnectionFailed": "Verbindung fehlgeschlagen",
+  "errConnectionLostReconnect": "Verbindung verloren — die Sitzung wurde getrennt (Ruhezustand oder Netzwerk). Verbinde sie über die Sitzungsliste neu.",
   "errConnectionTimedOutSeconds": "Verbindungs-Timeout nach {seconds} Sekunden",
   "errSessionClosed": "Sitzung geschlossen",
   "errSftpInitFailed": "SFTP-Initialisierung fehlgeschlagen: {error}",

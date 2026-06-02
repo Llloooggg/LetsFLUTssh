@@ -1301,6 +1301,10 @@ class SPt extends S {
   String get errConnectionFailed => 'Conexão falhou';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Conexão perdida — a sessão foi desconectada (suspensão ou rede). Reconecte-a pela lista de sessões.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Conexão expirou após $seconds segundos';
   }

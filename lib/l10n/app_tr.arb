@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Bağlantı sonlandırıldı",
   "errSshNotConnected": "Bağlı değil",
   "errConnectionFailed": "Bağlantı başarısız",
+  "errConnectionLostReconnect": "Bağlantı koptu — oturum kesildi (uyku veya ağ). Oturum listesinden yeniden bağlan.",
   "errConnectionTimedOutSeconds": "{seconds} saniye sonra bağlantı zaman aşımına uğradı",
   "errSessionClosed": "Oturum kapatıldı",
   "errSftpInitFailed": "SFTP başlatılamadı: {error}",
