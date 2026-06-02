@@ -36,6 +36,24 @@ class SAr extends S {
   String get connect => 'اتصال';
 
   @override
+  String get credentialPromptPassphraseTitle => 'مطلوبة عبارة مرور المفتاح';
+
+  @override
+  String get credentialPromptPasswordTitle => 'مطلوبة كلمة المرور';
+
+  @override
+  String get credentialPromptHint =>
+      'أدخلها لإكمال الاتصال. لا تُكتب على القرص أبدًا.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'أدخلها لإكمال الاتصال بـ «$session». لا تُكتب على القرص أبدًا.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'التذكر لهذه الجلسة';
+
+  @override
   String get retry => 'إعادة المحاولة';
 
   @override

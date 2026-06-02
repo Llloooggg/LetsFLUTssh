@@ -36,6 +36,24 @@ class STr extends S {
   String get connect => 'Bağlan';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Anahtar passphrase\'i gerekli';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Parola gerekli';
+
+  @override
+  String get credentialPromptHint =>
+      'Bağlantıyı tamamlamak için girin. Diske asla yazılmaz.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return '“$session” bağlantısını tamamlamak için girin. Diske asla yazılmaz.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Bu oturum için hatırla';
+
+  @override
   String get retry => 'Yeniden Dene';
 
   @override

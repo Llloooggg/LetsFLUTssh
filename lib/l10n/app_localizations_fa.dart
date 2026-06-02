@@ -36,6 +36,24 @@ class SFa extends S {
   String get connect => 'اتصال';
 
   @override
+  String get credentialPromptPassphraseTitle => 'عبارت عبور کلید لازم است';
+
+  @override
+  String get credentialPromptPasswordTitle => 'گذرواژه لازم است';
+
+  @override
+  String get credentialPromptHint =>
+      'برای تکمیل اتصال آن را وارد کنید. هرگز روی دیسک نوشته نمی‌شود.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'برای تکمیل اتصال به «$session» آن را وارد کنید. هرگز روی دیسک نوشته نمی‌شود.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'برای این نشست به خاطر بسپار';
+
+  @override
   String get retry => 'تلاش مجدد';
 
   @override

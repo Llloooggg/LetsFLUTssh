@@ -699,8 +699,14 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     // user enabled the verbose connection log).
     let result = match run_with_pause_aware_timeout(
         std::time::Duration::from_secs(timeout_secs),
-        move || app_for_pause.known_hosts_prompts.pending_count() > 0,
-        crate::ssh::verbose_log::scoped(id.clone(), run_auth(args)),
+        move || {
+            app_for_pause.known_hosts_prompts.pending_count() > 0
+                || crate::security::credential_prompt::instance().pending_count() > 0
+        },
+        crate::ssh::verbose_log::scoped(
+            id.clone(),
+            run_auth_with_credential_prompts(id.clone(), args),
+        ),
     )
     .await
     {
@@ -928,6 +934,102 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
             PARENT_READY_TIMEOUT.as_secs()
         ))),
     }
+}
+
+/// Upper bound on interactive credential re-prompts for one connect
+/// attempt — stops a user who keeps mistyping the passphrase from
+/// looping forever; after the cap the last `PassphraseIncorrect`
+/// propagates as the connect failure.
+const MAX_CREDENTIAL_PROMPTS: u8 = 3;
+
+/// Upper bound on how long one connect waits for the user to answer a
+/// credential overlay. The connect driver's outer `ssh_timeout_sec`
+/// is *suspended* while a `credential_prompt` is pending (so typing
+/// time isn't counted as network time), which means this is the only
+/// bound on a prompt that is never answered — a headless context with
+/// no UI listener degrades to "connect fails after this window"
+/// rather than hanging the actor forever.
+const CREDENTIAL_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// Run [`run_auth`], and when it fails because a private-key
+/// passphrase is missing or wrong, fire a `CredentialPromptRequest`,
+/// await the passphrase the user types into the overlay, stage it,
+/// and retry — the interactive passphrase overlay that lets an
+/// encrypted-key session whose passphrase was never saved connect
+/// without a round-trip through the session editor.
+///
+/// Only `PassphraseRequired` / `PassphraseIncorrect` on a pubkey auth
+/// are recoverable this way; every other failure (wrong password,
+/// network, host-key reject) and a user `Cancel` propagate unchanged.
+/// The wait is covered by the connect driver's pause-aware timeout
+/// (it suspends while `credential_prompt` has a pending request), so
+/// the user's typing time is not counted against `ssh_timeout_sec`.
+async fn run_auth_with_credential_prompts(
+    id: ConnId,
+    mut args: ConnectArgs,
+) -> Result<Session, Error> {
+    use crate::security::credential_prompt::{self, CredentialPromptKind, CredentialResponse};
+    let app = crate::app::instance();
+    // The dialog caption keys off the session id; quick-connect has
+    // none, so fall back to the connection id for a stable label.
+    let session_id = args.session_id.clone().unwrap_or_else(|| id.clone());
+    let mut attempts: u8 = 0;
+    loop {
+        let err = match run_auth(args.clone()).await {
+            Ok(session) => return Ok(session),
+            Err(e) => e,
+        };
+        let recoverable = matches!(err, Error::PassphraseRequired | Error::PassphraseIncorrect)
+            && matches!(
+                args.auth,
+                ConnectAuthRef::Pubkey { .. } | ConnectAuthRef::PubkeyCert { .. }
+            );
+        if !recoverable || attempts >= MAX_CREDENTIAL_PROMPTS {
+            return Err(err);
+        }
+        attempts += 1;
+
+        let prompt_id = crate::id::random_uuid_v4();
+        let receiver = credential_prompt::instance().register(prompt_id.clone());
+        app.bus.publish(crate::bus::Event::CredentialPromptRequest {
+            prompt_id,
+            session_id: session_id.clone(),
+            kind_wire_name: CredentialPromptKind::Passphrase.wire_name().to_string(),
+        });
+        match tokio::time::timeout(CREDENTIAL_PROMPT_TIMEOUT, receiver).await {
+            Ok(Ok(CredentialResponse::Submit { secret, .. })) => {
+                // Stage the typed passphrase into the pubkey's
+                // passphrase slot (minting a transient id when the row
+                // carried no stored passphrase) and retry the dispatch.
+                let slot = ensure_passphrase_slot(&mut args.auth);
+                app.secrets.put(&slot, &secret);
+            }
+            // Cancel, a dropped sender (registry cleared on lock /
+            // teardown), or the answer window elapsing all end the
+            // attempt with the original error.
+            _ => return Err(err),
+        }
+    }
+}
+
+/// Return the passphrase SecretStore slot for a pubkey auth, minting
+/// a fresh transient id when the row carried no stored passphrase.
+fn ensure_passphrase_slot(auth: &mut ConnectAuthRef) -> String {
+    let slot = match auth {
+        ConnectAuthRef::Pubkey {
+            passphrase_secret_id,
+            ..
+        }
+        | ConnectAuthRef::PubkeyCert {
+            passphrase_secret_id,
+            ..
+        } => passphrase_secret_id,
+        _ => unreachable!("ensure_passphrase_slot called on non-pubkey auth"),
+    };
+    if slot.is_none() {
+        *slot = Some(format!("conn.passphrase.{}", crate::id::random_uuid_v4()));
+    }
+    slot.clone().expect("passphrase slot set above")
 }
 
 async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {

@@ -177,6 +177,36 @@ abstract class S {
   /// **'Connect'**
   String get connect;
 
+  /// No description provided for @credentialPromptPassphraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key passphrase needed'**
+  String get credentialPromptPassphraseTitle;
+
+  /// No description provided for @credentialPromptPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password needed'**
+  String get credentialPromptPasswordTitle;
+
+  /// No description provided for @credentialPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter it to finish connecting. It is never written to disk.'**
+  String get credentialPromptHint;
+
+  /// No description provided for @credentialPromptHintForSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter it to finish connecting to “{session}”. It is never written to disk.'**
+  String credentialPromptHintForSession(String session);
+
+  /// No description provided for @credentialPromptRememberSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember for this session'**
+  String get credentialPromptRememberSession;
+
   /// No description provided for @retry.
   ///
   /// In en, this message translates to:

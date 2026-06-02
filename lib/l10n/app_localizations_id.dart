@@ -36,6 +36,24 @@ class SId extends S {
   String get connect => 'Hubungkan';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Perlu passphrase key';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Perlu password';
+
+  @override
+  String get credentialPromptHint =>
+      'Masukkan untuk menyelesaikan koneksi. Tidak pernah ditulis ke disk.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Masukkan untuk menyelesaikan koneksi ke “$session”. Tidak pernah ditulis ke disk.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Ingat untuk sesi ini';
+
+  @override
   String get retry => 'Coba Lagi';
 
   @override
