@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'installer.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `eq`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `from`, `from`
 
 /// Open `path` under the host's default handler for `platform`
 /// (`linux` / `macos` / `windows`). Any other platform string
@@ -29,6 +29,45 @@ Future<InstallerLaunchOutcome> openInstallerFile({
   path: path,
   platform: platform,
 );
+
+/// Replace the running AppImage (`appimage_path` = `$APPIMAGE`) with the
+/// verified download at `new_path`, then spawn the new image. On
+/// [`AppImageApplyOutcome::Relaunched`] the Dart caller exits the old
+/// process. Linux AppImage channel only — Dart gates on the detected
+/// install method before calling. See
+/// `lfs_os_security::installer_launch::replace_appimage_and_relaunch`.
+Future<AppImageApplyOutcome> replaceAppimageAndRelaunch({
+  required String newPath,
+  required String appimagePath,
+}) => RustLib.instance.api.crateApiInstallerReplaceAppimageAndRelaunch(
+  newPath: newPath,
+  appimagePath: appimagePath,
+);
+
+@freezed
+sealed class AppImageApplyOutcome with _$AppImageApplyOutcome {
+  const AppImageApplyOutcome._();
+
+  /// New image in place and the new process spawned. Dart exits the
+  /// old process so only the new instance remains.
+  const factory AppImageApplyOutcome.relaunched() =
+      AppImageApplyOutcome_Relaunched;
+
+  /// Empty `$APPIMAGE` path or the downloaded image was missing.
+  const factory AppImageApplyOutcome.invalidInput({required String reason}) =
+      AppImageApplyOutcome_InvalidInput;
+
+  /// Copy / chmod / rename failed; the live image is untouched.
+  const factory AppImageApplyOutcome.replaceFailed({
+    required String stage,
+    required String error,
+  }) = AppImageApplyOutcome_ReplaceFailed;
+
+  /// New image is in place but spawning it failed; the next manual
+  /// launch picks up the new version.
+  const factory AppImageApplyOutcome.relaunchFailed({required String error}) =
+      AppImageApplyOutcome_RelaunchFailed;
+}
 
 @freezed
 sealed class InstallerLaunchOutcome with _$InstallerLaunchOutcome {

@@ -165,6 +165,17 @@ typedef UpdateDownloader =
       required String expectedDigest,
     });
 
+/// Signature for the Linux AppImage self-replace FRB call
+/// (`rust_installer.replaceAppimageAndRelaunch`). Injected into
+/// [UpdateService] so tests script each
+/// [rust_installer.AppImageApplyOutcome] without filesystem or process
+/// side effects.
+typedef AppImageReplacer =
+    Future<rust_installer.AppImageApplyOutcome> Function({
+      required String newPath,
+      required String appimagePath,
+    });
+
 /// Checks GitHub releases for updates and downloads assets.
 ///
 /// HTTP operations are injected for testability — production code uses
@@ -192,15 +203,41 @@ class UpdateService {
   /// non-Linux builds construct without an FRB runtime.
   final rust_update.DbLinuxInstall? _linuxInstall;
 
+  /// AppImage self-replace primitive (overwrite `$APPIMAGE` + relaunch).
+  /// Injected so tests drive each [rust_installer.AppImageApplyOutcome]
+  /// without touching the filesystem or spawning a process.
+  final AppImageReplacer _replaceAppImage;
+
+  /// Reads `$APPIMAGE` (the running image's path). Injected so tests
+  /// can simulate "set" / "unset" without mutating the real
+  /// environment.
+  final String? Function() _appImagePathEnv;
+
+  /// Exits the current process after a successful AppImage relaunch so
+  /// only the freshly spawned new image remains. Injected so tests
+  /// assert the call without actually terminating the test runner.
+  final void Function() _exitProcess;
+
   UpdateService({
     HttpFetcher? fetch,
     InstallerOpener? openInstaller,
     String? platform,
     this._linuxInstall,
     this._macosDmgInstaller,
+    AppImageReplacer? replaceAppImage,
+    String? Function()? appImagePathEnv,
+    void Function()? exitProcess,
   }) : _fetch = fetch ?? defaultFetch,
        _openInstaller = openInstaller ?? _defaultOpenInstaller,
-       _platform = platform ?? _hostPlatform();
+       _platform = platform ?? _hostPlatform(),
+       _replaceAppImage =
+           replaceAppImage ?? rust_installer.replaceAppimageAndRelaunch,
+       _appImagePathEnv = appImagePathEnv ?? _defaultAppImagePathEnv,
+       _exitProcess = exitProcess ?? _defaultExitProcess;
+
+  static String? _defaultAppImagePathEnv() => Platform.environment['APPIMAGE'];
+
+  static void _defaultExitProcess() => exit(0);
 
   /// Default production binding for [InstallerOpener]: route the
   /// hand-off through the FRB shim so the subprocess plumbing
@@ -462,6 +499,15 @@ class UpdateService {
   ///    bool the UI surface expects (`true` only for
   ///    [rust_installer.InstallerLaunchOutcome_Launched]).
   Future<bool> openFile(String path) async {
+    // Linux AppImage: overwrite the running $APPIMAGE in place and
+    // relaunch — silent, no package manager, no polkit. Returns true
+    // when the new image was spawned (the old process exits); falls
+    // through to the perimeter open only when the self-replace can't
+    // run (e.g. $APPIMAGE unset on a non-AppImage launch).
+    if (_platform == 'linux' &&
+        _linuxInstall == rust_update.DbLinuxInstall.appImage) {
+      if (await _tryAppImageSelfReplace(path)) return true;
+    }
     if (_platform == 'macos') {
       final installer = _macosDmgInstaller;
       if (installer != null && path.toLowerCase().endsWith('.dmg')) {
@@ -507,6 +553,66 @@ class UpdateService {
           level: LogLevel.warn,
         );
         return false;
+    }
+  }
+
+  /// Overwrite the running AppImage at `$APPIMAGE` with the downloaded
+  /// image at [path] and relaunch. Returns `true` when the new process
+  /// was spawned — the caller then exits the old one — and `false` to
+  /// fall back to opening the downloaded image through the perimeter.
+  ///
+  /// `$APPIMAGE` unset (a portable launch mis-classified as AppImage)
+  /// returns `false` so the perimeter open still gives the user the new
+  /// image. A `RelaunchFailed` returns `true`: the new bytes are
+  /// already at the live path, so a manual restart applies the update —
+  /// re-downloading would be wasted.
+  Future<bool> _tryAppImageSelfReplace(String path) async {
+    final appimage = _appImagePathEnv();
+    if (appimage == null || appimage.isEmpty) {
+      AppLogger.instance.log(
+        r'$APPIMAGE not set — falling back to perimeter open',
+        name: 'UpdateService',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+    final outcome = await _replaceAppImage(
+      newPath: path,
+      appimagePath: appimage,
+    );
+    switch (outcome) {
+      case rust_installer.AppImageApplyOutcome_Relaunched():
+        AppLogger.instance.log(
+          'AppImage replaced and relaunched; exiting old process',
+          name: 'UpdateService',
+        );
+        _exitProcess();
+        return true;
+      case rust_installer.AppImageApplyOutcome_InvalidInput(:final reason):
+        AppLogger.instance.log(
+          'AppImage self-replace invalid input: $reason',
+          name: 'UpdateService',
+          level: LogLevel.warn,
+        );
+        return false;
+      case rust_installer.AppImageApplyOutcome_ReplaceFailed(
+        :final stage,
+        :final error,
+      ):
+        AppLogger.instance.log(
+          'AppImage self-replace failed at $stage: $error',
+          name: 'UpdateService',
+          level: LogLevel.warn,
+        );
+        return false;
+      case rust_installer.AppImageApplyOutcome_RelaunchFailed(:final error):
+        AppLogger.instance.log(
+          'AppImage replaced but relaunch failed ($error); '
+          'new image applies on next manual start',
+          name: 'UpdateService',
+          level: LogLevel.warn,
+        );
+        return true;
     }
   }
 

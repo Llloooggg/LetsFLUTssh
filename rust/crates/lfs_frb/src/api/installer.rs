@@ -76,6 +76,51 @@ pub async fn open_installer_file(path: String, platform: String) -> InstallerLau
         .into()
 }
 
+/// FRB-visible mirror of
+/// `lfs_os_security::installer_launch::AppImageApplyOutcome`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppImageApplyOutcome {
+    /// New image in place and the new process spawned. Dart exits the
+    /// old process so only the new instance remains.
+    Relaunched,
+    /// Empty `$APPIMAGE` path or the downloaded image was missing.
+    InvalidInput { reason: String },
+    /// Copy / chmod / rename failed; the live image is untouched.
+    ReplaceFailed { stage: String, error: String },
+    /// New image is in place but spawning it failed; the next manual
+    /// launch picks up the new version.
+    RelaunchFailed { error: String },
+}
+
+impl From<lfs_os_security::installer_launch::AppImageApplyOutcome> for AppImageApplyOutcome {
+    fn from(value: lfs_os_security::installer_launch::AppImageApplyOutcome) -> Self {
+        use lfs_os_security::installer_launch::AppImageApplyOutcome as Core;
+        match value {
+            Core::Relaunched => AppImageApplyOutcome::Relaunched,
+            Core::InvalidInput { reason } => AppImageApplyOutcome::InvalidInput { reason },
+            Core::ReplaceFailed { stage, error } => {
+                AppImageApplyOutcome::ReplaceFailed { stage, error }
+            }
+            Core::RelaunchFailed { error } => AppImageApplyOutcome::RelaunchFailed { error },
+        }
+    }
+}
+
+/// Replace the running AppImage (`appimage_path` = `$APPIMAGE`) with the
+/// verified download at `new_path`, then spawn the new image. On
+/// [`AppImageApplyOutcome::Relaunched`] the Dart caller exits the old
+/// process. Linux AppImage channel only — Dart gates on the detected
+/// install method before calling. See
+/// `lfs_os_security::installer_launch::replace_appimage_and_relaunch`.
+pub async fn replace_appimage_and_relaunch(
+    new_path: String,
+    appimage_path: String,
+) -> AppImageApplyOutcome {
+    lfs_os_security::installer_launch::replace_appimage_and_relaunch(new_path, appimage_path)
+        .await
+        .into()
+}
+
 #[cfg(test)]
 mod tests {
     //! Regression coverage for the FRB shim's two

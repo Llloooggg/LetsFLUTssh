@@ -1216,6 +1216,158 @@ void main() {
   });
 
   // ===========================================================================
+  // UpdateService.openFile — Linux AppImage self-replace
+  // ===========================================================================
+  //
+  // Spec (from update_service.openFile + _tryAppImageSelfReplace): on Linux
+  // with an AppImage install, openFile overwrites $APPIMAGE in place and
+  // relaunches instead of hitting the xdg-open perimeter. Relaunched → exit
+  // the old process and return true; $APPIMAGE unset or a ReplaceFailed →
+  // fall through to the perimeter; RelaunchFailed → true (new bytes are in
+  // place, manual restart applies them) without re-opening the perimeter.
+  group('UpdateService.openFile — Linux AppImage self-replace', () {
+    test('Relaunched exits the old process and skips the perimeter', () async {
+      var exitCalls = 0;
+      var perimeterCalls = 0;
+      String? replacedNew;
+      String? replacedTarget;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => '/home/u/Apps/LetsFLUTssh.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacedNew = newPath;
+          replacedTarget = appimagePath;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () => exitCalls++,
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(exitCalls, 1, reason: 'old process must exit after relaunch');
+      expect(perimeterCalls, 0, reason: 'self-replace bypasses the perimeter');
+      expect(replacedNew, '/tmp/dl/new.AppImage');
+      expect(replacedTarget, '/home/u/Apps/LetsFLUTssh.AppImage');
+    });
+
+    test(r'$APPIMAGE unset falls through to the perimeter', () async {
+      var replacerCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => null,
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacerCalls++;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () {},
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(replacerCalls, 0, reason: r'no $APPIMAGE → never attempt replace');
+      expect(perimeterCalls, 1, reason: 'must fall back to xdg-open');
+    });
+
+    test('ReplaceFailed falls through to the perimeter', () async {
+      var exitCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => '/a/App.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async =>
+            const rust_installer.AppImageApplyOutcome.replaceFailed(
+              stage: 'rename',
+              error: 'EXDEV',
+            ),
+        exitProcess: () => exitCalls++,
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(exitCalls, 0, reason: 'no relaunch happened → do not exit');
+      expect(perimeterCalls, 1, reason: 'failed replace falls back to open');
+    });
+
+    test(
+      'RelaunchFailed returns true without re-opening the perimeter',
+      () async {
+        var exitCalls = 0;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'linux',
+          linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+          appImagePathEnv: () => '/a/App.AppImage',
+          replaceAppImage: ({required newPath, required appimagePath}) async =>
+              const rust_installer.AppImageApplyOutcome.relaunchFailed(
+                error: 'ENOEXEC',
+              ),
+          exitProcess: () => exitCalls++,
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+        expect(
+          ok,
+          isTrue,
+          reason: 'new bytes in place → manual restart applies',
+        );
+        expect(exitCalls, 0);
+        expect(perimeterCalls, 0, reason: 'do not also open a second copy');
+      },
+    );
+
+    test('non-AppImage Linux install does not self-replace', () async {
+      // A portable (tar.gz) Linux install must go straight to the
+      // perimeter — the AppImage self-replace branch is gated on the
+      // detected install method, not just the OS.
+      var replacerCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.portable,
+        appImagePathEnv: () => '/a/App.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacerCalls++;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () {},
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(replacerCalls, 0);
+      expect(perimeterCalls, 1);
+    });
+  });
+
+  // ===========================================================================
   // UpdateService.openFile — macOS DMG installer hook
   // ===========================================================================
   //

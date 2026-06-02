@@ -12,6 +12,8 @@
 //! the Dart side falls back to when the native installer
 //! declines or isn't applicable.
 
+use std::path::Path;
+
 use crate::subprocess_util::{run_subprocess, RunError};
 
 /// Outcome of [`open_installer_file`]. The Dart caller maps each
@@ -132,6 +134,107 @@ fn has_windows_unsafe_char(path: &str) -> bool {
     })
 }
 
+/// Outcome of [`replace_appimage_and_relaunch`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppImageApplyOutcome {
+    /// New image written over `$APPIMAGE` and the new process spawned.
+    /// The Dart caller exits the old process so only the new one
+    /// remains. This is the silent, zero-dependency Linux self-update
+    /// (no `polkit`, no package manager) the AppImage channel uses.
+    Relaunched,
+    /// `appimage_path` was empty (the build was not launched as an
+    /// AppImage) or `new_path` did not exist / was not a regular file.
+    /// Nothing was changed.
+    InvalidInput { reason: String },
+    /// Staging the replacement (copy → chmod → atomic rename) failed.
+    /// The live image is left untouched, so the user keeps a working
+    /// app. `stage` names the failed step.
+    ReplaceFailed { stage: String, error: String },
+    /// The new image is in place but spawning it failed. The next
+    /// manual launch picks up the new version, so this is recoverable.
+    RelaunchFailed { error: String },
+}
+
+/// Replace the running AppImage at `appimage_path` (the value of
+/// `$APPIMAGE`) with the verified download at `new_path`, then spawn
+/// the new image and return [`AppImageApplyOutcome::Relaunched`] so the
+/// Dart caller can exit the old process.
+///
+/// On Linux a running AppImage holds its backing file open, so renaming
+/// a new file over the path swaps the on-disk entry without disturbing
+/// the live process — the freshly spawned process maps the new image.
+/// The copy goes to a sibling `*.update` path first and is renamed in
+/// atomically, so a crash mid-copy never leaves a half-written
+/// executable at the live path.
+///
+/// Lives in `lfs_os_security` because it both writes an executable the
+/// release server influenced and spawns a process — both perimeter
+/// concerns. `platform` gating stays Dart-side (only the AppImage
+/// install method reaches here).
+pub async fn replace_appimage_and_relaunch(
+    new_path: String,
+    appimage_path: String,
+) -> AppImageApplyOutcome {
+    if appimage_path.is_empty() {
+        return AppImageApplyOutcome::InvalidInput {
+            reason: "empty $APPIMAGE path".into(),
+        };
+    }
+    let new = Path::new(&new_path);
+    let target = Path::new(&appimage_path);
+    if !new.is_file() {
+        return AppImageApplyOutcome::InvalidInput {
+            reason: format!("downloaded image not found: {new_path}"),
+        };
+    }
+
+    let new_owned = new.to_path_buf();
+    let target_owned = target.to_path_buf();
+    let staged =
+        tokio::task::spawn_blocking(move || stage_replacement(&new_owned, &target_owned)).await;
+    match staged {
+        Ok(Ok(())) => {}
+        Ok(Err((stage, error))) => return AppImageApplyOutcome::ReplaceFailed { stage, error },
+        Err(join) => {
+            return AppImageApplyOutcome::ReplaceFailed {
+                stage: "spawn_blocking".into(),
+                error: join.to_string(),
+            }
+        }
+    }
+
+    match std::process::Command::new(target).spawn() {
+        Ok(_) => AppImageApplyOutcome::Relaunched,
+        Err(e) => AppImageApplyOutcome::RelaunchFailed {
+            error: e.to_string(),
+        },
+    }
+}
+
+/// Copy `new_path` over `target` via a sibling staging file + atomic
+/// rename, marking the staged file executable. Pure filesystem work
+/// (no spawn) so it is unit-testable with tempfiles; the `Err` carries
+/// `(stage, message)` for the caller's `ReplaceFailed`.
+fn stage_replacement(new_path: &Path, target: &Path) -> Result<(), (String, String)> {
+    let dir = target
+        .parent()
+        .ok_or_else(|| ("parent".to_string(), "target has no parent dir".to_string()))?;
+    let file_name = target
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("appimage");
+    let staging = dir.join(format!("{file_name}.update"));
+    std::fs::copy(new_path, &staging).map_err(|e| ("copy".to_string(), e.to_string()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| ("chmod".to_string(), e.to_string()))?;
+    }
+    std::fs::rename(&staging, target).map_err(|e| ("rename".to_string(), e.to_string()))?;
+    Ok(())
+}
+
 async fn run_open(program: &str, args: &[&str], stage: &str) -> InstallerLaunchOutcome {
     match run_subprocess(program, args, stage).await {
         Ok(()) => InstallerLaunchOutcome::Launched,
@@ -212,5 +315,46 @@ mod tests {
         // lives in `unsafe_char_detector_flags_every_cmd_metacharacter`.
         let res = open_installer_file(r"C:\tmp\bad&name.exe".into(), "windows".into()).await;
         assert_eq!(res, InstallerLaunchOutcome::RefusedUnsafePath);
+    }
+
+    #[test]
+    fn stage_replacement_swaps_target_atomically() {
+        // Copy + chmod + rename must land the new bytes at the target
+        // path and leave no `.update` staging file behind.
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let src = dir.path().join("download.AppImage");
+        let target = dir.path().join("LetsFLUTssh.AppImage");
+        std::fs::write(&src, b"NEW IMAGE BYTES").unwrap();
+        std::fs::write(&target, b"old image").unwrap();
+
+        stage_replacement(&src, &target).expect("stage");
+
+        assert_eq!(std::fs::read(&target).unwrap(), b"NEW IMAGE BYTES");
+        assert!(
+            !dir.path().join("LetsFLUTssh.AppImage.update").exists(),
+            "staging file must be renamed away, not left behind"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&target).unwrap().permissions().mode();
+            assert_eq!(mode & 0o111, 0o111, "target must be executable");
+        }
+    }
+
+    #[tokio::test]
+    async fn replace_appimage_rejects_empty_target_and_missing_source() {
+        let res = replace_appimage_and_relaunch("/tmp/whatever".into(), String::new()).await;
+        assert!(matches!(res, AppImageApplyOutcome::InvalidInput { .. }));
+
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let target = dir.path().join("App.AppImage");
+        std::fs::write(&target, b"x").unwrap();
+        let res = replace_appimage_and_relaunch(
+            dir.path().join("does-not-exist").to_string_lossy().into(),
+            target.to_string_lossy().into(),
+        )
+        .await;
+        assert!(matches!(res, AppImageApplyOutcome::InvalidInput { .. }));
     }
 }
