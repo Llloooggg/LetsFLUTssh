@@ -3383,7 +3383,7 @@ result envelope.
 |---|---|
 | Remote object | One `.lfs` archive at the configured remote path (default `letsflutssh.lfs`) |
 | Inner format | Same LFSE envelope manual exports produce (`SchemaVersions::ARCHIVE`) — Argon2id + AES-256-GCM over a stored-mode ZIP |
-| Manifest extension | v2 adds optional `sync_origin` field stamping `<install-id>:<unix_ms>` so a peer device's pull can recognise "this is my own push echoing back" |
+| Manifest field | optional `sync_origin` field (manifest schema stays at `SchemaVersions::ARCHIVE`), stamped `<install-id>:<unix_ms>` only on sync push — manual exports leave it absent — so a peer device's pull can recognise "this is my own push echoing back" |
 
 The remote object is the full DB snapshot every push; the
 orchestrator does not ship deltas. Snapshot upload is simpler than
