@@ -124,8 +124,12 @@ argon2 = "0.5"
 # ship OpenSSL out of the box, broken everywhere else. Same PRAGMA key
 # wire format on both variants; flipping the feature is transparent
 # to the encrypted-DB on disk.
-rusqlite = { version = "0.31", default-features = false, features = [
+# `cache` gates `prepare_cached` (statement cache); it is a default
+# feature, so `default-features = false` drops it and every
+# `prepare_cached` call site fails to compile. List it explicitly.
+rusqlite = { version = "0.40", default-features = false, features = [
     "bundled-sqlcipher-vendored-openssl",
+    "cache",
 ] }
 # No async wrapper — DB calls run on `tokio::task::spawn_blocking`
 # inside FRB adapter functions, which keeps the FRB tokio worker
@@ -141,7 +145,7 @@ serde_json = "1"
 # = false` drops `flate2`/`bzip2` etc. — we only ever write Stored
 # (uncompressed) entries; AES-GCM after the ZIP makes deflate redundant
 # and pulling flate2 would balloon binary size for no win.
-zip = { version = "2", default-features = false }
+zip = { version = "8", default-features = false }
 # Deflate compression for the QR export payload. The Dart side
 # wraps the UTF-8 JSON in `Deflate(...).getBytes()` then base64url-
 # encodes it. The Rust QR orchestrator mirrors that exactly so the
