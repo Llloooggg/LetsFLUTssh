@@ -467,6 +467,7 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 ### Reconnect
 
 - Tab header dot turns red on disconnect. Right-click tab → Reconnect, or click the inline "Reconnect" button.
+- A connection that dies on its own — most often after the computer sleeps with a live session — is detected automatically: the dot turns red within a few seconds without you having to click into the session first, so a stale session no longer greets you with a raw "channel closed" error on the next keystroke. Reconnect the same way.
 - Cached passphrase is reused; `Connection.cachedPassphrase` survives the reconnect cycle within the same session.
 
 ---
