@@ -889,6 +889,18 @@ impl Session {
         }
     }
 
+    /// Whether the underlying russh transport has shut down. russh's
+    /// command channel to its session loop closes once that loop
+    /// exits — peer `SSH_MSG_DISCONNECT`, `keepalive_max` consecutive
+    /// unanswered keepalives, or a dead socket the OS finally reports
+    /// after the host wakes from sleep. Cheap: inspects the mpsc
+    /// sender state, no I/O and no round-trip. The connection monitor
+    /// polls this to flip a silently-dead actor to `Disconnected`
+    /// before the next channel open surfaces a raw `channel closed`.
+    pub fn is_closed(&self) -> bool {
+        self.handle.is_closed()
+    }
+
     /// Register a route for inbound `-R` forwarded connections that
     /// arrive at `(connected_address, connected_port)`. Returns a
     /// fresh receiver — each accepted connection whose

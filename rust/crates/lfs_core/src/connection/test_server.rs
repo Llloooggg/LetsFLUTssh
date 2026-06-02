@@ -124,6 +124,15 @@ impl TestServerHandle {
     /// hold a handle, in which case the OS releases the path on
     /// the next sweep).
     pub fn shutdown(&self) {
+        // Wakes both the accept loop AND every parked per-connection
+        // task (they share this `Notify`); each established session
+        // responds by issuing a server-side `disconnect`, so a
+        // connected client's russh loop actually ends and its handle
+        // reports `is_closed()` — what the transport-monitor
+        // integration test relies on. Notifying the accept loop alone
+        // would leave already-accepted sessions running on russh's
+        // internal detached task and the client would never observe
+        // the drop.
         self.shutdown.notify_waiters();
         let _ = std::fs::remove_dir_all(&self.sftp_root);
     }
@@ -206,8 +215,33 @@ async fn start_with_auth(kbd_only: bool) -> Result<TestServerHandle, Error> {
                         Ok((stream, _peer)) => {
                             let cfg = config.clone();
                             let handler = server.new_client(None);
+                            // Each session listens on the shared shutdown
+                            // signal so `shutdown()` can tear an established
+                            // connection down server-side (the test needs the
+                            // client to observe the drop). russh's
+                            // `run_stream` runs the session on its own
+                            // internal task, so we hold its `RunningSession`
+                            // here and race it against the shutdown notify.
+                            let conn_shutdown = shutdown_for_loop.clone();
                             tokio::spawn(async move {
-                                let _ = russh::server::run_stream(cfg, stream, handler).await;
+                                let Ok(running) =
+                                    russh::server::run_stream(cfg, stream, handler).await
+                                else {
+                                    return;
+                                };
+                                let handle = running.handle();
+                                tokio::select! {
+                                    _ = running => {}
+                                    _ = conn_shutdown.notified() => {
+                                        let _ = handle
+                                            .disconnect(
+                                                russh::Disconnect::ByApplication,
+                                                String::new(),
+                                                String::new(),
+                                            )
+                                            .await;
+                                    }
+                                }
                             });
                         }
                         Err(_) => break,
