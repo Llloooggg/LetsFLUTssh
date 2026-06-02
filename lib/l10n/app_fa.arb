@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "اتصال از بین رفته است",
   "errSshNotConnected": "متصل نیست",
   "errConnectionFailed": "اتصال ناموفق بود",
+  "errConnectionLostReconnect": "اتصال قطع شد — نشست قطع شد (خواب یا شبکه). از فهرست نشست‌ها دوباره وصل کنید.",
   "errConnectionTimedOutSeconds": "وقفه زمانی اتصال پس از {seconds} ثانیه",
   "errSessionClosed": "جلسه بسته شد",
   "errSftpInitFailed": "راه‌اندازی SFTP ناموفق بود: {error}",

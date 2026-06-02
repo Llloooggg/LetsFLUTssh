@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "接続が破棄されました",
   "errSshNotConnected": "接続されていません",
   "errConnectionFailed": "接続に失敗しました",
+  "errConnectionLostReconnect": "接続が切断されました — セッションが切断されました（スリープまたはネットワーク）。セッション一覧から再接続してください。",
   "errConnectionTimedOutSeconds": "{seconds} 秒後に接続がタイムアウトしました",
   "errSessionClosed": "セッションが閉じられました",
   "errSftpInitFailed": "SFTPの初期化に失敗しました: {error}",

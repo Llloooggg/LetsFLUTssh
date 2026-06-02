@@ -69,16 +69,31 @@ pub fn is_trusted_release_asset_uri(uri: &str) -> bool {
         || host.ends_with(".githubusercontent.com")
 }
 
-/// Map an OS name (`Platform.operatingSystem` value) to the
-/// release asset filename suffix the CI bakes for that target.
-/// `None` for platforms with no self-update channel
-/// (iOS / fuchsia / …).
-pub fn asset_suffix(platform: &str) -> Option<&'static str> {
-    match platform {
-        "linux" => Some("-linux-x64.AppImage"),
-        "windows" => Some("-windows-x64-setup.exe"),
-        "macos" => Some("-macos-universal.dmg"),
-        "android" => Some("-android-arm64.apk"),
+/// Map a `(os, arch)` pair to the release asset filename suffix the
+/// CI bakes for that target. `os` is a `Platform.operatingSystem`
+/// value; `arch` is the normalised host arch (`x64` / `arm64` /
+/// `arm32`) from [`crate::update::orchestrator::host_arch`]. `None`
+/// for platforms with no self-update channel (iOS / fuchsia / …) and
+/// for arch combinations CI does not publish.
+///
+/// macOS ships a single universal binary, so its suffix is
+/// arch-independent. Every other OS publishes per-arch assets — an
+/// arm64 host must not be handed the x64 artefact (it would fail to
+/// install on Android, and self-update to the wrong binary on Linux).
+/// The suffix is the format the in-app updater applies in place
+/// (AppImage on Linux, setup.exe on Windows, apk on Android); the
+/// deb / rpm / tar.gz variants are for package-manager installs that
+/// update through their own channel, not this one.
+pub fn asset_suffix(os: &str, arch: &str) -> Option<&'static str> {
+    match (os, arch) {
+        ("linux", "x64") => Some("-linux-x64.AppImage"),
+        ("linux", "arm64") => Some("-linux-arm64.AppImage"),
+        ("windows", "x64") => Some("-windows-x64-setup.exe"),
+        ("windows", "arm64") => Some("-windows-arm64-setup.exe"),
+        ("macos", _) => Some("-macos-universal.dmg"),
+        ("android", "arm64") => Some("-android-arm64.apk"),
+        ("android", "arm32") => Some("-android-arm32.apk"),
+        ("android", "x64") => Some("-android-x64.apk"),
         _ => None,
     }
 }
@@ -94,11 +109,11 @@ pub fn asset_suffix(platform: &str) -> Option<&'static str> {
 /// JSON across the FRB boundary; the same allowlist
 /// (`asset_suffix`) gates both the orchestrator's pick and the
 /// FRB shim that surfaces individual lookups for tests.
-pub fn asset_url_for_platform<'a, I>(assets: I, platform: &str) -> Option<String>
+pub fn asset_url_for_platform<'a, I>(assets: I, os: &str, arch: &str) -> Option<String>
 where
     I: IntoIterator<Item = (&'a str, &'a str)>,
 {
-    let suffix = asset_suffix(platform)?;
+    let suffix = asset_suffix(os, arch)?;
     for (name, url) in assets {
         if name.ends_with(suffix) {
             return Some(url.to_string());
@@ -288,18 +303,43 @@ mod tests {
     }
 
     #[test]
-    fn asset_suffix_known_platforms() {
-        assert_eq!(asset_suffix("linux"), Some("-linux-x64.AppImage"));
-        assert_eq!(asset_suffix("macos"), Some("-macos-universal.dmg"));
-        assert_eq!(asset_suffix("windows"), Some("-windows-x64-setup.exe"));
-        assert_eq!(asset_suffix("android"), Some("-android-arm64.apk"));
+    fn asset_suffix_known_targets() {
+        assert_eq!(asset_suffix("linux", "x64"), Some("-linux-x64.AppImage"));
+        assert_eq!(
+            asset_suffix("linux", "arm64"),
+            Some("-linux-arm64.AppImage")
+        );
+        assert_eq!(
+            asset_suffix("windows", "x64"),
+            Some("-windows-x64-setup.exe")
+        );
+        assert_eq!(
+            asset_suffix("windows", "arm64"),
+            Some("-windows-arm64-setup.exe")
+        );
+        assert_eq!(asset_suffix("android", "arm64"), Some("-android-arm64.apk"));
+        assert_eq!(asset_suffix("android", "arm32"), Some("-android-arm32.apk"));
+        assert_eq!(asset_suffix("android", "x64"), Some("-android-x64.apk"));
     }
 
     #[test]
-    fn asset_suffix_unknown_platforms_none() {
-        assert_eq!(asset_suffix("ios"), None);
-        assert_eq!(asset_suffix("fuchsia"), None);
-        assert_eq!(asset_suffix(""), None);
+    fn asset_suffix_macos_is_universal_for_any_arch() {
+        // macOS ships one universal binary — both host arches resolve
+        // to the same dmg, never a per-arch asset.
+        assert_eq!(asset_suffix("macos", "x64"), Some("-macos-universal.dmg"));
+        assert_eq!(asset_suffix("macos", "arm64"), Some("-macos-universal.dmg"));
+    }
+
+    #[test]
+    fn asset_suffix_unknown_targets_none() {
+        assert_eq!(asset_suffix("ios", "arm64"), None);
+        assert_eq!(asset_suffix("fuchsia", "x64"), None);
+        assert_eq!(asset_suffix("", ""), None);
+        // Known OS, arch CI does not publish → no match (no silent
+        // fallback to a different arch's binary).
+        assert_eq!(asset_suffix("linux", "arm32"), None);
+        assert_eq!(asset_suffix("windows", "arm32"), None);
+        assert_eq!(asset_suffix("linux", "unknown"), None);
     }
 
     #[test]
@@ -310,30 +350,48 @@ mod tests {
             ("letsflutssh-5.9.0-windows-x64-setup.exe", "https://a/win"),
         ];
         assert_eq!(
-            asset_url_for_platform(assets.iter().copied(), "linux").as_deref(),
+            asset_url_for_platform(assets.iter().copied(), "linux", "x64").as_deref(),
             Some("https://a/lin"),
         );
         assert_eq!(
-            asset_url_for_platform(assets.iter().copied(), "windows").as_deref(),
+            asset_url_for_platform(assets.iter().copied(), "windows", "x64").as_deref(),
             Some("https://a/win"),
+        );
+    }
+
+    #[test]
+    fn asset_url_for_platform_picks_host_arch_asset() {
+        // An arm64 host must select the arm64 asset, not the x64 one
+        // that ships in the same release.
+        let assets = [
+            ("letsflutssh-5.9.0-linux-x64.AppImage", "https://a/x64"),
+            ("letsflutssh-5.9.0-linux-arm64.AppImage", "https://a/arm64"),
+        ];
+        assert_eq!(
+            asset_url_for_platform(assets.iter().copied(), "linux", "arm64").as_deref(),
+            Some("https://a/arm64"),
+        );
+        assert_eq!(
+            asset_url_for_platform(assets.iter().copied(), "linux", "x64").as_deref(),
+            Some("https://a/x64"),
         );
     }
 
     #[test]
     fn asset_url_for_platform_unknown_platform_is_none() {
         let assets = [("letsflutssh-5.9.0-linux-x64.AppImage", "https://a/lin")];
-        assert!(asset_url_for_platform(assets.iter().copied(), "ios").is_none());
-        assert!(asset_url_for_platform(assets.iter().copied(), "").is_none());
+        assert!(asset_url_for_platform(assets.iter().copied(), "ios", "arm64").is_none());
+        assert!(asset_url_for_platform(assets.iter().copied(), "", "").is_none());
     }
 
     #[test]
     fn asset_url_for_platform_no_match_returns_none() {
-        // Suffix lookup succeeds (linux is known), but no asset
+        // Suffix lookup succeeds (linux/x64 is known), but no asset
         // carries the matching suffix — filter releases that
         // dropped a platform mid-cycle. Caller falls back to the
         // GitHub release page.
         let assets = [("letsflutssh-5.9.0-android-arm64.apk", "https://a/and")];
-        assert!(asset_url_for_platform(assets.iter().copied(), "linux").is_none());
+        assert!(asset_url_for_platform(assets.iter().copied(), "linux", "x64").is_none());
     }
 
     #[test]

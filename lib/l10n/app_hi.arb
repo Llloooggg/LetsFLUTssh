@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "कनेक्शन निपटाया गया",
   "errSshNotConnected": "कनेक्टेड नहीं",
   "errConnectionFailed": "कनेक्शन विफल",
+  "errConnectionLostReconnect": "कनेक्शन टूट गया — सेशन डिस्कनेक्ट हो गया (स्लीप या नेटवर्क)। इसे सेशन सूची से दोबारा कनेक्ट करें।",
   "errConnectionTimedOutSeconds": "{seconds} सेकंड के बाद कनेक्शन का समय समाप्त",
   "errSessionClosed": "सत्र बंद",
   "errSftpInitFailed": "SFTP आरंभ करने में विफल: {error}",

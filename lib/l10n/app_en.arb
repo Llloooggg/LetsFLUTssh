@@ -746,6 +746,7 @@
   "errSshConnectionDisposed": "Connection disposed",
   "errSshNotConnected": "Not connected",
   "errConnectionFailed": "Connection failed",
+  "errConnectionLostReconnect": "Connection lost — the session was disconnected (sleep or network). Reconnect it from the session list.",
   "errConnectionTimedOutSeconds": "Connection timed out after {seconds} seconds",
   "@errConnectionTimedOutSeconds": {
     "placeholders": {

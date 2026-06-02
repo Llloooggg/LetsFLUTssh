@@ -1250,6 +1250,10 @@ class SId extends S {
   String get errConnectionFailed => 'Koneksi gagal';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Koneksi terputus — sesi terputus (sleep atau jaringan). Sambungkan ulang dari daftar sesi.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Koneksi habis waktu setelah $seconds detik';
   }

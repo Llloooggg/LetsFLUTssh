@@ -1302,6 +1302,10 @@ class SDe extends S {
   String get errConnectionFailed => 'Verbindung fehlgeschlagen';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Verbindung verloren — die Sitzung wurde getrennt (Ruhezustand oder Netzwerk). Verbinde sie über die Sitzungsliste neu.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Verbindungs-Timeout nach $seconds Sekunden';
   }

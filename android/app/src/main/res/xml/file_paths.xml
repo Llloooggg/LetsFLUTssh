@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider roots for the in-app update installer. The downloaded
+     apk lives under the app's internal files dir
+     (path_provider getApplicationSupportDirectory → getFilesDir); the
+     cache root is included as a fallback in case the download dir
+     resolves there on some OEM builds. Both are app-private. -->
+<paths>
+    <files-path name="update_files" path="." />
+    <cache-path name="update_cache" path="." />
+</paths>

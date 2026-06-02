@@ -1250,6 +1250,10 @@ class SHi extends S {
   String get errConnectionFailed => 'कनेक्शन विफल';
 
   @override
+  String get errConnectionLostReconnect =>
+      'कनेक्शन टूट गया — सेशन डिस्कनेक्ट हो गया (स्लीप या नेटवर्क)। इसे सेशन सूची से दोबारा कनेक्ट करें।';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return '$seconds सेकंड के बाद कनेक्शन का समय समाप्त';
   }

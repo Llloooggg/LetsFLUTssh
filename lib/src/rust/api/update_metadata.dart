@@ -19,13 +19,23 @@ bool updateIsTrustedReleaseAssetUri({required String uri}) => RustLib
     .api
     .crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri(uri: uri);
 
-String? updateAssetSuffix({required String platform}) => RustLib.instance.api
-    .crateApiUpdateMetadataUpdateAssetSuffix(platform: platform);
+String? updateAssetSuffix({required String platform, required String arch}) =>
+    RustLib.instance.api.crateApiUpdateMetadataUpdateAssetSuffix(
+      platform: platform,
+      arch: arch,
+    );
 
 String? updateParseAssetVersion({required String assetName}) => RustLib
     .instance
     .api
     .crateApiUpdateMetadataUpdateParseAssetVersion(assetName: assetName);
+
+/// Detect how this Linux build was installed so the Dart updater picks
+/// the matching apply path (self-replace the AppImage, or step aside
+/// for the package manager / Flatpak). Linux-only — callers gate on
+/// `Platform.isLinux`; on other OSes the result is meaningless.
+DbLinuxInstall updateLinuxInstallMethod() =>
+    RustLib.instance.api.crateApiUpdateMetadataUpdateLinuxInstallMethod();
 
 /// Pick the release asset URL whose `name` ends with the
 /// platform's expected suffix (`asset_suffix`). Returns `None` for
@@ -37,9 +47,11 @@ String? updateParseAssetVersion({required String assetName}) => RustLib
 String? updateAssetUrlForPlatform({
   required List<DbReleaseAsset> assets,
   required String platform,
+  required String arch,
 }) => RustLib.instance.api.crateApiUpdateMetadataUpdateAssetUrlForPlatform(
   assets: assets,
   platform: platform,
+  arch: arch,
 );
 
 List<DbSha256ManifestEntry> updateParseSha256Manifest({
@@ -76,6 +88,10 @@ class DbChangelogRelease {
           tag == other.tag &&
           body == other.body;
 }
+
+/// FRB mirror of [`lfs_core::update::install_method::LinuxInstall`] —
+/// how a Linux build was delivered, which apply path the updater takes.
+enum DbLinuxInstall { appImage, flatpak, systemPackage, portable }
 
 /// Single GitHub release asset entry — `(name,
 /// browser_download_url)`. Caller flattens the GitHub Releases

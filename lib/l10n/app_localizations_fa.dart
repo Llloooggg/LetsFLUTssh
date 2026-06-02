@@ -1244,6 +1244,10 @@ class SFa extends S {
   String get errConnectionFailed => 'اتصال ناموفق بود';
 
   @override
+  String get errConnectionLostReconnect =>
+      'اتصال قطع شد — نشست قطع شد (خواب یا شبکه). از فهرست نشست‌ها دوباره وصل کنید.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'وقفه زمانی اتصال پس از $seconds ثانیه';
   }

@@ -2955,6 +2955,16 @@ Supporting Rust modules:
   from network errors so the UI can surface a "security-coloured" toast
   instead of a retry prompt.
 
+**Asset selection — `(os, arch)`, not just OS.** `lfs_core::update::metadata::asset_suffix(os, arch)` keys the release-asset suffix on both the OS *and* the normalised host arch (`orchestrator::host_arch` maps `std::env::consts::ARCH` → `x64` / `arm64` / `arm32`). An arm64 host gets the arm64 artefact, never the x64 one — critical on Android, where a foreign-arch apk won't install, and on Linux/Windows arm64. macOS stays universal (arch-independent dmg). An unknown/unpublished `(os, arch)` returns `None` → no asset match → the UI points at the release page rather than self-updating to a wrong-CPU binary. **Asset-name suffixes are a frozen interface**: already-deployed clients match by suffix, so new arch/format rows only add, never rename existing ones.
+
+**Per-platform apply + Linux install-method routing.** The downloaded, signature-verified artefact is applied differently per platform, and on Linux per *install method* — because the same release fans out into AppImage / `.deb` / `.rpm` / Flatpak / `tar.gz`, which have incompatible update mechanics:
+
+- `lfs_core::update::install_method::classify` (pure fn; thin env/path edge in `detect`, surfaced over FRB as `updateLinuxInstallMethod`) labels a Linux install **AppImage** (`$APPIMAGE` set), **Flatpak** (`$FLATPAK_ID` / `/.flatpak-info`), **SystemPackage** (executable under `/usr` `/opt` `/bin`), or **Portable**. `updateServiceProvider` runs detection in app context and passes the result into `UpdateService` as a value — the `lib/core/` layer never calls FRB from a constructor.
+- **AppImage** → `lfs_os_security::installer_launch::replace_appimage_and_relaunch` overwrites the running `$APPIMAGE` (staging file + atomic rename — the live process holds its inode open) and spawns the new image; the old process then exits. Silent, no polkit, no package manager.
+- **SystemPackage / Flatpak** (`UpdateService.isPackageManaged`) → the in-app updater steps aside; `canLaunchInstaller` is false and the UI offers the release page (the package manager owns updates). Overwriting a managed install would orphan a copy outside the manager.
+- **Portable** → applied in place / handed to the desktop installer; **macOS** keeps the atomic-swap `.dmg` installer; **Windows** relaunches the Inno `setup.exe`. polkit / `xdg-open` handlers are runtime-probed, never declared package dependencies.
+- **Android** — arch-correct apk selection (above) + native auto-install: `UpdateService.openFile` hands the verified apk to the `com.letsflutssh/apk_installer` MethodChannel (`MainActivity.kt`), which serves it via a `FileProvider` `content://` URI to the system package installer (`ACTION_VIEW`, `REQUEST_INSTALL_PACKAGES`). A missing per-app "install unknown apps" grant opens that settings screen first. The Dart adapter lives in `lib/platform/android/apk_installer.dart` and is injected into the core `UpdateService` from `updateServiceProvider` (mirroring the macOS dmg installer); a failed hand-off falls back to the release page.
+
 ### 3.11 Keyboard Shortcuts (`widgets/core/shortcut_registry.dart`)
 
 Central registry for all app keyboard shortcuts. Every shortcut is an `AppShortcut` enum value with a default `SingleActivator` binding.

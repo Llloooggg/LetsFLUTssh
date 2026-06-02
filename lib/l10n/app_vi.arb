@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Kết nối đã bị hủy",
   "errSshNotConnected": "Chưa kết nối",
   "errConnectionFailed": "Kết nối thất bại",
+  "errConnectionLostReconnect": "Mất kết nối — phiên đã ngắt (ngủ hoặc mạng). Kết nối lại từ danh sách phiên.",
   "errConnectionTimedOutSeconds": "Kết nối đã hết thời gian chờ sau {seconds} giây",
   "errSessionClosed": "Phiên đã đóng",
   "errSftpInitFailed": "Không thể khởi tạo SFTP: {error}",

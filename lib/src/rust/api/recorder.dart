@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'recorder.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `file_starts_with_lfr_magic`, `read_cap_from_store`, `recorder_open_for_playback_inner`
+// These functions are ignored because they are not marked as `pub`: `append_idx_suffix`, `emit_playback_error`, `file_starts_with_lfr_magic`, `migrate_lfsr_main`, `migrate_misnamed_in_tree`, `migrate_orphan_idx`, `migrate_recording_file`, `read_cap_from_store`, `recorder_open_for_playback_inner`, `resolve_playback_key`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256

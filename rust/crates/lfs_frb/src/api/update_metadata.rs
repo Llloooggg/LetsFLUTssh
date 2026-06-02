@@ -26,13 +26,37 @@ pub fn update_is_trusted_release_asset_uri(uri: String) -> bool {
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn update_asset_suffix(platform: String) -> Option<String> {
-    lfs_core::update::metadata::asset_suffix(&platform).map(|s| s.to_string())
+pub fn update_asset_suffix(platform: String, arch: String) -> Option<String> {
+    lfs_core::update::metadata::asset_suffix(&platform, &arch).map(|s| s.to_string())
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_parse_asset_version(asset_name: String) -> Option<String> {
     lfs_core::update::metadata::parse_asset_version(&asset_name)
+}
+
+/// FRB mirror of [`lfs_core::update::install_method::LinuxInstall`] —
+/// how a Linux build was delivered, which apply path the updater takes.
+pub enum DbLinuxInstall {
+    AppImage,
+    Flatpak,
+    SystemPackage,
+    Portable,
+}
+
+/// Detect how this Linux build was installed so the Dart updater picks
+/// the matching apply path (self-replace the AppImage, or step aside
+/// for the package manager / Flatpak). Linux-only — callers gate on
+/// `Platform.isLinux`; on other OSes the result is meaningless.
+#[flutter_rust_bridge::frb(sync)]
+pub fn update_linux_install_method() -> DbLinuxInstall {
+    use lfs_core::update::install_method::LinuxInstall;
+    match lfs_core::update::install_method::detect() {
+        LinuxInstall::AppImage => DbLinuxInstall::AppImage,
+        LinuxInstall::Flatpak => DbLinuxInstall::Flatpak,
+        LinuxInstall::SystemPackage => DbLinuxInstall::SystemPackage,
+        LinuxInstall::Portable => DbLinuxInstall::Portable,
+    }
 }
 
 /// Single GitHub release asset entry — `(name,
@@ -56,12 +80,13 @@ pub struct DbReleaseAsset {
 pub fn update_asset_url_for_platform(
     assets: Vec<DbReleaseAsset>,
     platform: String,
+    arch: String,
 ) -> Option<String> {
     let pairs: Vec<(&str, &str)> = assets
         .iter()
         .map(|a| (a.name.as_str(), a.browser_download_url.as_str()))
         .collect();
-    lfs_core::update::metadata::asset_url_for_platform(pairs.into_iter(), &platform)
+    lfs_core::update::metadata::asset_url_for_platform(pairs.into_iter(), &platform, &arch)
 }
 
 /// Single `(name, hash)` pair from the manifest. Returned as a
@@ -146,8 +171,18 @@ mod tests {
 
     #[test]
     fn asset_suffix_unknown_platform_returns_none() {
-        assert!(update_asset_suffix("plan9".into()).is_none());
-        assert!(update_asset_suffix("".into()).is_none());
+        assert!(update_asset_suffix("plan9".into(), "x64".into()).is_none());
+        assert!(update_asset_suffix("".into(), "".into()).is_none());
+        // Known OS, unpublished arch → no match.
+        assert!(update_asset_suffix("linux".into(), "arm32".into()).is_none());
+    }
+
+    #[test]
+    fn asset_suffix_known_target_returns_suffix() {
+        assert_eq!(
+            update_asset_suffix("linux".into(), "arm64".into()).as_deref(),
+            Some("-linux-arm64.AppImage")
+        );
     }
 
     #[test]
@@ -157,7 +192,7 @@ mod tests {
             browser_download_url: "https://example.test/dl".into(),
         }];
         // Unknown platform → no suffix → no match.
-        assert!(update_asset_url_for_platform(assets, "plan9".into()).is_none());
+        assert!(update_asset_url_for_platform(assets, "plan9".into(), "x64".into()).is_none());
     }
 
     #[test]

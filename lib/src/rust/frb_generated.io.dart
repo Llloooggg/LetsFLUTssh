@@ -366,6 +366,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AppImageApplyOutcome dco_decode_app_image_apply_outcome(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -865,6 +868,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbLegacyStateDetection dco_decode_db_legacy_state_detection(dynamic raw);
+
+  @protected
+  DbLinuxInstall dco_decode_db_linux_install(dynamic raw);
 
   @protected
   DbLocalFileEntry dco_decode_db_local_file_entry(dynamic raw);
@@ -1981,6 +1987,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AppImageApplyOutcome sse_decode_app_image_apply_outcome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -2628,6 +2639,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbLegacyStateDetection sse_decode_db_legacy_state_detection(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbLinuxInstall sse_decode_db_linux_install(SseDeserializer deserializer);
 
   @protected
   DbLocalFileEntry sse_decode_db_local_file_entry(SseDeserializer deserializer);
@@ -4078,6 +4092,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_app_image_apply_outcome(
+    AppImageApplyOutcome self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -4898,6 +4918,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_legacy_state_detection(
     DbLegacyStateDetection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_linux_install(
+    DbLinuxInstall self,
     SseSerializer serializer,
   );
 

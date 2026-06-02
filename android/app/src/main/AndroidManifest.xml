@@ -44,6 +44,12 @@
          button that fires the system dialog. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- In-app update: install the downloaded, signature-verified apk.
+         API 26+ also gates this behind a per-app "install unknown apps"
+         grant the user toggles once (the installer flow opens that
+         settings screen when the grant is missing). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:label="LFssh"
         android:name="${applicationName}"
@@ -107,6 +113,21 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- Serves the downloaded update apk to the system package
+             installer via a content:// URI (ACTION_VIEW can't read a
+             raw file:// path from app-internal storage on API 24+). The
+             apk lives under the app's files dir (getApplicationSupportDirectory);
+             file_paths.xml roots the provider there. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
     <!-- Package visibility for text processing -->

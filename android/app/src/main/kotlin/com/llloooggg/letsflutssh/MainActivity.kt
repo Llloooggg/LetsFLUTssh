@@ -1,10 +1,15 @@
 package com.llloooggg.letsflutssh
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.view.WindowManager
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 // FlutterFragmentActivity (instead of FlutterActivity) is required by
 // `androidx.biometric.BiometricPrompt` (consumed Rust-side via JNI in
@@ -13,6 +18,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
+    private val apkInstallerChannel = "com.letsflutssh/apk_installer"
 
     // Cross-thread access to the pending QR-scan result. `launchQrScanner`
     // runs on the platform-channel thread; `onActivityResult` runs on the
@@ -90,6 +96,68 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // In-app update installer: hands the downloaded, signature-
+        // verified apk to the system package installer. The Dart side
+        // (`UpdateService.openFile`) only reaches here on Android after
+        // the download + Ed25519 verify pipeline succeeds.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, apkInstallerChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> {
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrEmpty()) {
+                            result.error("ARG", "missing apk path", null)
+                        } else {
+                            installApk(path, result)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /// Launch the system package installer for the apk at [path].
+    /// Returns (via [result]) "launched" when the install UI opened,
+    /// "needsPermission" when API 26+ required the per-app "install
+    /// unknown apps" grant and the settings screen was opened instead
+    /// (the user grants once, then re-triggers), or an error the Dart
+    /// side maps to the release-page fallback.
+    private fun installApk(path: String, result: MethodChannel.Result) {
+        // API 26+: installing requires a per-app "install unknown apps"
+        // grant. When it's missing, open that settings screen for our
+        // package rather than failing — the user toggles it once.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            val grant = Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:$packageName"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(grant)
+            result.success("needsPermission")
+            return
+        }
+        val uri = try {
+            // ACTION_VIEW cannot read a raw file:// path from app-internal
+            // storage on API 24+; the FileProvider serves it as a
+            // content:// URI the installer can read under the granted
+            // permission flag.
+            FileProvider.getUriForFile(this, "$packageName.fileprovider", File(path))
+        } catch (e: IllegalArgumentException) {
+            result.error("URI", "apk path not under a FileProvider root: ${e.message}", null)
+            return
+        }
+        val install = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(install)
+            result.success("launched")
+        } catch (e: Exception) {
+            result.error("LAUNCH", "could not launch installer: ${e.message}", null)
+        }
     }
 
     private fun applySecureFlag(secure: Boolean) {

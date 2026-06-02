@@ -414,6 +414,7 @@
   "errSshConnectionDisposed": "Соединение завершено",
   "errSshNotConnected": "Не подключено",
   "errConnectionFailed": "Ошибка подключения",
+  "errConnectionLostReconnect": "Соединение потеряно — сессия отключилась (сон или сеть). Переподключите её из списка сессий.",
   "errConnectionTimedOutSeconds": "Время ожидания подключения истекло через {seconds} секунд",
   "errSessionClosed": "Сессия закрыта",
   "errSftpInitFailed": "Не удалось инициализировать SFTP: {error}",

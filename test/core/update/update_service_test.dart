@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/src/rust/api/installer.dart' as rust_installer;
 import 'package:letsflutssh/src/rust/api/update_http.dart' as rust_update_http;
+import 'package:letsflutssh/src/rust/api/update_metadata.dart'
+    as rust_update_meta;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -1140,32 +1142,67 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.canLaunchInstaller — per-platform routing
+  // UpdateService.canLaunchInstaller + isPackageManaged — per-platform routing
   // ===========================================================================
   //
-  // Spec (from update_service source): true only when the host platform is in
-  // `_platformsWithInstaller` = {linux, macos, windows}. The UI relies on this
-  // to pick the label "Install Now" vs "Open Release Page" before the user
-  // taps. A regression that included `android` here would silently relabel the
-  // mobile button to "Install Now" while the path through `openFile` still
-  // routed to the browser fallback.
-  group('UpdateService.canLaunchInstaller', () {
-    test('linux, macos and windows expose canLaunchInstaller=true', () {
-      for (final platform in ['linux', 'macos', 'windows']) {
+  // Spec (from update_service source): macOS and Windows always expose an
+  // installer hand-off. Linux is install-method dependent — an AppImage or a
+  // portable (tar.gz) build can be applied in place, but a deb/rpm/pacman or
+  // Flatpak install is owned by its package manager, so canLaunchInstaller is
+  // false there and isPackageManaged is true (UI offers the release page /
+  // "managed by your package manager" note). Android/iOS/unknown have no
+  // in-app installer. The UI relies on canLaunchInstaller to pick the label
+  // "Install Now" vs "Open Release Page" before the user taps.
+  group('UpdateService.canLaunchInstaller + isPackageManaged', () {
+    test('macos and windows expose canLaunchInstaller=true', () {
+      for (final platform in ['macos', 'windows']) {
         final service = UpdateService(platform: platform);
         expect(
           service.canLaunchInstaller,
           isTrue,
           reason: '$platform must surface an installer hand-off',
         );
+        expect(service.isPackageManaged, isFalse);
+      }
+    });
+
+    test('linux AppImage / portable can self-install', () {
+      for (final method in [
+        rust_update_meta.DbLinuxInstall.appImage,
+        rust_update_meta.DbLinuxInstall.portable,
+      ]) {
+        final service = UpdateService(platform: 'linux', linuxInstall: method);
+        expect(
+          service.canLaunchInstaller,
+          isTrue,
+          reason: '$method applies in place',
+        );
+        expect(service.isPackageManaged, isFalse);
+      }
+    });
+
+    test('linux deb/rpm/pacman + flatpak defer to the package manager', () {
+      // A package-manager-owned install must NOT advertise an in-app
+      // installer — overwriting it would orphan a copy outside the
+      // manager. The UI offers the release page instead.
+      for (final method in [
+        rust_update_meta.DbLinuxInstall.systemPackage,
+        rust_update_meta.DbLinuxInstall.flatpak,
+      ]) {
+        final service = UpdateService(platform: 'linux', linuxInstall: method);
+        expect(
+          service.canLaunchInstaller,
+          isFalse,
+          reason: '$method is owned by its package manager',
+        );
+        expect(service.isPackageManaged, isTrue);
       }
     });
 
     test('android, ios and unknown expose canLaunchInstaller=false', () {
-      // Android is intentionally NOT listed — the APK install flow
-      // requires REQUEST_INSTALL_PACKAGES + FileProvider + per-app
-      // system prompt that needs a separate implementation. Pinning
-      // the false return guards the docstring promise.
+      // Android's APK install flow (REQUEST_INSTALL_PACKAGES + per-app
+      // system prompt) routes outside canLaunchInstaller; iOS/unknown
+      // have no in-app installer at all.
       for (final platform in ['android', 'ios', 'unknown']) {
         final service = UpdateService(platform: platform);
         expect(
@@ -1173,7 +1210,225 @@ void main() {
           isFalse,
           reason: '$platform must NOT advertise an installer hand-off',
         );
+        expect(service.isPackageManaged, isFalse);
       }
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.openFile — Linux AppImage self-replace
+  // ===========================================================================
+  //
+  // Spec (from update_service.openFile + _tryAppImageSelfReplace): on Linux
+  // with an AppImage install, openFile overwrites $APPIMAGE in place and
+  // relaunches instead of hitting the xdg-open perimeter. Relaunched → exit
+  // the old process and return true; $APPIMAGE unset or a ReplaceFailed →
+  // fall through to the perimeter; RelaunchFailed → true (new bytes are in
+  // place, manual restart applies them) without re-opening the perimeter.
+  group('UpdateService.openFile — Linux AppImage self-replace', () {
+    test('Relaunched exits the old process and skips the perimeter', () async {
+      var exitCalls = 0;
+      var perimeterCalls = 0;
+      String? replacedNew;
+      String? replacedTarget;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => '/home/u/Apps/LetsFLUTssh.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacedNew = newPath;
+          replacedTarget = appimagePath;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () => exitCalls++,
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(exitCalls, 1, reason: 'old process must exit after relaunch');
+      expect(perimeterCalls, 0, reason: 'self-replace bypasses the perimeter');
+      expect(replacedNew, '/tmp/dl/new.AppImage');
+      expect(replacedTarget, '/home/u/Apps/LetsFLUTssh.AppImage');
+    });
+
+    test(r'$APPIMAGE unset falls through to the perimeter', () async {
+      var replacerCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => null,
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacerCalls++;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () {},
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(replacerCalls, 0, reason: r'no $APPIMAGE → never attempt replace');
+      expect(perimeterCalls, 1, reason: 'must fall back to xdg-open');
+    });
+
+    test('ReplaceFailed falls through to the perimeter', () async {
+      var exitCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+        appImagePathEnv: () => '/a/App.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async =>
+            const rust_installer.AppImageApplyOutcome.replaceFailed(
+              stage: 'rename',
+              error: 'EXDEV',
+            ),
+        exitProcess: () => exitCalls++,
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(ok, isTrue);
+      expect(exitCalls, 0, reason: 'no relaunch happened → do not exit');
+      expect(perimeterCalls, 1, reason: 'failed replace falls back to open');
+    });
+
+    test(
+      'RelaunchFailed returns true without re-opening the perimeter',
+      () async {
+        var exitCalls = 0;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'linux',
+          linuxInstall: rust_update_meta.DbLinuxInstall.appImage,
+          appImagePathEnv: () => '/a/App.AppImage',
+          replaceAppImage: ({required newPath, required appimagePath}) async =>
+              const rust_installer.AppImageApplyOutcome.relaunchFailed(
+                error: 'ENOEXEC',
+              ),
+          exitProcess: () => exitCalls++,
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile('/tmp/dl/new.AppImage');
+
+        expect(
+          ok,
+          isTrue,
+          reason: 'new bytes in place → manual restart applies',
+        );
+        expect(exitCalls, 0);
+        expect(perimeterCalls, 0, reason: 'do not also open a second copy');
+      },
+    );
+
+    test('non-AppImage Linux install does not self-replace', () async {
+      // A portable (tar.gz) Linux install must go straight to the
+      // perimeter — the AppImage self-replace branch is gated on the
+      // detected install method, not just the OS.
+      var replacerCalls = 0;
+      var perimeterCalls = 0;
+      final service = UpdateService(
+        platform: 'linux',
+        linuxInstall: rust_update_meta.DbLinuxInstall.portable,
+        appImagePathEnv: () => '/a/App.AppImage',
+        replaceAppImage: ({required newPath, required appimagePath}) async {
+          replacerCalls++;
+          return const rust_installer.AppImageApplyOutcome.relaunched();
+        },
+        exitProcess: () {},
+        openInstaller: (_, _) async {
+          perimeterCalls++;
+          return const rust_installer.InstallerLaunchOutcome.launched();
+        },
+      );
+
+      await service.openFile('/tmp/dl/new.AppImage');
+
+      expect(replacerCalls, 0);
+      expect(perimeterCalls, 1);
+    });
+  });
+
+  // ===========================================================================
+  // UpdateService.openFile — Android apk install
+  // ===========================================================================
+  //
+  // Spec (from update_service.openFile): on Android with an injected
+  // AndroidApkInstaller, openFile hands the apk path to that installer and
+  // returns its result (true on launched / needsPermission, false → release
+  // page). With no installer wired it falls through to the perimeter, which
+  // returns UnsupportedPlatform → false. canLaunchInstaller mirrors this:
+  // true iff the installer is wired.
+  group('UpdateService.openFile — Android apk install', () {
+    test(
+      'hands the apk to the injected installer and returns its result',
+      () async {
+        String? handedPath;
+        var perimeterCalls = 0;
+        final service = UpdateService(
+          platform: 'android',
+          androidApkInstaller: (path) async {
+            handedPath = path;
+            return true;
+          },
+          openInstaller: (_, _) async {
+            perimeterCalls++;
+            return const rust_installer.InstallerLaunchOutcome.launched();
+          },
+        );
+
+        final ok = await service.openFile(
+          '/data/.../letsflutssh-android-arm64.apk',
+        );
+
+        expect(ok, isTrue);
+        expect(handedPath, '/data/.../letsflutssh-android-arm64.apk');
+        expect(perimeterCalls, 0, reason: 'apk install bypasses the perimeter');
+        expect(service.canLaunchInstaller, isTrue);
+      },
+    );
+
+    test(
+      'installer false result propagates (UI falls back to release page)',
+      () async {
+        final service = UpdateService(
+          platform: 'android',
+          androidApkInstaller: (_) async => false,
+        );
+        expect(await service.openFile('/tmp/x.apk'), isFalse);
+      },
+    );
+
+    test('no installer wired → unsupported, canLaunchInstaller false', () async {
+      var installerCalls = 0;
+      final service = UpdateService(
+        platform: 'android',
+        openInstaller: (_, _) async {
+          installerCalls++;
+          return const rust_installer.InstallerLaunchOutcome.unsupportedPlatform();
+        },
+      );
+      expect(service.canLaunchInstaller, isFalse);
+      expect(await service.openFile('/tmp/x.apk'), isFalse);
+      expect(installerCalls, 1, reason: 'falls through to the perimeter');
     });
   });
 

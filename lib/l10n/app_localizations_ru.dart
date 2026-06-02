@@ -1258,6 +1258,10 @@ class SRu extends S {
   String get errConnectionFailed => 'Ошибка подключения';
 
   @override
+  String get errConnectionLostReconnect =>
+      'Соединение потеряно — сессия отключилась (сон или сеть). Переподключите её из списка сессий.';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return 'Время ожидания подключения истекло через $seconds секунд';
   }

@@ -1163,4 +1163,63 @@ void main() {
       expect(out, contains('; '));
     });
   });
+
+  // isTransportDropError gates the global error boundary: a dropped SSH
+  // transport (sleep/wake, peer reset, gone session) gets a friendly
+  // reconnect toast, while genuine faults still hit the crash dialog.
+  group('isTransportDropError', () {
+    test('io kind with a channel-closed / reset detail is a drop', () {
+      for (final detail in [
+        'channel closed',
+        'Connection reset by peer',
+        'broken pipe',
+        'not connected',
+        'unexpected EOF',
+      ]) {
+        final wire = '{"kind":"io","detail":"$detail"}';
+        expect(
+          isTransportDropError(wire),
+          isTrue,
+          reason: 'io: "$detail" should classify as a transport drop',
+        );
+      }
+    });
+
+    test('transport and session-unavailable kinds are always drops', () {
+      expect(
+        isTransportDropError('{"kind":"transport","detail":"actor stopped"}'),
+        isTrue,
+      );
+      expect(
+        isTransportDropError('{"kind":"session_unavailable","detail":"gone"}'),
+        isTrue,
+      );
+    });
+
+    test('a generic io fault is NOT a transport drop', () {
+      // A real filesystem / pipe fault must still reach the crash
+      // dialog — only the dropped-transport details are reclassified.
+      expect(
+        isTransportDropError(
+          '{"kind":"io","detail":"no space left on device"}',
+        ),
+        isFalse,
+      );
+    });
+
+    test('non-envelope errors are never transport drops', () {
+      expect(isTransportDropError('plain string error'), isFalse);
+      expect(isTransportDropError(Exception('boom')), isFalse);
+      expect(isTransportDropError('{"malformed'), isFalse);
+    });
+
+    test('localizeError routes a transport drop to the reconnect message', () {
+      final l10n = SEn();
+      final msg = localizeError(
+        l10n,
+        '{"kind":"io","detail":"channel closed"}',
+      );
+      expect(msg, l10n.errConnectionLostReconnect);
+    });
+  });
 }

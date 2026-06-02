@@ -1224,6 +1224,9 @@ class SZh extends S {
   String get errConnectionFailed => '连接失败';
 
   @override
+  String get errConnectionLostReconnect => '连接已断开 — 会话已断开（睡眠或网络）。请从会话列表重新连接。';
+
+  @override
   String errConnectionTimedOutSeconds(int seconds) {
     return '连接在 $seconds 秒后超时';
   }

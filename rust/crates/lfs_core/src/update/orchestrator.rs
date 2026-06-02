@@ -80,6 +80,22 @@ pub fn host_platform() -> &'static str {
     }
 }
 
+/// Normalise the host CPU architecture into the token CI bakes into
+/// release-asset filenames (`x64` / `arm64` / `arm32`), the second
+/// half of the [`update_metadata::asset_suffix`] key. An unrecognised
+/// arch falls through to `unknown`, which yields no asset match (the
+/// caller then points the user at the release page rather than
+/// self-updating to a binary built for the wrong CPU).
+pub fn host_arch() -> &'static str {
+    match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "arm64",
+        // 32-bit ARM (armv7 Android) reports plain `arm`.
+        "arm" => "arm32",
+        _ => "unknown",
+    }
+}
+
 fn pick_asset_url(assets: &[Value], suffix: &str) -> Option<String> {
     for a in assets {
         let name = a.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -164,7 +180,7 @@ pub fn check_for_update_from_body(
         .cloned()
         .unwrap_or_default();
 
-    let suffix = update_metadata::asset_suffix(host_platform());
+    let suffix = update_metadata::asset_suffix(host_platform(), host_arch());
     let (asset_url, asset_digest) = match suffix {
         Some(s) => (pick_asset_url(&assets, s), pick_asset_digest(&assets, s)),
         None => (None, None),
@@ -603,6 +619,14 @@ mod tests {
             p,
             "linux" | "macos" | "windows" | "android" | "unknown"
         ));
+    }
+
+    #[test]
+    fn host_arch_normalises_to_documented_tokens() {
+        // `std::env::consts::ARCH` isn't overridable; assert the
+        // function only ever yields a token `asset_suffix` understands.
+        let a = host_arch();
+        assert!(matches!(a, "x64" | "arm64" | "arm32" | "unknown"));
     }
 
     #[test]
