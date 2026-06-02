@@ -14,61 +14,22 @@ on:
 
 permissions: read-all
 
+# Classic Dependabot auto-merge: gate on the dependabot[bot] actor, read
+# the update-type via fetch-metadata, and enable native auto-merge for
+# patch/minor on the default GITHUB_TOKEN — no PAT involved. There is no
+# per-PR app-version bump on purpose: bumping would have to push back onto
+# the PR branch AND re-trigger the required checks, and only a PAT-
+# authenticated push re-triggers them (the default GITHUB_TOKEN
+# deliberately does not, to avoid workflow loops). Instead dependency
+# updates merge as-is and fold into the next release's bump:
+# `dev/scripts/bump-version.sh` (run on the dev → main PR) counts the
+# `build(deps)`/`chore(deps)` commits, and `ci-auto-tag` is idempotent on
+# the pubspec version — a dep merge that doesn't change the version simply
+# doesn't cut its own tag.
+
 jobs:
-  version-bump:
-    # Only pub (Dart) dependency updates — github-actions updates don't affect the shipped app
-    if: >-
-      github.actor == 'dependabot[bot]' &&
-      startsWith(github.event.pull_request.head.ref, 'dependabot/pub/')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
-    steps:
-      - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v2
-        id: metadata
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.RELEASE_TOKEN }}
-          fetch-depth: 0
-
-      - name: Bump patch version
-        run: |
-          # `dev/scripts/bump-version.sh` runs `git commit`, which needs an
-          # identity on the runner. Set the dependabot bot's identity
-          # so the bump commit is attributed to the same author as the
-          # dependency update it rides on top of.
-          git config user.name 'dependabot[bot]'
-          git config user.email '49699333+dependabot[bot]@users.noreply.github.com'
-
-          # Check if already bumped (re-run safety)
-          HEAD_MSG=$(git log -1 --format='%s')
-          if echo "$HEAD_MSG" | grep -qE '^chore: bump version '; then
-            echo "Already bumped — skipping"
-            exit 0
-          fi
-
-          dev/scripts/bump-version.sh
-          git push
-
   automerge:
-    needs: [version-bump]
-    # Runs after version-bump (so the bump commit lands before auto-merge
-    # is enabled) but is NOT gated on its success: a `version-bump`
-    # failure must not strand the PR. `gh pr merge --auto` waits for the
-    # required checks on whatever the final head is, so a successful bump
-    # is still picked up; a failed bump just means the dep merges without
-    # a version bump (it rides the next release).
-    #
-    # Known issue (defect, not yet fixed here): `version-bump` fails on
-    # `dependabot/pub/*` PRs — its checkout with `secrets.RELEASE_TOKEN`
-    # can't authenticate ("could not read Username"). RELEASE_TOKEN is
-    # present in the Dependabot secret store, so this is a token
-    # value/scope/expiry problem to verify in repo settings, not a
-    # workflow bug. Decoupling automerge keeps pub deps merging meanwhile.
-    if: always() && github.actor == 'dependabot[bot]' && !cancelled()
+    if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write

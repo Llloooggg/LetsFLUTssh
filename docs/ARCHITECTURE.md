@@ -7240,7 +7240,7 @@ flowchart TD
     p --> sco["scorecard.yml<br/>main push + weekly"]
 
     dep["Dependabot PR (into main)"]
-    dep --> da["dependabot-auto.yml<br/>bump version in PR branch → auto-merge<br/>→ ci.yml → ci-auto-tag.yml → build-release.yml → Release"]
+    dep --> da["dependabot-auto.yml<br/>auto-merge patch/minor (no per-PR bump)<br/>→ ci.yml → ci-auto-tag.yml (idempotent on version)<br/>→ deps fold into next release"]
 
     bump["Version bump (on dev, before PR)"]
     bump --> bs["dev/scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
@@ -7257,7 +7257,7 @@ flowchart TD
 | `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release + SBOM + cosign keyless signature | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Bump version in PR branch + auto-merge patch/minor | — |
+| `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Auto-merge patch/minor; no per-PR version bump (deps ride the next release's bump — see §15.1) | — |
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
