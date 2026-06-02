@@ -654,7 +654,7 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | `session_recorder.dart` | `SessionRecorder` | Per-shell terminal recorder; see [§3.13](#313-session-recording-coresessionsession_recorderdart). |
 | `port_forwards_dao.dart` | DAO helpers | Thin Dart shim over the FRB port-forward DAO surface used by `SessionNotifier`. |
 | `qr_decoded_source.dart` | `QrDecodedSource` | Sealed type wrapping a Rust-staged QR/.lfs import handle so `LinkImportPreviewDialog` and the apply pipeline speak the same shape. |
-| `qr_codec.dart` | Free functions | Thin Dart shim over the Rust QR/`.lfs` codec. Versioned format (`v: 1`), deflate compressed, key map deduplication — all encode/decode/size/wrap/unwrap logic lives in `lfs_core::qr_codec` + `lfs_core::archive::qr_export_payload`; this file only exposes the `ExportOptions` config bag, the `qrMaxPayloadBytes` constant, and `encodeSessionCompact()` (FRB sync wrapper used by export-dialog size estimation). Decode/import always routes through the staged-handle Rust path (`qrImportOpen` → `QrDecodedSource.rust`). |
+| `qr_codec.dart` | Free functions | Thin Dart shim over the Rust QR/`.lfs` codec. Versioned format (`v: 1`), deflate compressed, key map deduplication — all encode/decode/size/wrap/unwrap logic lives in `lfs_core::qr_codec_encode` / `lfs_core::qr_codec_decode` + `lfs_core::archive::qr_export_payload`; this file only exposes the `ExportOptions` config bag, the `qrMaxPayloadBytes` constant, and `encodeSessionCompact()` (FRB sync wrapper used by export-dialog size estimation). Decode/import always routes through the staged-handle Rust path (`qrImportOpen` → `QrDecodedSource.rust`). |
 
 #### QR payload format (v1)
 
