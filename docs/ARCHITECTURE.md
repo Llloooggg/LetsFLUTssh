@@ -7220,9 +7220,11 @@ Two branches: **`dev`** (daily work) and **`main`** (releases only).
 
 | Ruleset | Branch | Rules | Bypass |
 |---------|--------|-------|--------|
-| `main` | `main` | No deletion, no force-push, PR required, all CI checks required | None |
+| `main` | `main` | No deletion, no force-push, PR required, code-owner review, strict required checks (`ci-dart`, `ci-rust`, `osv-scan`, `semgrep-scan`, `codeql-scan`, `cfl-fuzz`), **merge queue** | None |
 | `dev-protect` | `dev` | No deletion, no force-push | None |
-| `dev-checks` | `dev` | All CI checks required (`ci`, `osv-scan`, `semgrep-scan`, `codeql-scan`) | Admin — allows direct push |
+| `dev-checks` | `dev` | All CI checks required (`ci-dart`, `ci-rust`, `osv-scan`, `semgrep-scan`, `codeql-scan`) | Admin — allows direct push |
+
+**Merge queue (on `main`).** `main` enforces *strict* required checks — a branch must be re-validated against the current tip before it can merge. Without a queue this serializes painfully: a monthly Dependabot batch lands its first PR, the rest fall behind `main`, and GitHub's native auto-merge does **not** re-update stale branches, so they strand until manually rebased. The merge queue removes that: it forms a temporary `gh-readonly-queue/main/*` ref (base tip + the PR), runs the required checks there, and fast-forwards `main` only if they pass — testing each PR against the real merge result, in order, with no manual rebasing. Every required-check workflow therefore also triggers on `merge_group` (otherwise the queue waits forever for a status that never reports on the queue ref). Non-required jobs stay off the queue ref: `commit-lint` / `dependency-review` are `pull_request`-gated, and the heavy `rust-cross-check` matrix is explicitly skipped on `merge_group` (it can't gate the merge, so running it there only burns runner minutes). `ci-auto-tag` is unaffected — its `head_branch == 'main'` guard ignores the queue ref, so the release tag is created by the post-merge `push` to `main`, not by a queue run.
 
 ### 15.2 Workflow Graph
 
@@ -7238,7 +7240,11 @@ flowchart TD
     p --> sco["scorecard.yml<br/>main push + weekly"]
 
     dep["Dependabot PR (into main)"]
-    dep --> da["dependabot-auto.yml<br/>bump version in PR branch → auto-merge<br/>→ ci.yml → ci-auto-tag.yml → build-release.yml → Release"]
+    dep --> da["dependabot-auto.yml<br/>bump version in PR branch → enable --auto"]
+    prm["approved PR into main"]
+    da --> mq
+    prm --> mq["merge queue<br/>gh-readonly-queue/main/*<br/>required checks on merge_group<br/>pass → fast-forward main"]
+    mq --> ci2["push to main → ci.yml → ci-auto-tag.yml<br/>→ build-release.yml → Release"]
 
     bump["Version bump (on dev, before PR)"]
     bump --> bs["dev/scripts/bump-version.sh<br/>parse commits → bump pubspec.yaml → commit"]
@@ -7251,15 +7257,15 @@ flowchart TD
 
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
-| `ci.yml` | push main / PR (main, dev) | main, dev | Single `ci` job runs `make check` (format-check + lint + workflow lint + release hardening + unused-deps + tests for Dart + Rust) and `make rust-coverage` (lcov for SonarCloud); plus `rust-cross-check` matrix (Apple, Windows, Android cfg compile) | Yes (required) |
+| `ci.yml` | push main / PR (main, dev) / merge_group | main, dev | Parallel `ci-rust` + `ci-dart` jobs run `make check` (format-check + lint + workflow lint + release hardening + unused-deps + tests for each language) and `make rust-coverage` (lcov for SonarCloud); plus `rust-cross-check` matrix (Apple, Windows, Android cfg compile, **PR/push only — skipped in the queue**) | Yes (required) |
 | `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release + SBOM + cosign keyless signature | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Bump version in PR branch + auto-merge patch/minor | — |
-| `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
-| `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
-| `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
-| `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite | No |
+| `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Bump version in PR branch + auto-merge patch/minor (enables `--auto`, which enqueues into the merge queue) | — |
+| `osv.yml` | push main / PR (all) / merge_group / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
+| `codeql.yml` | push main / PR (all) / merge_group / weekly | main | GitHub Actions analysis | Yes on PR |
+| `semgrep.yml` | push main / PR (all) / merge_group / weekly | main | SAST scan (Dart code) | Yes on PR |
+| `cfl-fuzz.yml` | push main / PR to main / merge_group | main | ClusterFuzzLite | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 | `reproducibility-check.yml` | nightly cron | main | Builds Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
 | `pages.yml` | push main / manual | main | Publishes the project landing site to GitHub Pages | No |
@@ -7388,6 +7394,7 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | `AnimationStyle.noAnimation` | Animations disabled (Flutter 3.41+), design decision |
 | `AppShortcutRegistry` singleton | Centralized shortcut definitions; all key combos in one place, ready for future user-override settings page |
 | `matches()` checks only ctrl/shift | Original handlers didn't check alt/meta; WSLg can report phantom meta, causing false negatives |
+| Merge queue on `main` over relaxing strict checks | `main` keeps *strict* required checks (re-validate against tip before merge) to catch semantic conflicts two textually-clean PRs can introduce. Strict + multiple concurrent PRs (monthly Dependabot batch) serializes into a manual-rebase cascade because native auto-merge never re-updates stale branches. A merge queue keeps the strict guarantee *and* automates the cascade — preferred over dropping strict (which would trade the guarantee for simplicity). See [§15.1 Merge queue](#151-branching-model). |
 
 ### 16.2 API Gotchas
 

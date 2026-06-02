@@ -46,7 +46,7 @@ dependencies:
   flutter_foreground_task: ^9.2.2
 
   # Deep links / file open intents
-  app_links: ^7.0.0
+  app_links: ^7.1.1
   qr_flutter: ^4.1.0
   file_picker: ^11.0.2
   package_info_plus: ^9.0.1
