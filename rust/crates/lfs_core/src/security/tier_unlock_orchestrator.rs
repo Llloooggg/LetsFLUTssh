@@ -1,10 +1,12 @@
 //! Per-tier unlock orchestrators that drive the
 //! [`crate::security::tier_machine`] state machine through the
-//! cascade `Locked → Unlocking → Unlocked`. Today the Dart
-//! `SecurityInitController` (1167 LOC) owns the equivalent
-//! Dart-side orchestration; this module is the staging ground
-//! for the per-tier handlers that move into Rust under the
-//! retire arc.
+//! cascade `Locked → Unlocking → Unlocked`. Every tier is
+//! implemented here — Plaintext, Keychain (T1), Keychain+password
+//! (T1+pw), Hardware (T2), Paranoid — and the Dart
+//! `SecurityInitController` delegates each tier's unlock to the
+//! matching FRB entry point rather than computing the cascade
+//! Dart-side; it is left coordinating UI and feeding the staged
+//! key to drift.
 //!
 //! The DB-open step itself (drift opens `letsflutssh.db` with
 //! the resolved master key) stays Dart-side because drift is a
@@ -15,15 +17,15 @@
 //! reads the staged key from the SecretStore once and feeds it
 //! to drift.
 //!
-//! Per-tier orchestrators land one-by-one. Plaintext is the
-//! simplest (no secret); subsequent tiers compose with the OS
-//! keychain / biometric stack directly via
+//! Plaintext takes no secret; T1/T1+pw compose with the OS
+//! keychain / biometric stack via
 //! [`lfs_os_security::secure_key_storage`] +
-//! [`lfs_os_security::biometric_auth`] for the T1/T1+pw paths, and
-//! with the still-Dart-side hardware-vault prompt registries
-//! (`hardware_vault_unlock_prompt`, `hardware_vault_seal_prompt`)
-//! for T2 — the latter own platform-bound surfaces (Hello PIN
-//! sub-dialog, Touch ID prompt) that have to drive Flutter UI.
+//! [`lfs_os_security::biometric_auth`]; T2 drives the Rust-side
+//! prompt registries (`hardware_vault_unlock_prompt`,
+//! `hardware_vault_seal_prompt`) — the orchestrator registers a
+//! prompt and publishes a bus request, and the Dart side renders
+//! the platform-bound surface (Hello PIN sub-dialog, Touch ID
+//! prompt) and resolves it back over FRB.
 
 use crate::bus::Event;
 use crate::security::hardware_vault_seal_prompt;

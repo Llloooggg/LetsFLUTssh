@@ -3,10 +3,14 @@
 //! Owns the state + event + transition table plus a `dispatch`
 //! that publishes [`crate::bus::Event::TierStateChanged`] on every
 //! committed transition. Per-tier orchestration (Plaintext /
-//! Keychain / Hardware / Paranoid) wires
-//! into the dispatch here while the Dart `SecurityInitController`
-//! continues to drive the production unlock flow until each
-//! per-tier handler ships behind its feature gate.
+//! Keychain / Keychain+password / Hardware / Paranoid) lives in
+//! [`crate::security::tier_unlock_orchestrator`], which drives this
+//! machine across the `Locked → Unlocking → Unlocked` cascade. The
+//! Dart `SecurityInitController` delegates each tier's unlock to
+//! that orchestrator over FRB and only feeds the resolved DB key to
+//! drift — the DB-open step stays Dart because drift is a Dart ORM.
+//! This machine is the source of truth for the lock state the Dart
+//! `lockStateProvider` renders.
 //!
 //! **Why a single transition table.** The table is the contract
 //! every per-tier sub-machine implements. Pinning it down with
@@ -194,10 +198,12 @@ pub fn instance_dispatch(tier: SecurityTier, event: &TierEvent) -> TransitionRes
 /// change pushes a new tier in before kicking off
 /// `UnlockRequested`).
 ///
-/// **Not yet wired to anything.** Future commits attach
-/// per-tier sub-machine handlers + bus event publication. For
-/// now the type exists so the per-tier handler signatures are
-/// fixed and the FRB shim layer can target a stable API.
+/// Driven by the per-tier handlers in
+/// [`crate::security::tier_unlock_orchestrator`]: the wizard /
+/// settings change pushes the new tier in, then the orchestrator
+/// dispatches `UnlockRequested → … → UnlockSucceeded`, publishing
+/// [`crate::bus::Event::TierStateChanged`] on every committed
+/// transition (the Dart `lockStateProvider` subscribes).
 #[derive(Debug)]
 pub struct Machine {
     state: TierState,

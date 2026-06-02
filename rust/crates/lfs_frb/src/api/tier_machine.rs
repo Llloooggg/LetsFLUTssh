@@ -1,16 +1,16 @@
 //! FRB adapter for `lfs_core::security::tier_machine`.
 //!
 //! Sync — every call is a small mutex acquire + transition table
-//! lookup, sub-microsecond. Exposes the typed scaffold so Dart
-//! can read state + drive transitions for diagnostics. Per-tier
-//! handlers wire production unlock cascades on top of these
-//! primitives.
+//! lookup, sub-microsecond.
 //!
-//! **Currently not wired into the Dart unlock flow.** The Dart
-//! `SecurityInitController` (1167 LOC) still owns the production
-//! unlock cascade. Each per-tier handler migrates one tier at a
-//! time under a feature gate; this scaffold lets the per-tier
-//! wiring commits target a stable FRB API.
+//! The Dart `lockStateProvider` drives `tier_machine_dispatch`
+//! (lock / unlock requests) and renders the lock state off the
+//! `TierStateChanged` bus events this surface emits. The per-tier
+//! unlock cascades themselves run through
+//! [`crate::api::tier_unlock_orchestrator`]; `SecurityInitController`
+//! delegates every tier (Plaintext / Keychain / Keychain+password /
+//! Hardware / Paranoid) to that orchestrator rather than computing
+//! the cascade Dart-side.
 
 use std::sync::Mutex;
 
