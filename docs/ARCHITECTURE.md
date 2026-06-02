@@ -2735,7 +2735,7 @@ class DeepLinkHandler {
 [salt 32B] [IV 12B] [encrypted payload + GCM tag 16B]
 
 payload = ZIP archive:
-  manifest.json              ← schema_version (now v3), app_version, created_at, optional sync_origin (v2+)
+  manifest.json              ← schema_version (currently 1), app_version, created_at, optional sync_origin
   sessions.json              ← session metadata with credentials, incl. the free-form `notes` column (composer mirrors the persisted session columns)
   empty_folders.json         ← list of empty folder paths
   keys.json                  ← manager SSH keys + per-backend payload (see table below)
@@ -2746,11 +2746,11 @@ payload = ZIP archive:
   folder_tags.json           ← folder→tag assignments
   snippets.json              ← snippet definitions (id, title, command, description)
   session_snippets.json      ← session→snippet links
-  ssh_key_certificates.json  ← v3: paired OpenSSH certs (key_id, blob, validity, principals, options, fingerprint)
-  webdav_session_details.json ← v3: per-WebDAV-session config (base_url, username, auth_method, secret-id pointer)
-  s3_session_details.json    ← v3: per-S3-session config (access_key_id, region, endpoint, secret-id pointer)
-  sftp_bookmarks.json        ← v3: per-session SFTP bookmarks (id, session_id, remote_path, label, created_at)
-  port_forward_rules.json    ← v3: per-session port-forward rules (Local / Remote / Dynamic)
+  ssh_key_certificates.json  ← paired OpenSSH certs (key_id, blob, validity, principals, options, fingerprint)
+  webdav_session_details.json ← per-WebDAV-session config (base_url, username, auth_method, secret-id pointer)
+  s3_session_details.json    ← per-S3-session config (access_key_id, region, endpoint, secret-id pointer)
+  sftp_bookmarks.json        ← per-session SFTP bookmarks (id, session_id, remote_path, label, created_at)
+  port_forward_rules.json    ← per-session port-forward rules (Local / Remote / Dynamic)
 
 Encryption: AES-256-GCM
 Key: Argon2id(password, salt, m=64 MiB, t=3, p=1) — canonical in
@@ -2758,7 +2758,15 @@ Key: Argon2id(password, salt, m=64 MiB, t=3, p=1) — canonical in
   mirrored at startup into
   [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart)
 
-Wire format for v3 encrypted archives (current writer):
+**Two independent version numbers — don't conflate.** The *envelope*
+wire-format version is the header byte `0x03` (`ENC_VERSION_ARGON2ID_AAD`
+in `archive::envelope`), which gates the AES-GCM AAD binding below. The
+*manifest content* `schema_version` is `SchemaVersions::ARCHIVE` (`1`),
+which gates the set of JSON entries inside the ZIP. They evolve
+separately: the AAD hardening bumped the envelope byte to `0x03` without
+touching the manifest schema, which is still `1`.
+
+Wire format for the current encrypted-archive envelope (writer):
   [ 'LFSE' (4) | version = 0x03 (1) | KdfParams block (≤ 16) |
     salt (32) | iv (12) | ciphertext + GCM tag ]
 
@@ -2769,8 +2777,8 @@ up the exact cost used to write the archive — a future release can tune
 parameters without having to break or re-encrypt existing files.
 
 **Header-bound AAD (v0x03).** The encoder now binds the entire
-pre-IV header (magic + version + KDF params + salt — 52 bytes) into
-the AES-GCM AAD. An attacker who flips a header byte to coerce
+pre-IV header (magic 4 + version 1 + KDF params block 10 + salt 32 =
+47 bytes, `PRE_IV_HEADER_LEN`) into the AES-GCM AAD. An attacker who flips a header byte to coerce
 different KDF params (drop memory cap, swap algo id, replace salt)
 invalidates the AEAD tag rather than feeding cooked params into the
 verifier. The IV is *not* in AAD — its uniqueness is the GCM
@@ -2837,7 +2845,7 @@ password prompt:
 ```
 
 Schema versioning: `ExportImport.currentSchemaVersion` reads
-`lfs_core::migration::SchemaVersions::ARCHIVE` (currently **v3**) through
+`lfs_core::migration::SchemaVersions::ARCHIVE` (currently **1**) through
 a sync FRB getter so the constant lives one place across the workspace.
 The manifest is written on every export and validated on import: when
 `read_archive_to_pending` parses a `schema_version` greater than the
@@ -2902,7 +2910,7 @@ mask. The Rust driver
 does the heavy lifting:
 
 - **Manager keys first.** Imported under a fingerprint-dedup so identical keys reuse the existing id; returned id map remaps every `Sessions.keyId` reference. Sessions pointing at a key that wasn't imported get `keyId` cleared so the row still inserts without a `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`. The `DbApplyOptions.applyKeys` gate is a single boolean even though the export side splits key scope into two flags (`includeManagerKeys` session-bound + `includeAllManagerKeys` whole store) — both land in the same `keys` envelope block, so the caller must enable the gate when *either* flag is set (`ExportOptions.hasManagerKeys`). Keying it off `includeManagerKeys` alone silently drops keys whenever the preview dialog's default "Full import" preset (which sets only `includeAllManagerKeys`) is used
-- **Folder hierarchy reconstruction.** `apply_folder_tree` splits each session's `folder` path on `/`, mints a UUID per segment, builds a path→id map, and rewrites session `folder_id` references; `empty_folders.json` paths feed the same map so the tree is complete on apply. Folder labels matching Win32 reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`, case-insensitive, extension stripped) emit a soft `Archive` warning at import time — labels are session-tree display strings, not filesystem paths, so the row still lands but the warning hints that the name may render oddly when the user later exports / drags the label into a path context. Folder→tag link import currently ignored — see §3.9 "Folder-tag stub" below
+- **Folder hierarchy reconstruction.** `apply_folder_tree` splits each session's `folder` path on `/`, mints a UUID per segment, builds a path→id map, and rewrites session `folder_id` references; `empty_folders.json` paths feed the same map so the tree is complete on apply. Folder labels matching Win32 reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`, case-insensitive, extension stripped) emit a soft `Archive` warning at import time — labels are session-tree display strings, not filesystem paths, so the row still lands but the warning hints that the name may render oddly when the user later exports / drags the label into a path context. Folder→tag links resolve against this same freshly-built path→id map — see §3.9 "Folder-tag links" below
 - **Junction inserts.** Session→tag and session→snippet links route through `SessionTags` / `SessionSnippets` once the side tables land; links referencing a non-imported target are silently dropped (would FK-fail otherwise)
 - **Replace-mode atomicity.** The whole apply runs inside a single `Connection::transaction()` — replace mode wipes existing sessions / tags / snippets / known_hosts in the same transaction, so a mid-apply failure rolls the DB back to the pre-import state automatically. The Dart wrapper catches the failure and rethrows `LfsImportRolledBackException` so the UI shows the "import failed — data restored" toast
 - **Known-hosts text** is appended verbatim to the host-key file via the registered `KnownHostsAdapter`
@@ -2913,7 +2921,7 @@ The Dart `ImportSummary` is rebuilt from the Rust `DbApplyResult` row counts (`s
 
 **Config restore stays Dart-side.** The Rust apply ignores the `config_json` field on `DbStagedImport` — `config.json` is a Dart-managed artefact (see [§3.6 → Migration framework](#migration-framework)) and the caller restores it via `ref.read(configProvider.notifier).update((_) => importResult.config!)` after `applyResultViaRust` returns.
 
-**Folder-tag stub.** Folder→tag link import is currently dropped — `ExportFolderTagLink` carries the folder PATH (not the id) but the Rust apply driver keys junctions on `folder_id`. Restoring the link table requires the Dart envelope to resolve paths to freshly-minted folder ids the same way `apply_folder_tree` does for sessions; tracked but not implemented. Folder→tag is the only pre-Rust feature the apply path doesn't yet round-trip — sessions, keys, tags, snippets, session-tags, session-snippets, empty folders, known_hosts, config all survive.
+**Folder-tag links.** Folder→tag links round-trip. The archive carries each link as `{folder_path, tag_id}` (path, not id, because folder ids are minted fresh per import); `apply_folder_tags` resolves the path against the `path_to_id` map that `apply_folder_tree` + `apply_empty_folders` populate, then calls `tags::link_folder_tag`. A link whose `folder_path` was not materialised this import (its sessions weren't applied and it wasn't in `empty_folders`) is dropped rather than silently re-anchored to a stale id, and counted in `links_skipped`. Every pre-Rust feature now round-trips — sessions, keys, tags, snippets, session-tags, folder-tags, session-snippets, empty folders, known_hosts, config.
 
 **Session reload after linked-entity delete:** `sessions.key_id` is declared `FOREIGN KEY … REFERENCES ssh_keys(id) ON DELETE SET NULL`, and `session_tags` / `session_snippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The session tree refresh is **bus-driven, not a Dart-side reload**: the Rust DAO delete publishes `SessionsChanged`, which re-fires `sessionsWorkspaceStreamProvider`, so the tree picks up the nulled `key_id` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link without any `.notifier.load()` call from the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`).
 

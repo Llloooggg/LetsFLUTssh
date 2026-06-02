@@ -21,8 +21,8 @@
 //! # Header-bound AAD (v0x03)
 //!
 //! Versions `0x03` and later sign the entire pre-IV header (magic +
-//! version + KDF params block + salt — 52 bytes from offset 0
-//! through end of salt) into the AES-GCM AAD. An attacker who
+//! version + KDF params block + salt — 47 bytes (`PRE_IV_HEADER_LEN`)
+//! from offset 0 through end of salt) into the AES-GCM AAD. An attacker who
 //! flips, say, `memory_kib` or the algo byte to coerce a different
 //! KDF derivation invalidates the AEAD tag rather than feeding
 //! cooked params into the verifier. The IV is NOT included in AAD
