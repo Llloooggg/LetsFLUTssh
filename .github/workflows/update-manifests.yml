@@ -2,14 +2,12 @@ name: Update packaging manifests
 
 # After a release is published, rewrite the version + sha256 placeholders
 # in the packaging manifests (Flatpak / winget / Homebrew cask) from the
-# release's signed `.sha256sums`, and commit them back to main. This only
-# keeps the manifests CORRECT and in sync — it does NOT publish/submit
-# them anywhere (no Flathub PR, no winget-pkgs PR, no Homebrew tap). The
-# in-app updater owns the upgrade path; these manifests are kept ready
-# for whenever a store channel is opened.
-#
-# Manifest commit does not bump pubspec.yaml, so ci-auto-tag does not fire
-# again — no release loop.
+# release's signed `.sha256sums`, and push them to the unprotected
+# `packaging-manifests` branch (main is ruleset-protected — no direct
+# push). This only keeps the manifests CORRECT and in sync — it does NOT
+# publish/submit them anywhere (no Flathub PR, no winget-pkgs PR, no
+# Homebrew tap). The in-app updater owns the upgrade path; these manifests
+# are kept ready on that branch for whenever a store channel is opened.
 
 on:
   release:
@@ -78,7 +76,12 @@ jobs:
           sed -i "s/0\.0\.0/${VERSION}/g; s/${ZERO}/${LIN_SHA}/g" \
             packaging/flatpak/io.github.llloooggg.LetsFLUTssh.yaml
 
-      - name: Commit manifest sync
+      - name: Push synced manifests to the packaging-manifests branch
+        # main is ruleset-protected (no direct push — PR required), so the
+        # synced manifests land on a dedicated, unprotected
+        # `packaging-manifests` branch instead. It holds the latest
+        # release's ready-to-publish manifests; merge it to main (or
+        # cherry-pick) when a store channel is actually opened.
         env:
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
@@ -91,4 +94,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add packaging/
           git commit -m "chore(packaging): sync manifests to ${TAG#v}"
-          git push origin main
+          # Force — the branch is a regenerated snapshot of the latest
+          # release's manifests, not an accumulating history.
+          git push --force origin HEAD:packaging-manifests
