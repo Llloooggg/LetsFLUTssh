@@ -163,15 +163,16 @@ jobs:
         run: cargo install --locked --version 4.1.2 cargo-ndk
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-      - name: Build APKs (per-ABI, debug keystore)
-        # Same `--release --split-per-abi` as the shipped build;
+      - name: Build APK (fat, debug keystore)
+        # A single fat apk (no --split-per-abi) carries every ABI incl.
+        # the x86_64 the emulator runs, so the install step targets one
+        # fixed filename instead of a fragile per-ABI glob.
         # allowDebugRelease falls the signing config back to the debug
         # keystore (app/build.gradle.kts gates every gradle invocation on
-        # key.properties otherwise), so no signing secret is needed for a
-        # smoke build.
+        # key.properties otherwise), so no signing secret is needed.
         env:
           ORG_GRADLE_PROJECT_allowDebugRelease: 'true'
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release
       - name: Enable KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -190,7 +191,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            APK=$(ls build/app/outputs/flutter-apk/*x86_64*.apk | head -1)
+            APK=build/app/outputs/flutter-apk/app-release.apk
+            if [ ! -f "$APK" ]; then
+              echo "::error::apk not found at $APK"; ls -la build/app/outputs/flutter-apk/ || true; exit 1
+            fi
             adb install -r "$APK"
             adb logcat -c
             adb shell monkey -p com.llloooggg.letsflutssh -c android.intent.category.LAUNCHER 1
