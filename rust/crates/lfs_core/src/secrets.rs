@@ -20,6 +20,17 @@
 //! references escape — the lock is released before the returned
 //! buffer is touched.
 //!
+//! Page-locking: each resident secret's heap buffer is `mlock` /
+//! `VirtualLock`-pinned (via [`lfs_os_security::lock_memory`]) on
+//! insert and unpinned on removal, so the OS can't page a live key
+//! out to swap or hibernation. `Zeroizing` then scrubs the bytes on
+//! drop. Best-effort: an `mlock` the kernel refuses (e.g.
+//! `RLIMIT_MEMLOCK` exhausted) leaves the secret working but
+//! swappable. Transient copies handed back by `get` / `take` are not
+//! pinned — the caller holds a short-lived working copy. Moving a
+//! `Zeroizing<Vec<u8>>` between map slots (`rename`) does not move its
+//! heap allocation, so the pin survives the move untouched.
+//!
 //! ID convention used by the FRB adapter (`lfs_frb::api::app`):
 //!   - `sess.password.{session_id}`
 //!   - `sess.key.{session_id}`
@@ -40,6 +51,25 @@ use zeroize::Zeroizing;
 /// master key. See module docs for lifecycle.
 pub const ACTIVE_DBKEY_SECRET_ID: &str = "app.dbkey.active";
 
+/// Page-lock a resident secret's heap bytes (`mlock` / `VirtualLock`)
+/// so the OS can't swap them out. Best-effort — a refused lock is
+/// ignored (the secret still works, just swappable). No-op on empty.
+fn page_lock(buf: &Zeroizing<Vec<u8>>) {
+    if !buf.is_empty() {
+        lfs_os_security::lock_memory(buf.as_ptr() as usize, buf.len());
+    }
+}
+
+/// Reverse of [`page_lock`] — must run *before* the buffer drops so
+/// the freed pages aren't returned to the allocator still locked
+/// (which would leak against `RLIMIT_MEMLOCK`). `Zeroizing` scrubs
+/// the bytes on the subsequent drop.
+fn page_unlock(buf: &Zeroizing<Vec<u8>>) {
+    if !buf.is_empty() {
+        lfs_os_security::unlock_memory(buf.as_ptr() as usize, buf.len());
+    }
+}
+
 #[derive(Default)]
 pub struct SecretStore {
     inner: Mutex<HashMap<String, Zeroizing<Vec<u8>>>>,
@@ -55,8 +85,12 @@ impl SecretStore {
     /// Store `bytes` under `id`. Replaces any prior value at the
     /// same id (the previous `Zeroizing` buffer scrubs on drop).
     pub fn put(&self, id: &str, bytes: &[u8]) {
+        let z = Zeroizing::new(bytes.to_vec());
+        page_lock(&z);
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        g.insert(id.to_string(), Zeroizing::new(bytes.to_vec()));
+        if let Some(old) = g.insert(id.to_string(), z) {
+            page_unlock(&old);
+        }
     }
 
     pub fn has(&self, id: &str) -> bool {
@@ -74,7 +108,9 @@ impl SecretStore {
     /// Remove the entry under `id`. Idempotent.
     pub fn drop_id(&self, id: &str) {
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        g.remove(id);
+        if let Some(old) = g.remove(id) {
+            page_unlock(&old);
+        }
     }
 
     /// Atomic read-and-remove. Returns the bytes that were
@@ -87,13 +123,23 @@ impl SecretStore {
     /// from the store after a single FRB byte crossing.
     pub fn take(&self, id: &str) -> Option<Zeroizing<Vec<u8>>> {
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        g.remove(id)
+        let removed = g.remove(id);
+        // Unpin before handing the buffer out — the caller owns a
+        // transient working copy that drops (and scrubs) on its own;
+        // leaving it `mlock`ed would leak the pin when it frees.
+        if let Some(ref buf) = removed {
+            page_unlock(buf);
+        }
+        removed
     }
 
     /// Drop every secret under any id. Used by the auth-failure
     /// recovery path that wipes all cached credentials at once.
     pub fn clear(&self) {
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        for buf in g.values() {
+            page_unlock(buf);
+        }
         g.clear();
     }
 
@@ -118,7 +164,11 @@ impl SecretStore {
         let Some(buf) = g.remove(from) else {
             return false;
         };
-        g.insert(to.to_string(), buf);
+        // `buf` keeps its pin — the move doesn't relocate the heap
+        // allocation. Only an overwritten `to` value needs unpinning.
+        if let Some(old) = g.insert(to.to_string(), buf) {
+            page_unlock(&old);
+        }
         true
     }
 

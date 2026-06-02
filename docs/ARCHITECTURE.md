@@ -164,11 +164,11 @@ What native code does **NOT** contain: cryptography, key management, business de
 **Trace of one secret** (master password → unlock):
 
 1. User types in `SecurePasswordField` (Dart) — controller wipes on dispose, no autocorrect / IME-learning / smart quotes.
-2. Submit triggers a single FRB call `unlock_with_password(password)`.
+2. Submit dispatches the active tier's unlock over FRB through the `tier_unlock_orchestrator` family — e.g. `tier_unlock_keychain_with_password(password)` or `tier_unlock_paranoid(password)`.
 3. Rust receives bytes, immediately wraps in `Zeroizing<Vec<u8>>`, hands to `SecretStore`.
 4. `SecretStore::derive_kek()` runs Argon2id KDF; password bytes drop + Zeroize-clear.
 5. KEK decrypts DB key from `credentials.kdf`; KEK drops + Zeroize-clear.
-6. DB key lives in `mlock`-pinned Rust memory until a lock event.
+6. DB key lives in Rust until a lock event — `mlock`-pinned in the `SecretStore` while the orchestrator stages it, then inside the SQLCipher handle.
 7. Lock event (idle / OS lock / explicit) → DB key drop + Zeroize, `mlock` release, SQLCipher handle close, `SessionCredentialCache` evict.
 
 Plaintext password exists in Dart heap on the order of milliseconds between steps 1 and 3, then everything is in Rust until the end of life. Per the plaintext-discipline invariant, this is the minimum possible exposure window for the chosen UX (typed master password).
