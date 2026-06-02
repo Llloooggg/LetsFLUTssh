@@ -1,0 +1,94 @@
+name: Update packaging manifests
+
+# After a release is published, rewrite the version + sha256 placeholders
+# in the packaging manifests (Flatpak / winget / Homebrew cask) from the
+# release's signed `.sha256sums`, and commit them back to main. This only
+# keeps the manifests CORRECT and in sync — it does NOT publish/submit
+# them anywhere (no Flathub PR, no winget-pkgs PR, no Homebrew tap). The
+# in-app updater owns the upgrade path; these manifests are kept ready
+# for whenever a store channel is opened.
+#
+# Manifest commit does not bump pubspec.yaml, so ci-auto-tag does not fire
+# again — no release loop.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to sync manifests from (e.g. v8.1.0)
+        required: true
+
+permissions: read-all
+
+concurrency:
+  group: update-manifests
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: main
+          # RELEASE_TOKEN (PAT) so the manifest commit can push to the
+          # protected main branch; GITHUB_TOKEN can't update a ruleset-
+          # protected ref.
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Sync version + sha256 into manifests
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          echo "Syncing manifests to ${VERSION} (tag ${TAG})"
+
+          # Pull the signed checksum manifest for this release and read
+          # the per-asset sha256 of the three artefacts the manifests
+          # reference.
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.sha256sums' --output sums.txt --clobber
+          sha_of() { grep -E "  letsflutssh-${VERSION}-$1\$" sums.txt | awk '{print $1}'; }
+          DMG_SHA=$(sha_of 'macos-universal.dmg')
+          WIN_SHA=$(sha_of 'windows-x64-setup.exe')
+          LIN_SHA=$(sha_of 'linux-x64.tar.gz')
+          ZERO='0000000000000000000000000000000000000000000000000000000000000000'
+          for v in "$DMG_SHA:dmg" "$WIN_SHA:win" "$LIN_SHA:linux"; do
+            [ -n "${v%%:*}" ] || { echo "::error::missing sha256 for ${v##*:} in $TAG sha256sums"; exit 1; }
+          done
+
+          # Version placeholders (`0.0.0` everywhere) → release version;
+          # each manifest carries a single sha256 placeholder type.
+          # Homebrew (macOS dmg, same universal slice for both arches):
+          sed -i "s/0\.0\.0/${VERSION}/g; s/${ZERO}/${DMG_SHA}/g" \
+            packaging/homebrew/letsflutssh.rb
+          # winget (windows x64 setup.exe):
+          sed -i "s/0\.0\.0/${VERSION}/g" \
+            packaging/winget/Llloooggg.LetsFLUTssh.yaml \
+            packaging/winget/Llloooggg.LetsFLUTssh.locale.en-US.yaml
+          sed -i "s/0\.0\.0/${VERSION}/g; s/${ZERO}/${WIN_SHA}/g" \
+            packaging/winget/Llloooggg.LetsFLUTssh.installer.yaml
+          # Flatpak (linux x64 tarball source):
+          sed -i "s/0\.0\.0/${VERSION}/g; s/${ZERO}/${LIN_SHA}/g" \
+            packaging/flatpak/io.github.llloooggg.LetsFLUTssh.yaml
+
+      - name: Commit manifest sync
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- packaging/; then
+            echo "Manifests already in sync — nothing to commit"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add packaging/
+          git commit -m "chore(packaging): sync manifests to ${TAG#v}"
+          git push origin main

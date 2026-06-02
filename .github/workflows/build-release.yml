@@ -1307,6 +1307,7 @@ jobs:
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
             artifacts/ios-unsigned/*.ipa
+            artifacts/*.rust-sbom.cdx.tar.gz
 
       - name: Install cosign
         # Sigstore client. Pinned to v4.1.1 (released 2026-03-26),
