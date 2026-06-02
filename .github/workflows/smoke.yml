@@ -152,10 +152,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - name: Build debug APK
-        # Debug build: debug-signed, so it needs no android/key.properties
-        # (the release build gate); still compiles the Kotlin + the Rust
-        # core via cargokit, and the fat debug apk includes the x86_64
-        # ABI the emulator runs.
+        # The release signingConfig block in app/build.gradle.kts throws
+        # at configure time when key.properties is absent (it gates every
+        # gradle invocation, debug included) unless `allowDebugRelease` is
+        # set. Gradle reads `ORG_GRADLE_PROJECT_*` env vars as `-P`
+        # properties, so this falls the build back to the debug keystore —
+        # no signing key needed in CI. The fat debug apk still compiles
+        # Kotlin + the cargokit Rust core and carries the x86_64 ABI the
+        # emulator runs.
+        env:
+          ORG_GRADLE_PROJECT_allowDebugRelease: 'true'
         run: flutter build apk --debug
       - name: Enable KVM for the emulator
         run: |
