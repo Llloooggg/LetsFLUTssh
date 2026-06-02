@@ -18,7 +18,6 @@ on:
       - '.github/workflows/cfl-fuzz.yml'
   pull_request:
     branches: [main]
-  merge_group: # required check — must report on the merge-queue ref
   workflow_dispatch:
 
 permissions: read-all

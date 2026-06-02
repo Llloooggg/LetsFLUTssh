@@ -15,11 +15,6 @@ on:
       # `workflow_dispatch` of build-release on those commits.
   pull_request:
     branches: [main, dev]
-  # Merge queue: required checks (ci-rust, ci-dart) must report on the
-  # `gh-readonly-queue/main/*` ref or the queue stalls waiting for
-  # status that never arrives. No paths filter — same always-run
-  # contract as the pull_request trigger above.
-  merge_group:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -337,13 +332,6 @@ jobs:
     #   - Android NDK ABIs     (ubuntu-latest via cargo-ndk)
     #
     # Linux x86_64 host is already covered by the `ci` job above.
-    #
-    # Skipped in the merge queue: this matrix is not a required check,
-    # so the queue never waits on it — running it on the
-    # `gh-readonly-queue` ref would burn ~5 platform jobs (incl. a
-    # ~17 min Windows leg) without being able to gate the merge. The
-    # PR run already validated these targets.
-    if: github.event_name != 'merge_group'
     strategy:
       fail-fast: false
       matrix:
