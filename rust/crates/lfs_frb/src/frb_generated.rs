@@ -44,7 +44,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1329805521;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1648887705;
 
 // Section: executor
 
@@ -26113,10 +26113,11 @@ fn wire__crate__api__update_metadata__update_asset_suffix_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_platform = <String>::sse_decode(&mut deserializer);
+            let api_arch = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::update_metadata::update_asset_suffix(api_platform),
+                    crate::api::update_metadata::update_asset_suffix(api_platform, api_arch),
                 )?;
                 Ok(output_ok)
             })())
@@ -26147,12 +26148,14 @@ fn wire__crate__api__update_metadata__update_asset_url_for_platform_impl(
             let api_assets =
                 <Vec<crate::api::update_metadata::DbReleaseAsset>>::sse_decode(&mut deserializer);
             let api_platform = <String>::sse_decode(&mut deserializer);
+            let api_arch = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
                     crate::api::update_metadata::update_asset_url_for_platform(
                         api_assets,
                         api_platform,
+                        api_arch,
                     ),
                 )?;
                 Ok(output_ok)
@@ -26532,6 +26535,37 @@ fn wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
                     crate::api::update_metadata::update_is_trusted_release_asset_uri(api_uri),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_linux_install_method_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_linux_install_method",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_linux_install_method(),
                 )?;
                 Ok(output_ok)
             })())
@@ -29067,6 +29101,20 @@ impl SseDecode for crate::api::recovery::DbLegacyStateDetection {
             config_version_on_disk: var_configVersionOnDisk,
             config_target_version: var_configTargetVersion,
             should_prompt_reset: var_shouldPromptReset,
+        };
+    }
+}
+
+impl SseDecode for crate::api::update_metadata::DbLinuxInstall {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::update_metadata::DbLinuxInstall::AppImage,
+            1 => crate::api::update_metadata::DbLinuxInstall::Flatpak,
+            2 => crate::api::update_metadata::DbLinuxInstall::SystemPackage,
+            3 => crate::api::update_metadata::DbLinuxInstall::Portable,
+            _ => unreachable!("Invalid variant for DbLinuxInstall: {}", inner),
         };
     }
 }
@@ -34078,9 +34126,9 @@ fn pde_ffi_dispatcher_primary_impl(
 693 => wire__crate__api__update_http__update_download_to_file_impl(port, ptr, rust_vec_len, data_len),
 694 => wire__crate__api__update_http__update_download_with_verification_impl(port, ptr, rust_vec_len, data_len),
 695 => wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len),
-700 => wire__crate__api__webdav__webdav_connect_impl(port, ptr, rust_vec_len, data_len),
-707 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
-708 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+701 => wire__crate__api__webdav__webdav_connect_impl(port, ptr, rust_vec_len, data_len),
+708 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(port, ptr, rust_vec_len, data_len),
+709 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -34387,15 +34435,16 @@ fn pde_ffi_dispatcher_sync_impl(
 687 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
 692 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
 696 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-697 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-698 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-699 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-701 => wire__crate__api__webdav__webdav_server_address_from_base_url_impl(ptr, rust_vec_len, data_len),
-702 => wire__crate__api__webdav__webdav_validate_base_url_impl(ptr, rust_vec_len, data_len),
-703 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-704 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-705 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
-706 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
+697 => wire__crate__api__update_metadata__update_linux_install_method_impl(ptr, rust_vec_len, data_len),
+698 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+699 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+700 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+702 => wire__crate__api__webdav__webdav_server_address_from_base_url_impl(ptr, rust_vec_len, data_len),
+703 => wire__crate__api__webdav__webdav_validate_base_url_impl(ptr, rust_vec_len, data_len),
+704 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+705 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+706 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+707 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -36781,6 +36830,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::recovery::DbLegacyStateDetect
     for crate::api::recovery::DbLegacyStateDetection
 {
     fn into_into_dart(self) -> crate::api::recovery::DbLegacyStateDetection {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbLinuxInstall {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::AppImage => 0.into_dart(),
+            Self::Flatpak => 1.into_dart(),
+            Self::SystemPackage => 2.into_dart(),
+            Self::Portable => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_metadata::DbLinuxInstall
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbLinuxInstall>
+    for crate::api::update_metadata::DbLinuxInstall
+{
+    fn into_into_dart(self) -> crate::api::update_metadata::DbLinuxInstall {
         self
     }
 }
@@ -42373,6 +42445,24 @@ impl SseEncode for crate::api::recovery::DbLegacyStateDetection {
         <i32>::sse_encode(self.config_version_on_disk, serializer);
         <i32>::sse_encode(self.config_target_version, serializer);
         <bool>::sse_encode(self.should_prompt_reset, serializer);
+    }
+}
+
+impl SseEncode for crate::api::update_metadata::DbLinuxInstall {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::update_metadata::DbLinuxInstall::AppImage => 0,
+                crate::api::update_metadata::DbLinuxInstall::Flatpak => 1,
+                crate::api::update_metadata::DbLinuxInstall::SystemPackage => 2,
+                crate::api::update_metadata::DbLinuxInstall::Portable => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

@@ -149,7 +149,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1329805521;
+  int get rustContentHash => 1648887705;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -2799,11 +2799,15 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<DbTransferSnapshot>> crateApiTransferTransferSnapshotAll();
 
-  String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform});
+  String? crateApiUpdateMetadataUpdateAssetSuffix({
+    required String platform,
+    required String arch,
+  });
 
   String? crateApiUpdateMetadataUpdateAssetUrlForPlatform({
     required List<DbReleaseAsset> assets,
     required String platform,
+    required String arch,
   });
 
   String? crateApiUpdateMetadataUpdateBuildCumulativeChangelog({
@@ -2849,6 +2853,8 @@ abstract class RustLibApi extends BaseApi {
   bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
     required String uri,
   });
+
+  DbLinuxInstall crateApiUpdateMetadataUpdateLinuxInstallMethod();
 
   String? crateApiUpdateMetadataUpdateParseAssetVersion({
     required String assetName,
@@ -25639,12 +25645,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "transfer_snapshot_all", argNames: []);
 
   @override
-  String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform}) {
+  String? crateApiUpdateMetadataUpdateAssetSuffix({
+    required String platform,
+    required String arch,
+  }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(platform, serializer);
+          sse_encode_String(arch, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -25656,7 +25666,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiUpdateMetadataUpdateAssetSuffixConstMeta,
-        argValues: [platform],
+        argValues: [platform, arch],
         apiImpl: this,
       ),
     );
@@ -25665,13 +25675,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiUpdateMetadataUpdateAssetSuffixConstMeta =>
       const TaskConstMeta(
         debugName: "update_asset_suffix",
-        argNames: ["platform"],
+        argNames: ["platform", "arch"],
       );
 
   @override
   String? crateApiUpdateMetadataUpdateAssetUrlForPlatform({
     required List<DbReleaseAsset> assets,
     required String platform,
+    required String arch,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -25679,6 +25690,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_list_db_release_asset(assets, serializer);
           sse_encode_String(platform, serializer);
+          sse_encode_String(arch, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -25690,7 +25702,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiUpdateMetadataUpdateAssetUrlForPlatformConstMeta,
-        argValues: [assets, platform],
+        argValues: [assets, platform, arch],
         apiImpl: this,
       ),
     );
@@ -25699,7 +25711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiUpdateMetadataUpdateAssetUrlForPlatformConstMeta =>
       const TaskConstMeta(
         debugName: "update_asset_url_for_platform",
-        argNames: ["assets", "platform"],
+        argNames: ["assets", "platform", "arch"],
       );
 
   @override
@@ -26041,6 +26053,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  DbLinuxInstall crateApiUpdateMetadataUpdateLinuxInstallMethod() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 697,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_linux_install,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateMetadataUpdateLinuxInstallMethodConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateMetadataUpdateLinuxInstallMethodConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_linux_install_method",
+        argNames: [],
+      );
+
+  @override
   String? crateApiUpdateMetadataUpdateParseAssetVersion({
     required String assetName,
   }) {
@@ -26052,7 +26093,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 697,
+            funcId: 698,
           )!;
         },
         codec: SseCodec(
@@ -26084,7 +26125,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 698,
+            funcId: 699,
           )!;
         },
         codec: SseCodec(
@@ -26118,7 +26159,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 699,
+            funcId: 700,
           )!;
         },
         codec: SseCodec(
@@ -26163,7 +26204,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 700,
+            funcId: 701,
             port: port_,
           );
         },
@@ -26213,7 +26254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 701,
+            funcId: 702,
           )!;
         },
         codec: SseCodec(
@@ -26245,7 +26286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 702,
+            funcId: 703,
           )!;
         },
         codec: SseCodec(
@@ -26274,7 +26315,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 703,
+            funcId: 704,
           )!;
         },
         codec: SseCodec(
@@ -26300,7 +26341,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 704,
+            funcId: 705,
           )!;
         },
         codec: SseCodec(
@@ -26326,7 +26367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 705,
+            funcId: 706,
           )!;
         },
         codec: SseCodec(
@@ -26352,7 +26393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 706,
+            funcId: 707,
           )!;
         },
         codec: SseCodec(
@@ -26381,7 +26422,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 707,
+            funcId: 708,
             port: port_,
           );
         },
@@ -26408,7 +26449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 708,
+            funcId: 709,
             port: port_,
           );
         },
@@ -28588,6 +28629,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       configTargetVersion: dco_decode_i_32(arr[3]),
       shouldPromptReset: dco_decode_bool(arr[4]),
     );
+  }
+
+  @protected
+  DbLinuxInstall dco_decode_db_linux_install(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbLinuxInstall.values[raw as int];
   }
 
   @protected
@@ -34193,6 +34240,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       configTargetVersion: var_configTargetVersion,
       shouldPromptReset: var_shouldPromptReset,
     );
+  }
+
+  @protected
+  DbLinuxInstall sse_decode_db_linux_install(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DbLinuxInstall.values[inner];
   }
 
   @protected
@@ -41020,6 +41074,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.configVersionOnDisk, serializer);
     sse_encode_i_32(self.configTargetVersion, serializer);
     sse_encode_bool(self.shouldPromptReset, serializer);
+  }
+
+  @protected
+  void sse_encode_db_linux_install(
+    DbLinuxInstall self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

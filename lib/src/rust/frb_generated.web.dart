@@ -869,6 +869,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbLegacyStateDetection dco_decode_db_legacy_state_detection(dynamic raw);
 
   @protected
+  DbLinuxInstall dco_decode_db_linux_install(dynamic raw);
+
+  @protected
   DbLocalFileEntry dco_decode_db_local_file_entry(dynamic raw);
 
   @protected
@@ -2630,6 +2633,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbLegacyStateDetection sse_decode_db_legacy_state_detection(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbLinuxInstall sse_decode_db_linux_install(SseDeserializer deserializer);
 
   @protected
   DbLocalFileEntry sse_decode_db_local_file_entry(SseDeserializer deserializer);
@@ -4900,6 +4906,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_legacy_state_detection(
     DbLegacyStateDetection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_linux_install(
+    DbLinuxInstall self,
     SseSerializer serializer,
   );
 
