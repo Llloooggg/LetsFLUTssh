@@ -1,0 +1,146 @@
+name: Extra Linux packages
+
+# Build .rpm (Fedora/RHEL/openSUSE) and Arch .pkg.tar.zst from a
+# published release's linux tarball, then attach them to the release.
+# Runs AFTER the release is published so it cannot break the signed
+# build-release pipeline — it only adds packages. They are NOT in the
+# release's signed .sha256sums (added post-publish); folding them into
+# build-release + the signed manifest is a follow-up once validated.
+#
+# The tarball is the same self-contained bundle the .deb / .AppImage
+# ship; these jobs just re-wrap it in each distro's package format with
+# the matching runtime-dependency names. The FIDO udev rule
+# (70-letsflutssh-fido.rules) is installed here too — the .deb omits it
+# (tracked gap).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to package (e.g. v8.1.0)
+        required: true
+
+permissions: read-all
+
+concurrency:
+  group: package-extra-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            rpm_arch: x86_64
+          - arch: arm64
+            rpm_arch: aarch64
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+      - name: Fetch release bundle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "letsflutssh-${VERSION}-linux-${{ matrix.arch }}.tar.gz" \
+            --output bundle.tar.gz --clobber
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Stage filesystem tree
+        run: |
+          set -euo pipefail
+          mkdir -p stage/usr/lib/letsflutssh stage/usr/bin \
+            stage/usr/share/applications \
+            stage/usr/share/icons/hicolor/256x256/apps \
+            stage/usr/lib/udev/rules.d
+          tar xzf bundle.tar.gz -C stage/usr/lib/letsflutssh
+          ln -sf /usr/lib/letsflutssh/letsflutssh stage/usr/bin/letsflutssh
+          cp linux/packaging/letsflutssh.desktop stage/usr/share/applications/
+          cp assets/icons/icon.png stage/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cp linux/packaging/70-letsflutssh-fido.rules stage/usr/lib/udev/rules.d/
+      - name: Build rpm
+        run: |
+          set -euo pipefail
+          fpm -s dir -t rpm \
+            -n letsflutssh -v "$VERSION" \
+            --architecture ${{ matrix.rpm_arch }} \
+            --license "see project" \
+            --maintainer "LetsFLUTssh <noreply@letsflutssh.dev>" \
+            --url "https://github.com/${GITHUB_REPOSITORY}" \
+            --description "Lightweight cross-platform SSH/SFTP client" \
+            --depends gtk3 --depends libsecret --depends tpm2-tss \
+            --rpm-summary "Lightweight cross-platform SSH/SFTP client" \
+            -C stage \
+            -p "letsflutssh-${VERSION}-linux-${{ matrix.arch }}.rpm" \
+            usr
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "letsflutssh-${VERSION}-linux-${{ matrix.arch }}.rpm"
+
+  arch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container: archlinux:latest
+    steps:
+      - name: Install build tooling
+        # makepkg refuses to run as root, so build under a non-root user;
+        # base-devel provides makepkg + fakeroot + sudo. nodejs is needed
+        # for the JS-based actions/checkout to run inside the container.
+        run: |
+          pacman -Syu --noconfirm base-devel git github-cli nodejs
+          useradd -m builder
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Fetch release bundle + build pkg.tar.zst
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "letsflutssh-${VERSION}-linux-x64.tar.gz" \
+            --output bundle.tar.gz --clobber
+          # PKGBUILD that installs the prebuilt bundle (a `-bin`-style
+          # package: the binary is our CI-built artefact, not rebuilt on
+          # the user's machine).
+          cat > PKGBUILD <<PKG
+          pkgname=letsflutssh
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Lightweight cross-platform SSH/SFTP client"
+          arch=('x86_64')
+          url="https://github.com/${GITHUB_REPOSITORY}"
+          license=('custom')
+          depends=('gtk3' 'libsecret' 'tpm2-tss')
+          options=('!strip')
+          package() {
+            install -d "\$pkgdir/usr/lib/letsflutssh"
+            tar xzf "\$srcdir/../bundle.tar.gz" -C "\$pkgdir/usr/lib/letsflutssh"
+            install -d "\$pkgdir/usr/bin"
+            ln -sf /usr/lib/letsflutssh/letsflutssh "\$pkgdir/usr/bin/letsflutssh"
+            install -Dm644 "\$srcdir/../linux/packaging/letsflutssh.desktop" "\$pkgdir/usr/share/applications/letsflutssh.desktop"
+            install -Dm644 "\$srcdir/../assets/icons/icon.png" "\$pkgdir/usr/share/icons/hicolor/256x256/apps/letsflutssh.png"
+            install -Dm644 "\$srcdir/../linux/packaging/70-letsflutssh-fido.rules" "\$pkgdir/usr/lib/udev/rules.d/70-letsflutssh-fido.rules"
+          }
+          PKG
+          chown -R builder:builder .
+          sudo -u builder makepkg -f
+          PKGFILE=$(ls letsflutssh-*.pkg.tar.zst | head -1)
+          mv "$PKGFILE" "letsflutssh-${VERSION}-linux-x64.pkg.tar.zst"
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "letsflutssh-${VERSION}-linux-x64.pkg.tar.zst"
