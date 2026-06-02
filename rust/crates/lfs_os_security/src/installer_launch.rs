@@ -357,4 +357,48 @@ mod tests {
         .await;
         assert!(matches!(res, AppImageApplyOutcome::InvalidInput { .. }));
     }
+
+    // End-to-end apply smoke (Unix): a real copy → chmod → atomic rename
+    // over the live "$APPIMAGE" path, then a real spawn of the swapped
+    // file. Uses a trivial `exit 0` shell script as the "new image" so
+    // the spawn is harmless. This exercises the whole
+    // `replace_appimage_and_relaunch` mechanic — not just the staging —
+    // on the host, which is the part no download/verify unit test covers.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn replace_appimage_swaps_and_relaunches_a_real_executable() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        // The live image (old): a runnable no-op so the path looks like
+        // a real AppImage on disk.
+        let target = dir.path().join("LetsFLUTssh.AppImage");
+        std::fs::write(&target, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).unwrap();
+        // The downloaded image (new): distinct contents, also runnable so
+        // the relaunch spawn succeeds and we reach `Relaunched`.
+        let new = dir.path().join("download.AppImage");
+        std::fs::write(&new, "#!/bin/sh\nexit 0\n# NEW IMAGE\n").unwrap();
+
+        let res = replace_appimage_and_relaunch(
+            new.to_string_lossy().into(),
+            target.to_string_lossy().into(),
+        )
+        .await;
+
+        assert_eq!(res, AppImageApplyOutcome::Relaunched);
+        // The live path now holds the new image's bytes, is executable,
+        // and the staging file is gone.
+        let swapped = std::fs::read_to_string(&target).unwrap();
+        assert!(
+            swapped.contains("NEW IMAGE"),
+            "live path must hold new bytes"
+        );
+        let mode = std::fs::metadata(&target).unwrap().permissions().mode();
+        assert_eq!(mode & 0o111, 0o111, "swapped image must stay executable");
+        assert!(
+            !dir.path().join("LetsFLUTssh.AppImage.update").exists(),
+            "staging file must not linger",
+        );
+    }
 }
