@@ -708,6 +708,21 @@ pub const DEFAULT_RECORDINGS_STORAGE_CAP_BYTES: u64 = 500 * 1024 * 1024;
 /// `u64::MAX` would silently disable the cap.
 const MAX_RECORDINGS_STORAGE_CAP_BYTES: u64 = 1024 * 1024 * 1024 * 1024; // 1 TiB
 
+/// Default transfer worker-pool size. Four parallel SFTP streams
+/// cover the typical user-facing batch without saturating the SSH
+/// session's channel slots (server `MaxSessions` defaults to ~10).
+/// This is the single source of truth for the default — the FRB
+/// pool spawn reads the configured value through
+/// [`transfer::worker_count_from_config_store`] and only falls back
+/// here when the config store is unreadable.
+pub const DEFAULT_TRANSFER_WORKERS: i64 = 4;
+
+/// Hard ceiling on the worker-pool size. Matches the Settings UI
+/// max; a hand-edited config above this is clamped so a fat-fingered
+/// `transfer_workers: 500` can't spawn 500 tokio workers and saturate
+/// the SSH channel slots.
+pub const MAX_TRANSFER_WORKERS: i64 = 10;
+
 /// Top-level app configuration. Mirror of Dart `AppConfig`.
 ///
 /// Sub-structs flatten into the JSON object at the same level so
@@ -747,7 +762,7 @@ impl Default for AppConfig {
             ssh: SshDefaults::default(),
             ui: UiConfig::default(),
             behavior: BehaviorConfig::default(),
-            transfer_workers: 2,
+            transfer_workers: DEFAULT_TRANSFER_WORKERS,
             max_history: 500,
             locale: None,
             security: None,
@@ -791,6 +806,8 @@ impl AppConfig {
             behavior: self.behavior,
             transfer_workers: if self.transfer_workers < 1 {
                 d.transfer_workers
+            } else if self.transfer_workers > MAX_TRANSFER_WORKERS {
+                MAX_TRANSFER_WORKERS
             } else {
                 self.transfer_workers
             },

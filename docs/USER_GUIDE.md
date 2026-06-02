@@ -492,6 +492,7 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 - Multi-select with `Ctrl`/`Shift`+click for bulk transfers.
 - Right-click → Cut / Copy / Paste between panes (cross-pane = transfer).
 - Transfer panel (bottom) shows queue, parallel workers, progress per file, retry on failure.
+- How many files transfer at once is the **Parallel workers** preference (Settings → Preferences; default 4, range 1–10). The pool is created on the first transfer of a session, so a changed value takes effect the next time you launch the app.
 
 ---
 

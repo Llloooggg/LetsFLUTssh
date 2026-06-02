@@ -370,7 +370,7 @@ class AppConfig {
     this.ssh = const SshDefaults(),
     this.ui = const UiConfig(),
     this.behavior = const BehaviorConfig(),
-    this.transferWorkers = 2,
+    this.transferWorkers = 4,
     this.maxHistory = 500,
     this.locale,
     this.security,

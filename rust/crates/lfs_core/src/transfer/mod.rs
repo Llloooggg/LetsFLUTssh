@@ -15,6 +15,72 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::bus::{Event, EventBus};
+use crate::config::{DEFAULT_TRANSFER_WORKERS, MAX_TRANSFER_WORKERS};
+
+/// Resolve the worker-pool size from the live config store,
+/// clamped to `[1, MAX_TRANSFER_WORKERS]`. The FRB pool spawn calls
+/// this so the user's "Parallel workers" setting actually sizes the
+/// pool; an unreadable / unparseable config store falls back to
+/// [`DEFAULT_TRANSFER_WORKERS`]. Mirrors the recorder's
+/// `read_storage_cap_from_config_store` pattern — the pool is
+/// spawned lazily and never resized, so the value is read once when
+/// the first transfer creates the pool and applies for that session.
+pub fn worker_count_from_config_store() -> usize {
+    worker_count_from_json(crate::config_store::instance().get_json().as_deref())
+}
+
+/// Pure core of [`worker_count_from_config_store`] — parse the
+/// `transfer_workers` field out of a config-store JSON snapshot and
+/// clamp it to `[1, MAX_TRANSFER_WORKERS]`, falling back to
+/// [`DEFAULT_TRANSFER_WORKERS`] when the snapshot is absent,
+/// unparseable, or missing the field. Split out so the read of the
+/// process-global config-store singleton stays in the thin wrapper.
+fn worker_count_from_json(json: Option<&str>) -> usize {
+    let raw = json
+        .and_then(|j| serde_json::from_str::<serde_json::Value>(j).ok())
+        .and_then(|v| {
+            v.as_object()
+                .and_then(|o| o.get("transfer_workers"))
+                .and_then(serde_json::Value::as_i64)
+        })
+        .unwrap_or(DEFAULT_TRANSFER_WORKERS);
+    raw.clamp(1, MAX_TRANSFER_WORKERS) as usize
+}
+
+#[cfg(test)]
+mod worker_count_tests {
+    use super::*;
+
+    #[test]
+    fn absent_snapshot_falls_back_to_default() {
+        assert_eq!(
+            worker_count_from_json(None),
+            DEFAULT_TRANSFER_WORKERS as usize
+        );
+    }
+
+    #[test]
+    fn unparseable_or_missing_field_falls_back_to_default() {
+        assert_eq!(
+            worker_count_from_json(Some("not json")),
+            DEFAULT_TRANSFER_WORKERS as usize
+        );
+        assert_eq!(
+            worker_count_from_json(Some("{\"font_size\":14}")),
+            DEFAULT_TRANSFER_WORKERS as usize
+        );
+    }
+
+    #[test]
+    fn reads_and_clamps_the_field() {
+        assert_eq!(worker_count_from_json(Some("{\"transfer_workers\":3}")), 3);
+        assert_eq!(worker_count_from_json(Some("{\"transfer_workers\":0}")), 1);
+        assert_eq!(
+            worker_count_from_json(Some("{\"transfer_workers\":500}")),
+            MAX_TRANSFER_WORKERS as usize
+        );
+    }
+}
 
 /// Minimum byte-delta between two progress publishes for the same
 /// task. Caps the bus event rate at one per 256 KiB regardless of

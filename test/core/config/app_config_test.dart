@@ -394,7 +394,7 @@ void main() {
         expect(config.terminal, const TerminalConfig());
         expect(config.ssh, const SshDefaults());
         expect(config.ui, const UiConfig());
-        expect(config.transferWorkers, 2);
+        expect(config.transferWorkers, 4);
         expect(config.maxHistory, 500);
         expect(config.logLevel, isNull);
         expect(config.checkUpdatesOnStart, isTrue);

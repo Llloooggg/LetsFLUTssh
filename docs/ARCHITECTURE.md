@@ -576,7 +576,7 @@ The FRB surface for SFTP stays unchanged with this layer in place — provider p
 **`TransfersNotifier`** runtime shape:
 
 - Queue: `[task1, task2, task3, ...]`
-- Workers: `4` (`DEFAULT_WORKER_COUNT`, parameterised on `WorkerPool::spawn`)
+- Workers: sized from the user's "Parallel workers" setting (`AppConfig.transfer_workers`, default 4, clamped `[1, 10]`). `lfs_core::transfer::worker_count_from_config_store` reads + clamps the live config value and the FRB adapter passes it to `WorkerPool::spawn`; `DEFAULT_TRANSFER_WORKERS = 4` is the fallback when the config store is unreadable. The pool is spawned lazily on the first transfer and never resized, so a changed setting applies on the next launch
 - History: unbounded in memory — terminal tasks stay until the user clears them (per-row drop or "clear history"); no automatic cap
 - States: `queued → running → completed / failed / cancelled`
 - Streams: `onChange → UI updates`, `onHistoryChange → history`
@@ -2632,7 +2632,7 @@ class AppConfig {
   //   showFolderSizes: bool
   //   toastDurationMs: int (default 4000)
 
-  final int transferWorkers;      // 1+ (default 2)
+  final int transferWorkers;      // [1, 10] (default 4); sizes the SFTP WorkerPool
   final int maxHistory;           // ≥0 (default 500)
   final LogLevel? logLevel;       // null = off; info/warn/error = threshold
   final bool checkUpdatesOnStart;

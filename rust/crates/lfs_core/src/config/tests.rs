@@ -339,7 +339,26 @@ fn transfer_workers_clamped_to_minimum_one() {
         ..AppConfig::default()
     }
     .sanitized();
-    assert_eq!(cfg.transfer_workers, 2);
+    assert_eq!(cfg.transfer_workers, DEFAULT_TRANSFER_WORKERS);
+}
+
+#[test]
+fn transfer_workers_clamped_to_maximum() {
+    let cfg = AppConfig {
+        transfer_workers: 500,
+        ..AppConfig::default()
+    }
+    .sanitized();
+    assert_eq!(cfg.transfer_workers, MAX_TRANSFER_WORKERS);
+}
+
+#[test]
+fn transfer_workers_default_is_four() {
+    assert_eq!(
+        AppConfig::default().transfer_workers,
+        DEFAULT_TRANSFER_WORKERS
+    );
+    assert_eq!(DEFAULT_TRANSFER_WORKERS, 4);
 }
 
 #[test]
