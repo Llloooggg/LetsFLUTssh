@@ -404,7 +404,7 @@ While the host-key prompt is on screen the connect driver's `ssh_timeout_sec` ca
 
 Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
 
-**Persistence.** `port_forward_rules` table in `letsflutssh.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionNotifier.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
+**Persistence.** `port_forward_rules` table in `letsflutssh.db` joined to `sessions` with `ON DELETE CASCADE`. `loadPortForwards / upsertPortForward / deletePortForward` are standalone free functions in `core/session/port_forwards_dao.dart` — deliberately outside `SessionMutator` (none of them touch the workspace snapshot), called directly by the editing UI as 1-line FRB-DAO wrappers.
 
 **Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionsNotifier`](#connectionsnotifier) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime asks `lfs_core::portforward::driver` to spawn the listeners with no race against the new transport assignment.
 
@@ -648,11 +648,11 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | File | Class | Purpose |
 |------|-------|---------|
 | `session.dart` | `Session`, `SessionAuth`, `AuthType` | Session model with all fields. (`ServerAddress` lives in `lib/core/ssh/ssh_config.dart` and is reused via `Session.server`.) `AuthType` is `password` / `key` / `keyWithPassword` / `agent`; the `agent` variant defers every signature to the system ssh-agent (`$SSH_AUTH_SOCK` on Unix, OpenSSH named pipe / Pageant on Windows) and carries no per-row key / password slot. |
-| `providers/session_provider.dart` | `SessionNotifier` | CRUD via FRB DAOs, search, folder tree management |
+| `providers/session_provider.dart` | `SessionMutator` + read providers | Read providers (`sessionProvider`, `filteredSessionTreeProvider`, …) derive from the `sessionsWorkspaceStreamProvider` FRB-backed snapshot; `SessionMutator` (behind `sessionMutatorProvider`) holds the CRUD / folder mutations. Search lives in `sessionSearchProvider`. |
 | `session_tree.dart` | `SessionTree`, `SessionTreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
 | `session_recorder.dart` | `SessionRecorder` | Per-shell terminal recorder; see [§3.13](#313-session-recording-coresessionsession_recorderdart). |
-| `port_forwards_dao.dart` | DAO helpers | Thin Dart shim over the FRB port-forward DAO surface used by `SessionNotifier`. |
+| `port_forwards_dao.dart` | DAO helpers | Thin Dart shim over the FRB port-forward DAO surface, called directly by the session-edit UI (outside `SessionMutator`). |
 | `qr_decoded_source.dart` | `QrDecodedSource` | Sealed type wrapping a Rust-staged QR/.lfs import handle so `LinkImportPreviewDialog` and the apply pipeline speak the same shape. |
 | `qr_codec.dart` | Free functions | Thin Dart shim over the Rust QR/`.lfs` codec. Versioned format (`v: 1`), deflate compressed, key map deduplication — all encode/decode/size/wrap/unwrap logic lives in `lfs_core::qr_codec_encode` / `lfs_core::qr_codec_decode` + `lfs_core::archive::qr_export_payload`; this file only exposes the `ExportOptions` config bag, the `qrMaxPayloadBytes` constant, and `encodeSessionCompact()` (FRB sync wrapper used by export-dialog size estimation). Decode/import always routes through the staged-handle Rust path (`qrImportOpen` → `QrDecodedSource.rust`). |
 
@@ -849,33 +849,46 @@ Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column. Holds fe
 
 **Typed `extras` leaves.** The Rust decoder converts each map leaf into a `SessionJsonValue` tagged union (`Null` / `Bool` / `Int` / `Double` / `Text` / `Array(String)` / `Object(String)`); the FRB shim mirrors it as `DbSessionJsonValue`; the Dart `extrasListToMap` helper in `session_json_codec.dart` re-keys the `Vec<DbSessionJsonExtra>` carrier into a `Map<String, Object?>` the typed accessors (`extrasBool` / `extrasStr` / `extrasInt`) consume. Whole-number floats round-trip as `Int` so the `extrasInt` contract matches the Dart `num` shape `jsonDecode` used to produce.
 
-#### SessionNotifier — FRB-backed persistence
+#### SessionMutator + read-provider split — FRB-backed persistence
 
-All session data (including credentials) is stored in a single SQLite database opened Rust-side via `rusqlite` + bundled SQLCipher 4.x (AES-256-CBC + HMAC-SHA512). Encryption happens at the DB level — stores never manage encryption themselves; the Dart notifier reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`.
+All session data (including credentials) is stored in a single SQLite database opened Rust-side via `rusqlite` + bundled SQLCipher 4.x (AES-256-CBC + HMAC-SHA512). Encryption happens at the DB level — the Dart layer never manages encryption; it reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`.
+
+The provider layer is **split** so that no Rust-owned data is cached in a long-lived Dart object (Always-On "don't cache Rust-owned data"):
+
+- **`sessionsWorkspaceStreamProvider`** — a `StreamProvider<SessionWorkspaceSnapshot>` that hydrates by calling `sessionsRegistryReload()` + the FRB DAO list and re-fires on every `BusTopic::Sessions` event. The snapshot bundles `sessions`, `emptyFolders`, and `collapsedFolders`. The first load races `db_init` (pre-FRB / pre-unlock contexts catch the `db not initialized` substring and yield the empty snapshot — see the FRB-ready window note in §15).
+- **Read providers** derive synchronously from that snapshot: `sessionWorkspaceProvider`, `sessionProvider` (`Provider<List<Session>>`), `emptyFoldersProvider`, `collapsedFoldersProvider`, `sessionsByIdProvider`, `sessionsLoadingProvider`. Widgets `ref.watch` these; none holds mutable state.
+- **`SessionMutator`** (behind `sessionMutatorProvider`, a plain `Provider<SessionMutator>`) owns every mutation. It reads the current snapshot via `ref.read(sessionWorkspaceProvider)` for short-circuit / undo-snapshot needs but **never** caches it — after each FRB write it relies on the bus-driven stream re-fetch (the `add` / `duplicate` path additionally calls `_loadSnapshot()` directly because the bus event lands on a later event-loop turn).
 
 ```dart
-class SessionNotifier {
-  void setDatabase(AppDatabase db); // injected at startup
-
-  Future<List<Session>> load();     // reads from SessionDao + FolderDao
+class SessionMutator {
+  // CRUD
   Future<void> add(Session session);
   Future<void> update(Session session);
+  Future<void> updatePartial(Session session, {bool passwordDirty, bool keyDataDirty, bool passphraseDirty});
   Future<void> delete(String id);
-  List<Session> search(String query);  // by label, folder, host, user
-
-  Set<String> get emptyFolders;
+  Future<void> deleteMultiple(Set<String> ids);
+  Future<void> deleteAll();
+  Future<Session> duplicate(String id, {String? targetFolder});
+  // Folders
+  Future<void> moveSession(String id, String newFolder);
+  Future<void> moveMultiple(Set<String> ids, String newFolder);
   Future<void> addEmptyFolder(String path);
+  Future<void> toggleFolderCollapsed(String path);
   Future<void> renameFolder(String oldPath, String newPath);
   Future<void> deleteFolder(String path);
-  String? folderIdByPath(String path); // resolve path to DB folder ID
+  Future<void> moveFolder(String path, String newParent);
+  Future<void> duplicateFolder(String sourcePath, String targetParent);
+  // Undo/redo (SessionHistory) + read helpers
+  Future<bool> undo();  Future<bool> redo();  bool get canUndo;  bool get canRedo;
+  String? folderIdByPath(String path);  List<Session> byFolder(String folder);
 }
 ```
 
-**Folder tree:** UI uses string paths ("Production/EU"), DB uses a `Folders` table with self-referencing `parentId`. `mappers.dart` handles conversion: `resolveFolderPath()` creates missing folder nodes, `findFolderIdByPath()` resolves path → ID. In-memory `_folderMap` cache rebuilt on `load()`.
+**Search** is its own slice: `sessionSearchProvider` (`NotifierProvider<SessionSearchNotifier, String>`) holds the query string; `filterSessions(sessions, query)` (by label / folder / host / user) feeds `filteredSessionsProvider` and `filteredSessionTreeProvider`, both derived from `sessionProvider` + `sessionSearchProvider`.
 
-**Concurrent load guard:** `load()` uses a `_loadFuture` guard — concurrent callers await the same future instead of starting a second load.
+**Folder tree:** UI uses string paths ("Production/EU"), DB uses a `Folders` table with self-referencing `parentId`. `mappers.dart` handles conversion: `resolveFolderPath()` creates missing folder nodes, `findFolderIdByPath()` resolves path → ID.
 
-**Atomicity:** Handled by SQLite transactions. No separate save order — all data is in one DB file.
+**Atomicity:** Handled by SQLite transactions Rust-side; mutations that span rows (multi-delete, folder duplicate) run inside one FRB call so a partial failure can't strand the workspace. All data is in one DB file — no cross-file save order.
 
 #### SessionTree
 
@@ -1147,7 +1160,7 @@ The JSON decoder silently ignores any key outside the typed
 hand-edited configs, so a config that picks up a stray field still
 parses.
 
-Stores (`SessionNotifier`, `SshKeysMutator`, `KnownHostsMutator`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
+Stores (`SessionMutator`, `SshKeysMutator`, `KnownHostsMutator`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
 #### Tier resolution at startup (`SecurityInitController.bootstrap`)
 
@@ -2902,7 +2915,7 @@ The Dart `ImportSummary` is rebuilt from the Rust `DbApplyResult` row counts (`s
 
 **Folder-tag stub.** Folder→tag link import is currently dropped — `ExportFolderTagLink` carries the folder PATH (not the id) but the Rust apply driver keys junctions on `folder_id`. Restoring the link table requires the Dart envelope to resolve paths to freshly-minted folder ids the same way `apply_folder_tree` does for sessions; tracked but not implemented. Folder→tag is the only pre-Rust feature the apply path doesn't yet round-trip — sessions, keys, tags, snippets, session-tags, session-snippets, empty folders, known_hosts, config all survive.
 
-**Session reload after linked-entity delete:** `Sessions.keyId` is declared with `onDelete: KeyAction.setNull`, and `SessionTags` / `SessionSnippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The in-memory `sessionProvider` cache doesn't see the cascade, though — the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`) each call `sessionProvider.notifier.load()` after the delete so the session tree picks up the nulled `keyId` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link.
+**Session reload after linked-entity delete:** `sessions.key_id` is declared `FOREIGN KEY … REFERENCES ssh_keys(id) ON DELETE SET NULL`, and `session_tags` / `session_snippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The session tree refresh is **bus-driven, not a Dart-side reload**: the Rust DAO delete publishes `SessionsChanged`, which re-fires `sessionsWorkspaceStreamProvider`, so the tree picks up the nulled `key_id` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link without any `.notifier.load()` call from the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`).
 
 The OpenSSH config parser honours wildcard defaults. `Host *` / `Host *.internal` blocks emit no entries of their own, but their directives cascade onto every concrete host matching the pattern using OpenSSH's first-value-wins rule — so the common idiom "put `Host *` at the end of ~/.ssh/config for defaults that concrete hosts override" works as expected. Negation patterns (`!pattern`) block a wildcard block from applying to a matching host. `IdentityFile` entries accumulate across every matching block in file order (OpenSSH tries them sequentially at connect time).
 
@@ -3923,16 +3936,19 @@ bridge + key encoder; §5.1 is the Dart rendering + input path.
 ```mermaid
 flowchart TD
     UI["UI (features/)"]
-    UI -->|watches| sp["sessionProvider<br/>(NotifierProvider&lt;SessionNotifier, List&lt;Session&gt;&gt;)"]
+    UI -->|watches| sp["sessionProvider<br/>(Provider&lt;List&lt;Session&gt;&gt;)"]
+    UI -->|mutates via| sm["sessionMutatorProvider<br/>(Provider&lt;SessionMutator&gt;)"]
     UI -->|watches| cp["configProvider<br/>(NotifierProvider&lt;ConfigNotifier, AppConfig&gt;)"]
     UI -->|watches| wp["workspaceProvider<br/>(NotifierProvider&lt;WorkspaceNotifier, WorkspaceState&gt;)"]
 
+    sws["sessionsWorkspaceStreamProvider<br/>(StreamProvider&lt;SessionWorkspaceSnapshot&gt;)"] --> sp
     sp -.-> fsp["filteredSessionsProvider<br/>(sessionProvider + sessionSearchProvider)"]
     sp -.-> ftp["filteredSessionTreeProvider<br/>(sessionProvider + sessionSearchProvider)"]
     cp -.-> tmp["themeModeProvider"]
     cp -.-> lp["localeProvider"]
 
-    sp --> bus["FRB bus subscription<br/>(BusTopic::Sessions)"]
+    sm -->|FRB write| bus["FRB bus subscription<br/>(BusTopic::Sessions)"]
+    bus --> sws
     cp --> rust["lfs_core::config_store actor<br/>(debounce + atomic write)"]
 ```
 
@@ -3962,9 +3978,12 @@ Generated from `lib/providers/` — each row points at the file that defines the
 
 | Provider | Type | Source / depends on |
 |---|---|---|
-| `sessionProvider` | `NotifierProvider<SessionNotifier, List<Session>>` | `session_provider.dart` — FRB DAO (`db_sessions_*`) + `BusTopic::Sessions` |
+| `sessionsWorkspaceStreamProvider` | `StreamProvider<SessionWorkspaceSnapshot>` | `session_provider.dart` — FRB DAO (`db_sessions_*` + `sessionsRegistryReload`) hydrate, re-fires on `BusTopic::Sessions`. Source of truth for every session read provider |
+| `sessionProvider` | `Provider<List<Session>>` | derives `.sessions` from `sessionWorkspaceProvider` (the unwrapped snapshot) |
+| `sessionMutatorProvider` | `Provider<SessionMutator>` | `session_provider.dart` — the CRUD / folder / undo-redo mutation surface; writes via FRB, re-reads via the stream |
+| `emptyFoldersProvider` / `collapsedFoldersProvider` | `Provider<Set<String>>` | derive from `sessionWorkspaceProvider` |
 | `sessionsByIdProvider` | `Provider<Map<String, Session>>` | derives from `sessionProvider`. Use `ref.watch(sessionsByIdProvider.select((m) => m[id]))` for any per-session row widget that needs to resolve a foreign-key target by id (`SessionViaBadge` resolving `via_session_id` is the load-bearing case). Pre-fix every per-row widget ran an O(N) `firstWhere` on every list mutation → O(N²) per refresh; the derived map + `.select` collapses that to O(1) per badge with no rebuild when the specific bastion's row didn't change |
-| `sessionsLoadingProvider` | `NotifierProvider<SessionsLoadingNotifier, bool>` | `session_provider.dart` — `true` while the initial load is in flight |
+| `sessionsLoadingProvider` | `Provider<bool>` | `session_provider.dart` — `true` while the initial stream load is in flight (derives the `AsyncValue.isLoading` discriminant) |
 | `sessionSearchProvider` | `NotifierProvider<SessionSearchNotifier, String>` | `session_provider.dart` |
 | `filteredSessionsProvider` | `Provider<List<Session>>` | `sessionProvider` + `sessionSearchProvider` |
 | `filteredSessionTreeProvider` | `Provider<List<SessionTreeNode>>` | `sessionProvider` + `sessionSearchProvider` |
@@ -4403,7 +4422,7 @@ SFTP clipboard is managed by `FileBrowserTab` — stores entries + source pane I
 | F2 | Edit focused session |
 | Delete | Delete focused session |
 
-Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionNotifier.duplicate()`. Independent from SFTP clipboard.
+Session clipboard stores a session ID. Ctrl+V duplicates that session via `SessionMutator.duplicate()`. Independent from SFTP clipboard.
 
 #### Broadcast — input mirroring
 
@@ -4544,7 +4563,7 @@ The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold a
 - **Shortcut dispatch is `CallbackShortcuts`-based**, not a `Focus.onKeyEvent` handler. `SessionPanel.build` wraps the root in `CallbackShortcuts(bindings: _buildShortcutBindings())` so `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+Z` / `Ctrl+Y` / `Delete` / `F2` fire as long as *any* `FocusNode` descendant of the panel holds focus. An earlier `Focus(onKeyEvent:)` version fired only when the panel root itself was focused — clicking a session row handed focus to an inner `Draggable` / `AppIconButton`, and the shortcut fell back on nothing ("works every other time"). The panel-level `Focus(autofocus: false)` stays for the "panel owns focus → rows render in accent colour" visual state; the shortcut path is independent.
 - **Empty-sidebar tap drops the focused pointer, never the `FocusNode`.** `onEmptySpaceTap` calls `_ctrl.clearFocus()` (nulls `focusedSessionId` + `focusedFolderPath` so the row highlight dims to grey) but leaves `_focusNode` focused. Yanking the Flutter focus would drop the panel out of the `CallbackShortcuts` scope — subsequent `Ctrl+V` / `Ctrl+Z` after an empty-space click would silently do nothing.
 - **Folder click is two-phase.** First tap on an unfocused folder focuses it (sets the paste target, no toggle); a second tap on the already-focused folder toggles expand. The branch lives in `session_tree_view._onFolderTap`, keyed off `widget.focusedFolderPath == fullPath`. Mirrors macOS Finder's column view and closes the "click folder to paste into it, it collapses instead" regression. Mobile keeps the single-tap toggle — long-press there is the focus-without-toggle alternative.
-- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` forwards the target to `sessionProvider.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicateSession` in the store accepts the same `targetFolder` parameter; `FakeSessionNotifier` mirrors the signature. An `explicitTarget:` override on `pasteCopiedSession` lets the session and folder right-click menus force the target to the clicked row / folder regardless of current focus — matches "paste into this folder" without making the user pre-focus it.
+- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` reads `sessionMutatorProvider` and forwards the target to `SessionMutator.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicate` accepts the `targetFolder` parameter; the `_FakeSessionMutator` test double (built by `FakeSessionNotifier`) mirrors the signature. An `explicitTarget:` override on `pasteCopiedSession` lets the session and folder right-click menus force the target to the clicked row / folder regardless of current focus — matches "paste into this folder" without making the user pre-focus it.
 - **Drop-zone covers the expanded folder's child rows, not just its header.** Every session row (`_buildSessionTile`) wraps its content in a `DragTarget<SessionDragData>` keyed off `session.folder`, so dropping a drag anywhere inside an expanded folder lands in that folder. Without the per-row wrap the drop fell through to the tree-root `DragTarget` (folder `""`) and the dragged session silently appeared at the root — users read this as "drag-into-folder only works on the folder row". DragTarget nesting resolves innermost-wins, so dropping directly on a sub-folder header still targets that sub-folder (its own `DragTarget` claims the hit first).
 
 #### Session clipboard — pointer model
@@ -4553,7 +4572,7 @@ The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold a
 
 - `copyFocused()` and `cutFocused()` both set `_copiedSessionId = _focusedSessionId` and flip `_cutPending` accordingly. Cut is one-shot: the next paste consumes the flag and clears the clipboard, so a subsequent Ctrl+V defaults back to duplicate semantics.
 - `clearClipboard()` runs on every successful cut paste, on panel `dispose`, and (via the wipe / reset flow) whenever the sidebar is torn down. There is **no wall-clock TTL** — an earlier 30-second auto-wipe caused a "works every other time" UX where the user's paste after a pause silently no-op'd. Since the clipboard is just a pointer, the stale-id window is bounded by panel lifetime, not by a timer.
-- Paste of a stale id (session deleted before paste) is a silent no-op — `sessionProvider.duplicate` throws `ArgumentError('Session not found')` and the transactional `_run` wrapper swallows it under the "duplicate session" label in the activity log.
+- Paste of a stale id (session deleted before paste) — `SessionMutator.duplicate` throws `ArgumentError('Session not found: $id')`. The clipboard is not invalidated when its source row is deleted, and `pasteCopiedSession` calls `duplicate` fire-and-forget, so the rejection surfaces as an unobserved async error to `PlatformDispatcher.onError` (logged, no crash) rather than a clean user-visible no-op.
 - **The Paste context-menu item is gated on `hasClipboardEntry`** (a copy/cut has stashed a session or folder). With an empty clipboard the entry would no-op, so the session and folder menus omit it entirely rather than show it disabled — context menus are action surfaces, where a control that can do nothing right now is hidden (the disable-with-tooltip treatment is reserved for configuration surfaces). The keyboard `Ctrl+V` path stays bound regardless and no-ops on an empty clipboard.
 
 ---
@@ -6053,12 +6072,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ui["UI → sessionsProvider.notifier.add(session)"]
-    ui --> add["SessionNotifier.add(session)<br/>Calls db_sessions_upsert via FRB"]
-    add --> rust["lfs_core::db::sessions::upsert<br/>WriteAheadLog row → SQLCipher commit"]
+    ui["UI → ref.read(sessionMutatorProvider).add(session)"]
+    ui --> add["SessionMutator.add(session)<br/>Calls db_sessions_upsert via FRB"]
+    add --> rust["lfs_core::db::sessions::upsert<br/>INSERT … ON CONFLICT upsert → SQLCipher commit"]
     rust --> evt["BusEvent::SessionsChanged"]
-    evt --> reload["SessionNotifier reload from db_sessions_list"]
-    reload --> rc["sessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
+    evt --> reload["sessionsWorkspaceStreamProvider re-fetches<br/>(db_sessions_list)"]
+    reload --> rc["filteredSessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
     ui -.-> hist["SessionHistory.push(snapshot)<br/>undo support — Dart-only"]
 ```
 
@@ -7098,7 +7117,7 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 
 | File | Contents |
 |------|----------|
-| `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedSessionNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
+| `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
 | `fake_session_notifier.dart` | `FakeSessionNotifier` (in-memory), `StaticSessionNotifier`, `ThrowingSessionNotifier` |
 | `fake_transfers_notifier.dart` | `FakeTransfersNotifier` — production `TransfersNotifier` subclass that records `clearHistoryCalls`; bypasses the FRB queue |
 | `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockNotifier` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
@@ -7426,8 +7445,8 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |
-| SessionNotifier abort on credential load failure | Prevents overwriting encrypted store |
-| SessionNotifier concurrent load guard | Prevents race condition when multiple lifecycle events fire simultaneously |
+| Credentials never loaded into the Dart session list | Plaintext lives only in the Rust `SecretStore` / SQLCipher DB, so the Dart workspace snapshot carries metadata only — there is no Dart-side decrypt that could fail and overwrite the encrypted store |
+| `db not initialized` substring gate on the workspace stream | Replaces the old manual concurrent-load guard: the single `sessionsWorkspaceStreamProvider` subscription yields the empty snapshot when its first load races `db_init`, then re-fetches on the post-unlock `SessionsChanged` event (§15) |
 | `RandomAccessFile` + try/finally for upload | Guarantees file handle cleanup |
 | Error sanitization | Don't expose file paths to user |
 | Deep link path traversal rejection | URL handling security |
