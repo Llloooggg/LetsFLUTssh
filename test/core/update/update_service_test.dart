@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/src/rust/api/installer.dart' as rust_installer;
 import 'package:letsflutssh/src/rust/api/update_http.dart' as rust_update_http;
+import 'package:letsflutssh/src/rust/api/update_metadata.dart'
+    as rust_update_meta;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -1140,32 +1142,67 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.canLaunchInstaller — per-platform routing
+  // UpdateService.canLaunchInstaller + isPackageManaged — per-platform routing
   // ===========================================================================
   //
-  // Spec (from update_service source): true only when the host platform is in
-  // `_platformsWithInstaller` = {linux, macos, windows}. The UI relies on this
-  // to pick the label "Install Now" vs "Open Release Page" before the user
-  // taps. A regression that included `android` here would silently relabel the
-  // mobile button to "Install Now" while the path through `openFile` still
-  // routed to the browser fallback.
-  group('UpdateService.canLaunchInstaller', () {
-    test('linux, macos and windows expose canLaunchInstaller=true', () {
-      for (final platform in ['linux', 'macos', 'windows']) {
+  // Spec (from update_service source): macOS and Windows always expose an
+  // installer hand-off. Linux is install-method dependent — an AppImage or a
+  // portable (tar.gz) build can be applied in place, but a deb/rpm/pacman or
+  // Flatpak install is owned by its package manager, so canLaunchInstaller is
+  // false there and isPackageManaged is true (UI offers the release page /
+  // "managed by your package manager" note). Android/iOS/unknown have no
+  // in-app installer. The UI relies on canLaunchInstaller to pick the label
+  // "Install Now" vs "Open Release Page" before the user taps.
+  group('UpdateService.canLaunchInstaller + isPackageManaged', () {
+    test('macos and windows expose canLaunchInstaller=true', () {
+      for (final platform in ['macos', 'windows']) {
         final service = UpdateService(platform: platform);
         expect(
           service.canLaunchInstaller,
           isTrue,
           reason: '$platform must surface an installer hand-off',
         );
+        expect(service.isPackageManaged, isFalse);
+      }
+    });
+
+    test('linux AppImage / portable can self-install', () {
+      for (final method in [
+        rust_update_meta.DbLinuxInstall.appImage,
+        rust_update_meta.DbLinuxInstall.portable,
+      ]) {
+        final service = UpdateService(platform: 'linux', linuxInstall: method);
+        expect(
+          service.canLaunchInstaller,
+          isTrue,
+          reason: '$method applies in place',
+        );
+        expect(service.isPackageManaged, isFalse);
+      }
+    });
+
+    test('linux deb/rpm/pacman + flatpak defer to the package manager', () {
+      // A package-manager-owned install must NOT advertise an in-app
+      // installer — overwriting it would orphan a copy outside the
+      // manager. The UI offers the release page instead.
+      for (final method in [
+        rust_update_meta.DbLinuxInstall.systemPackage,
+        rust_update_meta.DbLinuxInstall.flatpak,
+      ]) {
+        final service = UpdateService(platform: 'linux', linuxInstall: method);
+        expect(
+          service.canLaunchInstaller,
+          isFalse,
+          reason: '$method is owned by its package manager',
+        );
+        expect(service.isPackageManaged, isTrue);
       }
     });
 
     test('android, ios and unknown expose canLaunchInstaller=false', () {
-      // Android is intentionally NOT listed — the APK install flow
-      // requires REQUEST_INSTALL_PACKAGES + FileProvider + per-app
-      // system prompt that needs a separate implementation. Pinning
-      // the false return guards the docstring promise.
+      // Android's APK install flow (REQUEST_INSTALL_PACKAGES + per-app
+      // system prompt) routes outside canLaunchInstaller; iOS/unknown
+      // have no in-app installer at all.
       for (final platform in ['android', 'ios', 'unknown']) {
         final service = UpdateService(platform: platform);
         expect(
@@ -1173,6 +1210,7 @@ void main() {
           isFalse,
           reason: '$platform must NOT advertise an installer hand-off',
         );
+        expect(service.isPackageManaged, isFalse);
       }
     });
   });

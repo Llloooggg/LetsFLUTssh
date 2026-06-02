@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/update/update_service.dart';
 import '../src/rust/api/macos_installer.dart' as rust_macos_installer;
 import '../src/rust/api/update_http.dart' as rust_update;
+import '../src/rust/api/update_metadata.dart' as rust_update_meta;
 import 'version_provider.dart';
 import '../utils/logger.dart';
 
@@ -91,7 +92,17 @@ final updateServiceProvider = Provider<UpdateService>((ref) {
       return outcome == rust_macos_installer.MacosInstallOutcome.succeeded;
     };
   }
-  return UpdateService(macosDmgInstaller: installer);
+  // Detect how a Linux build was installed (AppImage / Flatpak / system
+  // package / portable) here in app context — FRB is live by now — and
+  // hand it to the service as a value, so the core layer never calls
+  // FRB from a constructor. `null` off Linux.
+  final rust_update_meta.DbLinuxInstall? linuxInstall = Platform.isLinux
+      ? rust_update_meta.updateLinuxInstallMethod()
+      : null;
+  return UpdateService(
+    macosDmgInstaller: installer,
+    linuxInstall: linuxInstall,
+  );
 });
 
 /// Provider that manages the update check / download lifecycle.
@@ -190,6 +201,12 @@ class UpdateNotifier extends Notifier<UpdateState> {
   /// a downloaded artefact. UI uses this to pick between "Install Now"
   /// and "Open Release Page" before the user clicks.
   bool get canLaunchInstaller => _service.canLaunchInstaller;
+
+  /// True when this Linux build is owned by a system package manager or
+  /// Flatpak — the in-app updater defers to that manager. UI surfaces a
+  /// "managed by your package manager" note instead of an install
+  /// button. Always false off Linux.
+  bool get isPackageManaged => _service.isPackageManaged;
 
   /// Open the downloaded installer file. Returns false if the platform
   /// has no launcher wired up or if the launcher call failed; callers

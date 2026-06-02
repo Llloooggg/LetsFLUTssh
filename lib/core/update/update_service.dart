@@ -184,10 +184,19 @@ class UpdateService {
   /// unsupported) without mocking `dart:io` `Platform`.
   final String _platform;
 
+  /// How this Linux build was installed (AppImage / Flatpak / system
+  /// package / portable). `null` off Linux and when the caller didn't
+  /// supply it. The FRB detection (`updateLinuxInstallMethod`) is run
+  /// by `updateServiceProvider` in app context and passed in here — the
+  /// core layer never calls FRB from a constructor, so tests and
+  /// non-Linux builds construct without an FRB runtime.
+  final rust_update.DbLinuxInstall? _linuxInstall;
+
   UpdateService({
     HttpFetcher? fetch,
     InstallerOpener? openInstaller,
     String? platform,
+    this._linuxInstall,
     this._macosDmgInstaller,
   }) : _fetch = fetch ?? defaultFetch,
        _openInstaller = openInstaller ?? _defaultOpenInstaller,
@@ -395,22 +404,45 @@ class UpdateService {
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
-  /// Platforms where the app can launch a platform-native installer for
-  /// a downloaded artefact (AppImage / .exe / .dmg via `xdg-open` / `cmd
-  /// start` / `open`). Anything outside this set must fall back to
-  /// opening the GitHub release page in a browser instead.
+  /// Desktop platforms with a single, unambiguous installer the app can
+  /// launch from a downloaded artefact (`.exe` via `cmd start`, `.dmg`
+  /// via the atomic-swap installer / `open`). Linux is handled
+  /// separately in [canLaunchInstaller] because its apply path depends
+  /// on the install method, not just the OS.
   ///
   /// Android is intentionally NOT listed — the APK install flow requires
   /// REQUEST_INSTALL_PACKAGES + FileProvider + per-app system prompt
   /// that needs a separate implementation; until that lands, Android
   /// uses the browser-fallback path like iOS.
-  static const _platformsWithInstaller = {'linux', 'macos', 'windows'};
+  static const _platformsWithInstaller = {'macos', 'windows'};
 
   /// True when [openFile] can be expected to launch a native installer
   /// flow on the host platform. UI code uses this to pick the right
   /// button label ("Install Now" vs "Open Release Page") before the
   /// user clicks — so the label always matches the action.
-  bool get canLaunchInstaller => _platformsWithInstaller.contains(_platform);
+  ///
+  /// On Linux this is method-dependent: an AppImage or a portable
+  /// (tar.gz) install can be applied in place, but a `deb` / `rpm` /
+  /// pacman / Flatpak install is owned by its package manager — the
+  /// in-app updater steps aside there and the UI offers the release
+  /// page instead (see [isPackageManaged]).
+  bool get canLaunchInstaller {
+    if (_platform == 'linux') {
+      return _linuxInstall == rust_update.DbLinuxInstall.appImage ||
+          _linuxInstall == rust_update.DbLinuxInstall.portable;
+    }
+    return _platformsWithInstaller.contains(_platform);
+  }
+
+  /// True when the running Linux build is owned by a system package
+  /// manager (`deb` / `rpm` / pacman) or Flatpak. The in-app updater
+  /// defers update delivery to that manager, so the UI surfaces a
+  /// "managed by your package manager" note instead of an install
+  /// button. Always false off Linux.
+  bool get isPackageManaged =>
+      _platform == 'linux' &&
+      (_linuxInstall == rust_update.DbLinuxInstall.systemPackage ||
+          _linuxInstall == rust_update.DbLinuxInstall.flatpak);
 
   /// Open a downloaded file using the platform's default handler.
   ///
