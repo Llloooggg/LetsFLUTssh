@@ -3335,7 +3335,7 @@ Two complementary Rust jobs run on every PR and push, alongside the existing Dar
 | `make rust-test` (`cargo test --workspace --locked` + `--doc --locked`) | Unit, integration, doc tests; `--locked` enforces Cargo.lock parity |
 | `make rust-machete` (`cargo machete --with-metadata`) | Unused dependency detector |
 
-Supply-chain advisories are not gated by the canonical host job — Dependabot tracks `rust/Cargo.lock` against the GitHub Advisory Database on PR, and `osv.yml` cross-checks against the broader OSV DB on push + weekly cron, so a dedicated `cargo-deny` step is no longer wired in.
+Supply-chain advisories are not gated by the canonical host `make check` job — they run as their own workflows instead: `cargo-deny.yml` (advisories / licenses / bans, push-main + PR + weekly), `osv.yml` (broader OSV DB), plus Dependabot tracking `rust/Cargo.lock` against the GitHub Advisory Database on PR. Keeping them out of `make check` keeps the local pre-commit fast.
 
 `make rust-coverage` (`cargo llvm-cov --workspace --all-features --locked --lcov`) runs in the same `ci` job after `make check` to feed Rust coverage to SonarCloud; it is heavier (instrumented rebuild) and not part of the gate.
 
@@ -7316,6 +7316,8 @@ flowchart TD
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
 | `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Auto-merge patch/minor; no per-PR version bump (deps ride the next release's bump — see §15.1) | — |
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
+| `cargo-deny.yml` | push main / PR (main, dev) / weekly | main, dev | Rust advisories / licenses / bans over `rust/Cargo.lock` (runs as its own workflow, not in `make check`) | No |
+| `pana.yml` | push main / PR (main, dev) / weekly | main, dev | `pana` Dart package-health score | No |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
 | `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite | No |
