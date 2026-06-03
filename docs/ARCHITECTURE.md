@@ -5090,7 +5090,7 @@ Each item is wrapped in `Semantics(button: true, label: item.label)` for accessi
 
 ```dart
 enum StandardMenuAction {
-  copy, paste, delete, rename, duplicate, refresh, open, transfer,
+  copy, cut, paste, delete, rename, duplicate, refresh, open, transfer,
   snippets, terminal, files, editConnection, newConnection, newFolder,
   renameFolder, editTags, deleteFolder, close, closeOthers,
   closeTabsToTheLeft, closeTabsToTheRight, closeAll, maximize, restore,
