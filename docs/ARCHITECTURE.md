@@ -5424,7 +5424,7 @@ Single dialog covering both QR and `.lfs` export. Top of the dialog flips betwee
 
 ## 6.1 Security & Tier Wizard Widgets
 
-Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the reset prompts for mismatched on-disk state. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
+Cluster of widgets that implement the first-launch security wizard, the Settings → Security ladder, the lock screen, and the reset prompts for mismatched on-disk state. They consume / mutate state owned by `core/security/` ([§3.6](#36-security--encryption-coresecurity)) and the security providers ([§4.2 Provider Catalog](#42-provider-catalog) — `securityStateProvider`, `lockStateProvider`, `autoLockMinutesProvider`, `firstLaunchBannerProvider`, `masterPasswordProvider`).
 
 ### AppInfoButton
 
@@ -5457,7 +5457,7 @@ Wraps the app body and locks the app after `autoLockMinutesProvider` minutes of 
 ```dart
 LockScreen({Key? key})
 ```
-Full-screen lock overlay shown while `lockStateProvider` is true. Tries biometric unlock first (if the user enabled it) and falls back to a master-password form. On success it re-derives the DB key, pushes it back into [`KeyHolder`](#36-security--encryption-coresecurity) and flips `lockStateProvider` off. Cross-links: [§3.6 Security](#36-security--encryption-coresecurity) for the key derivation path.
+Full-screen lock overlay shown while `lockStateProvider` is true. Tries biometric unlock first (if the user enabled it) and falls back to a master-password form. On success it re-derives the DB key, pushes it back through `securityStateProvider` (which routes it to `dbInit` over FRB so the key lands in the Rust `SecretStore`, never a Dart-side holder) and flips `lockStateProvider` off. Cross-links: [§3.6 Security](#36-security--encryption-coresecurity) for the key derivation path.
 
 ### SecurePasswordField
 
@@ -5630,7 +5630,7 @@ Unified `~/.ssh` picker. Renders hosts (parsed from `~/.ssh/config` via [`parseO
 UnlockDialog({Key? key})
 UnlockDialog.show(context) → Future<bool>
 ```
-Master-password unlock dialog used at startup before any DB read. Returns true on success (key derived and pushed to [`KeyHolder`](#36-security--encryption-coresecurity)), false on cancel. Distinct from [LockScreen](#lockscreen) — this one runs once at app launch, the lock screen runs after auto-lock fires.
+Master-password unlock dialog used at startup before any DB read. Returns true on success (key derived and pushed through `securityStateProvider` → `dbInit` → Rust `SecretStore`), false on cancel. Distinct from [LockScreen](#lockscreen) — this one runs once at app launch, the lock screen runs after auto-lock fires.
 
 ---
 
