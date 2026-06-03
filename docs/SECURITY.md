@@ -732,7 +732,7 @@ digest. Two files are published alongside the binaries:
 
 The auto-updater is the only consumer of this pair. It verifies the
 manifest signature against the public key baked into the installed
-app (`rust/crates/lfs_core/src/update_signing.rs::PRIMARY_PUBLIC_KEY`),
+app (`rust/crates/lfs_core/src/update/signing.rs::PRIMARY_PUBLIC_KEY`),
 then compares the downloaded artefact's sha256 with the entry in the
 verified manifest. A MITM'd GitHub response cannot forge a manifest
 signature without the private key.
@@ -788,7 +788,7 @@ dead for existing installs. Incident response:
 1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely
    fresh Ed25519 key pair (generated offline).
 2. Replace the `PRIMARY_PUBLIC_KEY` constant in
-   `rust/crates/lfs_core/src/update_signing.rs` with the fresh public key.
+   `rust/crates/lfs_core/src/update/signing.rs` with the fresh public key.
 3. Cut a new release. Existing installs will refuse to auto-update
    (they still trust only the leaked key) — this is the correct
    defensive behaviour.
@@ -812,6 +812,10 @@ the boundary.
 - **CodeQL** — static analysis of GitHub Actions workflows (weekly).
   Dart is not supported by CodeQL; application code is covered by
   SonarCloud instead.
+- **Semgrep** — SAST scan of the Dart code on every PR + weekly; a
+  required check on `main` (`semgrep-scan`).
+- **cargo-deny** — Rust advisory / license / banned-crate audit over
+  `rust/Cargo.lock` (push-main + PR + weekly), complementing OSV.
 - **SonarCloud** — static analysis, code quality, coverage, and
   security hotspot detection for Dart / Flutter code on every CI
   run.
