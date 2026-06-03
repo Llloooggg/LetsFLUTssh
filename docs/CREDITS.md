@@ -48,7 +48,7 @@ GPL-3.0-compatible licenses are summarised below for audit.
 
 | Crate (root) | Purpose | License |
 |---|---|---|
-| `russh` + `russh-sftp` + `russh-keys` | SSH / SFTP / key parsing engine | Apache-2.0 |
+| `russh` + `russh-sftp` + `internal-russh-forked-ssh-key` (PPK feature) | SSH / SFTP / key parsing engine | Apache-2.0 |
 | `rusqlite` (with `bundled-sqlcipher-vendored-openssl`) | SQLite wrapper + bundled SQLCipher 4.x + OpenSSL (`openssl-src`) | rusqlite MIT; SQLCipher BSD-3-Clause-Modification; OpenSSL Apache-2.0 (3.0+) / dual SSLeay+OpenSSL (1.x history) |
 | `aes-gcm` / `argon2` / `hkdf` / `ed25519-dalek` / `sha2` (RustCrypto) | Cryptographic primitives | Apache-2.0 OR MIT |
 | `ring` (russh's selected crypto backend) | Crypto suite for the SSH transport | mixed BSD-style + ISC + MIT (see `LICENSE` in the crate) |
