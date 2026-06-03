@@ -6295,6 +6295,7 @@ All application data is stored in a single SQLite database, opened Rust-side via
 | `Sessions` | Saved sessions — protocol-neutral row only (id, label, folder_id, `kind`, sort_order, notes, last_connected_at, `extras` JSON bag, timestamps). Every protocol-specific column lives on its matching join table. | FK → Folders | yes |
 | `SshSessionDetails` | Per-session SSH transport config + credentials (host, port, user, auth_type, password, key_path, key_data, key_id, passphrase, via_session_id, via_host, via_port, via_user). Kept off `Sessions` so non-SSH rows do not carry SSH-shaped columns. | FK → Sessions, cascade on delete; PK = `session_id`; FK → SshKeys (key_id) | yes |
 | `WebDavSessionDetails` | Per-session WebDAV transport config (base URL, username, auth method, optional self-signed fingerprint) | FK → Sessions, cascade on delete; PK = `session_id` | no (1-to-1 with `Sessions` kind=webdav) |
+| `S3SessionDetails` | Per-session S3 transport config (access_key_id, region, endpoint, path_style, default_bucket, default_prefix, trusted_cert_pem, insecure_skip_verify, secret_access_key) | FK → Sessions, cascade on delete; PK = `session_id` | no (1-to-1 with `Sessions` kind=s3) |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK | no |
 | `SshKeys` | SSH key pairs | — | yes |
 | `SshKeyCertificates` | OpenSSH user certificates paired to stored keys | FK → SshKeys, cascade on delete; PK = `key_id` | no (1-to-1 with `SshKeys`) |
@@ -6432,33 +6433,33 @@ is a quick reference.
 | `tags` / `session_tags` / `folder_tags` | Full | M2M edges union via `INSERT OR IGNORE`. |
 | `snippets` / `session_snippets` | Full | LWW on `updated_at` for sync. |
 | `sftp_bookmarks` | Full | Tombstone-aware; LWW on `created_at`. |
-| `port_forward_rules` | Full | No tombstone column; replace-mode clears. |
+| `port_forward_rules` | Full | Tombstone-aware (soft-deleted, `deleted_at`); LWW on `updated_at`. |
 | `app_configs` | Per-device | Not exported via `.lfs` / sync (UI theme, locale, log threshold etc. stay local). |
 
 ### Soft-delete contract
 
-The five tombstoned tables (`sessions`, `ssh_keys`, `tags`,
-`snippets`, `sftp_bookmarks`) carry an `INTEGER NULL deleted_at`
-column. Every DAO read filters `WHERE deleted_at IS NULL` so a
-soft-deleted row is invisible to the rest of the app. The DAO
-`delete*` family flips the column to the current unix-millis
-instead of issuing a `DELETE FROM`; the row survives so the sync
-push can ship the tombstone and a peer replays it through
-`apply_tombstone` (mechanism + LWW rule in §8b → *Tombstone
-replay*). Physical removal goes through a single
-`purge_tombstones(before_ms)` helper per DAO — reserved for the
-sync-merge cleanup and the user-initiated "Reset All Data" path.
-Re-`upsert` of a tombstoned row clears `deleted_at` (`ON
+The tombstoned tables carry an `INTEGER NULL deleted_at` column and
+their DAO `delete*` family flips it to the current unix-millis instead
+of issuing a `DELETE FROM`. The set: `sessions`, `ssh_keys`, `tags`,
+`snippets`, `sftp_bookmarks`, `port_forward_rules`, and the per-session
+detail tables `webdav_session_details` / `s3_session_details`. Every DAO
+read filters `WHERE deleted_at IS NULL` so a soft-deleted row is
+invisible to the rest of the app. The row survives so the sync push can
+ship the tombstone and a peer replays it through `apply_tombstone`
+(mechanism + LWW rule in §8b → *Tombstone replay*). Physical removal
+goes through a single `purge_tombstones(before_ms)` helper per DAO —
+reserved for the sync-merge cleanup and the user-initiated "Reset All
+Data" path. Re-`upsert` of a tombstoned row clears `deleted_at` (`ON
 CONFLICT(id) DO UPDATE SET … deleted_at = NULL`), so a recreate-
 with-same-id flow revives the row instead of failing on the PK.
 
-**Why these five.** They carry user-authored configuration that
-WebDAV sync (`§8b`) replicates between devices; physical deletes
-in one device would otherwise re-appear on the next pull because
-the peer DB still has the row. `folders` and `port_forward_rules`
-are excluded today: folders cascade-clean via session FKs and
-port forwards are owned 1-to-1 by their session row. `known_hosts`
-stays per-device.
+**Why these.** They carry user-authored configuration that WebDAV sync
+(`§8b`) replicates between devices; a physical delete on one device
+would otherwise re-appear on the next pull because the peer DB still has
+the row. `port_forward_rules` and the WebDAV / S3 detail tables joined
+the set when those transports became sync-portable. `folders` are
+excluded (they cascade-clean via session FKs) and `known_hosts` stays
+per-device (host trust is never synced).
 
 **`tags.name` uniqueness is partial.** A `CREATE UNIQUE INDEX
 idx_tags_name_live ON tags(name) WHERE deleted_at IS NULL` keeps
@@ -6476,12 +6477,18 @@ NOT index FK columns by default, so without these every reverse
 lookup (`SELECT … FROM sessions WHERE folder_id = ?`,
 `DELETE FROM sftp_bookmarks WHERE session_id = ?`,
 `tag → sessions / folders / snippets`) was a full table scan.
-Current set: `idx_sessions_folder_id`, `idx_sessions_via_session_id`,
-`idx_sessions_key_id`, `idx_folders_parent_id`,
+Current set: `idx_sessions_folder_id`, `idx_folders_parent_id`,
+`idx_ssh_session_details_session_id`,
+`idx_ssh_session_details_via_session_id`,
+`idx_ssh_session_details_key_id`,
+`idx_webdav_session_details_session_id`,
+`idx_s3_session_details_session_id`,
 `idx_port_forward_rules_session_id`,
 `idx_sftp_bookmarks_session_id`,
 `idx_session_tags_tag_id`, `idx_folder_tags_tag_id`,
-`idx_session_snippets_snippet_id`. Composite-PK junction tables
+`idx_session_snippets_snippet_id` (the `via_session_id` / `key_id`
+indexes moved onto `ssh_session_details` with the join-table split).
+Composite-PK junction tables
 already have the leading column covered by the PK; the trailing
 column gets its own index for the reverse join.
 Existing databases pick the indexes up on next open via

@@ -705,10 +705,9 @@ CREATE TABLE IF NOT EXISTS ssh_key_certificates (
 -- (host / port / user / auth_type / password / key_path /
 -- key_data / key_id / passphrase / via_*) lives in
 -- `ssh_session_details`, WebDAV-specific in `webdav_session_details`,
--- S3-specific in `s3_session_details`. Pre-v16 databases land here
--- with extra SSH-shaped columns; the v15 → v16 migration arm
--- recreates the table in this slim shape after backfilling the
--- join row from the legacy columns.
+-- S3-specific in `s3_session_details`. Every install lands on this
+-- slim shape directly from `SCHEMA_SQL` — `SCHEMA_VERSION` is 1 and
+-- `bootstrap_schema` registers no `ALTER` arms.
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL DEFAULT '',
