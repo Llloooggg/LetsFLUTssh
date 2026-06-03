@@ -5962,7 +5962,7 @@ Fonts: **Inter** (UI), **JetBrains Mono** (terminal, data). Assets: `assets/font
 
 **CJK & non-Latin in language picker:** Native language names (中文, 日本語, 한국어, العربية, فارسی, हिन्दी) rely on system fonts. Each entry has an English secondary label (Chinese, Japanese, Korean, Arabic, Persian, Hindi) as fallback for systems without those fonts. No bundled CJK/Arabic/Devanagari fonts — keeps the binary small.
 
-**Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware: mobile gets +2 px automatically for touch readability.
+**Rule:** Never use hardcoded `fontSize` numeric literals — always use `AppFonts.xs`, `AppFonts.sm`, etc. The constants are platform-aware, but the mobile adjustment is **per-size, not a flat bump**: body / caption sizes (`xs`, `sm`) go up 1 px on mobile for touch readability while heading sizes (`lg`, `xl`) come down 1 px; `tiny`, `xxs`, `md` are identical on both. See the per-size table above for the exact desktop / mobile pair.
 
 **Rule:** Never use hardcoded `BorderRadius.circular(N)` or `BorderRadius.zero` — always use `AppTheme.radiusSm`, `radiusMd`, or `radiusLg`. Exception: pill-shaped elements (e.g. toggle tracks) that need full rounding.
 
