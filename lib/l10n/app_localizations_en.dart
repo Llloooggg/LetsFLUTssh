@@ -36,6 +36,27 @@ class SEn extends S {
   String get connect => 'Connect';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Key passphrase needed';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Password needed';
+
+  @override
+  String get credentialPromptHint =>
+      'Enter it to finish connecting. It is never written to disk.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Enter it to finish connecting to “$session”. It is never written to disk.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Remember for this session';
+
+  @override
+  String get passwordBlankPromptHint => 'Leave blank to be asked on connect';
+
+  @override
   String get retry => 'Retry';
 
   @override

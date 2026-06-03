@@ -34,9 +34,9 @@ For the DAO, copy the shape from `rust/crates/lfs_core/src/db/snippets.rs`: each
 
 When you add or rename a column, bump `SCHEMA_VERSION` and add the matching `ALTER TABLE` step in the bootstrap — see [ARCHITECTURE §11 Schema migrations](ARCHITECTURE.md#11-persistence--storage).
 
-### 2. FRB API surface (`rust/crates/lfs_frb/src/api/db/`)
+### 2. FRB API surface (`rust/crates/lfs_frb/src/api/`)
 
-Expose the DAO through `lfs_frb::api::db::notes` (one file per entity, mirroring `snippets.rs` / `tags.rs`). The adapter:
+Expose the DAO through `lfs_frb::api::notes` — a flat `api/notes.rs` file mirroring the existing `api/snippets.rs` / `api/tags.rs` (the API modules sit directly under `api/`, not in an `api/db/` subdir). The adapter:
 
 - Receives Dart-friendly DTOs (`Vec<u8>` / `String` / numeric).
 - Delegates to `lfs_core::db::notes::*`.

@@ -194,7 +194,7 @@ works, the biometric shortcut is unavailable).
 | macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | `kSecAccessControlBiometryCurrentSet` ACL on the overlay key | same as iOS — shared Apple-cfg Rust path |
 | Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with password-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` alias `lfs.hardware_tier_vault.l3.bio` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
 | Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | Hello-gated NCrypt persistent key `letsflutssh_hardware_vault_bio_v1` with `NCRYPT_UI_PROTECT_KEY_FLAG \| NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`, separate from the primary so enrolment changes invalidate only the overlay | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware vault → `lfs_os_security::windows::hardware_vault` (direct `windows` crate FFI to NCrypt) |
-| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in. v3 envelope format wraps the sealed `(public, private)` pair as a TCG ASN.1 DER `id-loadablekey` body per `draft-bottomley-tpm2-keys-asn1` — wire-compatible with `openssl-tpm2-engine` and `ssh-tpm-agent` | TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by the `fprintd` enrolment hash (SHA-256 of sorted enrolled-finger names); re-enrolment flips the hash so the overlay invalidates while the primary password vault keeps working. Requires `fprintd` (capability-ladder rung 5 — optional OS dep with graceful degradation; the install snippet lives in the main README) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` + `tpm_tcg_pem` (subprocess + native backends share a TCG ASN.1 PEM envelope); `lfs_core::security::hardware_tier_vault::linux` (overlay orchestrator over fprintd + TPM2 seal) |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in. v3 envelope format wraps the sealed `(public, private)` pair as a TCG ASN.1 DER `id-loadablekey` body per `draft-bottomley-tpm2-keys-asn1` — wire-compatible with `openssl-tpm2-engine` and `ssh-tpm-agent` | TPM2-sealed `hardware_vault_password_overlay_linux.bin` keyed by the `fprintd` enrolment hash (SHA-256 of sorted enrolled-finger names); re-enrolment flips the hash so the overlay invalidates while the primary password vault keeps working. Requires `fprintd` (capability-ladder rung 5 — optional OS dep with graceful degradation; the install snippet lives in the main README) | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_os_security::linux::tpm` + `tpm_native` + `tpm_tcg_pem` (subprocess + native backends share a TCG ASN.1 PEM envelope); `lfs_core::security::hardware_tier_vault::linux` (overlay orchestrator over fprintd + TPM2 seal) |
 
 **Linux notes.** T1 on Linux is the weakest default across the
 matrix because `libsecret` does not integrate with TPM. Users who
@@ -202,8 +202,8 @@ want hardware binding on Linux should pick T2 (requires a TPM 2.0 +
 either `tpm2-tools` or `libtss2-dev` for the native backend; install
 snippet in the main README). The biometric modifier on Linux flows
 through `fprintd` and requires at least one enrolled finger. The
-`tss-esapi` native backend ([`lfs_core::platform::linux::tpm_native`](
-../rust/crates/lfs_core/src/platform/linux/tpm_native.rs)) talks
+`tss-esapi` native backend ([`lfs_os_security::linux::tpm_native`](
+../rust/crates/lfs_os_security/src/linux/tpm_native.rs)) talks
 directly to `/dev/tpm0` through the TSS2 ABI — no per-operation
 `fork()` + temp-file plumbing — and produces byte-identical sealed
 envelopes to the subprocess path so the two paths interoperate
@@ -732,7 +732,7 @@ digest. Two files are published alongside the binaries:
 
 The auto-updater is the only consumer of this pair. It verifies the
 manifest signature against the public key baked into the installed
-app (`rust/crates/lfs_core/src/update_signing.rs::PRIMARY_PUBLIC_KEY`),
+app (`rust/crates/lfs_core/src/update/signing.rs::PRIMARY_PUBLIC_KEY`),
 then compares the downloaded artefact's sha256 with the entry in the
 verified manifest. A MITM'd GitHub response cannot forge a manifest
 signature without the private key.
@@ -788,7 +788,7 @@ dead for existing installs. Incident response:
 1. Rotate the `RELEASE_SIGNING_KEY` GitHub secret to an entirely
    fresh Ed25519 key pair (generated offline).
 2. Replace the `PRIMARY_PUBLIC_KEY` constant in
-   `rust/crates/lfs_core/src/update_signing.rs` with the fresh public key.
+   `rust/crates/lfs_core/src/update/signing.rs` with the fresh public key.
 3. Cut a new release. Existing installs will refuse to auto-update
    (they still trust only the leaked key) — this is the correct
    defensive behaviour.
@@ -812,6 +812,10 @@ the boundary.
 - **CodeQL** — static analysis of GitHub Actions workflows (weekly).
   Dart is not supported by CodeQL; application code is covered by
   SonarCloud instead.
+- **Semgrep** — SAST scan of the Dart code on every PR + weekly; a
+  required check on `main` (`semgrep-scan`).
+- **cargo-deny** — Rust advisory / license / banned-crate audit over
+  `rust/Cargo.lock` (push-main + PR + weekly), complementing OSV.
 - **SonarCloud** — static analysis, code quality, coverage, and
   security hotspot detection for Dart / Flutter code on every CI
   run.

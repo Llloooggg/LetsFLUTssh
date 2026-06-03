@@ -36,6 +36,26 @@ class SZh extends S {
   String get connect => '连接';
 
   @override
+  String get credentialPromptPassphraseTitle => '需要密钥口令';
+
+  @override
+  String get credentialPromptPasswordTitle => '需要密码';
+
+  @override
+  String get credentialPromptHint => '输入后即可完成连接。绝不写入磁盘。';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return '输入后即可完成连接到“$session”。绝不写入磁盘。';
+  }
+
+  @override
+  String get credentialPromptRememberSession => '在本次会话中记住';
+
+  @override
+  String get passwordBlankPromptHint => '留空则在连接时询问';
+
+  @override
   String get retry => '重试';
 
   @override

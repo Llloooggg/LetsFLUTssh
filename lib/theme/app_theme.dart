@@ -869,8 +869,11 @@ abstract final class AppSpacing {
 /// Returns plain [TextStyle] objects with [fontFamily] set.
 /// Fonts are bundled as assets in `assets/fonts/`.
 ///
-/// Platform-aware size constants: mobile gets +2 px for touch readability.
-/// Use [tiny]–[xl] instead of hardcoded fontSize values.
+/// Platform-aware size constants with a per-size mobile adjustment:
+/// body / caption sizes ([xs], [sm]) go up 1 px on mobile for touch
+/// readability, heading sizes ([lg], [xl]) come down 1 px, and [tiny] /
+/// [xxs] / [md] are identical on both. Use [tiny]–[xl] instead of
+/// hardcoded fontSize values.
 abstract final class AppFonts {
   static const _inter = 'Inter';
   static const _mono = 'JetBrains Mono';

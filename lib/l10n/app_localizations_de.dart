@@ -36,6 +36,29 @@ class SDe extends S {
   String get connect => 'Verbinden';
 
   @override
+  String get credentialPromptPassphraseTitle =>
+      'Passphrase für den Schlüssel erforderlich';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Passwort erforderlich';
+
+  @override
+  String get credentialPromptHint =>
+      'Zum Abschließen der Verbindung eingeben. Wird nie auf die Festplatte geschrieben.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Zum Verbinden mit „$session“ eingeben. Wird nie auf die Festplatte geschrieben.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Für diese Sitzung merken';
+
+  @override
+  String get passwordBlankPromptHint =>
+      'Leer lassen, um beim Verbinden zu fragen';
+
+  @override
   String get retry => 'Erneut versuchen';
 
   @override

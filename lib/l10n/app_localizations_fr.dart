@@ -36,6 +36,28 @@ class SFr extends S {
   String get connect => 'Connexion';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Passphrase de la clé requise';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Mot de passe requis';
+
+  @override
+  String get credentialPromptHint =>
+      'Saisissez-le pour terminer la connexion. Jamais écrit sur le disque.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Saisissez-le pour terminer la connexion à « $session ». Jamais écrit sur le disque.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Mémoriser pour cette session';
+
+  @override
+  String get passwordBlankPromptHint =>
+      'Laisser vide pour demander à la connexion';
+
+  @override
   String get retry => 'Réessayer';
 
   @override

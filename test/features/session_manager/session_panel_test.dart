@@ -1208,11 +1208,17 @@ void main() {
         // Single-form layout — password is on the same scrollable
         // page as the host / user fields; scroll it into view.
         await tester.ensureVisible(
-          find.widgetWithText(TextFormField, '••••••••'),
+          find.widgetWithText(
+            TextFormField,
+            'Leave blank to be asked on connect',
+          ),
         );
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.widgetWithText(TextFormField, '••••••••'),
+          find.widgetWithText(
+            TextFormField,
+            'Leave blank to be asked on connect',
+          ),
           'pass',
         );
         await tester.pumpAndSettle();
@@ -1255,11 +1261,17 @@ void main() {
         // Single-form layout — password is on the same scrollable
         // page as the host / user fields; scroll it into view.
         await tester.ensureVisible(
-          find.widgetWithText(TextFormField, '••••••••'),
+          find.widgetWithText(
+            TextFormField,
+            'Leave blank to be asked on connect',
+          ),
         );
         await tester.pumpAndSettle();
         await tester.enterText(
-          find.widgetWithText(TextFormField, '••••••••'),
+          find.widgetWithText(
+            TextFormField,
+            'Leave blank to be asked on connect',
+          ),
           'pass',
         );
         await tester.pumpAndSettle();
@@ -1317,11 +1329,17 @@ void main() {
       // Single-form layout — password is on the same scrollable
       // page as the host / user fields; scroll it into view.
       await tester.ensureVisible(
-        find.widgetWithText(TextFormField, '••••••••'),
+        find.widgetWithText(
+          TextFormField,
+          'Leave blank to be asked on connect',
+        ),
       );
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextFormField, '••••••••'),
+        find.widgetWithText(
+          TextFormField,
+          'Leave blank to be asked on connect',
+        ),
         'pass',
       );
       await tester.pumpAndSettle();
@@ -1378,11 +1396,17 @@ void main() {
       // Single-form layout — password is on the same scrollable
       // page as the host / user fields; scroll it into view.
       await tester.ensureVisible(
-        find.widgetWithText(TextFormField, '••••••••'),
+        find.widgetWithText(
+          TextFormField,
+          'Leave blank to be asked on connect',
+        ),
       );
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextFormField, '••••••••'),
+        find.widgetWithText(
+          TextFormField,
+          'Leave blank to be asked on connect',
+        ),
         'pass',
       );
       await tester.pumpAndSettle();

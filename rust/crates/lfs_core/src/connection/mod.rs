@@ -16,6 +16,15 @@
 //! history so a subscriber that joins late can replay every step
 //! through a snapshot command.
 //!
+//! Once an actor reaches `Connected`, [`run_transport_monitor`] is
+//! spawned to watch the russh handle and flip the actor back to
+//! `Disconnected` if the transport dies *without* an explicit
+//! teardown — the sleeping-laptop case, where the socket is dead but
+//! nothing called [`disconnect`]. Without it the actor sat
+//! `Connected` over a corpse and the next channel open surfaced a raw
+//! `channel closed`; the proactive flip lets the UI render the
+//! session as dropped (and offer reconnect) on its own.
+//!
 //! Bastion refs (`bastion_id`) point at another actor in the same
 //! registry; the connect driver looks the parent up, grabs its
 //! live `Arc<Session>`, and routes the child handshake through the
@@ -690,8 +699,14 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     // user enabled the verbose connection log).
     let result = match run_with_pause_aware_timeout(
         std::time::Duration::from_secs(timeout_secs),
-        move || app_for_pause.known_hosts_prompts.pending_count() > 0,
-        crate::ssh::verbose_log::scoped(id.clone(), run_auth(args)),
+        move || {
+            app_for_pause.known_hosts_prompts.pending_count() > 0
+                || crate::security::credential_prompt::instance().pending_count() > 0
+        },
+        crate::ssh::verbose_log::scoped(
+            id.clone(),
+            run_auth_with_credential_prompts(id.clone(), args),
+        ),
     )
     .await
     {
@@ -729,11 +744,13 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     match result {
         Ok(session) => {
             trace_connect!("run_connect_driver SUCCESS id={id_dbg}");
-            {
+            let monitored_session = {
                 let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
-                a.session = Some(Arc::new(session));
+                let s = Arc::new(session);
+                a.session = Some(s.clone());
                 a.state = ConnectionState::Connected;
-            }
+                s
+            };
             for phase in [
                 ConnectionPhase::SocketConnect,
                 ConnectionPhase::HostKeyVerify,
@@ -750,6 +767,15 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
                 )
                 .await;
             }
+            // Watch the freshly connected transport so a silent death
+            // (host sleep, keepalive timeout, peer reset) flips the
+            // actor to `Disconnected` proactively — see
+            // `run_transport_monitor`.
+            tokio::spawn(run_transport_monitor(
+                id.clone(),
+                handle.clone(),
+                Arc::downgrade(&monitored_session),
+            ));
             app.bus.publish(crate::bus::Event::ConnectionStateChanged {
                 id,
                 state: ConnectionState::Connected,
@@ -908,6 +934,139 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
             PARENT_READY_TIMEOUT.as_secs()
         ))),
     }
+}
+
+/// Upper bound on interactive credential re-prompts for one connect
+/// attempt — stops a user who keeps mistyping the passphrase from
+/// looping forever; after the cap the last `PassphraseIncorrect`
+/// propagates as the connect failure.
+const MAX_CREDENTIAL_PROMPTS: u8 = 3;
+
+/// Upper bound on how long one connect waits for the user to answer a
+/// credential overlay. The connect driver's outer `ssh_timeout_sec`
+/// is *suspended* while a `credential_prompt` is pending (so typing
+/// time isn't counted as network time), which means this is the only
+/// bound on a prompt that is never answered — a headless context with
+/// no UI listener degrades to "connect fails after this window"
+/// rather than hanging the actor forever.
+const CREDENTIAL_PROMPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// Run [`run_auth`], and when it fails because a private-key
+/// passphrase is missing or wrong, fire a `CredentialPromptRequest`,
+/// await the passphrase the user types into the overlay, stage it,
+/// and retry — the interactive passphrase overlay that lets an
+/// encrypted-key session whose passphrase was never saved connect
+/// without a round-trip through the session editor.
+///
+/// Only `PassphraseRequired` / `PassphraseIncorrect` on a pubkey auth
+/// are recoverable this way; every other failure (wrong password,
+/// network, host-key reject) and a user `Cancel` propagate unchanged.
+/// The wait is covered by the connect driver's pause-aware timeout
+/// (it suspends while `credential_prompt` has a pending request), so
+/// the user's typing time is not counted against `ssh_timeout_sec`.
+async fn run_auth_with_credential_prompts(
+    id: ConnId,
+    mut args: ConnectArgs,
+) -> Result<Session, Error> {
+    use crate::security::credential_prompt::CredentialPromptKind;
+    let app = crate::app::instance();
+    // The dialog caption keys off the session id; quick-connect has
+    // none, so fall back to the connection id for a stable label.
+    let session_id = args.session_id.clone().unwrap_or_else(|| id.clone());
+
+    // Password auth with no stored secret → prompt once up front. An
+    // empty password just bounces off the server, and a *wrong* typed
+    // password comes back as a generic `AuthFailed` with no reliable
+    // re-prompt signal (unlike the key passphrase's typed
+    // `PassphraseIncorrect`), so this is a single proactive prompt, not
+    // a retry loop. A cancel falls through and the as-is attempt
+    // surfaces the auth error.
+    if let ConnectAuthRef::Password { secret_id } = &args.auth {
+        let empty = app
+            .secrets
+            .get(secret_id)
+            .map(|b| b.is_empty())
+            .unwrap_or(true);
+        if empty {
+            if let Some(secret) =
+                prompt_credential(&session_id, CredentialPromptKind::Password).await
+            {
+                app.secrets.put(secret_id, &secret);
+            }
+        }
+    }
+
+    let mut attempts: u8 = 0;
+    loop {
+        let err = match run_auth(args.clone()).await {
+            Ok(session) => return Ok(session),
+            Err(e) => e,
+        };
+        let recoverable = matches!(err, Error::PassphraseRequired | Error::PassphraseIncorrect)
+            && matches!(
+                args.auth,
+                ConnectAuthRef::Pubkey { .. } | ConnectAuthRef::PubkeyCert { .. }
+            );
+        if !recoverable || attempts >= MAX_CREDENTIAL_PROMPTS {
+            return Err(err);
+        }
+        attempts += 1;
+        match prompt_credential(&session_id, CredentialPromptKind::Passphrase).await {
+            Some(secret) => {
+                // Stage the typed passphrase into the pubkey's
+                // passphrase slot (minting a transient id when the row
+                // carried no stored passphrase) and retry the dispatch.
+                let slot = ensure_passphrase_slot(&mut args.auth);
+                app.secrets.put(&slot, &secret);
+            }
+            // Cancel / timeout / dropped sender end the attempt with
+            // the original error.
+            None => return Err(err),
+        }
+    }
+}
+
+/// Fire a `CredentialPromptRequest` of `kind` and await the user's
+/// answer, bounded by [`CREDENTIAL_PROMPT_TIMEOUT`]. Returns the typed
+/// secret bytes on Submit; `None` on Cancel, timeout, or a dropped
+/// sender (registry cleared on lock / teardown).
+async fn prompt_credential(
+    session_id: &str,
+    kind: crate::security::credential_prompt::CredentialPromptKind,
+) -> Option<Vec<u8>> {
+    use crate::security::credential_prompt::{self, CredentialResponse};
+    let app = crate::app::instance();
+    let prompt_id = crate::id::random_uuid_v4();
+    let receiver = credential_prompt::instance().register(prompt_id.clone());
+    app.bus.publish(crate::bus::Event::CredentialPromptRequest {
+        prompt_id,
+        session_id: session_id.to_string(),
+        kind_wire_name: kind.wire_name().to_string(),
+    });
+    match tokio::time::timeout(CREDENTIAL_PROMPT_TIMEOUT, receiver).await {
+        Ok(Ok(CredentialResponse::Submit { secret, .. })) => Some(secret),
+        _ => None,
+    }
+}
+
+/// Return the passphrase SecretStore slot for a pubkey auth, minting
+/// a fresh transient id when the row carried no stored passphrase.
+fn ensure_passphrase_slot(auth: &mut ConnectAuthRef) -> String {
+    let slot = match auth {
+        ConnectAuthRef::Pubkey {
+            passphrase_secret_id,
+            ..
+        }
+        | ConnectAuthRef::PubkeyCert {
+            passphrase_secret_id,
+            ..
+        } => passphrase_secret_id,
+        _ => unreachable!("ensure_passphrase_slot called on non-pubkey auth"),
+    };
+    if slot.is_none() {
+        *slot = Some(format!("conn.passphrase.{}", crate::id::random_uuid_v4()));
+    }
+    slot.clone().expect("passphrase slot set above")
 }
 
 async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
@@ -1379,6 +1538,87 @@ fn publish_active_count(app: &std::sync::Arc<crate::app::AppState>) {
 }
 
 static LAST_ACTIVE_COUNT: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(-1);
+
+/// How often [`run_transport_monitor`] polls a connected actor's
+/// russh handle for a silent death. The check is a cheap
+/// `is_closed()` (mpsc sender state, no I/O), so a few-second cadence
+/// catches a dropped link promptly — within one interval of the OS
+/// reporting the dead socket on wake — without measurable overhead.
+const TRANSPORT_MONITOR_INTERVAL: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Watch a connected actor's russh transport and flip it to
+/// `Disconnected` the instant the underlying session dies without an
+/// explicit teardown — the sleeping-laptop case, where the socket is
+/// dead but nothing has called [`disconnect`]. Without this the actor
+/// stays `Connected` over a corpse and the next channel open surfaces
+/// a raw `channel closed` to the user; the proactive flip lets the UI
+/// render the session as dropped (and offer reconnect) on its own.
+///
+/// Lifecycle is anchored on two facts the monitor captures up front
+/// — the exact `Arc<Mutex<ConnectionActor>>` it was spawned for and a
+/// `Weak` ref to that connect's session — rather than on the actor's
+/// reconnect `generation` (which `run_connect_driver` owns for a
+/// different purpose). Each tick the monitor exits unless the registry
+/// still maps `id` to *its* handle AND its session Arc is still alive.
+/// That covers every teardown shape: manual `disconnect` removes the
+/// row (identity check fails); a reconnect that inserts a fresh actor
+/// replaces the row (identity check fails); a reconnect that reuses
+/// the actor with a new session drops the old session Arc (the `Weak`
+/// upgrade fails). So a stale monitor can neither keep a dead
+/// transport alive nor clobber a newer connection's state.
+async fn run_transport_monitor(
+    id: ConnId,
+    handle: Arc<Mutex<ConnectionActor>>,
+    session: std::sync::Weak<Session>,
+) {
+    let app = crate::app::instance();
+    loop {
+        tokio::time::sleep(TRANSPORT_MONITOR_INTERVAL).await;
+
+        // Still the registry's current actor for this id? If the row
+        // was removed (disconnect) or replaced (reconnect), this
+        // monitor is stale — exit without touching anything.
+        match app.connections.get(&id) {
+            Some(cur) if Arc::ptr_eq(&cur, &handle) => {}
+            _ => return,
+        }
+
+        // Transport Arc already gone — nothing left to watch.
+        let Some(session) = session.upgrade() else {
+            return;
+        };
+        if !session.is_closed() {
+            continue;
+        }
+
+        // Dead transport. Flip Connected → Disconnected exactly once
+        // and publish the same transition the connect-failure path
+        // emits, which the Dart side already renders as a dropped
+        // session.
+        let flipped = {
+            let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
+            if a.state == ConnectionState::Connected {
+                a.state = ConnectionState::Disconnected;
+                a.session = None;
+                true
+            } else {
+                false
+            }
+        };
+        if flipped {
+            crate::app_log_warn!(
+                "CoreConnect",
+                "transport monitor flipped a connection to Disconnected (link died without teardown)"
+            );
+            app.bus.publish(crate::bus::Event::ConnectionStateChanged {
+                id: id.clone(),
+                state: ConnectionState::Disconnected,
+            });
+            publish_active_count(&app);
+        }
+        return;
+    }
+}
 
 #[cfg(test)]
 mod tests;

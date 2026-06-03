@@ -467,6 +467,7 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 ### Reconnect
 
 - Tab header dot turns red on disconnect. Right-click tab → Reconnect, or click the inline "Reconnect" button.
+- A connection that dies on its own — most often after the computer sleeps with a live session — is detected automatically: the dot turns red within a few seconds without you having to click into the session first, so a stale session no longer greets you with a raw "channel closed" error on the next keystroke. Reconnect the same way.
 - Cached passphrase is reused; `Connection.cachedPassphrase` survives the reconnect cycle within the same session.
 
 ---
@@ -491,6 +492,7 @@ There is none. The private key never leaves the AndroidKeyStore; the `.lfs` arch
 - Multi-select with `Ctrl`/`Shift`+click for bulk transfers.
 - Right-click → Cut / Copy / Paste between panes (cross-pane = transfer).
 - Transfer panel (bottom) shows queue, parallel workers, progress per file, retry on failure.
+- How many files transfer at once is the **Parallel workers** preference (Settings → Preferences; default 4, range 1–10). The pool is created on the first transfer of a session, so a changed value takes effect the next time you launch the app.
 
 ---
 
@@ -810,7 +812,7 @@ Settings → Data → **Recordings** shows the current `<appSupport>/recordings/
 - **Quick-connect sessions don't record** — they have no stable session id, so the recorder skips.
 - **Recorder failure is best-effort** — disk full, permissions, etc. log a warning and the connect proceeds without recording.
 - **Auto-rotation** at 100 MB per file; the next event opens a fresh file under the same session.
-- **No scrub bar yet** — sequential GCM-frame stream means seeking would need an index file. Use the Instant speed for fast-forward.
+- **Scrub bar** is backed by a per-recording `.idx` sidecar index; recordings written before the index feature lack the sidecar and play back with the scrub bar disabled (sequential playback still works).
 
 ### External playback (advanced)
 
@@ -887,7 +889,7 @@ The endpoint is off by default for safety — flip it on under **Settings → Ex
 
 ### Linux / macOS — Unix domain socket
 
-Enable the toggle, copy the path the section shows (`/run/user/<uid>/letsflutssh-agent.<pid>/agent.sock`), and point your shell at it:
+Enable the toggle, copy the path the section shows (`${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` — typically under `/run/user/<uid>` on Linux, `/tmp` on macOS), and point your shell at it:
 
 ```bash
 # bash / zsh

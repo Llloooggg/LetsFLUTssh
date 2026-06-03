@@ -294,6 +294,6 @@ Default working branch is `dev` — never push directly to `main`.
 |---|---|
 | App change (feat/fix/refactor) | bump on dev → PR `dev` → `main` → CI → auto-tag → release |
 | Tests/docs/CI only | Merge to `main` — no bump, no tag, no release |
-| Dependabot deps | Auto: PR to main → bump in branch → merge → CI → auto-tag → release |
+| Dependabot deps | Auto: PR to main → automerge patch/minor → CI → auto-tag (no per-PR bump; deps ride the next release's bump) |
 | Manual build | `gh workflow run build-release.yml` — fails if CI hasn't passed |
 | Re-trigger failed build | `gh workflow run build-release.yml --ref v{VERSION}` |

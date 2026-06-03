@@ -36,6 +36,28 @@ class SRu extends S {
   String get connect => 'Подключиться';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Нужен passphrase ключа';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Нужен пароль';
+
+  @override
+  String get credentialPromptHint =>
+      'Введите его, чтобы завершить подключение. На диск не записывается.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Введите его, чтобы завершить подключение к «$session». На диск не записывается.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Запомнить на эту сессию';
+
+  @override
+  String get passwordBlankPromptHint =>
+      'Оставьте пустым — спросит при коннекте';
+
+  @override
   String get retry => 'Повторить';
 
   @override

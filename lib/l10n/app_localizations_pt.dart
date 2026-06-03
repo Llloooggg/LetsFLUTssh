@@ -36,6 +36,29 @@ class SPt extends S {
   String get connect => 'Conectar';
 
   @override
+  String get credentialPromptPassphraseTitle =>
+      'Passphrase da chave necessária';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Senha necessária';
+
+  @override
+  String get credentialPromptHint =>
+      'Digite-a para concluir a conexão. Nunca é gravada no disco.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Digite-a para concluir a conexão com “$session”. Nunca é gravada no disco.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Lembrar nesta sessão';
+
+  @override
+  String get passwordBlankPromptHint =>
+      'Deixe em branco para perguntar ao conectar';
+
+  @override
   String get retry => 'Tentar novamente';
 
   @override

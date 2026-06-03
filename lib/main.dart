@@ -11,6 +11,7 @@ import 'l10n/app_localizations.dart';
 import 'app/app_toolbar.dart';
 import 'app/connection_state_announcer.dart';
 import 'app/deep_link_wiring.dart';
+import 'app/credential_prompt_listener.dart';
 import 'app/fatal_error_app.dart';
 import 'app/host_key_prompt_listener.dart';
 import 'app/hardware_vault_probe_prompt_listener.dart';

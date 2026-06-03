@@ -36,6 +36,26 @@ class SJa extends S {
   String get connect => '接続';
 
   @override
+  String get credentialPromptPassphraseTitle => '鍵のパスフレーズが必要です';
+
+  @override
+  String get credentialPromptPasswordTitle => 'パスワードが必要です';
+
+  @override
+  String get credentialPromptHint => '接続を完了するには入力してください。ディスクには保存されません。';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return '「$session」への接続を完了するには入力してください。ディスクには保存されません。';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'このセッションの間は記憶する';
+
+  @override
+  String get passwordBlankPromptHint => '空欄にすると接続時に尋ねます';
+
+  @override
   String get retry => '再試行';
 
   @override

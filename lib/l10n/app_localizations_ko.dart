@@ -36,6 +36,26 @@ class SKo extends S {
   String get connect => '연결';
 
   @override
+  String get credentialPromptPassphraseTitle => '키 패스프레이즈가 필요합니다';
+
+  @override
+  String get credentialPromptPasswordTitle => '비밀번호가 필요합니다';
+
+  @override
+  String get credentialPromptHint => '연결을 완료하려면 입력하세요. 디스크에 저장되지 않습니다.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return '“$session”에 연결을 완료하려면 입력하세요. 디스크에 저장되지 않습니다.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => '이 세션 동안 기억';
+
+  @override
+  String get passwordBlankPromptHint => '비워 두면 연결 시 묻습니다';
+
+  @override
   String get retry => '재시도';
 
   @override

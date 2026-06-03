@@ -228,26 +228,27 @@ void main() {
       remoteCtrl.dispose();
     });
 
-    test(
-      'storagePermissionDenied is always false (Android MANAGE_EXTERNAL_STORAGE retired)',
-      () async {
-        final conn = Connection(
-          id: 'perm-1',
-          label: 'Test',
-          sshConfig: const SSHConfig(
-            server: ServerAddress(host: 'h', user: 'u'),
-          ),
-        );
+    test('storagePermissionDenied is false on a non-Android host', () async {
+      // The probe only runs on Android; on the Linux/macOS test host
+      // `Platform.isAndroid` is false so the flag stays false without
+      // touching the permissions channel. (The Android grant path
+      // itself is an OS-API edge, exercised on-device, not here.)
+      final conn = Connection(
+        id: 'perm-1',
+        label: 'Test',
+        sshConfig: const SSHConfig(
+          server: ServerAddress(host: 'h', user: 'u'),
+        ),
+      );
 
-        final result = await SFTPInitializer.init(
-          conn,
-          filesystemFactory: (_) async => _FakeSftpFs(cwd: '/r'),
-          localFsFactory: () => _MockFS(),
-        );
+      final result = await SFTPInitializer.init(
+        conn,
+        filesystemFactory: (_) async => _FakeSftpFs(cwd: '/r'),
+        localFsFactory: () => _MockFS(),
+      );
 
-        expect(result.storagePermissionDenied, isFalse);
-        result.dispose();
-      },
-    );
+      expect(result.storagePermissionDenied, isFalse);
+      result.dispose();
+    });
   });
 }

@@ -711,3 +711,40 @@ fn every_auth_ref_variant_is_classified() {
         assert!(classified.is_ok(), "variant {auth:?} has no classification");
     }
 }
+
+#[test]
+fn ensure_passphrase_slot_mints_when_absent() {
+    // Encrypted key whose passphrase was never saved: the row stages
+    // no passphrase secret, so the interactive overlay must mint a
+    // fresh transient slot to stage the typed passphrase under.
+    let mut auth = ConnectAuthRef::Pubkey {
+        key_secret_id: "key.priv.k1".into(),
+        passphrase_secret_id: None,
+    };
+    let slot = ensure_passphrase_slot(&mut auth);
+    assert!(
+        slot.starts_with("conn.passphrase."),
+        "minted slot should be a transient conn.passphrase.* id, got {slot}"
+    );
+    match auth {
+        ConnectAuthRef::Pubkey {
+            passphrase_secret_id: Some(id),
+            ..
+        } => assert_eq!(id, slot, "auth must now carry the minted slot"),
+        other => panic!("expected Pubkey with a slot, got {other:?}"),
+    }
+}
+
+#[test]
+fn ensure_passphrase_slot_reuses_existing() {
+    // A row that already staged a passphrase slot must not be
+    // clobbered — the overlay re-stages into the same id (a wrong
+    // passphrase overwrites the slot and retries against it).
+    let mut auth = ConnectAuthRef::PubkeyCert {
+        key_secret_id: "key.priv.k1".into(),
+        cert_secret_id: "key.cert.k1".into(),
+        passphrase_secret_id: Some("key.passphrase.k1".into()),
+    };
+    let slot = ensure_passphrase_slot(&mut auth);
+    assert_eq!(slot, "key.passphrase.k1");
+}

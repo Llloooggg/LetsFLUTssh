@@ -33,15 +33,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       ref: ref,
       isMounted: () => mounted,
     );
-    // Interactive passphrase prompt + TOFU host-key verification
-    // land through the Rust-side prompt-protocol arcs (russh's
-    // `check_server_key` already routes through the bus for
-    // `KnownHostPromptRequest`; the passphrase prompt follows the
-    // same shape). Until the russh layer fans out a
-    // `PassphrasePromptRequest` event there's nothing to wire
-    // here — the Rust transport surfaces `PassphraseIncorrect` /
-    // `PassphraseRequired` as connect errors which the workspace
-    // surfaces as a re-edit hint on the session row.
+    // Interactive passphrase prompt + TOFU host-key verification both
+    // ride the Rust-side prompt-protocol arcs: `check_server_key`
+    // fires `KnownHostPromptRequest`, and the connect actor fires
+    // `CredentialPromptRequest` on `PassphraseRequired` /
+    // `PassphraseIncorrect`. `HostKeyPromptListener` and
+    // `CredentialPromptListener` (wired in
+    // `_wireFrbDependentBootstrapListeners`) render the dialogs and
+    // route the response back over FRB. A passphrase the user cancels
+    // still surfaces the typed error as a re-edit hint on the row.
     _lifecycleListener = AppLifecycleListener(
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
@@ -207,6 +207,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// code can reach `AppBus.subscribe`.
   void _wireFrbDependentBootstrapListeners() {
     HostKeyPromptListener.start();
+    // Credential overlay subscriber — surfaces the mid-connect
+    // passphrase / password prompt the Rust connect actor fires
+    // (`CredentialPromptRequest`) when an encrypted-key session's
+    // passphrase was never saved. Dart renders the dialog; the typed
+    // secret routes back over FRB and the handshake resumes.
+    CredentialPromptListener.start();
     // Keychain reachability probe subscriber — drives the
     // capabilities orchestrator's keychain-ping round-trip.
     KeychainProbePromptListener.start();

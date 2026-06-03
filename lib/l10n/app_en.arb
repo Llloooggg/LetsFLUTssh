@@ -9,6 +9,19 @@
   "delete": "Delete",
   "save": "Save",
   "connect": "Connect",
+  "credentialPromptPassphraseTitle": "Key passphrase needed",
+  "credentialPromptPasswordTitle": "Password needed",
+  "credentialPromptHint": "Enter it to finish connecting. It is never written to disk.",
+  "credentialPromptHintForSession": "Enter it to finish connecting to “{session}”. It is never written to disk.",
+  "@credentialPromptHintForSession": {
+    "placeholders": {
+      "session": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialPromptRememberSession": "Remember for this session",
+  "passwordBlankPromptHint": "Leave blank to be asked on connect",
   "retry": "Retry",
   "import_": "Import",
   "export_": "Export",

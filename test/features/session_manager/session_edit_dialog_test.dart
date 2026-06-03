@@ -82,6 +82,11 @@ void main() {
   /// Finds a TextFormField by its hint text.
   Finder fieldByHint(String hint) => find.widgetWithText(TextFormField, hint);
 
+  // Empty-state hint on the SSH password field — a fresh, no-stored-secret
+  // SSH session shows the "ask on connect" prompt here rather than the
+  // masked-bullets placeholder the WebDAV / S3 secret fields use.
+  const sshPasswordHint = 'Leave blank to be asked on connect';
+
   Future<void> fillRequiredFields(
     WidgetTester tester, {
     String host = 'example.com',
@@ -93,7 +98,10 @@ void main() {
     // `hintUsername` ARB values pin the literal strings used here.
     await tester.enterText(fieldByHint('192.168.1.1'), host);
     await tester.enterText(fieldByHint('root'), user);
-    await tester.enterText(fieldByHint('••••••••'), password);
+    // SSH password field's empty-state hint is the "ask on connect"
+    // prompt, not the masked-bullets placeholder (which WebDAV / S3
+    // secret fields still use).
+    await tester.enterText(fieldByHint(sshPasswordHint), password);
     await tester.pumpAndSettle();
   }
 
@@ -305,7 +313,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
       await tester.enterText(fieldByHint('22'), '2222');
       await tester.enterText(fieldByHint('root'), 'testuser');
-      await tester.enterText(fieldByHint('••••••••'), 'pass');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'pass');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -324,7 +332,7 @@ void main() {
 
       await fillRequiredFields(tester);
       await switchToAuth(tester);
-      await tester.enterText(fieldByHint('••••••••'), 'secret123');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret123');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -539,11 +547,11 @@ void main() {
 
       // Scroll to password field
       await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
+        fieldByHint(sshPasswordHint),
         100,
         scrollable: scrollable,
       );
-      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret');
       await tester.pumpAndSettle();
 
       // Add PEM key data (required for key auth)
@@ -1012,7 +1020,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
       await tester.enterText(fieldByHint('22'), '1');
       await tester.enterText(fieldByHint('root'), 'testuser');
-      await tester.enterText(fieldByHint('••••••••'), 'pass');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'pass');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -1032,7 +1040,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'example.com');
       await tester.enterText(fieldByHint('22'), '65535');
       await tester.enterText(fieldByHint('root'), 'testuser');
-      await tester.enterText(fieldByHint('••••••••'), 'pass');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'pass');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -1073,7 +1081,7 @@ void main() {
       // username field's `_requiredValidator` surfaces "Required" and
       // Save bails without closing the dialog.
       await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
-      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -1089,7 +1097,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Don't touch the host / user fields; only fill the password.
-      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
@@ -1111,7 +1119,7 @@ void main() {
       await switchToAuth(tester);
 
       // Password field visible
-      expect(fieldByHint('••••••••'), findsOneWidget);
+      expect(fieldByHint(sshPasswordHint), findsOneWidget);
       // OR divider
       expect(find.text('OR'), findsOneWidget);
       // Key fields visible
@@ -1159,7 +1167,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'host.com');
       await tester.enterText(fieldByHint('root'), 'user');
       await switchToAuth(tester);
-      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret');
 
       await tester.tap(find.text('Save & Connect'));
       await tester.pumpAndSettle();
@@ -1217,11 +1225,11 @@ void main() {
 
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
+        fieldByHint(sshPasswordHint),
         100,
         scrollable: scrollable,
       );
-      await tester.enterText(fieldByHint('••••••••'), 'secret');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'secret');
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
@@ -1256,11 +1264,11 @@ void main() {
 
       final scrollable = find.byType(Scrollable).last;
       await tester.scrollUntilVisible(
-        fieldByHint('••••••••'),
+        fieldByHint(sshPasswordHint),
         100,
         scrollable: scrollable,
       );
-      await tester.enterText(fieldByHint('••••••••'), 'pass123');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'pass123');
       await tester.pumpAndSettle();
 
       // Add PEM key data (required for key auth)
@@ -1511,11 +1519,11 @@ void main() {
 
         // Fill password
         await tester.scrollUntilVisible(
-          fieldByHint('••••••••'),
+          fieldByHint(sshPasswordHint),
           100,
           scrollable: scrollable,
         );
-        await tester.enterText(fieldByHint('••••••••'), 'pass');
+        await tester.enterText(fieldByHint(sshPasswordHint), 'pass');
         await tester.pumpAndSettle();
 
         await tester.scrollUntilVisible(
@@ -2634,7 +2642,7 @@ void main() {
 
           // Host / user are already populated from the imported session;
           // giving it a password is what converts it off the agent type.
-          await tester.enterText(fieldByHint('••••••••'), 's3cret');
+          await tester.enterText(fieldByHint(sshPasswordHint), 's3cret');
           await tester.pumpAndSettle();
           await tapSaveOnly(tester);
 
@@ -2785,7 +2793,7 @@ void main() {
       await tester.enterText(fieldByHint('192.168.1.1'), 'ssh.example.com');
       await tester.enterText(fieldByHint('22'), '2222');
       await tester.enterText(fieldByHint('root'), 'ssh-user');
-      await tester.enterText(fieldByHint('••••••••'), 'ssh-password');
+      await tester.enterText(fieldByHint(sshPasswordHint), 'ssh-password');
       await tester.pumpAndSettle();
 
       // Flip to WebDAV via the kind chip. After typing into auth
@@ -3775,17 +3783,18 @@ void main() {
     });
 
     testWidgets(
-      'fresh SSH session renders the 8-bullet mask hint on the password field',
+      'fresh SSH session renders the ask-on-connect hint on the password field',
       (tester) async {
-        // Spec: `_buildPasswordField` chooses the hint between the
-        // localized "Saved — type to change" copy (edit-mode with
-        // stored secret) and `_maskedSecretHint` (8 bullets, fresh
-        // session). A brand-new dialog must take the masked branch.
+        // Spec: a fresh SSH session with no stored password shows the
+        // "leave blank to be asked on connect" prompt on the password
+        // field — NOT the masked-bullets placeholder (that branch is
+        // for the WebDAV / S3 secret fields) and never the edit-mode
+        // "Saved — type to change" copy.
         await tester.pumpWidget(buildApp());
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        expect(find.text('••••••••'), findsWidgets);
+        expect(find.text(sshPasswordHint), findsWidgets);
         expect(find.text('Saved — type to change'), findsNothing);
       },
     );

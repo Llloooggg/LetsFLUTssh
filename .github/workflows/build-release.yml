@@ -224,11 +224,15 @@ jobs:
           mkdir -p $PKG/usr/lib/letsflutssh
           mkdir -p $PKG/usr/share/applications
           mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
+          mkdir -p $PKG/usr/lib/udev/rules.d
           # Copy app bundle to /usr/lib, symlink binary
           cp -r build/linux/x64/release/bundle/* $PKG/usr/lib/letsflutssh/
           ln -sf /usr/lib/letsflutssh/letsflutssh $PKG/usr/bin/letsflutssh
           cp linux/packaging/letsflutssh.desktop $PKG/usr/share/applications/
           cp assets/icons/icon.png $PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          # FIDO2 / sk-ssh hardware-key udev rule — matches the rpm/Arch/
+          # AppImage packages so a security key works without manual setup.
+          cp linux/packaging/70-letsflutssh-fido.rules $PKG/usr/lib/udev/rules.d/
           # Control file
           cat > $PKG/DEBIAN/control << EOF
           Package: letsflutssh
@@ -390,10 +394,14 @@ jobs:
           mkdir -p $PKG/usr/lib/letsflutssh
           mkdir -p $PKG/usr/share/applications
           mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
+          mkdir -p $PKG/usr/lib/udev/rules.d
           cp -r build/linux/arm64/release/bundle/* $PKG/usr/lib/letsflutssh/
           ln -sf /usr/lib/letsflutssh/letsflutssh $PKG/usr/bin/letsflutssh
           cp linux/packaging/letsflutssh.desktop $PKG/usr/share/applications/
           cp assets/icons/icon.png $PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          # FIDO2 / sk-ssh hardware-key udev rule — matches the rpm/Arch/
+          # AppImage packages so a security key works without manual setup.
+          cp linux/packaging/70-letsflutssh-fido.rules $PKG/usr/lib/udev/rules.d/
           cat > $PKG/DEBIAN/control << EOF
           Package: letsflutssh
           Version: ${VER}

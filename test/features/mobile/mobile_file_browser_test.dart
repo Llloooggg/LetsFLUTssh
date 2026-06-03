@@ -973,10 +973,9 @@ void main() {
       );
     }
 
-    // Test removed: Android MANAGE_EXTERNAL_STORAGE permission gate
-    // retired (the SAF picker covers the SSH-key file flow). The
-    // `storagePermissionDenied` field on SFTPInitResult is now a
-    // compatibility getter that always returns false.
+    // The "limited access" banner only renders on `Platform.isAndroid`
+    // (real `MANAGE_EXTERNAL_STORAGE` probe) — an OS-edge path exercised
+    // on-device, not from the Linux/macOS test host.
 
     testWidgets('renders toolbar and file list on success', (tester) async {
       final conn = Connection(

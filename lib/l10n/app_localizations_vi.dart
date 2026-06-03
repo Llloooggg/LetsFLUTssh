@@ -36,6 +36,27 @@ class SVi extends S {
   String get connect => 'Kết nối';
 
   @override
+  String get credentialPromptPassphraseTitle => 'Cần passphrase của khóa';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Cần mật khẩu';
+
+  @override
+  String get credentialPromptHint =>
+      'Nhập để hoàn tất kết nối. Không bao giờ ghi vào ổ đĩa.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Nhập để hoàn tất kết nối tới “$session”. Không bao giờ ghi vào ổ đĩa.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Ghi nhớ cho phiên này';
+
+  @override
+  String get passwordBlankPromptHint => 'Để trống để hỏi khi kết nối';
+
+  @override
   String get retry => 'Thử lại';
 
   @override

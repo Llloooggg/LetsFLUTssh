@@ -36,6 +36,28 @@ class SEs extends S {
   String get connect => 'Conectar';
 
   @override
+  String get credentialPromptPassphraseTitle =>
+      'Se necesita la passphrase de la clave';
+
+  @override
+  String get credentialPromptPasswordTitle => 'Se necesita la contraseña';
+
+  @override
+  String get credentialPromptHint =>
+      'Introdúcela para terminar de conectar. Nunca se guarda en disco.';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return 'Introdúcela para terminar de conectar a «$session». Nunca se guarda en disco.';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'Recordar durante esta sesión';
+
+  @override
+  String get passwordBlankPromptHint => 'Déjalo vacío para pedirlo al conectar';
+
+  @override
   String get retry => 'Reintentar';
 
   @override

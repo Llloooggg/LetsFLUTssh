@@ -55,6 +55,12 @@ impl Default for TerminalConfig {
 
 const VALID_THEMES: &[&str] = &["dark", "light", "system"];
 
+/// Upper clamp on terminal scrollback. Matches the Settings slider's
+/// max; the engine retains a per-line cell buffer for every scrollback
+/// row, so a hand-edited `config.json` with `scrollback: 100000000`
+/// would pin the heap. Floored at 100 separately.
+const MAX_SCROLLBACK: i64 = 100_000;
+
 impl TerminalConfig {
     /// Validate config values, returning an English error message
     /// when invalid or `None` when every field is within range.
@@ -74,9 +80,10 @@ impl TerminalConfig {
         None
     }
 
-    /// Clamp / replace out-of-range values with defaults. Mirrors
-    /// the Dart `sanitized()` rules byte-for-byte: font in `[6, 72]`,
-    /// theme in the allow-list, scrollback floor at 100.
+    /// Clamp / replace out-of-range values with defaults: font in
+    /// `[6, 72]`, theme in the allow-list, scrollback floored at 100
+    /// (below → default) and capped at [`MAX_SCROLLBACK`]. This is the
+    /// single source of truth — there is no Dart-side mirror.
     #[must_use]
     pub fn sanitized(self) -> Self {
         let d = Self::default();
@@ -89,6 +96,8 @@ impl TerminalConfig {
             },
             scrollback: if self.scrollback < 100 {
                 d.scrollback
+            } else if self.scrollback > MAX_SCROLLBACK {
+                MAX_SCROLLBACK
             } else {
                 self.scrollback
             },
@@ -708,6 +717,21 @@ pub const DEFAULT_RECORDINGS_STORAGE_CAP_BYTES: u64 = 500 * 1024 * 1024;
 /// `u64::MAX` would silently disable the cap.
 const MAX_RECORDINGS_STORAGE_CAP_BYTES: u64 = 1024 * 1024 * 1024 * 1024; // 1 TiB
 
+/// Default transfer worker-pool size. Four parallel SFTP streams
+/// cover the typical user-facing batch without saturating the SSH
+/// session's channel slots (server `MaxSessions` defaults to ~10).
+/// This is the single source of truth for the default — the FRB
+/// pool spawn reads the configured value through
+/// [`transfer::worker_count_from_config_store`] and only falls back
+/// here when the config store is unreadable.
+pub const DEFAULT_TRANSFER_WORKERS: i64 = 4;
+
+/// Hard ceiling on the worker-pool size. Matches the Settings UI
+/// max; a hand-edited config above this is clamped so a fat-fingered
+/// `transfer_workers: 500` can't spawn 500 tokio workers and saturate
+/// the SSH channel slots.
+pub const MAX_TRANSFER_WORKERS: i64 = 10;
+
 /// Top-level app configuration. Mirror of Dart `AppConfig`.
 ///
 /// Sub-structs flatten into the JSON object at the same level so
@@ -747,7 +771,7 @@ impl Default for AppConfig {
             ssh: SshDefaults::default(),
             ui: UiConfig::default(),
             behavior: BehaviorConfig::default(),
-            transfer_workers: 2,
+            transfer_workers: DEFAULT_TRANSFER_WORKERS,
             max_history: 500,
             locale: None,
             security: None,
@@ -791,6 +815,8 @@ impl AppConfig {
             behavior: self.behavior,
             transfer_workers: if self.transfer_workers < 1 {
                 d.transfer_workers
+            } else if self.transfer_workers > MAX_TRANSFER_WORKERS {
+                MAX_TRANSFER_WORKERS
             } else {
                 self.transfer_workers
             },

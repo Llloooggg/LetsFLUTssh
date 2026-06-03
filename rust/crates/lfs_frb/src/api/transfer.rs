@@ -10,13 +10,6 @@ use std::sync::Arc;
 use lfs_core::transfer::driver::{SftpTaskExecutor, WorkerPool};
 use lfs_core::transfer::{EnqueueRequest, TaskKind, TaskSnapshot, TaskState};
 
-/// Default worker count. Matches the `Tokio worker pool with
-/// bounded concurrency, default = host-platform-aware`
-/// guidance — four parallel SFTP streams cover the typical
-/// user-facing batch without saturating the SSH session's
-/// channel slots.
-const DEFAULT_WORKER_COUNT: usize = 4;
-
 fn pool_arc() -> Arc<WorkerPool> {
     let app = lfs_core::app::instance();
     // `unwrap_or_else(into_inner)` recovers from a poisoned lock by
@@ -29,7 +22,12 @@ fn pool_arc() -> Arc<WorkerPool> {
     let mut slot = app.transfer_pool.lock().unwrap_or_else(|p| p.into_inner());
     if slot.is_none() {
         let executor = Arc::new(SftpTaskExecutor);
-        *slot = Some(Arc::new(WorkerPool::spawn(executor, DEFAULT_WORKER_COUNT)));
+        // Size the pool from the user's "Parallel workers" setting
+        // (clamped + defaulted in lfs_core). Read once at first spawn
+        // — the pool is never resized, so a changed setting applies
+        // on the next launch.
+        let workers = lfs_core::transfer::worker_count_from_config_store();
+        *slot = Some(Arc::new(WorkerPool::spawn(executor, workers)));
     }
     slot.as_ref().unwrap().clone()
 }

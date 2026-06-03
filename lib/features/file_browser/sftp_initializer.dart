@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import '../../core/connection/connection.dart';
 import '../../core/s3/s3_fs.dart';
 import '../../core/session/session.dart';
 import '../../core/sftp/file_system.dart';
+import '../../platform/android_storage_permission.dart';
 import '../../platform/local_fs.dart';
 import '../../core/sftp/sftp_fs.dart';
 import '../../core/webdav/webdav_fs.dart';
@@ -19,16 +22,20 @@ class SFTPInitResult {
   final FilePaneController remoteCtrl;
   final RemoteSftpFs? filesystem;
 
+  /// True on Android when broad storage access (`MANAGE_EXTERNAL_STORAGE`)
+  /// is not currently held, so the local pane is confined to the app
+  /// sandbox / scoped-storage dirs. The mobile browser surfaces a
+  /// "grant access" banner off this flag; non-Android is always `false`.
+  /// Probed (not requested) at init so opening SFTP never prompts — the
+  /// banner button does the actual request.
+  final bool storagePermissionDenied;
+
   SFTPInitResult({
     required this.localCtrl,
     required this.remoteCtrl,
     required this.filesystem,
+    this.storagePermissionDenied = false,
   });
-
-  /// Compatibility shim — Android no longer routes through a
-  /// MANAGE_EXTERNAL_STORAGE permission gate; the file picker
-  /// uses SAF (`file_picker`) which is always available.
-  bool get storagePermissionDenied => false;
 
   void dispose() {
     localCtrl.dispose();
@@ -60,6 +67,13 @@ class SFTPInitializer {
       fs: localFsFactory?.call() ?? LocalFS(),
       label: 'Local',
     );
+
+    // Probe (don't request) broad storage access so opening SFTP never
+    // throws a permission prompt — the mobile browser's banner button
+    // does the actual request when the user wants the full filesystem.
+    final permissionDenied = Platform.isAndroid
+        ? !(await hasAndroidStoragePermission())
+        : false;
 
     final FileSystem remoteFs;
     RemoteSftpFs? sftp;
@@ -115,6 +129,7 @@ class SFTPInitializer {
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
       filesystem: sftp,
+      storagePermissionDenied: permissionDenied,
     );
   }
 }

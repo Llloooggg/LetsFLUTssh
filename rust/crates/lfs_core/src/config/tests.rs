@@ -77,6 +77,31 @@ fn terminal_sanitized_clamps_font_size() {
 }
 
 #[test]
+fn terminal_sanitized_clamps_scrollback_bounds() {
+    // Below the floor → default; above the cap → cap; in-range → kept.
+    let below = TerminalConfig {
+        scrollback: 10,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(below.scrollback, TerminalConfig::default().scrollback);
+
+    let above = TerminalConfig {
+        scrollback: 100_000_000,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(above.scrollback, MAX_SCROLLBACK);
+
+    let in_range = TerminalConfig {
+        scrollback: 25_000,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(in_range.scrollback, 25_000);
+}
+
+#[test]
 fn terminal_sanitized_replaces_unknown_theme() {
     let t = TerminalConfig {
         font_size: 14.0,
@@ -339,7 +364,26 @@ fn transfer_workers_clamped_to_minimum_one() {
         ..AppConfig::default()
     }
     .sanitized();
-    assert_eq!(cfg.transfer_workers, 2);
+    assert_eq!(cfg.transfer_workers, DEFAULT_TRANSFER_WORKERS);
+}
+
+#[test]
+fn transfer_workers_clamped_to_maximum() {
+    let cfg = AppConfig {
+        transfer_workers: 500,
+        ..AppConfig::default()
+    }
+    .sanitized();
+    assert_eq!(cfg.transfer_workers, MAX_TRANSFER_WORKERS);
+}
+
+#[test]
+fn transfer_workers_default_is_four() {
+    assert_eq!(
+        AppConfig::default().transfer_workers,
+        DEFAULT_TRANSFER_WORKERS
+    );
+    assert_eq!(DEFAULT_TRANSFER_WORKERS, 4);
 }
 
 #[test]

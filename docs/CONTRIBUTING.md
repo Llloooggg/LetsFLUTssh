@@ -33,7 +33,7 @@ sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1
 sudo apt-get install lld-19
 
 # Clone, install deps, build
-git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
+git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 make deps
 make build-linux
@@ -62,7 +62,7 @@ Requires Visual Studio 2022 with **"Desktop development with C++"** workload.
 winget install Microsoft.VisualStudio.2022.Community
 # (select "Desktop development with C++" during setup)
 
-git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
+git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 flutter pub get
 flutter build windows --release
@@ -77,7 +77,7 @@ Requires Xcode command line tools.
 ```bash
 xcode-select --install
 
-git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
+git clone https://github.com/Llloooggg/LetsFLUTssh.git
 cd LetsFLUTssh
 make deps
 make build-macos

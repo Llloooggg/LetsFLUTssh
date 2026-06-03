@@ -36,6 +36,27 @@ class SHi extends S {
   String get connect => 'कनेक्ट करें';
 
   @override
+  String get credentialPromptPassphraseTitle => 'की पासफ़्रेज़ चाहिए';
+
+  @override
+  String get credentialPromptPasswordTitle => 'पासवर्ड चाहिए';
+
+  @override
+  String get credentialPromptHint =>
+      'कनेक्ट पूरा करने के लिए इसे डालें। यह डिस्क पर कभी सेव नहीं होता।';
+
+  @override
+  String credentialPromptHintForSession(String session) {
+    return '“$session” से कनेक्ट पूरा करने के लिए इसे डालें। यह डिस्क पर कभी सेव नहीं होता।';
+  }
+
+  @override
+  String get credentialPromptRememberSession => 'इस सेशन के लिए याद रखें';
+
+  @override
+  String get passwordBlankPromptHint => 'कनेक्ट पर पूछने के लिए खाली छोड़ें';
+
+  @override
   String get retry => 'पुनः प्रयास करें';
 
   @override

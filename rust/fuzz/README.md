@@ -15,6 +15,8 @@ in `lfs_core` / `lfs_os_security`:
 | `ppk_import` | `lfs_core::keys::import_ppk`                     | PuTTY `.ppk` v2/v3 private key (hex MAC, Argon2 params) |
 | `openssh_key_import` | `lfs_core::keys::import_openssh`          | OpenSSH / PKCS#1 / PKCS#8 PEM private key            |
 | `sk_key_import` | `lfs_core::keys::parse_sk_private_key`        | FIDO2 `sk-*` private key (credential id + flags)     |
+| `terminal_engine` | `lfs_core::terminal::TerminalEngine::feed`   | untrusted server output → ANSI parser / grid (chunked) |
+| `transfer_entry_name` | `lfs_core::path::is_safe_transfer_entry_name` | untrusted SFTP directory-entry name safety check    |
 
 Each target is a pure `fuzz_target!(|data: &[u8]|)` harness that
 drives bytes from the fuzzer through the parser and asserts no

@@ -362,14 +362,10 @@ class _ExportImportTile extends ConsumerWidget {
   /// Opens a save-file picker.
   ///
   /// * Desktop — native save dialog (`FilePicker.saveFile`).
-  /// * Android with `MANAGE_EXTERNAL_STORAGE` — in-app directory picker
-  ///   that walks the filesystem via `dart:io`.  Using SAF here is the
-  ///   bug we're fixing: `ACTION_OPEN_DOCUMENT_TREE` asks the user for
-  ///   per-folder consent on every export even when all-files access is
-  ///   already granted.
-  /// * Android without all-files access, iOS — standard SAF-backed
-  ///   `FilePicker.getDirectoryPath` (unavoidable: no other way to reach
-  ///   user-visible folders when the app is scoped-storage-only).
+  /// * Android with all-files access — in-app `LocalDirectoryPicker`
+  ///   (avoids SAF's per-folder consent prompt on every export).
+  /// * iOS, or Android when the grant is declined — SAF-backed
+  ///   `FilePicker.getDirectoryPath`.
   Future<String?> _pickSavePath(
     BuildContext context,
     String defaultName,
@@ -386,8 +382,25 @@ class _ExportImportTile extends ConsumerWidget {
         allowedExtensions: [extension],
       );
     }
-    // iOS / Android — SAF picker (FilePicker.platform.saveFile on iOS,
-    // FilePicker.platform.getDirectoryPath on Android).
+    if (Platform.isAndroid) {
+      // With all-files access (MANAGE_EXTERNAL_STORAGE) we use the in-app
+      // directory browser: SAF's ACTION_OPEN_DOCUMENT_TREE re-prompts for
+      // per-folder consent on every export even when broad access is
+      // already granted, which the picker sidesteps. Falls through to SAF
+      // when the user declines the grant.
+      final granted = await requestAndroidStoragePermission();
+      if (granted) {
+        if (!context.mounted) return null;
+        final dir = await LocalDirectoryPicker.show(
+          context,
+          title: title,
+          initialPath: initDir ?? '/storage/emulated/0',
+        );
+        if (dir == null) return null;
+        return p.join(dir, defaultName);
+      }
+    }
+    // iOS, or Android without all-files access — SAF picker.
     // SAF can throw (e.g. the system picker crashes or the OEM skin blocks it
     // entirely). Surface a localized toast instead of bubbling up a raw
     // `PlatformException`, and log so we have diagnostics on OEMs that ship
