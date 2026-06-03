@@ -4766,7 +4766,7 @@ Recordings storage path, per-event GCM frame layout, the `.cast` / `.lfsr` decod
 
 ### Widget catalogue at a glance
 
-The full set of files lives under `lib/widgets/` (alphabetical). The detailed entries below describe widgets with non-obvious contracts; the rest of the inventory:
+The full set of files lives under `lib/widgets/`, split across subdirectories — `core/` (the shared primitives: `app_button`, `app_shell`, `app_dialog`, `app_collection_panel`, `dropdown_select_button`, `tag_color`, `shortcut_registry`, …), `security/`, `ssh_keys/`, `import_export/`, `terminal/`. There are no files directly at the `lib/widgets/` top level. The table below lists basenames; the detailed entries afterward describe widgets with non-obvious contracts. The rest of the inventory:
 
 | File | Role |
 |------|------|
