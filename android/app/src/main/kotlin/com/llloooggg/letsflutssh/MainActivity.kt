@@ -3,8 +3,11 @@ package com.llloooggg.letsflutssh
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import android.view.WindowManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -16,9 +19,20 @@ import java.io.File
 // `lfs_os_security::android::biometric`); the prompt hosts its UI
 // inside a Fragment and crashes on a plain FlutterActivity.
 class MainActivity : FlutterFragmentActivity() {
+    private val permissionChannel = "com.letsflutssh/permissions"
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
     private val apkInstallerChannel = "com.letsflutssh/apk_installer"
+
+    // Pending result for an in-flight storage-permission request — the
+    // request runs on the platform-channel thread, the grant verdict
+    // arrives on the main thread via onActivityResult /
+    // onRequestPermissionsResult. Same @Volatile + lock discipline as
+    // the QR-scan result so a second request cannot race past the busy
+    // check while the first verdict is mid-delivery.
+    @Volatile
+    private var pendingPermissionResult: MethodChannel.Result? = null
+    private val permissionResultLock = Any()
 
     // Cross-thread access to the pending QR-scan result. `launchQrScanner`
     // runs on the platform-channel thread; `onActivityResult` runs on the
@@ -40,6 +54,8 @@ class MainActivity : FlutterFragmentActivity() {
     private var secureScreenRefcount = 0
 
     companion object {
+        private const val MANAGE_STORAGE_REQUEST = 1001
+        private const val LEGACY_STORAGE_REQUEST = 1002
         private const val QR_SCAN_REQUEST = 1003
     }
 
@@ -59,6 +75,15 @@ class MainActivity : FlutterFragmentActivity() {
         // Idempotent — safe to call again on MainActivity
         // recreation; the OnceLocks ignore second-write attempts.
         LfsJniBootstrap.register(this)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, permissionChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "requestStoragePermission" -> requestStoragePermission(result)
+                    "hasStoragePermission" -> result.success(hasStoragePermission())
+                    else -> result.notImplemented()
+                }
+            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, qrScannerChannel)
             .setMethodCallHandler { call, result ->
@@ -183,6 +208,66 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    /// True when broad storage access is already held: Android 11+
+    /// needs `MANAGE_EXTERNAL_STORAGE` (the "All files access" grant),
+    /// older releases the runtime `READ_EXTERNAL_STORAGE`. Side-effect
+    /// free — used to decide whether to show the "grant access" banner.
+    private fun hasStoragePermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    /// Request broad storage access. Already-granted short-circuits to
+    /// `true`. Android 11+ opens the system "All files access" screen
+    /// (`ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`) and reports the
+    /// verdict from `onActivityResult`; older releases use the runtime
+    /// permission dialog and report from `onRequestPermissionsResult`.
+    /// A second call while one is pending is rejected so the verdict
+    /// delivery cannot race.
+    private fun requestStoragePermission(result: MethodChannel.Result) {
+        if (hasStoragePermission()) {
+            result.success(true)
+            return
+        }
+        synchronized(permissionResultLock) {
+            if (pendingPermissionResult != null) {
+                result.error("BUSY", "A storage-permission request is in progress", null)
+                return
+            }
+            pendingPermissionResult = result
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivityForResult(intent, MANAGE_STORAGE_REQUEST)
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                ),
+                LEGACY_STORAGE_REQUEST,
+            )
+        }
+    }
+
+    private fun deliverPermissionVerdict(granted: Boolean) {
+        val pending = synchronized(permissionResultLock) {
+            val r = pendingPermissionResult
+            pendingPermissionResult = null
+            r
+        }
+        pending?.success(granted)
+    }
+
     private fun launchQrScanner(result: MethodChannel.Result) {
         synchronized(scanResultLock) {
             if (pendingScanResult != null) {
@@ -197,7 +282,14 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == QR_SCAN_REQUEST) {
+        if (requestCode == MANAGE_STORAGE_REQUEST) {
+            // The system screen does not return a result code we can
+            // trust; re-probe the live grant state instead.
+            deliverPermissionVerdict(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    Environment.isExternalStorageManager(),
+            )
+        } else if (requestCode == QR_SCAN_REQUEST) {
             val payload = data?.getStringExtra(QrScannerActivity.EXTRA_RESULT)
             val pending = synchronized(scanResultLock) {
                 val r = pendingScanResult
@@ -205,6 +297,20 @@ class MainActivity : FlutterFragmentActivity() {
                 r
             }
             pending?.success(if (resultCode == RESULT_OK) payload else null)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == LEGACY_STORAGE_REQUEST) {
+            deliverPermissionVerdict(
+                grantResults.isNotEmpty() &&
+                    grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED,
+            )
         }
     }
 }

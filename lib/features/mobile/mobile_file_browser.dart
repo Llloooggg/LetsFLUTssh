@@ -20,6 +20,7 @@ import '../file_browser/file_pane_dialogs.dart';
 import '../file_browser/sftp_browser_mixin.dart';
 import '../file_browser/sftp_initializer.dart';
 import '../file_browser/transfer_panel.dart';
+import '../../platform/android_storage_permission.dart';
 
 /// Factory for SFTP initialization — injectable for testing.
 typedef MobileSFTPInitFactory =
@@ -51,6 +52,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
   @override
   String? sftpError;
   bool _showRemote = true; // Start on remote pane
+  bool _storagePermissionDenied = false;
   @override
   final progressKey = GlobalKey<ConnectionProgressState>();
 
@@ -61,8 +63,9 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
 
   @override
   void onSftpReady(SFTPInitResult result) {
-    // No-op — Android storage permission flow retired (SAF replaces
-    // the legacy MANAGE_EXTERNAL_STORAGE gate).
+    // Seed the "limited access" banner state from the init probe so the
+    // local pane can offer the all-files grant on Android.
+    _storagePermissionDenied = result.storagePermissionDenied;
   }
 
   FilePaneController? get _localCtrl => sftpResult?.localCtrl;
@@ -91,6 +94,8 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
     return Column(
       children: [
         _buildToolbar(context),
+        if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
+          _buildPermissionBanner(context),
         Expanded(
           // Horizontal swipe toggles Local ↔ Remote — mobile users
           // expect the same gesture they get from every tab-style UI
@@ -134,6 +139,47 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
     _pathFocusNode.dispose();
     _breadcrumbScrollController.dispose();
     super.dispose();
+  }
+
+  /// "Limited access" banner shown on the local pane when broad storage
+  /// access is missing — tapping Grant opens the all-files-access screen
+  /// and, on success, re-roots the pane at shared storage.
+  Widget _buildPermissionBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: theme.colorScheme.errorContainer,
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, size: 20, color: theme.colorScheme.error),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              S.of(context).storagePermissionLimited,
+              style: TextStyle(
+                fontSize: AppFonts.sm,
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          AppButton.secondary(
+            label: S.of(context).grantPermission,
+            dense: true,
+            onTap: _requestAndRefreshPermission,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestAndRefreshPermission() async {
+    final granted = await requestAndroidStoragePermission();
+    if (granted && mounted) {
+      setState(() => _storagePermissionDenied = false);
+      // Re-root at shared storage now that broad access is held.
+      await _localCtrl?.navigateTo('/storage/emulated/0');
+    }
   }
 
   Widget _buildToolbar(BuildContext context) {
