@@ -55,6 +55,12 @@ impl Default for TerminalConfig {
 
 const VALID_THEMES: &[&str] = &["dark", "light", "system"];
 
+/// Upper clamp on terminal scrollback. Matches the Settings slider's
+/// max; the engine retains a per-line cell buffer for every scrollback
+/// row, so a hand-edited `config.json` with `scrollback: 100000000`
+/// would pin the heap. Floored at 100 separately.
+const MAX_SCROLLBACK: i64 = 100_000;
+
 impl TerminalConfig {
     /// Validate config values, returning an English error message
     /// when invalid or `None` when every field is within range.
@@ -74,9 +80,10 @@ impl TerminalConfig {
         None
     }
 
-    /// Clamp / replace out-of-range values with defaults. Mirrors
-    /// the Dart `sanitized()` rules byte-for-byte: font in `[6, 72]`,
-    /// theme in the allow-list, scrollback floor at 100.
+    /// Clamp / replace out-of-range values with defaults: font in
+    /// `[6, 72]`, theme in the allow-list, scrollback floored at 100
+    /// (below → default) and capped at [`MAX_SCROLLBACK`]. This is the
+    /// single source of truth — there is no Dart-side mirror.
     #[must_use]
     pub fn sanitized(self) -> Self {
         let d = Self::default();
@@ -89,6 +96,8 @@ impl TerminalConfig {
             },
             scrollback: if self.scrollback < 100 {
                 d.scrollback
+            } else if self.scrollback > MAX_SCROLLBACK {
+                MAX_SCROLLBACK
             } else {
                 self.scrollback
             },

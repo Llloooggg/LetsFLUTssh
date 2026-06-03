@@ -2625,7 +2625,7 @@ class AppConfig {
   final TerminalConfig terminal;
   //   fontSize: 6-72 (default 14.0, type double)
   //   theme: 'dark'|'light'|'system'
-  //   scrollback: ≥100 (default 5000)
+  //   scrollback: [100, 100_000] (default 5000)
 
   final SshDefaults ssh;
   //   keepAliveSec: default 30
@@ -6141,7 +6141,7 @@ Session {
     user: String
   }
   auth: SessionAuth {
-    authType: AuthType    // password | key | keyWithPassword (Both)
+    authType: AuthType    // password | key | keyWithPassword (Both) | agent (system ssh-agent)
     password: String      // empty if not used
     keyPath: String       // key file path (or ~)
     keyId: String         // SSH-keys-table id (when using a saved key)
@@ -6255,11 +6255,11 @@ AppConfig {
   terminal: TerminalConfig {
     fontSize: double      // 6-72, default 14.0
     theme: String         // 'dark'|'light'|'system'
-    scrollback: int       // 100..200_000 (TerminalConfig.maxScrollback),
-                          // default 5000. Upper cap is the OOM brake —
-                          // the engine retains a per-line cell buffer for
-                          // every scrollback row, so an unclamped
-                          // `cat /dev/urandom` would pin the heap.
+    scrollback: int       // [100, 100_000] (MAX_SCROLLBACK), default
+                          // 5000. Sanitized Rust-side: below the floor
+                          // resets to default, above the cap clamps to
+                          // it — the engine keeps a per-line cell buffer
+                          // per scrollback row, so the cap is the OOM brake.
   }
   ssh: SshDefaults {
     keepAliveSec: int     // default 30
@@ -6273,7 +6273,7 @@ AppConfig {
     showFolderSizes: bool
     toastDurationMs: int  // default 4000
   }
-  transferWorkers: int    // 1+, default 2
+  transferWorkers: int    // [1, 10], default 4 — sizes the SFTP WorkerPool
   maxHistory: int         // ≥0, default 500
   logLevel: LogLevel?     // null = off (default); info / warn / error = threshold
   checkUpdatesOnStart: bool

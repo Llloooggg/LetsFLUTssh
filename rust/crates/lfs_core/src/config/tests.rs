@@ -77,6 +77,31 @@ fn terminal_sanitized_clamps_font_size() {
 }
 
 #[test]
+fn terminal_sanitized_clamps_scrollback_bounds() {
+    // Below the floor → default; above the cap → cap; in-range → kept.
+    let below = TerminalConfig {
+        scrollback: 10,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(below.scrollback, TerminalConfig::default().scrollback);
+
+    let above = TerminalConfig {
+        scrollback: 100_000_000,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(above.scrollback, MAX_SCROLLBACK);
+
+    let in_range = TerminalConfig {
+        scrollback: 25_000,
+        ..TerminalConfig::default()
+    }
+    .sanitized();
+    assert_eq!(in_range.scrollback, 25_000);
+}
+
+#[test]
 fn terminal_sanitized_replaces_unknown_theme() {
     let t = TerminalConfig {
         font_size: 14.0,
