@@ -362,14 +362,9 @@ class _ExportImportTile extends ConsumerWidget {
   /// Opens a save-file picker.
   ///
   /// * Desktop — native save dialog (`FilePicker.saveFile`).
-  /// * Android with `MANAGE_EXTERNAL_STORAGE` — in-app directory picker
-  ///   that walks the filesystem via `dart:io`.  Using SAF here is the
-  ///   bug we're fixing: `ACTION_OPEN_DOCUMENT_TREE` asks the user for
-  ///   per-folder consent on every export even when all-files access is
-  ///   already granted.
-  /// * Android without all-files access, iOS — standard SAF-backed
-  ///   `FilePicker.getDirectoryPath` (unavoidable: no other way to reach
-  ///   user-visible folders when the app is scoped-storage-only).
+  /// * Android / iOS — SAF-backed `FilePicker.getDirectoryPath`. The app
+  ///   is scoped-storage-only (no `MANAGE_EXTERNAL_STORAGE`), so SAF is
+  ///   the only way to reach user-visible folders.
   Future<String?> _pickSavePath(
     BuildContext context,
     String defaultName,
