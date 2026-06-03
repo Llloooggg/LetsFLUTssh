@@ -4682,7 +4682,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_sections_data_export_import.dart` | `_ExportImportTile` | Export / import .lfs archives tile (part of `settings_screen.dart`) |
 | `settings_sections_updates.dart` | `_UpdateSection` | Auto-update preferences + manual check (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerPanel`, `KnownHostsManagerDialog` | Known hosts management surface (search, delete, import, export, clear). Embeddable panel + thin dialog wrapper, same shape as the SSH-keys / snippets / tags managers. |
-| `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
+| `core/import/export_import.dart` | `ExportImport` | Export/import `.lfs` archive logic (Flutter-free `core/` — the `_ExportImportTile` + dialogs are the UI). Hosts `currentSchemaVersion` (FRB getter) + `probeArchive` classification |
 | `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts, Recordings. Composes [`SidebarNavDialog`](#sidebarnavdialog), which owns the lazy keep-alive content pane |
 | `tools/tools_screen.dart` | `ToolsScreen` | Mobile Tools route — list of tool tiles (same entries as desktop dialog) |
 | `key_manager/key_manager_dialog.dart` | `KeyManagerPanel` / `KeyManagerDialog` | SSH key panel (embeddable, built on `CollectionManagerPanel<SshKeyMetadata>`; keeps its `+ Add ▾` menu + import/generate/hardware flows) + dialog wrapper |
