@@ -5671,7 +5671,7 @@ File: `<appSupportDir>/logs/letsflutssh.log`. Rotation: 5 MB, 3 files.
 
 Line format: `HH:MM:SS X [Tag] message` where X is `I` / `W` / `E`. Continuation lines for error / stack traces are indented two spaces so the viewer can fold them under the parent row without reparsing the tag. Header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) are written verbatim on sink open and render as a dim divider in the viewer.
 
-**File ownership lives Rust-side.** Every `dart:io File` / `Directory` operation against the log path — create, append, rotate, read, clear, chmod — lives in `lfs_core::logger::file_sink`. The module owns a process-wide `Mutex<FileSinkState>` holding the resolved log path + an `Option<BufWriter<File>>` for the routine-write sink. `lfs_frb::api::logger` exposes eight entry points (`logger_open_sink`, `logger_append_line`, `logger_append_critical`, `logger_flush`, `logger_read_all`, `logger_rotate_if_needed`, `logger_clear_all`, `logger_close_sink`) — sync for the hot path, async + `spawn_blocking` for directory creates / multi-file deletes. Dart's `AppLogger` formats + sanitises lines, broadcasts entries on `liveEntries`, holds an in-memory ring buffer for pre-FRB `logCritical` writes, and routes every file op through the FRB seam. The split keeps the chmod / recursive-mkdir / rename grammar in one language and stops the cold-start path from owning a `dart:io` file handle the FRB-loaded code cannot inspect.
+**File ownership lives Rust-side.** Every `dart:io File` / `Directory` operation against the log path — create, append, rotate, read, clear, chmod — lives in `lfs_core::logger::file_sink`. The module owns a process-wide `Mutex<FileSinkState>` holding the resolved log path + an `Option<BufWriter<File>>` for the routine-write sink. `lfs_frb::api::logger` exposes ten entry points (`logger_open_sink`, `logger_append_line`, `logger_append_critical`, `logger_flush`, `logger_read_all`, `logger_rotate_if_needed`, `logger_clear_all`, `logger_close_sink`, `logger_export_to`, `logger_log_file_has_content`) — sync for the hot path, async + `spawn_blocking` for directory creates / multi-file deletes / the export copy. Dart's `AppLogger` formats + sanitises lines, broadcasts entries on `liveEntries`, holds an in-memory ring buffer for pre-FRB `logCritical` writes, and routes every file op through the FRB seam. The split keeps the chmod / recursive-mkdir / rename grammar in one language and stops the cold-start path from owning a `dart:io` file handle the FRB-loaded code cannot inspect.
 
 **Routine logs are opt-in — off by default.** `init()` resolves the log path string from `path_provider` without touching the filesystem; the Rust-side `logger_open_sink` creates `<app_support>/logs/` and opens the file in append mode the first time `setThreshold(...)` is called with a non-null `LogLevel`, wired up via `ConfigProvider.load` reading `config.behavior.logLevel`. Entries already on disk stay until the user hits "Clear" in the Settings → Logging section. All writes pass through [sanitize](#sanitize) before crossing the FRB boundary, and the file is chmod-0600 on POSIX via `lfs_core::path::harden_file_perms` (called inside `logger_open_sink` so the tighten is atomic with the create).
 
@@ -5787,7 +5787,7 @@ and route the result through `copyText` (see [§5.1 Pointer input](#pointer-inpu
 String formatSize(int bytes);         // "1.5 MB"
 String formatTimestamp(DateTime dt);   // "2024-01-15 14:30"
 String formatDuration(Duration d);    // "2m 15s"
-String sanitizeError(Object error);   // strips OS-locale text, handles SSHError chain, 43 errno codes (POSIX + Winsock) — for logging only
+String sanitizeError(Object error);   // strips OS-locale text, handles SSHError chain, 40 errno codes (POSIX + Winsock) — for logging only
 String localizeError(S l10n, Object error); // maps errno/SSHError to localized strings via S — for UI display
 ```
 
@@ -5823,7 +5823,7 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `OpenSshConfigImporter.isSuspiciousPath` rejects `IdentityFile` entries that contain `..` segments before the path is dereferenced — a maliciously crafted `~/.ssh/config` cannot coerce the importer into reading files outside the user's intended key directory.
 
-### QR Scanner (`core/qr/`)
+### QR Scanner (`platform/qr_scanner.dart`)
 
 ```dart
 const qrScannerChannel = MethodChannel('com.letsflutssh/qrscanner');
@@ -6956,7 +6956,7 @@ The archive also carries a `manifest.json` with `schema_version` (current: `Expo
 - `sanitizeError()` translates OS-locale error text to English using errno codes — **for logging only**
 - `localizeError(S l10n, Object error)` maps errno codes, `SSHError` subtypes, and `TimeoutException` to localized strings via `S` — **for UI display**
 - Handles `SSHError` chain: preserves structured data (`host`, `port`, `user`), sanitizes `cause` recursively
-- 43 errno codes mapped (30 POSIX/Linux + 13 Windows Winsock)
+- 40 errno codes mapped (27 POSIX/Linux + 13 Windows Winsock)
 - `SSHError` subtypes carry structured fields: `AuthError(user, host)`, `ConnectError(host, port)`, `HostKeyError(host, port)`
 - `SFTPError` (`core/sftp/errors.dart`) — typed SFTP error with `message`, `cause`, `path`, `statusCode`, `userMessage`. Factory `SFTPError.wrap(error, op, path)` for wrapping raw exceptions with operation context
 - `Connection.connectionError` stores raw `Object?` — localized at display time with `localizeError`
