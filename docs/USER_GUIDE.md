@@ -812,7 +812,7 @@ Settings → Data → **Recordings** shows the current `<appSupport>/recordings/
 - **Quick-connect sessions don't record** — they have no stable session id, so the recorder skips.
 - **Recorder failure is best-effort** — disk full, permissions, etc. log a warning and the connect proceeds without recording.
 - **Auto-rotation** at 100 MB per file; the next event opens a fresh file under the same session.
-- **No scrub bar yet** — sequential GCM-frame stream means seeking would need an index file. Use the Instant speed for fast-forward.
+- **Scrub bar** is backed by a per-recording `.idx` sidecar index; recordings written before the index feature lack the sidecar and play back with the scrub bar disabled (sequential playback still works).
 
 ### External playback (advanced)
 
@@ -889,7 +889,7 @@ The endpoint is off by default for safety — flip it on under **Settings → Ex
 
 ### Linux / macOS — Unix domain socket
 
-Enable the toggle, copy the path the section shows (`/run/user/<uid>/letsflutssh-agent.<pid>/agent.sock`), and point your shell at it:
+Enable the toggle, copy the path the section shows (`${XDG_RUNTIME_DIR:-/tmp}/letsflutssh-agent.<pid>/agent.sock` — typically under `/run/user/<uid>` on Linux, `/tmp` on macOS), and point your shell at it:
 
 ```bash
 # bash / zsh

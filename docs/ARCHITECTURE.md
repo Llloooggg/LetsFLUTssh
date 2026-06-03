@@ -3188,7 +3188,7 @@ Both writes go through `BufWriter` with `flush()` after each event so the durabi
 
 #### Sidecar migration: legacy recordings stay playable
 
-Recordings written before this build do NOT have a `<file>.idx` sibling. The reader's seek path returns `None` for any missing / empty sidecar; the playback dialog catches the null and disables the scrub bar with a tooltip explaining why (capability-ladder rung 4: render disabled with a reason rather than ship a weaker path that pretends to scrub). Speed dropdown (`0.5×` / `1×` / `2×` / `4×` / instant) keeps working unchanged — the existing sequential playback path is independent of the sidecar.
+Recordings written before this build do NOT have a `<file>.idx` sibling. The reader's seek path returns `None` for any missing / empty sidecar; the playback dialog catches the null and disables the scrub bar with a tooltip explaining why (capability-ladder rung 4: render disabled with a reason rather than ship a weaker path that pretends to scrub). Speed dropdown (`0.5×` / `1×` / `2×` / `4×`) keeps working unchanged — the existing sequential playback path is independent of the sidecar.
 
 The FRB seek entry point is `recorder_seek(recording_path, target_ms, encrypted)`; the playback-start variant `recorder_open_for_playback_at(path, start_offset, start_frame_index, sink)` resumes the iter from a sidecar-supplied frame boundary. Both live under `lfs_core::recorder::index_sidecar` (writer + reader + binary search) and `lfs_frb::api::recorder` (FRB adapter + HKDF chain).
 
