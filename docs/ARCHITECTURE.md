@@ -128,7 +128,7 @@ flowchart TD
 
     subgraph Native["<b>Native plumbing</b> (Kotlin / Swift)<br/>NO business logic — entry-point glue only"]
         kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)"]
-        swift2["iOS / macOS Swift:<br/>QR scanner (AVCaptureSession UI)<br/>App / Window host shells"]
+        swift2["iOS / macOS Swift:<br/>QR scanner (iOS only, AVCaptureSession UI)<br/>App / Window host shells (both)"]
     end
 
     Dart -- "FRB calls" --> Rust
@@ -884,7 +884,7 @@ class SessionMutator {
 }
 ```
 
-**Search** is its own slice: `sessionSearchProvider` (`NotifierProvider<SessionSearchNotifier, String>`) holds the query string; `filterSessions(sessions, query)` (by label / folder / host / user) feeds `filteredSessionsProvider` and `filteredSessionTreeProvider`, both derived from `sessionProvider` + `sessionSearchProvider`.
+**Search** is its own slice: `sessionSearchProvider` (`NotifierProvider<SessionSearchNotifier, String>`) holds the query string; `filterSessions(sessions, query)` (by label / folder / host / user) feeds `filteredSessionsProvider` (derived from `sessionProvider` + `sessionSearchProvider`); `filteredSessionTreeProvider` in turn derives from `filteredSessionsProvider` + `emptyFoldersProvider`.
 
 **Folder tree:** UI uses string paths ("Production/EU"), DB uses a `Folders` table with self-referencing `parentId`. `mappers.dart` handles conversion: `resolveFolderPath()` creates missing folder nodes, `findFolderIdByPath()` resolves path → ID.
 
@@ -1037,8 +1037,8 @@ stateDiagram-v2
     connecting --> disconnected: timeout / failure
     connected --> disconnected: onDisconnect fires
     disconnected --> connecting: reconnect()
-    connected --> [*]: disconnect() / disposeAll()
-    disconnected --> [*]: disconnect() / disposeAll()
+    connected --> [*]: disconnect() / disconnectAll()
+    disconnected --> [*]: disconnect() / disconnectAll()
 ```
 
 #### ConnectionsNotifier
@@ -1527,6 +1527,38 @@ Every hardware-bound signer (FIDO2 today, PKCS#11 / TPM 2.0 / Apple Secure Encla
 
 The DER parser accepts only the strict shape OpenSSH itself parses (definite length, no trailing bytes, single-component length fields up to four bytes — anything wider would be structurally malformed for an EC signature component); malformed input returns `Error::Auth(...)` rather than panicking. The mpint encoder strips one redundant leading 0x00 byte when dropping it would not flip the sign and re-adds a leading 0x00 when the high bit of the first byte is set, mirroring RFC 4251 §5. Round-trip tests + a fuzz-style sweep covering random byte slices live in `rust/crates/lfs_core/src/ssh/wire.rs::tests`.
 
+#### Connect-time backend dispatch — `backend` column to `Signer`
+
+Every hardware backend converges on one dispatch spine, so adding a backend means wiring exactly two match arms — prepare + connect — and nothing else. The `ssh_keys.backend` discriminator (`software` / `fido2` / `pkcs11` / `enclave` / `hello` / `tpm` / `keystore`) drives [`auth_compose::prepare_auth`](../rust/crates/lfs_core/src/connection/auth_compose.rs), which stages any PIN / cert blob into the `SecretStore` as a transient and returns a `PreparedAuthRef`. Dart's `_authFromConfig` maps that through `busAuthRef` into a `BusConnectAuthRef`, `connectionConnect` ships it to the Rust actor as a `ConnectAuthRef`, and [`connection::run_auth`](../rust/crates/lfs_core/src/connection/mod.rs) matches it to the matching `Session::connect_pubkey_*_owned` twin — which reads the staged secret back *inside* the future and drives russh's `authenticate_publickey_with` / `authenticate_certificate_with` against the backend's `Signer`. The wire helpers above and the [`FidoSigner`](../rust/crates/lfs_core/src/ssh/sk_signer.rs) shape the FIDO2 section establishes are what every leaf in this fan reuses.
+
+```mermaid
+flowchart TD
+    row["ssh_keys row · backend:<br/>software / fido2 / pkcs11 / enclave / hello / tpm / keystore"]
+    row --> prep["auth_compose::prepare_auth<br/>match KeyBackend → *_ref (cert beats bare-pubkey)<br/>PIN / cert staged as SecretStore transients"]
+    prep -->|sk-*| psk["PreparedAuthRef::PubkeySk / PubkeySkCert"]
+    prep -->|Pkcs11| pp11["pkcs11_ref → PubkeyPkcs11"]
+    prep -->|Enclave| pe["enclave_ref → PubkeyEnclave"]
+    prep -->|Hello| ph["hello_ref → PubkeyHello"]
+    prep -->|Tpm| pt["tpm_ref → PubkeyTpm"]
+    prep -->|Keystore| pk["keystore_ref → PubkeyKeystore"]
+    prep -->|software| psw["Pubkey / PubkeyCert (private_key bytes)"]
+    psk --> bus
+    pp11 --> bus
+    pe --> bus
+    ph --> bus
+    pt --> bus
+    pk --> bus
+    psw --> bus
+    bus["Dart _authFromConfig + busAuthRef → BusConnectAuthRef<br/>connectionConnect → Rust actor → ConnectAuthRef::*"]
+    bus --> ra["connection::run_auth<br/>exhaustive match on ConnectAuthRef"]
+    ra --> bast{ProxyJump parent?}
+    bast -->|Some + hardware variant| rej["hardware_over_proxyjump_unsupported(HardwareSigner::*)<br/>typed Error::Auth — the exhaustive HardwareSigner match<br/>is the compile-time gate against a backend added<br/>without an explicit ProxyJump decision"]
+    bast -->|None| disp["Session::connect_pubkey_*_owned<br/>reads PIN / cert from SecretStore inside the future"]
+    disp --> sgn["russh authenticate_publickey_with / authenticate_certificate_with<br/>FidoSigner · Pkcs11Signer · EnclaveSigner · HelloSigner · TpmSigner · KeystoreSigner"]
+```
+
+**Why one spine.** Two invariants fall out of the single exhaustive match. First, plaintext discipline holds for free: every backend's secret rides the `SecretStore` as a transient keyed by `<id>` and is read back only inside the connect future, so a PIN or cert blob never crosses the FRB envelope as a field nor lingers on the Dart heap past the staging hop. Second, ProxyJump safety is compile-enforced — because `run_auth` mints the unsupported-over-bastion error through an exhaustive `match` on the `HardwareSigner` enum, adding a `ConnectAuthRef` variant without a matching `HardwareSigner` arm fails to build, which is the gate that stops a new hardware backend from silently inheriting (or silently losing) ProxyJump support. The bare-`Some(parent)` arms stay rejections until the per-backend over-proxy composition (`connect_pubkey_*_via_proxy`) is wired through FRB. The ssh-agent path reaches the same six `Signer` impls through its own [`backends::dispatch_sign`](#in-process-ssh-agent-endpoint) fan — this diagram is the connect-time twin of that one.
+
 #### PKCS#11 hardware tokens — smart cards, USB tokens, network HSMs
 
 The connect path supports smart-card / hardware-token keys via the PKCS#11 (Cryptoki) standard so corporate users on JaCarta, Рутокен, eToken, OpenPGP card, YubiKey PIV applet, Estonian / Finnish / German eID cards, Thales Luna network HSMs, and AWS CloudHSM can authenticate without the private key ever crossing the FRB boundary. Private key material lives on the token; every signature attempt routes through `lfs_os_security::pkcs11::sign::sign_with_pkcs11`, which talks Cryptoki over `dlopen`'d vendor `.so` / `.dylib` / `.dll`.
@@ -1546,7 +1578,7 @@ sequenceDiagram
   Tok-->>Sec: token info per slot
   Sec-->>Dart: DbPkcs11TokenInfo[]
   Dart->>Frb: pkcs11_list_keys(slot, pin_id?)
-  Frb->>Sec: session::for_slot + login_if_needed + find_objects
+  Frb->>Sec: session::for_slot + with_session (login if required) + key::list_signable_keys
   Sec->>Tok: C_Login (PIN) + C_FindObjects (CKO_PUBLIC_KEY)
   Tok-->>Sec: object handles + CKA_LABEL + CKA_EC_POINT / Modulus
   Sec-->>Dart: signable keys + ssh-wire public blobs
@@ -1653,6 +1685,22 @@ flowchart LR
 **Module layout.** Files live under `rust/crates/lfs_os_security/src/apple_se_ssh.rs` (single shared module, cfg-gated to `target_os = "macos" | "ios"`). The Signer adapter lives at `rust/crates/lfs_core/src/ssh/enclave_signer.rs` (mirrors the PKCS#11 / FIDO2 shape — `russh::Signer` impl wrapping the FFI surface). The FRB shim lives at `rust/crates/lfs_frb/src/api/enclave.rs`.
 
 **Shared Dart wizard scaffold.** The Dart UI of all four hardware-key wizards — Enclave, Windows Hello, TPM, Android Keystore — is one mixin, `lib/widgets/ssh_keys/hardware_key_wizard.dart::HardwareKeyWizardMixin`. It owns the four-step `HardwareKeyStep` ladder (probe → configure → generate → complete), the label field, the probing / generating spinners, the `authorized_keys` completion panel + copy affordance, and the Cancel / Generate / Close action ladder — the half of each wizard that was identical four ways. Each concrete dialog (`EnclaveSshDialog`, `HelloSshDialog`, `TpmSshDialog`, `KeystoreSshDialog`) mixes it in and supplies only the backend-specific hooks: title, probe + its failure fallback, the configure-step body, the `canGenerate` gate, and the generate call. The row-tail pills likewise share one widget — `lib/widgets/ssh_keys/hardware_key_badge.dart::HardwareKeyBadge` (colour + icon + optional tap-to-reveal popover) — with `EnclaveBadge` / `HelloBadge` / `TpmBadge` / `KeystoreBadge` / `Pkcs11Badge` as thin per-backend callers that fill in the colour, icon, and captured-metadata lines. The FIDO2 sk-* row reuses the same pill with no popover.
+
+The `HardwareKeyStep` ladder all four share (the generate-side wizards; PKCS#11 keeps its own `module → token → pin → key → save` machine above because it *imports* an existing on-token key rather than generating one):
+
+```mermaid
+stateDiagram-v2
+    [*] --> probing: open dialog
+    probing --> configure: probe ok
+    probing --> configure: probe failed — configure renders disabled + reason
+    configure --> generating: Generate (canGenerate gate)
+    generating --> complete: runGenerate returns authorized_keys line
+    generating --> configure: runGenerate threw / returned null — generateError shown
+    complete --> [*]: Close → finishWith(result)
+    configure --> [*]: Cancel
+```
+
+A probe failure still advances to `configure` (not a dead end) so the step can render the control disabled-with-reason rather than trapping the user on a spinner; a generate failure drops back to `configure` with `generateError` populated under the form, never to `probing`, so the user retries the generate without re-probing the chip.
 
 **Access-control policy.** Two shapes selected per-key at creation, captured implicitly via the on-chip ACL — there is no DB column for the policy because the chip refuses to mutate the ACL after creation:
 
@@ -1941,7 +1989,7 @@ flowchart LR
     DISP --> SE[Secure Enclave]
     DISP --> NCRYPT[Windows NCrypt + Hello]
     DISP --> TPM[TPM 2.0 Linux ESAPI + Windows PCP silent]
-    DISP -.future.-> KS[Android Keystore]
+    DISP -."arm wired, always refuses<br/>(chip is Android-only; agent is desktop-only)".-> KS[Android Keystore]
 ```
 
 **Module layout.** Files live under `rust/crates/lfs_core/src/ssh_agent/`:
@@ -3957,7 +4005,7 @@ flowchart TD
 
     sws["sessionsWorkspaceStreamProvider<br/>(StreamProvider&lt;SessionWorkspaceSnapshot&gt;)"] --> sp
     sp -.-> fsp["filteredSessionsProvider<br/>(sessionProvider + sessionSearchProvider)"]
-    sp -.-> ftp["filteredSessionTreeProvider<br/>(sessionProvider + sessionSearchProvider)"]
+    fsp -.-> ftp["filteredSessionTreeProvider<br/>(filteredSessionsProvider + emptyFoldersProvider)"]
     cp -.-> tmp["themeModeProvider"]
     cp -.-> lp["localeProvider"]
 
@@ -3971,8 +4019,8 @@ Independent provider clusters:
 ```mermaid
 flowchart LR
     conn["connectionsProvider<br/>(NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt;)"]
-    conn --> cac["connectionActiveCountProvider"]
     conn --> csum["connectionSummaryProvider"]
+    cbus["FRB bus (BusTopic::Connection)"] --> cac["connectionActiveCountProvider<br/>(standalone StreamProvider&lt;int&gt;)"]
 
     txp["transfersProvider<br/>(NotifierProvider&lt;TransfersNotifier, TransfersState&gt;)"]
     txp --> at["activeTransfersProvider"]
@@ -4000,7 +4048,7 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `sessionsLoadingProvider` | `Provider<bool>` | `session_provider.dart` — `true` while the initial stream load is in flight (derives the `AsyncValue.isLoading` discriminant) |
 | `sessionSearchProvider` | `NotifierProvider<SessionSearchNotifier, String>` | `session_provider.dart` |
 | `filteredSessionsProvider` | `Provider<List<Session>>` | `sessionProvider` + `sessionSearchProvider` |
-| `filteredSessionTreeProvider` | `Provider<List<SessionTreeNode>>` | `sessionProvider` + `sessionSearchProvider` |
+| `filteredSessionTreeProvider` | `Provider<List<SessionTreeNode>>` | `filteredSessionsProvider` + `emptyFoldersProvider` |
 | `preloadedAppConfigProvider` | `Provider<AppConfig?>` | `config_provider.dart` — overridden in `main.dart` with the snapshot from the Rust `config_store` actor so `ConfigNotifier.build()` seeds without re-reading the actor |
 | `configProvider` | `NotifierProvider<ConfigNotifier, AppConfig>` | `config_provider.dart` — sync via `lfs_core::config_store` (debounce + atomic write + bus event) |
 | `themeModeProvider` | `Provider<ThemeMode>` | derived from `configProvider` |
@@ -6056,22 +6104,22 @@ Text(S.of(context).nSessions(count))  // parameterized
 ```mermaid
 flowchart TD
     u[User clicks session]
-    u --> sc["SessionConnect.connectTerminal(session)<br/>Session → SSHConfig (credentials from CredentialStore)"]
-    sc --> cm["connectionManager.connectAsync(config)<br/>Creates Connection (state: connecting)<br/>Launches async _doConnect()<br/>Returns Connection → UI"]
-    cm --> tab["UI: tabProvider.addTerminalTab(connection)<br/>TerminalPane subscribes to progressStream"]
-    cm --> dc["_doConnect() async:<br/>SSHConnection.connect(onProgress)<br/>emits steps: socketConnect → hostKeyVerify → authenticate"]
+    u --> sc["SessionConnect.connectTerminal(context, ref, session)<br/>Reloads session → SSHConfig (credentials staged Rust-side)"]
+    sc --> cm["connectionsProvider.notifier.connectAsync(config)<br/>Creates Connection (state: connecting)<br/>Launches async _doConnect()<br/>Returns Connection → UI"]
+    cm --> tab["UI: workspaceProvider.notifier.addTerminalTab(conn)<br/>TerminalPane subscribes to progressStream"]
+    cm --> dc["_doConnect() async:<br/>_authFromConfig → busConnectArgs → connectionConnect(id, args)<br/>Rust connect driver publishes phase steps on the bus"]
     dc --> r{outcome}
     r -->|success| ok["state = connected + completeReady()"]
     r -->|failure| err["connectionError, state = disconnected<br/>+ completeReady()"]
-    ok --> okui["TerminalPane: clear terminal → openShell() → engine feed"]
+    ok --> okui["TerminalPane: clear terminal → openTerminalSession → engine feed"]
     err --> errui["TerminalPane: progress log stays visible with error"]
     tab -.->|via progressStream| okui
     tab -.->|via progressStream| errui
 ```
 
-**Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionsNotifier._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
+**Progress pipeline:** `connectionConnect` drives the Rust connect actor (`lfs_core::connection::connect_async` → `run_connect_driver`), which publishes a `ConnectionStep` on the bus at each phase boundary (`socketConnect` → host-key verify → authenticate). Each `Connection`'s permanent `_busSub` forwards those steps into `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
 
-**Reconnect flow:** When a terminal tab reconnects (user clicks "Reconnect" after disconnect), `TerminalTab._refreshConfig()` re-reads the `Session` from `sessionProvider` using `Connection.sessionId` and updates `Connection.sshConfig` before creating a new `SSHConnection`. This ensures reconnect picks up any session edits (e.g. added keys, changed password). Quick-connect tabs (`sessionId == null`) use the original config.
+**Reconnect flow:** When a terminal tab reconnects (user clicks "Reconnect" after disconnect), `TerminalTab._refreshConfig()` re-reads the `Session` and produces a fresh `SSHConfig`, which it hands to `ConnectionsNotifier.reconnect(id, updatedConfig:)`. This ensures reconnect picks up any session edits (e.g. added keys, changed password). Quick-connect tabs (`sessionId == null`) use the original config.
 
 ### 9.2 SFTP Init Flow
 
@@ -6079,11 +6127,15 @@ flowchart TD
 flowchart TD
     fb["FileBrowserTab.initState()<br/>Shows ConnectionProgress widget<br/>await connection.waitUntilReady()"]
     fb --> init["SFTPInitializer.init(connection)"]
-    init -->|Android only| perm["_requestStoragePermission()<br/>Quick-check /storage/emulated/0<br/>MethodChannel → MainActivity.kt"]
-    perm --> api["API 30+: MANAGE_APP_ALL_FILES_ACCESS_PERMISSION<br/>API &lt;30: READ/WRITE_EXTERNAL_STORAGE dialog"]
-    init --> cli["connection.sshConnection.client.sftp() → SftpClient"]
-    cli --> local["LocalFS(homeDirectory) → FilePaneController (local)"]
-    cli --> remote["RemoteFS(SFTPService) → FilePaneController (remote)"]
+    init -->|Android| perm["hasAndroidStoragePermission() probe (no prompt)<br/>sets storagePermissionDenied flag<br/>browser banner does the actual request"]
+    init --> kind{connection.kind}
+    kind -->|webdav| wd["WebDavFileSystem(webdavConnection, baseUrl)"]
+    kind -->|s3| s3["S3FileSystem(s3Connection, initialDir)"]
+    kind -->|ssh| rsf["sftp = RustSftpFs.create(transport)<br/>RemoteFS(sftp)"]
+    wd --> remote["FilePaneController (remote)"]
+    s3 --> remote
+    rsf --> remote
+    init --> local["LocalFS() → FilePaneController (local)"]
     local --> pane["FilePane(controller) × 2"]
     remote --> pane
 ```
@@ -6106,8 +6158,8 @@ flowchart TD
 ```mermaid
 flowchart TD
     drag["User drags file between panes"]
-    drag --> fa["FileActions.transfer(source, target, direction)"]
-    fa --> enq["TransfersNotifier.enqueue() →<br/>lfs_frb::api::transfer::transfer_enqueue"]
+    drag --> fa["TransferHelpers.enqueueUpload / enqueueDownload"]
+    fa --> enq["TransfersNotifier.enqueueUpload / enqueueDownload →<br/>lfs_frb::api::transfer::transfer_enqueue"]
     enq --> pool["lfs_core::transfer::WorkerPool<br/>tokio task per active worker"]
     pool --> exec["SftpTaskExecutor:<br/>spawn russh-sftp upload/download<br/>cooperative cancel-flag check per chunk"]
     exec --> evt["BusEvent::TransferTaskProgress<br/>(per chunk; coalesced inside actor)"]
