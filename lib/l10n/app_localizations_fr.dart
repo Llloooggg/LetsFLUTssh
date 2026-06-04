@@ -103,7 +103,7 @@ class SFr extends S {
   String get required => 'Requis';
 
   @override
-  String get errFillRequiredFields => 'Remplis les champs requis marqués *';
+  String get errFillRequiredFields => 'Remplissez les champs requis marqués *';
 
   @override
   String get settings => 'Paramètres';
@@ -1332,7 +1332,7 @@ class SFr extends S {
 
   @override
   String get errConnectionLostReconnect =>
-      'Connexion perdue — la session a été déconnectée (veille ou réseau). Reconnecte-la depuis la liste des sessions.';
+      'Connexion perdue — la session a été déconnectée (veille ou réseau). Reconnectez-la depuis la liste des sessions.';
 
   @override
   String errConnectionTimedOutSeconds(int seconds) {
@@ -2763,7 +2763,7 @@ class SFr extends S {
 
   @override
   String get t2MigrationSetPasswordBody =>
-      'Saisis un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
+      'Saisissez un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
 
   @override
   String get t2MigrationWipeAndRestart => 'Wipe et repartir de zéro';
@@ -2786,7 +2786,7 @@ class SFr extends S {
 
   @override
   String get biometricOverlayRequiresPassword =>
-      'Définis d\'abord le mot de passe de la couche Hardware.';
+      'Définissez d\'abord le mot de passe de la couche Hardware.';
 
   @override
   String get t2UnlockTitle => 'Déverrouiller avec votre mot de passe maître';
@@ -2954,7 +2954,7 @@ class SFr extends S {
 
   @override
   String get trustedCertHelp =>
-      'Colle le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laisse vide pour utiliser le trust store du système.';
+      'Collez le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laissez vide pour utiliser le trust store du système.';
 
   @override
   String get acceptAnyCert => 'Accepter tout certificat';
@@ -3536,11 +3536,11 @@ class SFr extends S {
 
   @override
   String get helloP384NotSupported =>
-      'Le firmware TPM ne gère pas P-384. Choisis P-256 ou RSA-2048.';
+      'Le firmware TPM ne gère pas P-384. Choisissez P-256 ou RSA-2048.';
 
   @override
   String get helloConfigureFirst =>
-      'Configure d\'abord Windows Hello dans Paramètres -> Options de connexion.';
+      'Configurez d\'abord Windows Hello dans Paramètres -> Options de connexion.';
 
   @override
   String get tpmSshTitle => 'Générer une clé SSH adossée au TPM';
@@ -3612,7 +3612,7 @@ class SFr extends S {
 
   @override
   String get tpmSshUnavailableNoPermission =>
-      'L\'app ne peut pas accéder au TPM. Ajoute l\'utilisateur au groupe `tss`.';
+      'L\'app ne peut pas accéder au TPM. Ajoutez l\'utilisateur au groupe `tss`.';
 
   @override
   String tpmSshHandleInUse(String handle) {
@@ -3670,7 +3670,7 @@ class SFr extends S {
 
   @override
   String get keystoreKeyBiometricNotEnrolled =>
-      'Configure d\'abord la biométrie ou le PIN de l\'appareil';
+      'Configurez d\'abord la biométrie ou le PIN de l\'appareil';
 
   @override
   String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';

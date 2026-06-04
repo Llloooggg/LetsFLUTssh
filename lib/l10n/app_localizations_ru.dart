@@ -2171,7 +2171,7 @@ class SRu extends S {
 
   @override
   String get snippetTokensHint =>
-      'Нажми чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:';
+      'Нажмите, чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:';
 
   @override
   String get snippetCustomTokensHint =>
@@ -2268,7 +2268,7 @@ class SRu extends S {
 
   @override
   String get forwardKindDynamicHelp =>
-      'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
+      'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажите браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
 
   @override
   String get proxyJump => 'Подключаться через';

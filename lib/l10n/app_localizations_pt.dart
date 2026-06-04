@@ -2217,7 +2217,7 @@ class SPt extends S {
 
   @override
   String get snippetTokensHint =>
-      'Toca para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:';
+      'Toque para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:';
 
   @override
   String get snippetCustomTokensHint =>
@@ -2937,7 +2937,7 @@ class SPt extends S {
 
   @override
   String get trustedCertHelp =>
-      'Cola o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixa vazio para usar o trust store do sistema.';
+      'Cole o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixe vazio para usar o trust store do sistema.';
 
   @override
   String get acceptAnyCert => 'Aceitar qualquer certificado';
