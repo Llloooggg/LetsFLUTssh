@@ -220,5 +220,23 @@ void main() {
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(app.theme?.brightness, Brightness.dark);
     });
+
+    // Spec: the fatal screen keeps its layout LTR even when the system
+    // locale is RTL (ar / fa), matching the main shell. The localized
+    // text still renders right-to-left at the glyph level; only the
+    // layout is pinned. A regression dropping the builder's
+    // Directionality.ltr wrap would mirror the recovery screen.
+    testWidgets('pins layout to LTR under an RTL system locale', (
+      tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('ar')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      await tester.pumpWidget(
+        const FatalErrorApp(summary: 'SUMMARY', detail: 'd'),
+      );
+      await tester.pump();
+      final dir = Directionality.of(tester.element(find.text('SUMMARY')));
+      expect(dir, TextDirection.ltr);
+    });
   });
 }

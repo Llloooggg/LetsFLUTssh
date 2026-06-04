@@ -385,12 +385,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Widget _buildAppShell(BuildContext context, Widget? child, double uiScale) {
     final mediaQuery = MediaQuery.of(context);
     final locked = ref.watch(lockStateProvider);
-    // Drop the LTR override — supportedLocales advertises ar / fa,
-    // and `MaterialApp.localizationsDelegates` already resolves the
-    // ambient TextDirection from the system locale. Forcing LTR
-    // here pinned every padding / alignment to LTR even on RTL
-    // builds.
-    return MediaQuery(
+    final shell = MediaQuery(
       // Hard-off every animation/transition in the app — route page
       // transitions, Material implicit animations, AnimatedSwitcher,
       // etc. Flutter honours this flag across the framework; we use
@@ -490,6 +485,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         ),
       ),
     );
+    // Pin the whole UI to LTR regardless of locale. Chrome, padding,
+    // and `*Directional` alignment stay in the English orientation
+    // even for the RTL locales (ar / fa) `supportedLocales` advertises
+    // — only the glyph-level bidi inside each `Text` still renders
+    // Arabic / Persian right-to-left, so the translation reads
+    // correctly while the layout never mirrors. This tool's content
+    // (terminal, paths, host:port, commands) is inherently LTR, so an
+    // LTR shell around it reads better than a mirrored one. Sits in
+    // the builder, below MaterialApp's Localizations, so it also
+    // covers every pushed route + the dialog Overlay.
+    return Directionality(textDirection: TextDirection.ltr, child: shell);
   }
 }
 

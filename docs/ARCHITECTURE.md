@@ -6048,6 +6048,14 @@ The user selects a language in **Settings → Appearance → Language**. Options
 
 iOS requires `CFBundleLocalizations` in `Info.plist` listing all supported locale codes for proper OS locale detection.
 
+### Text direction — RTL text, LTR layout
+
+Two supported locales are right-to-left: Arabic (`ar`) and Persian (`fa`). The app **pins its layout to LTR for every locale** while still rendering RTL *text* correctly. `LetsFLUTsshApp._buildAppShell` (the `MaterialApp.builder`) wraps the whole tree in `Directionality(textDirection: TextDirection.ltr)`; `FatalErrorApp`'s builder does the same for the pre-bootstrap fatal screen. Because the override sits *below* `MaterialApp`'s locale-derived `Localizations`, it covers every pushed route and the dialog `Overlay`, so a single wrap per app-root is the whole mechanism.
+
+The distinction is between *glyph direction* and *layout direction*. Unicode bidi renders Arabic / Persian runs right-to-left inside each `Text` regardless of the ambient `Directionality`, so the translation still reads correctly. What the LTR pin suppresses is the *layout* mirroring Flutter would otherwise apply for an RTL locale — `EdgeInsetsDirectional` / `AlignmentDirectional` resolving `start` to the right, `Row` children reversing, the nav rail and toolbars flipping sides.
+
+**Why pin LTR.** This is a terminal / SFTP tool: its primary content — the terminal grid, filesystem paths, `host:port`, shell commands, key fingerprints — is inherently left-to-right. A fully mirrored chrome wrapped around irreducibly-LTR content reads worse than an LTR chrome with RTL text, and it mis-aligns the terminal and path breadcrumbs against their own scrollbars. This is a deliberate departure from the standard RTL convention (mirror the entire UI); it is a product decision, not a localization gap. The behaviour is pinned by `test/main_test.dart` ('pins layout to LTR under an RTL locale (ar)') and `test/app/fatal_error_app_test.dart`.
+
 ### Setup
 
 | File | Purpose |
@@ -7502,6 +7510,7 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | Separate `features/mobile/` | Different interaction patterns, not a responsive adaptation |
 | Global `navigatorKey` for host key dialog | SSH callback arrives without BuildContext |
 | `AnimationStyle.noAnimation` | Animations disabled (Flutter 3.41+), design decision |
+| Pin layout LTR for all locales (RTL text, LTR chrome) | Terminal / paths / `host:port` / commands are inherently left-to-right; mirroring the whole UI around them reads worse than an LTR shell with RTL text. Deliberate departure from the mirror-everything RTL convention — wrapped via `Directionality.ltr` in the app-root builders. See [§8.1 Text direction](#81-internationalization-i18n) |
 | `AppShortcutRegistry` singleton | Centralized shortcut definitions; all key combos in one place, ready for future user-override settings page |
 | `matches()` checks only ctrl/shift | Original handlers didn't check alt/meta; WSLg can report phantom meta, causing false negatives |
 | `main` required checks are non-strict (up-to-date not required) | A strict policy serialises a monthly Dependabot batch into a manual-rebase cascade (native auto-merge never re-updates stale branches). A merge queue would keep the strict guarantee and automate the cascade, but merge queue is an org/Team/Enterprise feature and this is a personal repo — unavailable. So the up-to-date requirement is dropped: the six required checks still gate every PR, the `push`-to-`main` CI run catches the rare two-green-PRs-break-together case. See [§15.1](#151-branching-model). |

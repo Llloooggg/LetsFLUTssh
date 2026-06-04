@@ -104,6 +104,11 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
       theme: ThemeData.dark(useMaterial3: true),
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
+      // Keep the fatal screen LTR for the same reason the main shell
+      // does (see `LetsFLUTsshApp._buildAppShell`): the layout stays in
+      // the English orientation, translated text still renders RTL.
+      builder: (context, child) =>
+          Directionality(textDirection: TextDirection.ltr, child: child!),
       home: Builder(
         builder: (innerCtx) {
           final l10n = S.of(innerCtx);
