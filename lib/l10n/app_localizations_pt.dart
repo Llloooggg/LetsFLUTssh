@@ -2221,7 +2221,7 @@ class SPt extends S {
 
   @override
   String get snippetCustomTokensHint =>
-      'Qualquer outro com chavetas duplas pede-te um valor quando o snippet executa.';
+      'Qualquer outro com chaves duplas pede um valor quando o snippet executa.';
 
   @override
   String get snippetFillTitle => 'Preencher os parâmetros do snippet';
@@ -2314,7 +2314,7 @@ class SPt extends S {
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponta o teu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
+      'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponte o seu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
 
   @override
   String get proxyJump => 'Ligar através de';

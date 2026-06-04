@@ -2175,7 +2175,7 @@ class SRu extends S {
 
   @override
   String get snippetCustomTokensHint =>
-      'Любое другое имя в двойных фигурных скобках спросит у тебя значение при выполнении.';
+      'Любое другое имя в двойных фигурных скобках спросит у вас значение при выполнении.';
 
   @override
   String get snippetFillTitle => 'Заполните параметры сниппета';
@@ -2947,7 +2947,7 @@ class SRu extends S {
 
   @override
   String get s3EndpointHint =>
-      'Пусто для AWS, или укажи для MinIO / R2 / Spaces';
+      'Пусто для AWS, или укажите для MinIO / R2 / Spaces';
 
   @override
   String get s3PathStyle => 'Path-style адресация';
@@ -2987,7 +2987,7 @@ class SRu extends S {
 
   @override
   String get errS3AuthFailed =>
-      'S3 authentication failed (проверь access key + secret)';
+      'S3 authentication failed (проверьте access key + secret)';
 
   @override
   String get errS3NoSuchBucket => 'Bucket не существует или недоступен';
