@@ -210,7 +210,7 @@ OneDark theme: centralized in `app_theme.dart`, semantic color constants, no har
 
 ### Localization (i18n)
 
-All user-facing strings MUST use `S.of(context).xxx`. Never hardcode in widgets — treat as a bug. Add keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`. Exceptions: constructor defaults (no context), log messages, `_AlreadyRunningApp`. Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See §8.1.
+All user-facing strings MUST use `S.of(context).xxx`. Never hardcode in widgets — treat as a bug. Add keys to `lib/l10n/app_en.arb`, run `flutter gen-l10n`. Exceptions: constructor defaults (no context), log messages. Tests must include `localizationsDelegates: S.localizationsDelegates, supportedLocales: S.supportedLocales` in every `MaterialApp`. See §8.1.
 
 **Tone — native IT register, not dictionary calques.** Audience is engineers and sysadmins; strings should read like a dev to a colleague, not a textbook. Per-locale dominant pattern for tech terms:
 
