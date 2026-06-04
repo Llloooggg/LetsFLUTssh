@@ -1297,7 +1297,7 @@
   "keystoreAlgEd25519": "Ed25519 (Android 13+, só TEE)",
   "keystoreAlgRsa2048": "RSA-2048 (compatibilidade máxima)",
   "keystoreStrongBoxFallbackTitle": "StrongBox HSM indisponível",
-  "keystoreStrongBoxFallbackBody": "Teu device não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.",
+  "keystoreStrongBoxFallbackBody": "Seu dispositivo não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.",
   "keystoreStrongBoxFallbackConfirm": "Usar TEE",
   "keystoreStrongBoxFallbackCancel": "Cancelar",
   "fido2BrokerSectionTitle": "Chaves de segurança em hardware",

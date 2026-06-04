@@ -3658,7 +3658,7 @@ class SPt extends S {
 
   @override
   String get keystoreStrongBoxFallbackBody =>
-      'Teu device não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.';
+      'Seu dispositivo não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.';
 
   @override
   String get keystoreStrongBoxFallbackConfirm => 'Usar TEE';

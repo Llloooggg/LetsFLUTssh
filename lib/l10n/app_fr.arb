@@ -1297,7 +1297,7 @@
   "keystoreAlgEd25519": "Ed25519 (Android 13+, TEE seulement)",
   "keystoreAlgRsa2048": "RSA-2048 (compatibilité maximale)",
   "keystoreStrongBoxFallbackTitle": "StrongBox HSM indisponible",
-  "keystoreStrongBoxFallbackBody": "Ton appareil n'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l'isolation StrongBox.",
+  "keystoreStrongBoxFallbackBody": "Votre appareil n'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l'isolation StrongBox.",
   "keystoreStrongBoxFallbackConfirm": "Utiliser TEE",
   "keystoreStrongBoxFallbackCancel": "Annuler",
   "fido2BrokerSectionTitle": "Clés de sécurité matérielles",

@@ -3686,7 +3686,7 @@ class SFr extends S {
 
   @override
   String get keystoreStrongBoxFallbackBody =>
-      'Ton appareil n\'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l\'isolation StrongBox.';
+      'Votre appareil n\'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l\'isolation StrongBox.';
 
   @override
   String get keystoreStrongBoxFallbackConfirm => 'Utiliser TEE';

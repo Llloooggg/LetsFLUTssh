@@ -2503,7 +2503,7 @@ class SRu extends S {
   String get colT0 => 'T0 Открытый текст';
 
   @override
-  String get colT1 => 'T1 Ключница';
+  String get colT1 => 'T1 Keychain';
 
   @override
   String get colT1Password => 'T1 + пароль';

@@ -818,7 +818,7 @@
   "legendProtects": "Защищает",
   "legendDoesNotProtect": "Не защищает",
   "colT0": "T0 Открытый текст",
-  "colT1": "T1 Ключница",
+  "colT1": "T1 Keychain",
   "colT1Password": "T1 + пароль",
   "colT1PasswordBiometric": "T1 + пароль + биометрия",
   "colT2Password": "T2 + пароль",
