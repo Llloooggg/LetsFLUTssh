@@ -135,7 +135,7 @@ class SDe extends S {
   String get includePasswords => 'Sitzungs-Passwörter';
 
   @override
-  String get embeddedKeys => 'Eingebettete Schlüssel';
+  String get embeddedKeys => 'Sitzungsschlüssel';
 
   @override
   String get managerKeys => 'Schlüssel aus dem Manager';
@@ -534,7 +534,7 @@ class SDe extends S {
 
   @override
   String get provideKeyFirst =>
-      'Geben Sie zuerst eine Schlüsseldatei oder PEM-Text an';
+      'Gib zuerst eine Schlüsseldatei oder PEM-Text an';
 
   @override
   String get keyTextPem => 'Schlüsseltext (PEM)';
@@ -550,7 +550,7 @@ class SDe extends S {
 
   @override
   String get providePasswordOrKey =>
-      'Geben Sie ein Passwort oder einen SSH-Schlüssel an';
+      'Gib ein Passwort oder einen SSH-Schlüssel an';
 
   @override
   String get quickConnect => 'Schnellverbindung';
@@ -566,7 +566,7 @@ class SDe extends S {
 
   @override
   String get scanWithCameraApp =>
-      'Scannen Sie mit einer Kamera-App auf einem Gerät,\nauf dem LetsFLUTssh installiert ist.';
+      'Scanne mit einer Kamera-App auf einem Gerät,\nauf dem LetsFLUTssh installiert ist.';
 
   @override
   String get noPasswordsInQr =>
@@ -574,7 +574,7 @@ class SDe extends S {
 
   @override
   String get qrContainsCredentialsWarning =>
-      'Dieser QR-Code enthält Zugangsdaten. Halten Sie den Bildschirm privat.';
+      'Dieser QR-Code enthält Zugangsdaten. Halte den Bildschirm privat.';
 
   @override
   String get copyLink => 'Link kopieren';
@@ -594,7 +594,7 @@ class SDe extends S {
 
   @override
   String get unknownHostMessage =>
-      'Die Authentizität dieses Hosts kann nicht festgestellt werden. Möchten Sie die Verbindung trotzdem fortsetzen?';
+      'Die Authentizität dieses Hosts kann nicht festgestellt werden. Möchtest du die Verbindung trotzdem fortsetzen?';
 
   @override
   String get host => 'Host';
@@ -722,7 +722,7 @@ class SDe extends S {
 
   @override
   String get createConnectionHint =>
-      'Erstellen Sie eine neue Verbindung oder wählen Sie eine aus der Seitenleiste';
+      'Erstelle eine neue Verbindung oder wähle eine aus der Seitenleiste';
 
   @override
   String get hideSidebar => 'Seitenleiste ausblenden (Ctrl+B)';
@@ -892,7 +892,7 @@ class SDe extends S {
 
   @override
   String get setMasterPasswordHint =>
-      'Legen Sie ein Master-Passwort zum Verschlüsseln des Archivs fest.';
+      'Lege ein Master-Passwort zum Verschlüsseln des Archivs fest.';
 
   @override
   String get passwordsDoNotMatch => 'Passwörter stimmen nicht überein';
@@ -945,8 +945,7 @@ class SDe extends S {
   String get l2UnlockTitle => 'Passwort erforderlich';
 
   @override
-  String get l2UnlockHint =>
-      'Geben Sie Ihr kurzes Passwort ein, um fortzufahren';
+  String get l2UnlockHint => 'Gib dein kurzes Passwort ein, um fortzufahren';
 
   @override
   String get l2WrongPassword => 'Falsches Passwort';
@@ -1057,7 +1056,7 @@ class SDe extends S {
   String get noActiveFileBrowsers => 'Keine aktiven Dateibrowser';
 
   @override
-  String get useSftpFromSessions => 'Verwenden Sie \"SFTP\" unter Sitzungen';
+  String get useSftpFromSessions => 'Verwende \"SFTP\" unter Sitzungen';
 
   @override
   String get saveLogAs => 'Protokoll speichern unter';
@@ -1136,11 +1135,11 @@ class SDe extends S {
 
   @override
   String get qrTooManyForSingleCode =>
-      'Zu viele Sitzungen für einen einzelnen QR-Code. Reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Export.';
+      'Zu viele Sitzungen für einen einzelnen QR-Code. Reduziere die Auswahl oder nutze den .lfs-Export.';
 
   @override
   String get qrTooLarge =>
-      'Zu groß — wählen Sie einige Elemente ab oder nutzen Sie den .lfs-Dateiexport.';
+      'Zu groß — wähle einige Elemente ab oder nutze den .lfs-Dateiexport.';
 
   @override
   String get showQr => 'QR anzeigen';
@@ -1152,7 +1151,7 @@ class SDe extends S {
   String get resizePanelDivider => 'Trennlinie verschieben';
 
   @override
-  String get youreRunningLatest => 'Sie verwenden die neueste Version';
+  String get youreRunningLatest => 'Du verwendest die neueste Version';
 
   @override
   String get liveLog => 'Live-Log';
@@ -1301,7 +1300,7 @@ class SDe extends S {
 
   @override
   String errSshHostKeyRejected(String host, int port) {
-    return 'Hostschlüssel für $host:$port abgelehnt — akzeptieren Sie den Hostschlüssel oder prüfen Sie known_hosts';
+    return 'Hostschlüssel für $host:$port abgelehnt — akzeptiere den Hostschlüssel oder prüfe known_hosts';
   }
 
   @override
@@ -1348,7 +1347,7 @@ class SDe extends S {
 
   @override
   String get errExportPickerUnavailable =>
-      'Die System-Ordnerauswahl ist nicht verfügbar. Versuchen Sie einen anderen Speicherort oder überprüfen Sie die Speicherberechtigungen der App.';
+      'Die System-Ordnerauswahl ist nicht verfügbar. Versuche einen anderen Speicherort oder überprüfe die Speicherberechtigungen der App.';
 
   @override
   String get biometricUnlockPrompt => 'LetsFLUTssh entsperren';
@@ -1366,7 +1365,7 @@ class SDe extends S {
 
   @override
   String get biometricUnlockFailed =>
-      'Biometrische Entsperrung fehlgeschlagen. Geben Sie Ihr Masterpasswort ein.';
+      'Biometrische Entsperrung fehlgeschlagen. Gib dein Masterpasswort ein.';
 
   @override
   String get biometricUnlockCancelled =>
@@ -1395,7 +1394,7 @@ class SDe extends S {
 
   @override
   String get lockScreenSubtitle =>
-      'Geben Sie das Master-Passwort ein oder verwenden Sie Biometrie, um fortzufahren.';
+      'Gib das Master-Passwort ein oder verwende Biometrie, um fortzufahren.';
 
   @override
   String get unlock => 'Entsperren';
@@ -1459,12 +1458,12 @@ class SDe extends S {
 
   @override
   String errLfsImportRolledBack(String cause) {
-    return 'Import fehlgeschlagen – Ihre Daten wurden auf den Stand vor dem Import zurückgesetzt. ($cause)';
+    return 'Import fehlgeschlagen – deine Daten wurden auf den Stand vor dem Import zurückgesetzt. ($cause)';
   }
 
   @override
   String errLfsUnsupportedVersion(int found, int supported) {
-    return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisieren Sie die App, um es zu importieren.';
+    return 'Archiv verwendet Schema v$found, aber dieser Build unterstützt nur bis v$supported. Aktualisiere die App, um es zu importieren.';
   }
 
   @override
@@ -1561,7 +1560,7 @@ class SDe extends S {
 
   @override
   String get storagePermissionLimited =>
-      'Eingeschränkter Zugriff — erteilen Sie die volle Speicherberechtigung für alle Dateien';
+      'Eingeschränkter Zugriff — erteile die volle Speicherberechtigung für alle Dateien';
 
   @override
   String progressConnecting(String host, int port) {
@@ -1628,7 +1627,7 @@ class SDe extends S {
 
   @override
   String fileConflictMessage(String fileName, String targetDir) {
-    return '\"$fileName\" existiert bereits in $targetDir. Was möchten Sie tun?';
+    return '\"$fileName\" existiert bereits in $targetDir. Was möchtest du tun?';
   }
 
   @override
@@ -1656,7 +1655,7 @@ class SDe extends S {
 
   @override
   String get sessionNoCredentials =>
-      'Sitzung hat keine Anmeldedaten — bearbeiten Sie sie, um ein Passwort oder einen Schlüssel hinzuzufügen';
+      'Sitzung hat keine Anmeldedaten — bearbeite sie, um ein Passwort oder einen Schlüssel hinzuzufügen';
 
   @override
   String dragItemCount(int count) {
@@ -1722,7 +1721,7 @@ class SDe extends S {
 
   @override
   String get knownHostsEmpty =>
-      'Keine bekannten Hosts. Verbinden Sie sich mit einem Server, um einen hinzuzufügen.';
+      'Keine bekannten Hosts. Verbinde dich mit einem Server, um einen hinzuzufügen.';
 
   @override
   String get removeHost => 'Host entfernen';
@@ -1758,8 +1757,7 @@ class SDe extends S {
       'Verwaltung von SSH-Schlüsselpaaren zur Authentifizierung';
 
   @override
-  String get noKeys =>
-      'Keine SSH-Schlüssel. Importieren oder generieren Sie einen.';
+  String get noKeys => 'Keine SSH-Schlüssel. Importiere oder generiere einen.';
 
   @override
   String get generateKey => 'Schlüssel generieren';
@@ -1901,7 +1899,7 @@ class SDe extends S {
 
   @override
   String get enterMasterPassword =>
-      'Geben Sie das Master-Passwort ein, um Ihre gespeicherten Anmeldedaten zu entsperren.';
+      'Gib das Master-Passwort ein, um deine gespeicherten Anmeldedaten zu entsperren.';
 
   @override
   String get wrongMasterPassword => 'Falsches Passwort. Erneut versuchen.';
@@ -1948,7 +1946,7 @@ class SDe extends S {
 
   @override
   String get tierResetWarning =>
-      'Mit „Zurücksetzen & Neu einrichten“ werden die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft gelöscht. Wenn Sie Ihre Daten wiederherstellen müssen, beenden Sie die App jetzt und installieren Sie die vorherige Version von LetsFLUTssh erneut, um zunächst zu exportieren.';
+      'Mit „Zurücksetzen & Neu einrichten“ werden die verschlüsselte Datenbank und alle sicherheitsrelevanten Dateien dauerhaft gelöscht. Wenn du deine Daten wiederherstellen musst, beende die App jetzt und installiere die vorherige Version von LetsFLUTssh erneut, um zunächst zu exportieren.';
 
   @override
   String get tierResetResetContinue => 'Zurücksetzen & Neu einrichten';
@@ -2087,7 +2085,7 @@ class SDe extends S {
 
   @override
   String get securityMacosEnableSecureTiersPrompt =>
-      'macOS fragt einmalig nach Ihrem Passwort';
+      'macOS fragt einmalig nach deinem Passwort';
 
   @override
   String get securityMacosEnableSecureTiersSuccess =>
@@ -2103,7 +2101,7 @@ class SDe extends S {
 
   @override
   String get securityMacosOfferBody =>
-      'macOS bindet verschlüsselten Speicher an die Signier-Identität der App. Ohne stabiles Zertifikat verweigern Schlüsselbund (T1) und Secure Enclave (T2) den Zugriff. Wir können ein persönliches, selbstsigniertes Zertifikat erstellen und die App damit neu signieren — Updates funktionieren weiter und Ihre Geheimnisse überdauern Versionen. macOS fragt einmal nach Ihrem Anmeldepasswort, um dem neuen Zertifikat zu vertrauen.';
+      'macOS bindet verschlüsselten Speicher an die Signier-Identität der App. Ohne stabiles Zertifikat verweigern Schlüsselbund (T1) und Secure Enclave (T2) den Zugriff. Wir können ein persönliches, selbstsigniertes Zertifikat erstellen und die App damit neu signieren — Updates funktionieren weiter und deine Geheimnisse überdauern Versionen. macOS fragt einmal nach deinem Anmeldepasswort, um dem neuen Zertifikat zu vertrauen.';
 
   @override
   String get securityMacosOfferAccept => 'Aktivieren';
@@ -2125,7 +2123,7 @@ class SDe extends S {
 
   @override
   String get securityMacosRemoveIdentityConfirmBody =>
-      'Löscht das persönliche Zertifikat aus dem Anmelde-Schlüsselbund. T1 / T2 gespeicherte Geheimnisse werden unlesbar. Der Wizard öffnet sich, damit Sie vor dem Entfernen auf T0 (Klartext) oder Paranoid (Master-Passwort) migrieren.';
+      'Löscht das persönliche Zertifikat aus dem Anmelde-Schlüsselbund. T1 / T2 gespeicherte Geheimnisse werden unlesbar. Der Wizard öffnet sich, damit du vor dem Entfernen auf T0 (Klartext) oder Paranoid (Master-Passwort) migrierst.';
 
   @override
   String get securityMacosRemoveIdentitySuccess => 'Signier-Identität entfernt';
@@ -2594,7 +2592,7 @@ class SDe extends S {
 
   @override
   String resetAllDataConfirmTypePrompt(String phrase) {
-    return 'Geben Sie $phrase unten ein, um zu bestätigen:';
+    return 'Gib $phrase unten ein, um zu bestätigen:';
   }
 
   @override
@@ -2706,7 +2704,7 @@ class SDe extends S {
 
   @override
   String get biometricRequiresPassword =>
-      'Aktivieren Sie zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.';
+      'Aktiviere zuerst ein Passwort — Biometrie ist nur eine Verknüpfung zur Eingabe.';
 
   @override
   String get biometricRequiresActiveTier =>
@@ -2803,7 +2801,7 @@ class SDe extends S {
 
   @override
   String get plaintextAcknowledgeRequired =>
-      'Bestätigen Sie, dass Sie es verstanden haben, bevor Sie fortfahren.';
+      'Bestätige, dass du es verstanden hast, bevor du fortfährst.';
 
   @override
   String get passwordLabel => 'Passwort';

@@ -132,7 +132,7 @@ class SHi extends S {
   String get includePasswords => 'सेशन पासवर्ड';
 
   @override
-  String get embeddedKeys => 'एम्बेडेड कुंजियाँ';
+  String get embeddedKeys => 'सेशन कुंजियाँ';
 
   @override
   String get managerKeys => 'मैनेजर से कुंजियाँ';

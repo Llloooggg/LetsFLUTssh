@@ -131,7 +131,7 @@ class SZh extends S {
   String get includePasswords => '会话密码';
 
   @override
-  String get embeddedKeys => '内置密钥';
+  String get embeddedKeys => '会话密钥';
 
   @override
   String get managerKeys => '管理器中的密钥';
@@ -732,7 +732,7 @@ class SZh extends S {
   String get terminalFontSize => '终端字体大小';
 
   @override
-  String get scrollbackLines => '回滚行数';
+  String get scrollbackLines => '历史行数';
 
   @override
   String get keepAliveInterval => '保活间隔（秒）';

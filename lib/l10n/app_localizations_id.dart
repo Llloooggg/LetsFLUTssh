@@ -132,7 +132,7 @@ class SId extends S {
   String get includePasswords => 'Kata sandi sesi';
 
   @override
-  String get embeddedKeys => 'Kunci tertanam';
+  String get embeddedKeys => 'Kunci sesi';
 
   @override
   String get managerKeys => 'Kunci dari pengelola';

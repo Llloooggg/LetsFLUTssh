@@ -34,7 +34,7 @@
   "settings": "Cài đặt",
   "appSettings": "Cài đặt ứng dụng",
   "includePasswords": "Mật khẩu phiên",
-  "embeddedKeys": "Khóa nhúng",
+  "embeddedKeys": "Khóa phiên",
   "managerKeys": "Khóa từ trình quản lý",
   "managerKeysMayBeLarge": "Khóa trình quản lý có thể vượt quá kích thước QR",
   "qrPasswordWarning": "Khóa SSH bị tắt theo mặc định khi xuất.",

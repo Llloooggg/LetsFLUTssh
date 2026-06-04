@@ -135,7 +135,7 @@ class SPt extends S {
   String get includePasswords => 'Senhas de sessões';
 
   @override
-  String get embeddedKeys => 'Chaves integradas';
+  String get embeddedKeys => 'Chaves de sessão';
 
   @override
   String get managerKeys => 'Chaves do gerenciador';
@@ -2217,11 +2217,11 @@ class SPt extends S {
 
   @override
   String get snippetTokensHint =>
-      'Toca para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:';
+      'Toque para inserir um marcador. Estes são substituídos em tempo de execução por valores da sessão ativa:';
 
   @override
   String get snippetCustomTokensHint =>
-      'Qualquer outro com chavetas duplas pede-te um valor quando o snippet executa.';
+      'Qualquer outro com chaves duplas pede um valor quando o snippet executa.';
 
   @override
   String get snippetFillTitle => 'Preencher os parâmetros do snippet';
@@ -2314,7 +2314,7 @@ class SPt extends S {
 
   @override
   String get forwardKindDynamicHelp =>
-      'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponta o teu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
+      'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponte o seu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
 
   @override
   String get proxyJump => 'Ligar através de';
@@ -2937,7 +2937,7 @@ class SPt extends S {
 
   @override
   String get trustedCertHelp =>
-      'Cola o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixa vazio para usar o trust store do sistema.';
+      'Cole o certificado do servidor (um ou mais blocos PEM). Adicionado como CA raiz adicional apenas para esta sessão — não afeta outras apps. Deixe vazio para usar o trust store do sistema.';
 
   @override
   String get acceptAnyCert => 'Aceitar qualquer certificado';
@@ -3658,7 +3658,7 @@ class SPt extends S {
 
   @override
   String get keystoreStrongBoxFallbackBody =>
-      'Teu device não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.';
+      'Seu dispositivo não expõe o StrongBox HSM. Criar uma chave adossada ao TEE em vez disso? Continua hardware-backed, só sem o isolamento do StrongBox.';
 
   @override
   String get keystoreStrongBoxFallbackConfirm => 'Usar TEE';

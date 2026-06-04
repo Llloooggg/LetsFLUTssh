@@ -134,7 +134,7 @@ class SRu extends S {
   String get includePasswords => 'Пароли сессий';
 
   @override
-  String get embeddedKeys => 'Встроенные ключи';
+  String get embeddedKeys => 'Ключи сессий';
 
   @override
   String get managerKeys => 'Ключи из менеджера';
@@ -2171,11 +2171,11 @@ class SRu extends S {
 
   @override
   String get snippetTokensHint =>
-      'Нажми чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:';
+      'Нажмите, чтобы вставить плейсхолдер. Они подставляются при запуске значениями из активной сессии:';
 
   @override
   String get snippetCustomTokensHint =>
-      'Любое другое имя в двойных фигурных скобках спросит у тебя значение при выполнении.';
+      'Любое другое имя в двойных фигурных скобках спросит у вас значение при выполнении.';
 
   @override
   String get snippetFillTitle => 'Заполните параметры сниппета';
@@ -2268,7 +2268,7 @@ class SRu extends S {
 
   @override
   String get forwardKindDynamicHelp =>
-      'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
+      'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажите браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
 
   @override
   String get proxyJump => 'Подключаться через';
@@ -2503,7 +2503,7 @@ class SRu extends S {
   String get colT0 => 'T0 Открытый текст';
 
   @override
-  String get colT1 => 'T1 Ключница';
+  String get colT1 => 'T1 Keychain';
 
   @override
   String get colT1Password => 'T1 + пароль';
@@ -2947,7 +2947,7 @@ class SRu extends S {
 
   @override
   String get s3EndpointHint =>
-      'Пусто для AWS, или укажи для MinIO / R2 / Spaces';
+      'Пусто для AWS, или укажите для MinIO / R2 / Spaces';
 
   @override
   String get s3PathStyle => 'Path-style адресация';
@@ -2987,7 +2987,7 @@ class SRu extends S {
 
   @override
   String get errS3AuthFailed =>
-      'S3 authentication failed (проверь access key + secret)';
+      'S3 authentication failed (проверьте access key + secret)';
 
   @override
   String get errS3NoSuchBucket => 'Bucket не существует или недоступен';

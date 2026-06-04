@@ -134,7 +134,7 @@ class SFa extends S {
   String get includePasswords => 'رمزهای عبور نشست‌ها';
 
   @override
-  String get embeddedKeys => 'کلیدهای جاسازی‌شده';
+  String get embeddedKeys => 'کلیدهای نشست';
 
   @override
   String get managerKeys => 'کلیدها از مدیر';
@@ -215,7 +215,7 @@ class SFa extends S {
   String get checkForUpdates => 'بررسی به‌روزرسانی';
 
   @override
-  String get checkNow => 'اکنون بررسی کن';
+  String get checkNow => 'اکنون بررسی کنید';
 
   @override
   String get checkForUpdatesOnStartup => 'بررسی به‌روزرسانی هنگام راه‌اندازی';
@@ -1755,7 +1755,7 @@ class SFa extends S {
 
   @override
   String get certImportPickerTitle =>
-      'فایل certificate از نوع OpenSSH را انتخاب کن';
+      'فایل certificate از نوع OpenSSH را انتخاب کنید';
 
   @override
   String get certValidFrom => 'معتبر از';
@@ -2411,7 +2411,7 @@ class SFa extends S {
 
   @override
   String get checkForUpdatesOnStartupSubtitle =>
-      'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
+      'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کنید';
 
   @override
   String get threatColdDiskTheft => 'سرقت دیسک آفلاین';
@@ -2793,7 +2793,7 @@ class SFa extends S {
 
   @override
   String get recordingPlayLocked =>
-      'برای پخش این ضبط رمزگذاری‌شده، قفل برنامه را باز کن.';
+      'برای پخش این ضبط رمزگذاری‌شده، قفل برنامه را باز کنید.';
 
   @override
   String get recordToggleStart => 'شروع ضبط';
@@ -2954,7 +2954,7 @@ class SFa extends S {
 
   @override
   String get errS3AuthFailed =>
-      'S3 authentication failed (access key + secret را بررسی کن)';
+      'S3 authentication failed (access key + secret را بررسی کنید)';
 
   @override
   String get errS3NoSuchBucket => 'Bucket وجود ندارد یا قابل دسترسی نیست';
@@ -3425,7 +3425,7 @@ class SFa extends S {
 
   @override
   String get helloP384NotSupported =>
-      'فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کن.';
+      'فریمور TPM از P-384 پشتیبانی نمی‌کند. P-256 یا RSA-2048 را انتخاب کنید.';
 
   @override
   String get helloConfigureFirst =>

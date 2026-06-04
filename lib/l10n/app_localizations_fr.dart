@@ -103,7 +103,7 @@ class SFr extends S {
   String get required => 'Requis';
 
   @override
-  String get errFillRequiredFields => 'Remplis les champs requis marqués *';
+  String get errFillRequiredFields => 'Remplissez les champs requis marqués *';
 
   @override
   String get settings => 'Paramètres';
@@ -133,7 +133,7 @@ class SFr extends S {
   String get includePasswords => 'Mots de passe des sessions';
 
   @override
-  String get embeddedKeys => 'Clés intégrées';
+  String get embeddedKeys => 'Clés de session';
 
   @override
   String get managerKeys => 'Clés du gestionnaire';
@@ -1332,7 +1332,7 @@ class SFr extends S {
 
   @override
   String get errConnectionLostReconnect =>
-      'Connexion perdue — la session a été déconnectée (veille ou réseau). Reconnecte-la depuis la liste des sessions.';
+      'Connexion perdue — la session a été déconnectée (veille ou réseau). Reconnectez-la depuis la liste des sessions.';
 
   @override
   String errConnectionTimedOutSeconds(int seconds) {
@@ -2763,14 +2763,14 @@ class SFr extends S {
 
   @override
   String get t2MigrationSetPasswordBody =>
-      'Saisis un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
+      'Saisissez un nouveau mot de passe maître. La clé DB déjà scellée dans le module hardware est re-scellée sous ce mot de passe — sessions et clés restent intactes.';
 
   @override
   String get t2MigrationWipeAndRestart => 'Wipe et repartir de zéro';
 
   @override
   String get t2MigrationResealFailed =>
-      'Re-seal de la couche Hardware échoué — choisis un autre mot de passe ou wipe.';
+      'Re-seal de la couche Hardware échoué — choisissez un autre mot de passe ou wipe.';
 
   @override
   String get biometricOverlayEnable =>
@@ -2778,7 +2778,7 @@ class SFr extends S {
 
   @override
   String get biometricOverlayEnableSubtitle =>
-      'Libère ton mot de passe depuis un slot OS protégé par biométrie.';
+      'Libère votre mot de passe depuis un slot OS protégé par biométrie.';
 
   @override
   String get biometricOverlayUnavailable =>
@@ -2786,14 +2786,14 @@ class SFr extends S {
 
   @override
   String get biometricOverlayRequiresPassword =>
-      'Définis d\'abord le mot de passe de la couche Hardware.';
+      'Définissez d\'abord le mot de passe de la couche Hardware.';
 
   @override
-  String get t2UnlockTitle => 'Déverrouiller avec ton mot de passe maître';
+  String get t2UnlockTitle => 'Déverrouiller avec votre mot de passe maître';
 
   @override
   String get t2UnlockSubtitle =>
-      'La clé hardware-bound est protégée par ton mot de passe.';
+      'La clé hardware-bound est protégée par votre mot de passe.';
 
   @override
   String get t2UnlockUseBiometricButton => 'Utiliser la biométrie';
@@ -2954,7 +2954,7 @@ class SFr extends S {
 
   @override
   String get trustedCertHelp =>
-      'Colle le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laisse vide pour utiliser le trust store du système.';
+      'Collez le certificat du serveur (un ou plusieurs blocs PEM). Ajouté comme CA racine supplémentaire pour cette session seulement — n\'affecte pas les autres applis. Laissez vide pour utiliser le trust store du système.';
 
   @override
   String get acceptAnyCert => 'Accepter tout certificat';
@@ -3021,7 +3021,7 @@ class SFr extends S {
   String get s3PathStyle => 'Adressage path-style';
 
   @override
-  String get s3PathStyleHint => 'Requis pour MinIO ; laisse off pour AWS';
+  String get s3PathStyleHint => 'Requis pour MinIO ; laissez off pour AWS';
 
   @override
   String get s3DefaultBucket => 'Bucket par défaut';
@@ -3055,7 +3055,7 @@ class SFr extends S {
 
   @override
   String get errS3AuthFailed =>
-      'S3 authentication failed (vérifie access key + secret)';
+      'S3 authentication failed (vérifiez access key + secret)';
 
   @override
   String get errS3NoSuchBucket => 'Le bucket n\'existe pas ou est inaccessible';
@@ -3148,7 +3148,7 @@ class SFr extends S {
   String get hardwareKey => 'Hardware key';
 
   @override
-  String get hardwareKeyTapPrompt => 'Touche ton hardware key';
+  String get hardwareKeyTapPrompt => 'Touchez votre hardware key';
 
   @override
   String get hardwareKeyPin => 'PIN du hardware key';
@@ -3165,7 +3165,7 @@ class SFr extends S {
 
   @override
   String get hardwareKeyAppleEntitlementRequired =>
-      'Nécessite un entitlement Apple Developer Program ; utilise ssh-agent sur macOS';
+      'Nécessite un entitlement Apple Developer Program ; utilisez ssh-agent sur macOS';
 
   @override
   String get skKeyRequiresDevice =>
@@ -3193,7 +3193,7 @@ class SFr extends S {
 
   @override
   String get agentEndpointToggleSubtitle =>
-      'Permet à git, ssh et aux plugins IDE de ce poste d\'utiliser tes keys FIDO2 / smart-card / TPM.';
+      'Permet à git, ssh et aux plugins IDE de ce poste d\'utiliser vos keys FIDO2 / smart-card / TPM.';
 
   @override
   String get agentEndpointPathLabel => 'SSH_AUTH_SOCK';
@@ -3536,11 +3536,11 @@ class SFr extends S {
 
   @override
   String get helloP384NotSupported =>
-      'Le firmware TPM ne gère pas P-384. Choisis P-256 ou RSA-2048.';
+      'Le firmware TPM ne gère pas P-384. Choisissez P-256 ou RSA-2048.';
 
   @override
   String get helloConfigureFirst =>
-      'Configure d\'abord Windows Hello dans Paramètres -> Options de connexion.';
+      'Configurez d\'abord Windows Hello dans Paramètres -> Options de connexion.';
 
   @override
   String get tpmSshTitle => 'Générer une clé SSH adossée au TPM';
@@ -3612,7 +3612,7 @@ class SFr extends S {
 
   @override
   String get tpmSshUnavailableNoPermission =>
-      'L\'app ne peut pas accéder au TPM. Ajoute l\'utilisateur au groupe `tss`.';
+      'L\'app ne peut pas accéder au TPM. Ajoutez l\'utilisateur au groupe `tss`.';
 
   @override
   String tpmSshHandleInUse(String handle) {
@@ -3624,7 +3624,7 @@ class SFr extends S {
 
   @override
   String get tpmSshSilentWarning =>
-      'Cette clé signe SANS prompt Hello / PIN — toute personne ayant accès au bureau pendant que tu es connecté peut l\'utiliser.';
+      'Cette clé signe SANS prompt Hello / PIN — toute personne ayant accès au bureau pendant que vous êtes connecté peut l\'utiliser.';
 
   @override
   String get keystoreWizardTitle => 'Android Hardware Key';
@@ -3646,11 +3646,11 @@ class SFr extends S {
 
   @override
   String get keystoreKeyAuthPrompt =>
-      'Authentifie-toi pour utiliser la clé SSH';
+      'Authentifiez-vous pour utiliser la clé SSH';
 
   @override
   String get keystoreKeyInvalidatedByEnrollment =>
-      'Clé détruite : une nouvelle biométrie a été enregistrée. Réenregistre la clé publique sur tes serveurs.';
+      'Clé détruite : une nouvelle biométrie a été enregistrée. Réenregistrez la clé publique sur vos serveurs.';
 
   @override
   String get keystoreKeyStrongBoxUnavailable =>
@@ -3666,11 +3666,11 @@ class SFr extends S {
 
   @override
   String get keystoreKeyDeleteWarning =>
-      'Supprimer cette clé la retire du stockage hardware. Les serveurs la rejetteront jusqu\'à ce que tu en enregistres une nouvelle.';
+      'Supprimer cette clé la retire du stockage hardware. Les serveurs la rejetteront jusqu\'à ce que vous en enregistriez une nouvelle.';
 
   @override
   String get keystoreKeyBiometricNotEnrolled =>
-      'Configure d\'abord la biométrie ou le PIN de l\'appareil';
+      'Configurez d\'abord la biométrie ou le PIN de l\'appareil';
 
   @override
   String get keystoreAlgEcdsaP256 => 'ECDSA P-256 (StrongBox-eligible)';
@@ -3686,7 +3686,7 @@ class SFr extends S {
 
   @override
   String get keystoreStrongBoxFallbackBody =>
-      'Ton appareil n\'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l\'isolation StrongBox.';
+      'Votre appareil n\'expose pas le StrongBox HSM. Créer une clé adossée au TEE à la place ? Toujours hardware-backed, juste sans l\'isolation StrongBox.';
 
   @override
   String get keystoreStrongBoxFallbackConfirm => 'Utiliser TEE';

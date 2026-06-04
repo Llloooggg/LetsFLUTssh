@@ -132,7 +132,7 @@ class SAr extends S {
   String get includePasswords => 'كلمات مرور الجلسات';
 
   @override
-  String get embeddedKeys => 'المفاتيح المضمنة';
+  String get embeddedKeys => 'مفاتيح الجلسات';
 
   @override
   String get managerKeys => 'المفاتيح من المدير';
@@ -2515,14 +2515,14 @@ class SAr extends S {
 
   @override
   String get resetAllDataSubtitle =>
-      'حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يُمسح أيضاً مدخلات سلسلة المفاتيح وفتحات hardware vault.';
+      'حذف جميع الجلسات والمفاتيح والإعدادات ومكونات الأمان. يُمسح أيضاً مدخلات سلسلة المفاتيح وفتحات خزينة الأجهزة.';
 
   @override
   String get resetAllDataConfirmTitle => 'إعادة تعيين جميع البيانات؟';
 
   @override
   String get resetAllDataConfirmBody =>
-      'سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known_hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (مدخلات سلسلة المفاتيح، بيانات hardware vault، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.';
+      'سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known_hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (مدخلات سلسلة المفاتيح، بيانات خزينة الأجهزة، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.';
 
   @override
   String get resetAllDataConfirmAction => 'إعادة تعيين كل شيء';
@@ -2625,7 +2625,7 @@ class SAr extends S {
   String get modifierPasswordLabel => 'كلمة المرور';
 
   @override
-  String get modifierPasswordSubtitle => 'حاجز سري يُكتب قبل فتح القبو.';
+  String get modifierPasswordSubtitle => 'حاجز سري يُكتب قبل فتح الخزينة.';
 
   @override
   String get modifierPasswordRequired =>
@@ -2778,14 +2778,14 @@ class SAr extends S {
 
   @override
   String get fatalErrorWipeExplanation =>
-      'المحو يحذف كل ملفات التطبيق (config وقاعدة البيانات وكتل vault والـ log)، فيبدأ التشغيل التالي من تثبيت نظيف. لا يمكن التراجع.';
+      'المحو يحذف كل ملفات التطبيق (config وقاعدة البيانات وكتل الخزينة والـ log)، فيبدأ التشغيل التالي من تثبيت نظيف. لا يمكن التراجع.';
 
   @override
   String get fatalErrorWipeConfirmTitle => 'محو كل البيانات؟';
 
   @override
   String get fatalErrorWipeConfirmBody =>
-      'هذا يحذف نهائيًا كل ملفات config وقاعدة البيانات وvault. سيعيد التطبيق التشغيل من تثبيت فارغ. متابعة؟';
+      'هذا يحذف نهائيًا كل ملفات config وقاعدة البيانات والخزينة. سيعيد التطبيق التشغيل من تثبيت فارغ. متابعة؟';
 
   @override
   String get fatalErrorWipeConfirmAction => 'محو كل شيء';

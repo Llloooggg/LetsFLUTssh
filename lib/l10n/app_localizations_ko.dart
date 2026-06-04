@@ -131,7 +131,7 @@ class SKo extends S {
   String get includePasswords => '세션 비밀번호';
 
   @override
-  String get embeddedKeys => '내장 키';
+  String get embeddedKeys => '세션 키';
 
   @override
   String get managerKeys => '키 관리자 항목';

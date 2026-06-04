@@ -180,6 +180,28 @@ void main() {
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
       expect(app.locale, const Locale('ru'));
     });
+
+    // Spec: the app keeps its chrome in the LTR orientation for every
+    // locale. An RTL locale (ar / fa) still gets correct right-to-left
+    // *text* via glyph-level bidi, but `_buildAppShell` wraps the whole
+    // tree in Directionality.ltr so the layout never mirrors. Pin that
+    // wrap — dropping it re-introduces the full-app mirroring it
+    // replaced (padding, alignment, Row order, nav all flipping).
+    testWidgets('pins layout to LTR under an RTL locale (ar)', (tester) async {
+      final config = AppConfig.defaults.copyWith(locale: 'ar');
+      await tester.pumpWidget(buildApp(config: config));
+      await tester.pumpAndSettle();
+
+      // MaterialApp still resolves the RTL locale so text renders
+      // right-to-left at the glyph level...
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp).first);
+      expect(app.locale, const Locale('ar'));
+
+      // ...but the ambient Directionality below the shell is LTR, so
+      // the layout itself stays in the English orientation.
+      final shellContext = tester.element(find.byType(MediaQuery).last);
+      expect(Directionality.of(shellContext), TextDirection.ltr);
+    });
   });
 
   group('MainScreen — desktop layout', () {

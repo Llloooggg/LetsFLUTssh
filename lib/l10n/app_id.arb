@@ -34,7 +34,7 @@
   "settings": "Pengaturan",
   "appSettings": "Pengaturan Aplikasi",
   "includePasswords": "Kata sandi sesi",
-  "embeddedKeys": "Kunci tertanam",
+  "embeddedKeys": "Kunci sesi",
   "managerKeys": "Kunci dari pengelola",
   "managerKeysMayBeLarge": "Kunci pengelola dapat melebihi ukuran QR",
   "qrPasswordWarning": "Kunci SSH dinonaktifkan secara default saat ekspor.",
