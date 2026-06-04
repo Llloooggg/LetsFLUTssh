@@ -213,7 +213,7 @@
   "resetToDefaults": "恢复默认设置",
   "uiScale": "界面缩放",
   "terminalFontSize": "终端字体大小",
-  "scrollbackLines": "回滚行数",
+  "scrollbackLines": "历史行数",
   "keepAliveInterval": "保活间隔（秒）",
   "sshTimeout": "SSH 超时（秒）",
   "defaultPort": "默认端口",
