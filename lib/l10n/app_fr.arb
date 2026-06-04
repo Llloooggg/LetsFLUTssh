@@ -34,7 +34,7 @@
   "settings": "Paramètres",
   "appSettings": "Paramètres de l'application",
   "includePasswords": "Mots de passe des sessions",
-  "embeddedKeys": "Clés intégrées",
+  "embeddedKeys": "Clés de session",
   "managerKeys": "Clés du gestionnaire",
   "managerKeysMayBeLarge": "Les clés du gestionnaire peuvent dépasser la taille QR",
   "qrPasswordWarning": "Les clés SSH sont désactivées par défaut à l'export.",

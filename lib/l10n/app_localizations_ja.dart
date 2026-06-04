@@ -131,7 +131,7 @@ class SJa extends S {
   String get includePasswords => 'セッションパスワード';
 
   @override
-  String get embeddedKeys => '埋め込みキー';
+  String get embeddedKeys => 'セッションキー';
 
   @override
   String get managerKeys => 'マネージャーのキー';

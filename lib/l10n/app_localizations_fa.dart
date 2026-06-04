@@ -134,7 +134,7 @@ class SFa extends S {
   String get includePasswords => 'رمزهای عبور نشست‌ها';
 
   @override
-  String get embeddedKeys => 'کلیدهای جاسازی‌شده';
+  String get embeddedKeys => 'کلیدهای نشست';
 
   @override
   String get managerKeys => 'کلیدها از مدیر';

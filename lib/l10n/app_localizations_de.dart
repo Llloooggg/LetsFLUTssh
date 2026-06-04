@@ -135,7 +135,7 @@ class SDe extends S {
   String get includePasswords => 'Sitzungs-Passwörter';
 
   @override
-  String get embeddedKeys => 'Eingebettete Schlüssel';
+  String get embeddedKeys => 'Sitzungsschlüssel';
 
   @override
   String get managerKeys => 'Schlüssel aus dem Manager';

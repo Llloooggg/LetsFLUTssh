@@ -34,7 +34,7 @@
   "settings": "设置",
   "appSettings": "应用设置",
   "includePasswords": "会话密码",
-  "embeddedKeys": "内置密钥",
+  "embeddedKeys": "会话密钥",
   "managerKeys": "管理器中的密钥",
   "managerKeysMayBeLarge": "管理器密钥可能超出 QR 大小限制",
   "qrPasswordWarning": "导出时 SSH 密钥默认已禁用。",

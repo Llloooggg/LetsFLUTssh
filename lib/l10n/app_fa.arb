@@ -34,7 +34,7 @@
   "settings": "تنظیمات",
   "appSettings": "تنظیمات برنامه",
   "includePasswords": "رمزهای عبور نشست‌ها",
-  "embeddedKeys": "کلیدهای جاسازی‌شده",
+  "embeddedKeys": "کلیدهای نشست",
   "managerKeys": "کلیدها از مدیر",
   "managerKeysMayBeLarge": "کلیدهای مدیر ممکن است از اندازه QR فراتر رود",
   "qrPasswordWarning": "کلیدهای SSH به طور پیش‌فرض برای صدور غیرفعال هستند.",

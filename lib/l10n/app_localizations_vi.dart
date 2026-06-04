@@ -132,7 +132,7 @@ class SVi extends S {
   String get includePasswords => 'Mật khẩu phiên';
 
   @override
-  String get embeddedKeys => 'Khóa nhúng';
+  String get embeddedKeys => 'Khóa phiên';
 
   @override
   String get managerKeys => 'Khóa từ trình quản lý';

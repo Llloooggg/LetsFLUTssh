@@ -34,7 +34,7 @@
   "settings": "الإعدادات",
   "appSettings": "إعدادات التطبيق",
   "includePasswords": "كلمات مرور الجلسات",
-  "embeddedKeys": "المفاتيح المضمنة",
+  "embeddedKeys": "مفاتيح الجلسات",
   "managerKeys": "المفاتيح من المدير",
   "managerKeysMayBeLarge": "قد تتجاوز مفاتيح المدير حجم رمز QR",
   "qrPasswordWarning": "مفاتيح SSH معطلة افتراضيًا للتصدير.",

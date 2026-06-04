@@ -133,7 +133,7 @@ class STr extends S {
   String get includePasswords => 'Oturum parolaları';
 
   @override
-  String get embeddedKeys => 'Gömülü anahtarlar';
+  String get embeddedKeys => 'Oturum anahtarları';
 
   @override
   String get managerKeys => 'Yöneticideki anahtarlar';

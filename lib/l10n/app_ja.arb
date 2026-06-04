@@ -34,7 +34,7 @@
   "settings": "設定",
   "appSettings": "アプリ設定",
   "includePasswords": "セッションパスワード",
-  "embeddedKeys": "埋め込みキー",
+  "embeddedKeys": "セッションキー",
   "managerKeys": "マネージャーのキー",
   "managerKeysMayBeLarge": "マネージャーキーはQRサイズ制限を超える可能性があります",
   "qrPasswordWarning": "SSHキーはエクスポート時、既定で無効です。",

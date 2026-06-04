@@ -34,7 +34,7 @@
   "settings": "Einstellungen",
   "appSettings": "App-Einstellungen",
   "includePasswords": "Sitzungs-Passwörter",
-  "embeddedKeys": "Eingebettete Schlüssel",
+  "embeddedKeys": "Sitzungsschlüssel",
   "managerKeys": "Schlüssel aus dem Manager",
   "managerKeysMayBeLarge": "Manager-Schlüssel können die QR-Größe überschreiten",
   "qrPasswordWarning": "SSH-Schlüssel sind beim Export standardmäßig deaktiviert.",

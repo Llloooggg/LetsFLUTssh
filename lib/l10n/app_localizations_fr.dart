@@ -133,7 +133,7 @@ class SFr extends S {
   String get includePasswords => 'Mots de passe des sessions';
 
   @override
-  String get embeddedKeys => 'Clés intégrées';
+  String get embeddedKeys => 'Clés de session';
 
   @override
   String get managerKeys => 'Clés du gestionnaire';

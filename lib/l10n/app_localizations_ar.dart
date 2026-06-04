@@ -132,7 +132,7 @@ class SAr extends S {
   String get includePasswords => 'كلمات مرور الجلسات';
 
   @override
-  String get embeddedKeys => 'المفاتيح المضمنة';
+  String get embeddedKeys => 'مفاتيح الجلسات';
 
   @override
   String get managerKeys => 'المفاتيح من المدير';

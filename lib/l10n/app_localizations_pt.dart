@@ -135,7 +135,7 @@ class SPt extends S {
   String get includePasswords => 'Senhas de sessões';
 
   @override
-  String get embeddedKeys => 'Chaves integradas';
+  String get embeddedKeys => 'Chaves de sessão';
 
   @override
   String get managerKeys => 'Chaves do gerenciador';

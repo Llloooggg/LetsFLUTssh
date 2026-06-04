@@ -34,7 +34,7 @@
   "settings": "Ayarlar",
   "appSettings": "Uygulama Ayarları",
   "includePasswords": "Oturum parolaları",
-  "embeddedKeys": "Gömülü anahtarlar",
+  "embeddedKeys": "Oturum anahtarları",
   "managerKeys": "Yöneticideki anahtarlar",
   "managerKeysMayBeLarge": "Yönetici anahtarları QR boyutunu aşabilir",
   "qrPasswordWarning": "SSH anahtarları dışa aktarmada varsayılan olarak devre dışıdır.",

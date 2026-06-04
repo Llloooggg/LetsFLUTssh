@@ -34,7 +34,7 @@
   "settings": "Настройки",
   "appSettings": "Настройки приложения",
   "includePasswords": "Пароли сессий",
-  "embeddedKeys": "Встроенные ключи",
+  "embeddedKeys": "Ключи сессий",
   "managerKeys": "Ключи из менеджера",
   "managerKeysMayBeLarge": "Ключи из менеджера могут превысить размер QR",
   "qrPasswordWarning": "SSH-ключи отключены по умолчанию для экспорта.",

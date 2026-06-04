@@ -134,7 +134,7 @@ class SEs extends S {
   String get includePasswords => 'Contraseñas de sesiones';
 
   @override
-  String get embeddedKeys => 'Claves integradas';
+  String get embeddedKeys => 'Claves de sesión';
 
   @override
   String get managerKeys => 'Claves del gestor';

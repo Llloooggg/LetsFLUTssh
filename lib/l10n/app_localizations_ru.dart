@@ -134,7 +134,7 @@ class SRu extends S {
   String get includePasswords => 'Пароли сессий';
 
   @override
-  String get embeddedKeys => 'Встроенные ключи';
+  String get embeddedKeys => 'Ключи сессий';
 
   @override
   String get managerKeys => 'Ключи из менеджера';
