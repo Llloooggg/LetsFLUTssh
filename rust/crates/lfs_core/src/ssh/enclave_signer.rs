@@ -102,14 +102,10 @@ impl Signer for EnclaveSigner {
                     let der = apple_se_ssh::sign(&handle, &to_sign, None)
                         .map_err(|e| Error::Enclave(e.to_string()))?;
                     let sig_blob = crate::ssh::wire::ecdsa_der_to_ssh_mpint(&der)?;
-                    // Compose the userauth `signature` field —
-                    //   string(algorithm) || string(sig_blob)
-                    let algo = "ecdsa-sha2-nistp256";
-                    let mut wrapped = Vec::with_capacity(algo.len() + sig_blob.len() + 8);
-                    wrapped.extend_from_slice(&(algo.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(algo.as_bytes());
-                    wrapped.extend_from_slice(&(sig_blob.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(&sig_blob);
+                    let wrapped = crate::ssh::wire::encode_userauth_signature_field(
+                        "ecdsa-sha2-nistp256",
+                        &sig_blob,
+                    );
                     Ok((to_sign, wrapped))
                 })
                 .await

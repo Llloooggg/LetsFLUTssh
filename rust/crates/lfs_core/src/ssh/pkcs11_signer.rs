@@ -141,14 +141,10 @@ impl Signer for Pkcs11Signer {
                     };
                     let out = pkcs11::sign::sign_with_pkcs11(req)
                         .map_err(|e| Error::Pkcs11(e.to_string()))?;
-                    // Compose the userauth `signature` field:
-                    //   string(algorithm) || string(sig_blob)
-                    let mut wrapped =
-                        Vec::with_capacity(algorithm.len() + out.ssh_sig_body.len() + 8);
-                    wrapped.extend_from_slice(&(algorithm.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(algorithm.as_bytes());
-                    wrapped.extend_from_slice(&(out.ssh_sig_body.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(&out.ssh_sig_body);
+                    let wrapped = crate::ssh::wire::encode_userauth_signature_field(
+                        &algorithm,
+                        &out.ssh_sig_body,
+                    );
                     Ok((to_sign, wrapped))
                 })
                 .await

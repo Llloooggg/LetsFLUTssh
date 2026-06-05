@@ -652,10 +652,15 @@ mod platform_impl {
         // androidx.credentials runtime probe.
         let probe = h::with_env(|env| {
             let class = env
-                .find_class("com/llloooggg/letsflutssh/Fido2Broker")
+                .find_class(h::jni_name("com/llloooggg/letsflutssh/Fido2Broker"))
                 .map_err(|e| format!("jni: find_class Fido2Broker: {e}"))?;
             let result = env
-                .call_static_method(class, "isAvailable", "()Z", &[])
+                .call_static_method(
+                    &class,
+                    h::jni_name("isAvailable"),
+                    h::method_sig("()Z")?.method_signature(),
+                    &[],
+                )
                 .map_err(|e| format!("jni: Fido2Broker.isAvailable: {e}"))?;
             result
                 .z()
@@ -719,18 +724,21 @@ mod platform_impl {
             let cred_obj = JObject::from(cred_arr);
             let chal_obj = JObject::from(chal_arr);
             let class = env
-                .find_class("com/llloooggg/letsflutssh/Fido2Broker")
+                .find_class(h::jni_name("com/llloooggg/letsflutssh/Fido2Broker"))
                 .map_err(|e| format!("jni: find_class Fido2Broker: {e}"))?;
             env.call_static_method(
-                class,
-                "getAssertion",
-                "(Landroidx/fragment/app/FragmentActivity;Ljava/lang/String;[B[BZJ)V",
+                &class,
+                h::jni_name("getAssertion"),
+                h::method_sig(
+                    "(Landroidx/fragment/app/FragmentActivity;Ljava/lang/String;[B[BZJ)V",
+                )?
+                .method_signature(),
                 &[
-                    activity.into(),
+                    activity.as_obj().into(),
                     (&rp_id_j).into(),
                     (&cred_obj).into(),
                     (&chal_obj).into(),
-                    JValue::Bool(u8::from(require_uv)),
+                    JValue::Bool(require_uv),
                     JValue::Long(tag as jlong),
                 ],
             )
@@ -765,49 +773,53 @@ mod platform_impl {
     pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_Fido2Broker_nativeOnAssertion<
         'local,
     >(
-        mut env: jni::JNIEnv<'local>,
+        mut env: jni::EnvUnowned<'local>,
         _class: jni::objects::JClass<'local>,
         tag: jlong,
         signature: jni::objects::JByteArray<'local>,
         authenticator_data: jni::objects::JByteArray<'local>,
         user_handle: jni::objects::JByteArray<'local>,
     ) {
-        let sig_obj = JObject::from(signature);
-        let auth_obj = JObject::from(authenticator_data);
-        let uh_obj = JObject::from(user_handle);
-        let sig_bytes = match h::jbyte_array_to_bytes(&mut env, &sig_obj) {
-            Ok(b) => b,
-            Err(e) => {
-                deliver(
-                    tag as u64,
-                    Err(BrokerError::Other(format!("sig decode: {e}"))),
-                );
-                return;
-            }
-        };
-        let auth_bytes = match h::jbyte_array_to_bytes(&mut env, &auth_obj) {
-            Ok(b) => b,
-            Err(e) => {
-                deliver(
-                    tag as u64,
-                    Err(BrokerError::Other(format!("auth-data decode: {e}"))),
-                );
-                return;
-            }
-        };
-        let user_handle = if uh_obj.is_null() {
-            None
-        } else {
-            h::jbyte_array_to_bytes(&mut env, &uh_obj).ok()
-        };
-        deliver(
-            tag as u64,
-            Ok(BrokerAssertion {
-                signature: sig_bytes,
-                authenticator_data: auth_bytes,
-                user_handle,
-            }),
-        );
+        env.with_env(|env| -> Result<(), jni::errors::Error> {
+            let sig_obj = JObject::from(signature);
+            let auth_obj = JObject::from(authenticator_data);
+            let uh_obj = JObject::from(user_handle);
+            let sig_bytes = match h::jbyte_array_to_bytes(env, &sig_obj) {
+                Ok(b) => b,
+                Err(e) => {
+                    deliver(
+                        tag as u64,
+                        Err(BrokerError::Other(format!("sig decode: {e}"))),
+                    );
+                    return Ok(());
+                }
+            };
+            let auth_bytes = match h::jbyte_array_to_bytes(env, &auth_obj) {
+                Ok(b) => b,
+                Err(e) => {
+                    deliver(
+                        tag as u64,
+                        Err(BrokerError::Other(format!("auth-data decode: {e}"))),
+                    );
+                    return Ok(());
+                }
+            };
+            let user_handle = if uh_obj.is_null() {
+                None
+            } else {
+                h::jbyte_array_to_bytes(env, &uh_obj).ok()
+            };
+            deliver(
+                tag as u64,
+                Ok(BrokerAssertion {
+                    signature: sig_bytes,
+                    authenticator_data: auth_bytes,
+                    user_handle,
+                }),
+            );
+            Ok(())
+        })
+        .resolve::<jni::errors::LogErrorAndDefault>();
     }
 
     /// Bridge into Kotlin → Rust on a failed Credential Manager
@@ -823,29 +835,29 @@ mod platform_impl {
     pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_Fido2Broker_nativeOnFailure<
         'local,
     >(
-        mut env: jni::JNIEnv<'local>,
+        mut env: jni::EnvUnowned<'local>,
         _class: jni::objects::JClass<'local>,
         tag: jlong,
         reason_tag: jni::objects::JString<'local>,
         detail: jni::objects::JString<'local>,
     ) {
-        let reason = env
-            .get_string(&reason_tag)
-            .map(|s| -> String { s.into() })
-            .unwrap_or_else(|_| "other".to_string());
-        let detail_str = env
-            .get_string(&detail)
-            .map(|s| -> String { s.into() })
-            .unwrap_or_default();
-        let mapped = match reason.as_str() {
-            "cancelled" => BrokerError::Cancelled,
-            "timeout" => BrokerError::Timeout,
-            "wrong-pin" => BrokerError::WrongPin,
-            "no-credential" => BrokerError::NoMatchingCredential,
-            "transport" => BrokerError::Transport,
-            _ => BrokerError::Other(detail_str),
-        };
-        deliver(tag as u64, Err(mapped));
+        env.with_env(|env| -> Result<(), jni::errors::Error> {
+            let reason = reason_tag
+                .try_to_string(env)
+                .unwrap_or_else(|_| "other".to_string());
+            let detail_str = detail.try_to_string(env).unwrap_or_default();
+            let mapped = match reason.as_str() {
+                "cancelled" => BrokerError::Cancelled,
+                "timeout" => BrokerError::Timeout,
+                "wrong-pin" => BrokerError::WrongPin,
+                "no-credential" => BrokerError::NoMatchingCredential,
+                "transport" => BrokerError::Transport,
+                _ => BrokerError::Other(detail_str),
+            };
+            deliver(tag as u64, Err(mapped));
+            Ok(())
+        })
+        .resolve::<jni::errors::LogErrorAndDefault>();
     }
 }
 

@@ -114,10 +114,10 @@ pub fn ecdsa_raw_concat_to_ssh_mpint(rs: &[u8]) -> Result<Vec<u8>, Error> {
 /// itself (no DER normalisation, no mpint shaping), so this is the
 /// identity, kept for call-site symmetry with the ECDSA helpers.
 ///
-/// Like [`ecdsa_der_to_ssh_mpint`], the output does NOT carry an outer
-/// SSH `string` prefix — the caller wraps it as
-/// `string(algorithm) || string(body)`. Pre-wrapping here would double
-/// the length prefix and the server would reject the signature.
+/// Like [`ecdsa_der_to_ssh_mpint`], the output is the bare body — no
+/// SSH `string` prefix. The caller passes it to
+/// [`encode_userauth_signature_field`], which adds the algorithm name
+/// and the outer wrapping.
 pub fn rsa_pkcs1_v15_sig_body(sig: &[u8]) -> Vec<u8> {
     sig.to_vec()
 }
@@ -125,8 +125,8 @@ pub fn rsa_pkcs1_v15_sig_body(sig: &[u8]) -> Vec<u8> {
 /// Return the SSH signature *body* for an Ed25519 signature — the raw
 /// 64 bytes. Asserts the length at runtime (every Ed25519 backend
 /// returns exactly 64 bytes per RFC 8032). Like the ECDSA / RSA
-/// helpers the output is the bare body; the caller wraps it as
-/// `string(algorithm) || string(body)`.
+/// helpers the output is the bare body; the caller passes it to
+/// [`encode_userauth_signature_field`].
 pub fn ed25519_sig_body(sig: &[u8]) -> Result<Vec<u8>, Error> {
     if sig.len() != 64 {
         return Err(Error::Auth(format!(
@@ -137,6 +137,25 @@ pub fn ed25519_sig_body(sig: &[u8]) -> Result<Vec<u8>, Error> {
     let mut out = Vec::with_capacity(sig.len());
     out.extend_from_slice(sig);
     Ok(out)
+}
+
+/// Build the SSH userauth `signature` field: ONE outer SSH `string`
+/// wrapping the signature blob `string(algorithm) || string(body)`.
+///
+/// Every `russh::Signer` appends this to the `to_sign` buffer russh
+/// hands it. The server (and `russh`'s own bare-key path, via
+/// `sign_with_hash_alg(..).encode(buffer)`) reads the field as a
+/// SINGLE SSH string and then decodes the inner blob as an
+/// `ssh_key::Signature`. The outer wrap is mandatory: omitting it
+/// makes the length prefix wrong and the server rejects the
+/// credential. The 8 bytes cover the two inner `string` prefixes.
+pub fn encode_userauth_signature_field(wire_alg: &str, sig_body: &[u8]) -> Vec<u8> {
+    let inner_len = wire_alg.len() + sig_body.len() + 8;
+    let mut out = Vec::with_capacity(inner_len + 4);
+    out.extend_from_slice(&(inner_len as u32).to_be_bytes());
+    push_ssh_string(&mut out, wire_alg.as_bytes());
+    push_ssh_string(&mut out, sig_body);
+    out
 }
 
 /// Wrap an uncompressed ECDSA-P256 public point (`0x04 || X(32) ||
@@ -458,44 +477,43 @@ mod tests {
         assert!(matches!(err, Error::Auth(_)));
     }
 
-    /// Regression guard for the double-wrap bug: the hardware-signer
-    /// shape `string(alg) || string(sig_body)` must reproduce exactly
-    /// what ssh-key emits for the same signature. A body helper that
-    /// pre-wrapped (the old behaviour) would add an extra length
-    /// prefix and the server would reject the userauth signature.
+    /// The userauth signature FIELD is one outer SSH string wrapping
+    /// `string(alg) || string(body)`. Decode it exactly as russh's
+    /// SERVER does — read one string, then parse the inner as an
+    /// `ssh_key::Signature` — and confirm it reproduces algorithm +
+    /// body for both RSA and Ed25519. The missing outer string was the
+    /// bug: the server read a wrong length and rejected the credential.
     #[test]
-    fn sig_body_plus_wrap_matches_ssh_key_encoding() {
-        use russh::keys::ssh_key::encoding::Encode;
+    fn userauth_signature_field_round_trips_through_server_decode() {
+        use russh::keys::ssh_key::encoding::Decode;
         use russh::keys::ssh_key::{Algorithm, HashAlg, Signature};
 
         // RSA
         let rsa_raw = vec![0x42u8; 256];
-        let mut authoritative = Vec::new();
-        Signature::new(
+        let field =
+            encode_userauth_signature_field("rsa-sha2-256", &rsa_pkcs1_v15_sig_body(&rsa_raw));
+        let mut r = field.as_slice();
+        let inner = Vec::<u8>::decode(&mut r).unwrap();
+        assert!(r.is_empty(), "exactly one outer string");
+        let sig = Signature::decode(&mut inner.as_slice()).unwrap();
+        assert!(matches!(
+            sig.algorithm(),
             Algorithm::Rsa {
-                hash: Some(HashAlg::Sha256),
-            },
-            rsa_raw.clone(),
-        )
-        .unwrap()
-        .encode(&mut authoritative)
-        .unwrap();
-        let mut composed = Vec::new();
-        push_ssh_string(&mut composed, b"rsa-sha2-256");
-        push_ssh_string(&mut composed, &rsa_pkcs1_v15_sig_body(&rsa_raw));
-        assert_eq!(composed, authoritative, "RSA wire format");
+                hash: Some(HashAlg::Sha256)
+            }
+        ));
+        assert_eq!(sig.as_bytes(), &rsa_raw[..]);
 
         // Ed25519
         let ed_raw = vec![0x11u8; 64];
-        let mut authoritative = Vec::new();
-        Signature::new(Algorithm::Ed25519, ed_raw.clone())
-            .unwrap()
-            .encode(&mut authoritative)
-            .unwrap();
-        let mut composed = Vec::new();
-        push_ssh_string(&mut composed, b"ssh-ed25519");
-        push_ssh_string(&mut composed, &ed25519_sig_body(&ed_raw).unwrap());
-        assert_eq!(composed, authoritative, "Ed25519 wire format");
+        let field =
+            encode_userauth_signature_field("ssh-ed25519", &ed25519_sig_body(&ed_raw).unwrap());
+        let mut r = field.as_slice();
+        let inner = Vec::<u8>::decode(&mut r).unwrap();
+        assert!(r.is_empty(), "exactly one outer string");
+        let sig = Signature::decode(&mut inner.as_slice()).unwrap();
+        assert!(matches!(sig.algorithm(), Algorithm::Ed25519));
+        assert_eq!(sig.as_bytes(), &ed_raw[..]);
     }
 
     #[test]

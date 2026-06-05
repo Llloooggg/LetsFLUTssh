@@ -96,9 +96,9 @@ pub fn set_secure_text(text: &str) -> Result<(), String> {
         // PersistableBundle extras = new PersistableBundle();
         let extras = {
             let class = env
-                .find_class("android/os/PersistableBundle")
+                .find_class(h::jni_name("android/os/PersistableBundle"))
                 .map_err(|e| format!("jni: find_class PersistableBundle: {e}"))?;
-            env.new_object(class, "()V", &[])
+            env.new_object(&class, h::method_sig("()V")?.method_signature(), &[])
                 .map_err(|e| format!("jni: new PersistableBundle: {e}"))?
         };
 
@@ -124,7 +124,7 @@ pub fn set_secure_text(text: &str) -> Result<(), String> {
             &extras,
             "putBoolean",
             "(Ljava/lang/String;Z)V",
-            &[(&key_jstr).into(), JValue::Bool(1)],
+            &[(&key_jstr).into(), JValue::Bool(true)],
         )?;
 
         // desc.setExtras(extras);
@@ -201,7 +201,12 @@ pub fn current_text() -> Option<String> {
 
         // int n = clip.getItemCount();
         let item_count = env
-            .call_method(&clip, "getItemCount", "()I", &[])
+            .call_method(
+                &clip,
+                h::jni_name("getItemCount"),
+                h::method_sig("()I")?.method_signature(),
+                &[],
+            )
             .and_then(|v| v.i())
             .map_err(|e| format!("jni: getItemCount: {e}"))?;
         if item_count <= 0 {
@@ -237,10 +242,7 @@ pub fn current_text() -> Option<String> {
         if s_obj.is_null() {
             return Err("clipboard: toString returned null".to_string());
         }
-        let jstr = jni::objects::JString::from(s_obj);
-        let s: String = env
-            .get_string(&jstr)
-            .map(|s| s.into())
+        let s = h::jstring_to_string(env, s_obj)
             .map_err(|e| format!("jni: get_string clipboard text: {e}"))?;
         Ok(s)
     })
@@ -255,13 +257,17 @@ pub fn current_text() -> Option<String> {
 /// (a `public static final String` on API 33+). Returns `None` on
 /// any JNI failure so the caller can substitute the well-known
 /// literal — both resolve to the same persisted bundle key.
-fn read_extra_is_sensitive(env: &mut jni::JNIEnv) -> Option<String> {
-    let class = env.find_class("android/content/ClipDescription").ok()?;
+fn read_extra_is_sensitive(env: &mut jni::Env) -> Option<String> {
+    let class = env
+        .find_class(h::jni_name("android/content/ClipDescription"))
+        .ok()?;
     let field = env
-        .get_static_field(class, "EXTRA_IS_SENSITIVE", "Ljava/lang/String;")
+        .get_static_field(
+            &class,
+            h::jni_name("EXTRA_IS_SENSITIVE"),
+            h::field_sig("Ljava/lang/String;").ok()?.field_signature(),
+        )
         .ok()?;
     let obj = field.l().ok()?;
-    let jstr = jni::objects::JString::from(obj);
-    let s: String = env.get_string(&jstr).ok().map(|s| s.into())?;
-    Some(s)
+    h::jstring_to_string(env, obj).ok()
 }

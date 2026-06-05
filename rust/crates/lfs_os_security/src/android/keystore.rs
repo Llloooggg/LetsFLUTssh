@@ -39,6 +39,7 @@
 use std::path::{Path, PathBuf};
 
 use jni::objects::{JObject, JValue};
+use jni::Env;
 
 use super::jni_helpers as h;
 use crate::secure_key_storage::SecureStorageError;
@@ -150,12 +151,13 @@ fn read_blocking(alias: &str, biometric: bool) -> Result<Option<Vec<u8>>, Secure
 
         // 3. SecretKey wrap = (SecretKey) ks.getKey(keystore_alias, null);
         let alias_jstr = h::jstring(env, &keystore_alias)?;
+        let null_chars = JObject::null();
         let wrap_key = env
             .call_method(
                 &ks,
-                "getKey",
-                "(Ljava/lang/String;[C)Ljava/security/Key;",
-                &[(&alias_jstr).into(), (&JObject::null()).into()],
+                h::jni_name("getKey"),
+                h::method_sig("(Ljava/lang/String;[C)Ljava/security/Key;")?.method_signature(),
+                &[(&alias_jstr).into(), (&null_chars).into()],
             )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: KeyStore.getKey: {e}"))?;
@@ -178,11 +180,11 @@ fn read_blocking(alias: &str, biometric: bool) -> Result<Option<Vec<u8>>, Secure
         let spec_class = "javax/crypto/spec/GCMParameterSpec";
         let spec = {
             let class = env
-                .find_class(spec_class)
+                .find_class(h::jni_name(spec_class))
                 .map_err(|e| format!("jni: find_class {spec_class}: {e}"))?;
             env.new_object(
-                class,
-                "(I[B)V",
+                &class,
+                h::method_sig("(I[B)V")?.method_signature(),
                 &[JValue::Int(GCM_TAG_BITS), (&iv_array).into()],
             )
             .map_err(|e| format!("jni: new GCMParameterSpec: {e}"))?
@@ -203,7 +205,12 @@ fn read_blocking(alias: &str, biometric: bool) -> Result<Option<Vec<u8>>, Secure
         // 5. byte[] plain = c.doFinal(ct);
         let ct_array = h::bytes_to_jbyte_array(env, ct)?;
         let plain_jobj = env
-            .call_method(&cipher, "doFinal", "([B)[B", &[(&ct_array).into()])
+            .call_method(
+                &cipher,
+                h::jni_name("doFinal"),
+                h::method_sig("([B)[B")?.method_signature(),
+                &[(&ct_array).into()],
+            )
             .and_then(|v| v.l())
             .map_err(|e| {
                 // For biometric path, Cipher.init throws
@@ -257,12 +264,13 @@ fn write_blocking(alias: &str, value: &[u8], biometric: bool) -> Result<(), Secu
         }
 
         // 3. SecretKey wrap = (SecretKey) ks.getKey(keystore_alias, null);
+        let null_chars = JObject::null();
         let wrap_key = env
             .call_method(
                 &ks,
-                "getKey",
-                "(Ljava/lang/String;[C)Ljava/security/Key;",
-                &[(&alias_jstr).into(), (&JObject::null()).into()],
+                h::jni_name("getKey"),
+                h::method_sig("(Ljava/lang/String;[C)Ljava/security/Key;")?.method_signature(),
+                &[(&alias_jstr).into(), (&null_chars).into()],
             )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: KeyStore.getKey: {e}"))?;
@@ -287,13 +295,23 @@ fn write_blocking(alias: &str, value: &[u8], biometric: bool) -> Result<(), Secu
 
         // 5. byte[] iv = c.getIV(); byte[] ct = c.doFinal(value);
         let iv_jobj = env
-            .call_method(&cipher, "getIV", "()[B", &[])
+            .call_method(
+                &cipher,
+                h::jni_name("getIV"),
+                h::method_sig("()[B")?.method_signature(),
+                &[],
+            )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: Cipher.getIV: {e}"))?;
         let iv = h::jbyte_array_to_bytes(env, &iv_jobj)?;
         let value_array = h::bytes_to_jbyte_array(env, value)?;
         let ct_jobj = env
-            .call_method(&cipher, "doFinal", "([B)[B", &[(&value_array).into()])
+            .call_method(
+                &cipher,
+                h::jni_name("doFinal"),
+                h::method_sig("([B)[B")?.method_signature(),
+                &[(&value_array).into()],
+            )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: Cipher.doFinal: {e}"))?;
         let ct = h::jbyte_array_to_bytes(env, &ct_jobj)?;
@@ -342,14 +360,16 @@ fn delete_blocking(alias: &str, _biometric: bool) -> Result<(), SecureStorageErr
         // thread would cause every subsequent JNI call on the same
         // thread to fail with a misleading error (Java sees a
         // pending exception and refuses further calls).
-        let _ = env.call_method(
-            &ks,
-            "deleteEntry",
-            "(Ljava/lang/String;)V",
-            &[(&alias_jstr).into()],
-        );
-        if matches!(env.exception_check(), Ok(true)) {
-            let _ = env.exception_clear();
+        let _ = h::method_sig("(Ljava/lang/String;)V").map(|sig| {
+            env.call_method(
+                &ks,
+                h::jni_name("deleteEntry"),
+                sig.method_signature(),
+                &[(&alias_jstr).into()],
+            )
+        });
+        if env.exception_check() {
+            env.exception_clear();
         }
 
         // 2. Remove the wrapped-value file (best-effort).
@@ -365,11 +385,7 @@ fn delete_blocking(alias: &str, _biometric: bool) -> Result<(), SecureStorageErr
 /// for `keystore_alias`. When `biometric == true`, the key is
 /// gated on `KeyProperties.AUTH_BIOMETRIC_STRONG` so each
 /// `Cipher.init` requires a fresh `BiometricPrompt` flow.
-fn generate_wrap_key(
-    env: &mut jni::JNIEnv,
-    keystore_alias: &str,
-    biometric: bool,
-) -> Result<(), String> {
+fn generate_wrap_key(env: &mut Env, keystore_alias: &str, biometric: bool) -> Result<(), String> {
     // KeyGenerator kg = KeyGenerator.getInstance("AES", "AndroidKeyStore");
     let algo = h::jstring(env, "AES")?;
     let provider = h::jstring(env, "AndroidKeyStore")?;
@@ -397,11 +413,11 @@ fn generate_wrap_key(
     let builder_class = "android/security/keystore/KeyGenParameterSpec$Builder";
     let builder = {
         let class = env
-            .find_class(builder_class)
+            .find_class(h::jni_name(builder_class))
             .map_err(|e| format!("jni: find_class {builder_class}: {e}"))?;
         env.new_object(
-            class,
-            "(Ljava/lang/String;I)V",
+            &class,
+            h::method_sig("(Ljava/lang/String;I)V")?.method_signature(),
             &[(&alias_jstr).into(), JValue::Int(purposes)],
         )
         .map_err(|e| format!("jni: new KeyGenParameterSpec.Builder: {e}"))?
@@ -411,14 +427,14 @@ fn generate_wrap_key(
     let gcm = h::jstring(env, "GCM")?;
     let gcm_array = {
         let cls = env
-            .find_class("java/lang/String")
+            .find_class(h::jni_name("java/lang/String"))
             .map_err(|e| format!("jni: find_class String: {e}"))?;
         let arr = env
-            .new_object_array(1, cls, &gcm)
+            .new_object_array(1, &cls, &gcm)
             .map_err(|e| format!("jni: new_object_array: {e}"))?;
         // SAFETY: `JObject::from_raw` rewraps a jobject reference we received via JNI; the jobject
         // is alive for the JNI frame and we hold a local reference for the rest of the function.
-        unsafe { JObject::from_raw(arr.as_raw()) }
+        unsafe { JObject::from_raw(env, arr.as_raw()) }
     };
     h::call_obj(
         env,
@@ -430,14 +446,14 @@ fn generate_wrap_key(
     let nopad = h::jstring(env, "NoPadding")?;
     let nopad_array = {
         let cls = env
-            .find_class("java/lang/String")
+            .find_class(h::jni_name("java/lang/String"))
             .map_err(|e| format!("jni: find_class String: {e}"))?;
         let arr = env
-            .new_object_array(1, cls, &nopad)
+            .new_object_array(1, &cls, &nopad)
             .map_err(|e| format!("jni: new_object_array: {e}"))?;
         // SAFETY: `JObject::from_raw` rewraps a jobject reference we received via JNI; the jobject
         // is alive for the JNI frame and we hold a local reference for the rest of the function.
-        unsafe { JObject::from_raw(arr.as_raw()) }
+        unsafe { JObject::from_raw(env, arr.as_raw()) }
     };
     h::call_obj(
         env,
@@ -461,7 +477,7 @@ fn generate_wrap_key(
             &builder,
             "setUserAuthenticationRequired",
             "(Z)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
-            &[JValue::Bool(1)],
+            &[JValue::Bool(true)],
         )?;
         // setUserAuthenticationParameters(60, AUTH_BIOMETRIC_STRONG)
         //
@@ -501,7 +517,7 @@ fn generate_wrap_key(
             &builder,
             "setInvalidatedByBiometricEnrollment",
             "(Z)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
-            &[JValue::Bool(1)],
+            &[JValue::Bool(true)],
         );
     }
 
@@ -514,7 +530,7 @@ fn generate_wrap_key(
         &builder,
         "setUnlockedDeviceRequired",
         "(Z)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
-        &[JValue::Bool(1)],
+        &[JValue::Bool(true)],
     );
 
     // KeyGenParameterSpec spec = builder.build();
@@ -535,7 +551,12 @@ fn generate_wrap_key(
         &[(&spec).into()],
     )?;
     let _ = env
-        .call_method(&kg, "generateKey", "()Ljavax/crypto/SecretKey;", &[])
+        .call_method(
+            &kg,
+            h::jni_name("generateKey"),
+            h::method_sig("()Ljavax/crypto/SecretKey;")?.method_signature(),
+            &[],
+        )
         .and_then(|v| v.l())
         .map_err(|e| format!("jni: KeyGenerator.generateKey: {e}"))?;
     Ok(())

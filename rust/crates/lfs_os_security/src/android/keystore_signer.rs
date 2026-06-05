@@ -16,7 +16,7 @@
 //!
 //! `BiometricPrompt.AuthenticationCallback` is an abstract class
 //! with three abstract methods; subclassing it from Rust via
-//! `JNIEnv::register_native_methods` is supported by the `jni`
+//! `Env::register_native_methods` is supported by the `jni`
 //! crate but extremely fragile across `androidx.biometric` minor
 //! versions (the alpha → 1.0 cutover shifted the
 //! `AuthenticationResult` constructor signature). A tiny Kotlin
@@ -242,35 +242,50 @@ fn generate_blocking(
             &[
                 (&alias_j).into(),
                 (&algo_j).into(),
-                JValue::Bool(u8::from(request_strongbox)),
+                JValue::Bool(request_strongbox),
             ],
         )?;
         let strongbox_unavailable = env
-            .get_field(&result_obj, "strongBoxUnavailable", "Z")
+            .get_field(
+                &result_obj,
+                h::jni_name("strongBoxUnavailable"),
+                h::field_sig("Z")?.field_signature(),
+            )
             .and_then(|v| v.z())
             .map_err(|e| format!("jni: GenerateResult.strongBoxUnavailable: {e}"))?;
         if strongbox_unavailable {
             return Ok(GenerateOutcome::StrongBoxUnavailable);
         }
         let public_bytes_obj = env
-            .get_field(&result_obj, "publicBytes", "[B")
+            .get_field(
+                &result_obj,
+                h::jni_name("publicBytes"),
+                h::field_sig("[B")?.field_signature(),
+            )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: GenerateResult.publicBytes: {e}"))?;
         let public_bytes = h::jbyte_array_to_bytes(env, &public_bytes_obj)?;
         let actual_strongbox = env
-            .get_field(&result_obj, "actualStrongBox", "Z")
+            .get_field(
+                &result_obj,
+                h::jni_name("actualStrongBox"),
+                h::field_sig("Z")?.field_signature(),
+            )
             .and_then(|v| v.z())
             .map_err(|e| format!("jni: GenerateResult.actualStrongBox: {e}"))?;
         // platform string may be null; tolerate.
         let platform_obj = env
-            .get_field(&result_obj, "platform", "Ljava/lang/String;")
+            .get_field(
+                &result_obj,
+                h::jni_name("platform"),
+                h::field_sig("Ljava/lang/String;")?.field_signature(),
+            )
             .and_then(|v| v.l())
             .map_err(|e| format!("jni: GenerateResult.platform: {e}"))?;
         let platform = if platform_obj.is_null() {
             None
         } else {
-            let jstr = jni::objects::JString::from(platform_obj);
-            env.get_string(&jstr).map(|s| s.into()).ok()
+            h::jstring_to_string(env, platform_obj).ok()
         };
         Ok(GenerateOutcome::Generated(GeneratedKey {
             public_bytes,
@@ -294,12 +309,12 @@ fn delete_blocking(alias: &str) -> Result<(), String> {
     h::with_env(|env| {
         let alias_j = h::jstring(env, alias)?;
         let class = env
-            .find_class("com/llloooggg/letsflutssh/KeystoreSshSigner")
+            .find_class(h::jni_name("com/llloooggg/letsflutssh/KeystoreSshSigner"))
             .map_err(|e| format!("jni: find_class KeystoreSshSigner: {e}"))?;
         env.call_static_method(
-            class,
-            "delete",
-            "(Ljava/lang/String;)V",
+            &class,
+            h::jni_name("delete"),
+            h::method_sig("(Ljava/lang/String;)V")?.method_signature(),
             &[(&alias_j).into()],
         )
         .map(|_| ())
@@ -347,15 +362,15 @@ fn sign_blocking(req_id: u64, alias: &str, algo: KeystoreAlgo, data: &[u8]) -> R
         let activity = jni_bootstrap::main_activity()
             .ok_or_else(|| "keystore: MainActivity not bootstrapped".to_string())?;
         let class = env
-            .find_class("com/llloooggg/letsflutssh/KeystoreSshSigner")
+            .find_class(h::jni_name("com/llloooggg/letsflutssh/KeystoreSshSigner"))
             .map_err(|e| format!("jni: find_class KeystoreSshSigner: {e}"))?;
         let data_obj = JObject::from(data_j);
         env.call_static_method(
-            class,
-            "sign",
-            "(Landroidx/fragment/app/FragmentActivity;Ljava/lang/String;Ljava/lang/String;[BJ)V",
+            &class,
+            h::jni_name("sign"),
+            h::method_sig("(Landroidx/fragment/app/FragmentActivity;Ljava/lang/String;Ljava/lang/String;[BJ)V")?.method_signature(),
             &[
-                activity.into(),
+                activity.as_obj().into(),
                 (&alias_j).into(),
                 (&algo_j).into(),
                 (&data_obj).into(),
@@ -392,23 +407,23 @@ fn deliver(req_id: u64, result: SignResult) {
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsKeystoreSignCallback_nativeOnSigned<
     'local,
 >(
-    mut env: jni::JNIEnv<'local>,
+    mut env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     req_id: jlong,
     signature: jni::objects::JByteArray<'local>,
 ) {
-    let signature_obj = jni::objects::JObject::from(signature);
-    let bytes = match h::jbyte_array_to_bytes(&mut env, &signature_obj) {
-        Ok(b) => b,
-        Err(_) => {
-            deliver(
+    env.with_env(|env| -> Result<(), jni::errors::Error> {
+        let signature_obj = jni::objects::JObject::from(signature);
+        match h::jbyte_array_to_bytes(env, &signature_obj) {
+            Ok(bytes) => deliver(req_id as u64, SignResult::Signed(bytes)),
+            Err(_) => deliver(
                 req_id as u64,
                 SignResult::Other("invalid signature array".into()),
-            );
-            return;
+            ),
         }
-    };
-    deliver(req_id as u64, SignResult::Signed(bytes));
+        Ok(())
+    })
+    .resolve::<jni::errors::LogErrorAndDefault>();
 }
 
 /// Bridge into Kotlin → Rust on a failed sign. The Kotlin side
@@ -422,26 +437,26 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsKeystoreSignCall
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsKeystoreSignCallback_nativeOnFailed<
     'local,
 >(
-    mut env: jni::JNIEnv<'local>,
+    mut env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     req_id: jlong,
     reason_tag: jni::objects::JString<'local>,
     detail: jni::objects::JString<'local>,
 ) {
-    let tag = env
-        .get_string(&reason_tag)
-        .map(|s| -> String { s.into() })
-        .unwrap_or_else(|_| "other".to_string());
-    let detail_str = env
-        .get_string(&detail)
-        .map(|s| -> String { s.into() })
-        .unwrap_or_default();
-    let result = match tag.as_str() {
-        "invalidated" => SignResult::Invalidated,
-        "strongbox-unavailable" => SignResult::StrongBoxUnavailable,
-        "user-not-authenticated" => SignResult::UserNotAuthenticated,
-        "cancelled" => SignResult::Cancelled,
-        _ => SignResult::Other(detail_str),
-    };
-    deliver(req_id as u64, result);
+    env.with_env(|env| -> Result<(), jni::errors::Error> {
+        let tag = reason_tag
+            .try_to_string(env)
+            .unwrap_or_else(|_| "other".to_string());
+        let detail_str = detail.try_to_string(env).unwrap_or_default();
+        let result = match tag.as_str() {
+            "invalidated" => SignResult::Invalidated,
+            "strongbox-unavailable" => SignResult::StrongBoxUnavailable,
+            "user-not-authenticated" => SignResult::UserNotAuthenticated,
+            "cancelled" => SignResult::Cancelled,
+            _ => SignResult::Other(detail_str),
+        };
+        deliver(req_id as u64, result);
+        Ok(())
+    })
+    .resolve::<jni::errors::LogErrorAndDefault>();
 }

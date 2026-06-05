@@ -26,7 +26,8 @@
 //! the runtime-validation half — covered by the NI-2 gate, see
 //! the `super::keystore` module's status block for details.
 
-use jni::objects::GlobalRef;
+use jni::objects::JObject;
+use jni::refs::Global;
 use jni::sys::{jint, JNI_VERSION_1_6};
 use jni::JavaVM;
 use std::sync::OnceLock;
@@ -43,9 +44,9 @@ static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 /// stashed at bootstrap so JNI calls inside `super::keystore`
 /// etc. can resolve `getFilesDir()`, `getMainLooper()`, etc.
 /// without re-walking ActivityThread reflection on every call.
-/// Held as a `GlobalRef` to keep the JVM from GC'ing it across
-/// the JNIEnv-attach boundary.
-static APP_CONTEXT: OnceLock<GlobalRef> = OnceLock::new();
+/// Held as a `Global` reference to keep the JVM from GC'ing it
+/// across the thread-attach boundary.
+static APP_CONTEXT: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 
 /// `androidx.fragment.app.FragmentActivity` reference — the
 /// host MainActivity, captured at bootstrap so the
@@ -54,7 +55,7 @@ static APP_CONTEXT: OnceLock<GlobalRef> = OnceLock::new();
 /// per-call lookup. Distinct from `APP_CONTEXT`: an Application
 /// context is NOT a valid argument for BiometricPrompt because
 /// the prompt is Fragment-hosted.
-static MAIN_ACTIVITY: OnceLock<GlobalRef> = OnceLock::new();
+static MAIN_ACTIVITY: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 
 /// Retrieve the JavaVM captured at startup. Returns `None` if
 /// the Kotlin bootstrap has not run yet (which would be a bug:
@@ -65,13 +66,13 @@ pub fn java_vm() -> Option<&'static JavaVM> {
 }
 
 /// Retrieve the Application context captured at startup.
-pub fn app_context() -> Option<&'static GlobalRef> {
+pub fn app_context() -> Option<&'static Global<JObject<'static>>> {
     APP_CONTEXT.get()
 }
 
 /// Retrieve the MainActivity (FragmentActivity) reference
 /// captured at startup. Required by the BiometricPrompt path.
-pub fn main_activity() -> Option<&'static GlobalRef> {
+pub fn main_activity() -> Option<&'static Global<JObject<'static>>> {
     MAIN_ACTIVITY.get()
 }
 
@@ -81,7 +82,7 @@ pub fn main_activity() -> Option<&'static GlobalRef> {
 ///
 /// Captures three process-wide handles:
 ///
-/// * `JavaVM` — lifted from the calling thread's `JNIEnv` via
+/// * `JavaVM` — lifted from the calling thread's `Env` via
 ///   `get_java_vm`. Subsequent JNI calls in any thread attach
 ///   to this VM via `attach_current_thread`.
 /// * `MainActivity` (`FragmentActivity`) — the activity argument
@@ -92,8 +93,8 @@ pub fn main_activity() -> Option<&'static GlobalRef> {
 ///   Activity recreation), used for `getFilesDir()` /
 ///   `getMainLooper()` resolution.
 ///
-/// All three are held as `GlobalRef`s so the JVM does not
-/// reclaim them across the JNIEnv-attach boundary in worker
+/// All three are held as `Global` references so the JVM does not
+/// reclaim them across the thread-attach boundary in worker
 /// threads.
 ///
 /// # Safety
@@ -104,33 +105,38 @@ pub fn main_activity() -> Option<&'static GlobalRef> {
 /// a valid jobject reference to a FragmentActivity.
 #[no_mangle]
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsJniBootstrap_register<'local>(
-    mut env: jni::JNIEnv<'local>,
+    mut env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     activity: jni::objects::JObject<'local>,
 ) {
-    if let Ok(vm) = env.get_java_vm() {
-        // Set returns Err if already initialised — that is the
-        // expected state on a re-register, so the Err branch
-        // is silently dropped.
-        let _ = JAVA_VM.set(vm);
-    }
-    if let Ok(global_activity) = env.new_global_ref(&activity) {
-        let _ = MAIN_ACTIVITY.set(global_activity);
-    }
-    // Derive Application context from the activity.
-    if let Ok(app_ctx) = env
-        .call_method(
-            &activity,
-            "getApplicationContext",
-            "()Landroid/content/Context;",
-            &[],
-        )
-        .and_then(|v| v.l())
-    {
-        if let Ok(global_ctx) = env.new_global_ref(&app_ctx) {
-            let _ = APP_CONTEXT.set(global_ctx);
+    env.with_env(|env| -> Result<(), jni::errors::Error> {
+        if let Ok(vm) = env.get_java_vm() {
+            // Set returns Err if already initialised — that is the
+            // expected state on a re-register, so the Err branch
+            // is silently dropped.
+            let _ = JAVA_VM.set(vm);
         }
-    }
+        if let Ok(global_activity) = env.new_global_ref(&activity) {
+            let _ = MAIN_ACTIVITY.set(global_activity);
+        }
+        // Derive Application context from the activity.
+        if let Ok(app_ctx) = env
+            .call_method(
+                &activity,
+                jni::strings::JNIString::new("getApplicationContext"),
+                jni::signature::RuntimeMethodSignature::from_str("()Landroid/content/Context;")?
+                    .method_signature(),
+                &[],
+            )
+            .and_then(|v| v.l())
+        {
+            if let Ok(global_ctx) = env.new_global_ref(&app_ctx) {
+                let _ = APP_CONTEXT.set(global_ctx);
+            }
+        }
+        Ok(())
+    })
+    .resolve::<jni::errors::LogErrorAndDefault>();
 }
 
 /// JNI version negotiation entry point. Cargokit's Flutter
@@ -154,8 +160,7 @@ pub unsafe extern "system" fn JNI_OnLoad(
     // System.loadLibrary, the explicit register() call from
     // MainActivity is redundant but the OnceLock guard makes
     // either order safe.
-    if let Ok(vm) = JavaVM::from_raw(vm) {
-        let _ = JAVA_VM.set(vm);
-    }
+    let captured = JavaVM::from_raw(vm);
+    let _ = JAVA_VM.set(captured);
     JNI_VERSION_1_6
 }
