@@ -88,7 +88,7 @@ fn can_authenticate_blocking() -> Result<i32, String> {
             "androidx/biometric/BiometricManager",
             "from",
             "(Landroid/content/Context;)Landroidx/biometric/BiometricManager;",
-            &[(context).into()],
+            &[context.as_obj().into()],
         )?;
         // int result = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG);
         // BIOMETRIC_STRONG constant value is 0xF (15).
@@ -98,9 +98,14 @@ fn can_authenticate_blocking() -> Result<i32, String> {
             "BIOMETRIC_STRONG",
         )
         .unwrap_or(0xF);
-        env.call_method(&bm, "canAuthenticate", "(I)I", &[JValue::Int(strong)])
-            .and_then(|v| v.i())
-            .map_err(|e| format!("biometric: canAuthenticate: {e}"))
+        env.call_method(
+            &bm,
+            h::jni_name("canAuthenticate"),
+            h::method_sig("(I)I")?.method_signature(),
+            &[JValue::Int(strong)],
+        )
+        .and_then(|v| v.i())
+        .map_err(|e| format!("biometric: canAuthenticate: {e}"))
     })
 }
 
@@ -144,9 +149,9 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
         let info_builder_class = "androidx/biometric/BiometricPrompt$PromptInfo$Builder";
         let info_builder = {
             let class = env
-                .find_class(info_builder_class)
+                .find_class(h::jni_name(info_builder_class))
                 .map_err(|e| format!("jni: find_class {info_builder_class}: {e}"))?;
-            env.new_object(class, "()V", &[])
+            env.new_object(&class, h::method_sig("()V")?.method_signature(), &[])
                 .map_err(|e| format!("jni: new PromptInfo.Builder: {e}"))?
         };
         let title_jstr = h::jstring(env, title)?;
@@ -203,10 +208,14 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
         let cb_class = "com/llloooggg/letsflutssh/LfsBiometricCallback";
         let callback = {
             let class = env
-                .find_class(cb_class)
+                .find_class(h::jni_name(cb_class))
                 .map_err(|e| format!("jni: find_class {cb_class}: {e}"))?;
-            env.new_object(class, "(J)V", &[JValue::Long(req_id as jlong)])
-                .map_err(|e| format!("jni: new LfsBiometricCallback: {e}"))?
+            env.new_object(
+                &class,
+                h::method_sig("(J)V")?.method_signature(),
+                &[JValue::Long(req_id as jlong)],
+            )
+            .map_err(|e| format!("jni: new LfsBiometricCallback: {e}"))?
         };
 
         // Get a main-thread executor: ContextCompat.getMainExecutor(activity).
@@ -215,19 +224,19 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
             "androidx/core/content/ContextCompat",
             "getMainExecutor",
             "(Landroid/content/Context;)Ljava/util/concurrent/Executor;",
-            &[(activity).into()],
+            &[activity.as_obj().into()],
         )?;
 
         // BiometricPrompt prompt = new BiometricPrompt(activity, executor, callback);
         let prompt_class = "androidx/biometric/BiometricPrompt";
         let prompt = {
             let class = env
-                .find_class(prompt_class)
+                .find_class(h::jni_name(prompt_class))
                 .map_err(|e| format!("jni: find_class {prompt_class}: {e}"))?;
             env.new_object(
-                class,
-                "(Landroidx/fragment/app/FragmentActivity;Ljava/util/concurrent/Executor;Landroidx/biometric/BiometricPrompt$AuthenticationCallback;)V",
-                &[(activity).into(), (&executor).into(), (&callback).into()],
+                &class,
+                h::method_sig("(Landroidx/fragment/app/FragmentActivity;Ljava/util/concurrent/Executor;Landroidx/biometric/BiometricPrompt$AuthenticationCallback;)V")?.method_signature(),
+                &[activity.as_obj().into(), (&executor).into(), (&callback).into()],
             )
             .map_err(|e| format!("jni: new BiometricPrompt: {e}"))?
         };
@@ -281,7 +290,7 @@ fn deliver(req_id: u64, result: BiometricResult) {
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnSucceeded<
     'local,
 >(
-    _env: jni::JNIEnv<'local>,
+    _env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     req_id: jlong,
 ) {
@@ -297,7 +306,7 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnFailed<
     'local,
 >(
-    _env: jni::JNIEnv<'local>,
+    _env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     req_id: jlong,
 ) {
@@ -313,7 +322,7 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnError<
     'local,
 >(
-    _env: jni::JNIEnv<'local>,
+    _env: jni::EnvUnowned<'local>,
     _class: jni::objects::JClass<'local>,
     req_id: jlong,
     code: jint,
