@@ -30,6 +30,12 @@ russh = { workspace = true }
 # entry in `[package.metadata.cargo-machete] ignored = ...` below.
 internal-russh-forked-ssh-key = { workspace = true }
 russh-sftp = { workspace = true }
+# Constant-time RSA signing for software keys (`ssh::software_rsa_signer`),
+# sidestepping RUSTSEC-2023-0071 in the default `rsa`-crate sign path.
+# `rsa` (stable 0.9) only re-encodes parsed key components to PKCS#8 for
+# ring — never the online signing op. See workspace Cargo.toml notes.
+ring = { workspace = true }
+rsa = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -141,6 +147,14 @@ fido2 = ["dep:ctap-hid-fido2"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tempfile = "3"
+# `software_rsa_signer` tests cross-check ring's RSA output against the
+# RustCrypto `rsa` PKCS#1 v1.5 signer, which is generic over a digest
+# 0.10 hasher — `sha2` 0.10 (renamed; the crate's own `sha2` dep is
+# 0.11). `oid` gives the `AssociatedOid` the full-message signer needs.
+sha2_v10 = { package = "sha2", version = "0.10", features = ["oid"] }
+# Sub-2048 RSA key generation for the ring-rejection (fallback) test —
+# `rsa` 0.9 generation consumes a rand_core 0.6 `CryptoRng`.
+rand_core_06 = { package = "rand_core", version = "0.6", features = ["getrandom"] }
 # HTTP mocking server for the WebDAV client tests. `wiremock`
 # stands up a real `hyper`-backed server on a loopback port,
 # matches requests against declarative builders, and returns

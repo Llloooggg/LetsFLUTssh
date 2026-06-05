@@ -70,6 +70,20 @@ internal-russh-forked-ssh-key = { version = "=0.6.18", features = [
     "rsa",
     "alloc",
 ] }
+# Constant-time RSA signing backend for software keys (BoringSSL-derived,
+# already in the tree as russh's `ring` crypto backend). The default
+# ssh-key path signs RSA through the RustCrypto `rsa` crate, whose
+# variable-time private-key path is RUSTSEC-2023-0071 (Marvin). We
+# re-route online software-RSA signing through ring instead — see
+# `ssh::software_rsa_signer`. Stable, no new download.
+ring = "0.17"
+# RustCrypto `rsa`, STABLE 0.9 line (already pulled transitively by
+# ssh-key 0.6.7 — not the 0.10-rc the russh fork uses). Used ONLY to
+# re-shape parsed RSA key components (n/e/d/p/q bytes) into PKCS#8 DER
+# to hand to ring — a one-shot offline encode, never the online signing
+# modexp. Cross-crate version is irrelevant: we pass component bytes,
+# not `rsa`-typed values.
+rsa = { version = "0.9", default-features = false, features = ["std"] }
 # SFTP client over a russh shell channel. Speaks SSH SFTP v3
 # (OpenSSH-server default). Backs `lfs_core::sftp` — list / read /
 # write / stat / rename / mkdir / remove. Caret-pinned; major bumps
