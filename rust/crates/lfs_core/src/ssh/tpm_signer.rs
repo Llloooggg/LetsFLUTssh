@@ -213,7 +213,7 @@ fn sign_native(
                     crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes)
                 }
                 tpm_ssh::TpmSshSignature::Rsa2048(bytes) => {
-                    Ok(crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes))
+                    Ok(crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes))
                 }
             }
         }
@@ -252,7 +252,7 @@ fn sign_native(
                     crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes)
                 }
                 HelloSignature::RsaPkcs1V15(bytes) => {
-                    Ok(crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes))
+                    Ok(crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes))
                 }
             }
         }

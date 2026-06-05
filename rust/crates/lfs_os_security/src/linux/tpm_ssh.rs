@@ -442,7 +442,7 @@ pub enum TpmSshSignature {
     /// `ecdsa_raw_concat_to_ssh_mpint`.
     EcdsaP256RawConcat(Vec<u8>),
     /// Raw PKCS#1 v1.5 / RSASSA signature (256 bytes for RSA-2048).
-    /// Hand to `rsa_pkcs1_v15_to_ssh_blob`.
+    /// Hand to `rsa_pkcs1_v15_sig_body`.
     Rsa2048(Vec<u8>),
 }
 

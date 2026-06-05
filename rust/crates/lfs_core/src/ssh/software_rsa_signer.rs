@@ -323,6 +323,44 @@ mod tests {
         assert!(RsaKeyPair::from_pkcs8(der.as_bytes()).is_err());
     }
 
+    /// Cross-check against ssh-key's own RSA signature encoding: the
+    /// userauth `signature` field is `string(alg) || string(raw_sig)`
+    /// — a SINGLE string wrap of the raw bytes. Both our software wrap
+    /// and the shared `wire::rsa_pkcs1_v15_sig_body` + outer-wrap path
+    /// (which every hardware signer uses) must reproduce it.
+    #[test]
+    fn rsa_userauth_signature_wire_format() {
+        use russh::keys::ssh_key::encoding::Encode;
+        use russh::keys::ssh_key::{Algorithm, Signature};
+
+        let raw_sig = vec![0x42u8; 256];
+        let sig = Signature::new(
+            Algorithm::Rsa {
+                hash: Some(HashAlg::Sha256),
+            },
+            raw_sig.clone(),
+        )
+        .unwrap();
+        let mut authoritative = Vec::new();
+        sig.encode(&mut authoritative).unwrap();
+
+        let software = wrap_userauth_signature(Vec::new(), "rsa-sha2-256", &raw_sig);
+        assert_eq!(
+            software, authoritative,
+            "software wrap must equal ssh-key's RSA signature encoding"
+        );
+
+        // The hardware-signer path: body helper + a single outer wrap.
+        let body = crate::ssh::wire::rsa_pkcs1_v15_sig_body(&raw_sig);
+        let mut hardware = Vec::new();
+        push_ssh_string(&mut hardware, b"rsa-sha2-256");
+        push_ssh_string(&mut hardware, &body);
+        assert_eq!(
+            hardware, authoritative,
+            "hardware path must equal ssh-key's RSA signature encoding"
+        );
+    }
+
     #[test]
     fn signer_error_round_trips_to_core_error() {
         let core: Error = SoftwareRsaSignerError::Sign(Error::Auth("oops".into())).into();

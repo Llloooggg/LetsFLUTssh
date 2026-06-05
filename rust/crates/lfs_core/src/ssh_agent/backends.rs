@@ -310,7 +310,7 @@ fn tpm_sign_tss_esapi(
             crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes).map_err(BackendError::Signer)?
         }
         tpm_ssh::TpmSshSignature::Rsa2048(bytes) => {
-            crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)
+            crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes)
         }
     };
     Ok(wire)
@@ -346,7 +346,7 @@ fn tpm_sign_cng_silent(
         HelloSignature::EcdsaRaw(bytes) => {
             crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes).map_err(BackendError::Signer)?
         }
-        HelloSignature::RsaPkcs1V15(bytes) => crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes),
+        HelloSignature::RsaPkcs1V15(bytes) => crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes),
     };
     Ok(wire)
 }
@@ -460,7 +460,7 @@ async fn hello_sign(row: &SshKeyRow, data: &[u8], flags: u32) -> Result<SignOutp
                     .map_err(BackendError::Signer)?
             }
             ncrypt_ssh::HelloSignature::RsaPkcs1V15(bytes) => {
-                crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)
+                crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes)
             }
         };
         Ok(SignOutput {

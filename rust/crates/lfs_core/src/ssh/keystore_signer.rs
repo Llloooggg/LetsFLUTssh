@@ -183,8 +183,8 @@ async fn sign_native(
     match outcome {
         ks::SignResult::Signed(bytes) => match algo {
             KeystoreAlgo::EcdsaP256 => crate::ssh::wire::ecdsa_der_to_ssh_mpint(&bytes),
-            KeystoreAlgo::Ed25519 => crate::ssh::wire::ed25519_to_ssh_blob(&bytes),
-            KeystoreAlgo::Rsa2048 => Ok(crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)),
+            KeystoreAlgo::Ed25519 => crate::ssh::wire::ed25519_sig_body(&bytes),
+            KeystoreAlgo::Rsa2048 => Ok(crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes)),
         },
         ks::SignResult::Invalidated => Err(Error::Keystore(
             "invalidated: biometric enrolment changed, re-register the public key".into(),
