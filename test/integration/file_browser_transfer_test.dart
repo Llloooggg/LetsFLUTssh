@@ -737,8 +737,15 @@ Future<void> _waitForContent(
 }) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
-    final f = File(path);
-    if (f.existsSync() && f.readAsStringSync() == want) return;
+    try {
+      // No `existsSync()` guard before the read: a `replace` upload
+      // unlinks then recreates the target, so the file can vanish
+      // between an exists-check and the read. Read directly and treat
+      // a transient absence (or a half-written read) as "not ready".
+      if (File(path).readAsStringSync() == want) return;
+    } on FileSystemException {
+      // Target momentarily absent / locked mid-write — keep polling.
+    }
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   throw TimeoutException(
