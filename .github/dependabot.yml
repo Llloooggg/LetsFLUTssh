@@ -33,6 +33,16 @@ updates:
         patterns:
           - "cryptography*"
           - "pointycastle"
+      # Catch-all: every remaining minor/patch bump collapses into one
+      # PR per run so a batch never stacks into N branches that each
+      # need a rebase under the up-to-date-before-merge rule. Majors
+      # stay individual (no update-types match) for manual review.
+      all-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -42,6 +52,12 @@ updates:
         patterns:
           - "actions/*"
           - "github/*"
+      all-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   # Rust security/transport core under rust/. Bumps crossing a russh
   # major (e.g. 0.59 → 0.60) need manual review — currently blocked on
   # the upstream RustCrypto release-candidate set (pkcs8 0.11 RC).
@@ -81,3 +97,9 @@ updates:
           - "reqwest*"
           - "rustls*"
           - "hyper*"
+      all-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
