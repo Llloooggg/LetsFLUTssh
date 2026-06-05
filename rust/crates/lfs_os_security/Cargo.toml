@@ -129,7 +129,7 @@ windows-future = "0.3"
 #     it; thereafter every JNI call attaches the current thread
 #     to the captured VM.
 [target.'cfg(target_os = "android")'.dependencies]
-jni = { version = "0.21", default-features = false }
+jni = { version = "0.22", default-features = false }
 
 # Linux-only deps:
 #   - `arboard` for the desktop clipboard write (X11 + Wayland;
