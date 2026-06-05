@@ -50,7 +50,7 @@
 //! them via [`lfs_core::ssh::wire::ecdsa_raw_concat_to_ssh_mpint`].
 //! RSA signatures come back as the raw 256-byte block which the SSH
 //! wrapper wraps with one length-prefix via
-//! [`lfs_core::ssh::wire::rsa_pkcs1_v15_to_ssh_blob`].
+//! [`lfs_core::ssh::wire::rsa_pkcs1_v15_sig_body`].
 //!
 //! ## Lifecycle
 //!
@@ -501,7 +501,7 @@ pub enum HelloSignature {
     /// 64 bytes for P-256, 96 bytes for P-384.
     EcdsaRaw(Vec<u8>),
     /// Raw PKCS#1 v1.5 signature (256 bytes for RSA-2048). Hand to
-    /// `rsa_pkcs1_v15_to_ssh_blob`.
+    /// `rsa_pkcs1_v15_sig_body`.
     RsaPkcs1V15(Vec<u8>),
 }
 

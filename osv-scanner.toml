@@ -4,27 +4,28 @@
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2023-0071"
-# Marvin timing attack against `rsa` (RustCrypto) — variable-time
-# decryption / signing leaks information that, after enough remote
-# timing samples, recovers the private key. No fixed `rsa` release
-# on crates.io as of 2026-05; the crate's `Cargo.toml` advisory
-# header tracks at https://github.com/RustCrypto/RSA/issues/19.
+# Marvin timing attack against `rsa` (RustCrypto): variable-time RSA
+# private-key operations leak, across enough adaptively-timed samples,
+# enough to recover the key. No fixed `rsa` release on crates.io as of
+# 2026-06; tracked at https://github.com/RustCrypto/RSA/issues/19.
 #
-# Our exposure shape:
-#   - We're an SSH *client*. RSA private keys live on the user's
-#     device; the attacker would need to time many auth handshakes
-#     against the *server* to gather samples, but the timing variance
-#     leaks happen on the *signer's* side (us).
-#   - Default key algorithm in the wizard is Ed25519; RSA is only
-#     reached when the user explicitly imports / generates RSA.
-#   - The leak requires hundreds of thousands of signing operations
-#     against a known-plaintext oracle — not a shape an interactive
-#     SSH session presents.
-#   - russh itself runs RSA via `ring` (not the RustCrypto `rsa`
-#     crate) for the actual SSH key exchange + signatures.
-#     `rsa` is in the dep tree via russh's forked `ssh-key`, which
-#     uses it for OpenSSH-format RSA key parsing only — no online
-#     signing surface.
+# Why no online private-key operation reaches the vulnerable crate:
+#   - The exploitable Marvin primitive is the PKCS#1 v1.5 *decryption*
+#     padding oracle. This SSH client performs no RSA decryption:
+#     russh offers only curve25519 / ecdh-nistp key exchange (no RSA
+#     key transport), so that vector is structurally absent.
+#   - RSA *signing* (the one online private-key op an SSH client does)
+#     is routed off the `rsa` crate: software keys sign through ring
+#     (constant-time — `ssh::software_rsa_signer`), and hardware keys
+#     sign in the TPM / Secure Enclave / Keystore / PKCS#11 backend.
+#     The `rsa` crate is reached only OFFLINE — parsing a key and
+#     re-encoding its components to PKCS#8 for ring — which runs no
+#     private-key modexp and presents no network-observable oracle.
+#   - RSA *verification* uses the server's public key — no secret, no
+#     leak — and stays on the `rsa` crate harmlessly.
+#   - The crate cannot be dropped: ssh-key / russh require it for RSA
+#     key types and host-key verification. Ed25519 is the wizard
+#     default regardless.
 #
-# Re-evaluate when `rsa` ships a constant-time release.
-reason = "Marvin timing attack in `rsa` crate — no upstream fix. Attack requires online signing oracle; this app is an SSH client whose RSA usage is offline key parsing only (russh + ring handle online crypto). Re-evaluate when RustCrypto/RSA ships a fix."
+# Re-evaluate when RustCrypto/RSA ships a constant-time release.
+reason = "Marvin timing attack in `rsa` crate — no upstream fix. The exploitable primitive (PKCS#1 v1.5 decryption oracle) is structurally absent: this SSH client does no RSA decryption (russh KEX is curve25519/ecdh-nistp only). The one online RSA private-key op — signing — is routed off the crate: software keys sign via ring (constant-time, ssh::software_rsa_signer), hardware keys via TPM/SE/Keystore/PKCS#11. The `rsa` crate is reached only offline (key parsing / PKCS#8 re-encode, no modexp) and for public-key verification. It cannot be dropped (ssh-key/russh need it for RSA types + host-key verify). Re-evaluate when RustCrypto/RSA ships a fix."

@@ -178,7 +178,7 @@ impl Signer for HelloSigner {
                             crate::ssh::wire::ecdsa_raw_concat_to_ssh_mpint(&bytes)?
                         }
                         ncrypt_ssh::HelloSignature::RsaPkcs1V15(bytes) => {
-                            crate::ssh::wire::rsa_pkcs1_v15_to_ssh_blob(&bytes)
+                            crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes)
                         }
                     };
                     // Compose the userauth `signature` field —

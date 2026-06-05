@@ -851,12 +851,21 @@ transparency:
   a one-person project.
 - **Vulnerabilities — RUSTSEC-2023-0071 (`rsa` Marvin timing attack).**
   `rsa` is a transitive dependency of the core SSH crates (`ssh-key`,
-  `russh`) with no fixed release upstream. The advisory targets RSA
-  PKCS#1 v1.5 *decryption*; SSH uses RSA only for *signatures* (key
-  exchange is ECDH/DH), so the vulnerable code path is never reached
-  in this app. Removing it would mean dropping RSA SSH-key support
-  entirely. Already documented and ignored in `osv-scanner.toml`, so
-  the OSV gate stays green; Scorecard reports it independently.
+  `russh`) with no fixed release upstream. The attack's exploitable
+  primitive is the PKCS#1 v1.5 *decryption* padding oracle; this SSH
+  client performs no RSA decryption (key exchange is curve25519 /
+  ECDH, no RSA key transport), so that vector is structurally absent.
+  The one online RSA private-key operation an SSH client does —
+  *signing* — is routed off the crate: software keys sign through ring
+  (constant-time, `lfs_core::ssh::software_rsa_signer`) and hardware
+  keys sign in the TPM / Secure Enclave / Keystore / PKCS#11 backend,
+  so the crate's variable-time path is never reached online. `rsa` is
+  still used offline (parsing a key, re-encoding its components to
+  PKCS#8 for ring) and for public-key *verification* of the server —
+  neither presents a network-observable oracle. The crate cannot be
+  dropped outright: `ssh-key` / `russh` need it for RSA key types and
+  host-key verification. Documented and ignored in `osv-scanner.toml`,
+  so the OSV gate stays green; Scorecard reports it independently.
 - **Pinned-Dependencies — `choco install strawberryperl` not pinned by
   hash.** The Windows MSVC release build needs a working Perl for the
   vendored-OpenSSL build script. Chocolatey has no hash-pin mechanism

@@ -26,6 +26,12 @@ pub mod sk;
 mod sk_signer;
 pub mod wire;
 
+// Constant-time RSA signer for software keys (`ring` backend), used in
+// place of the default `rsa`-crate sign path to avoid
+// RUSTSEC-2023-0071. Cross-platform — software RSA keys exist on every
+// target.
+pub mod software_rsa_signer;
+
 // PKCS#11 (Cryptoki) hardware-token signer. Desktop-only — the
 // underlying `lfs_os_security::pkcs11` driver compiles to a stub on
 // mobile platforms (Android / iOS sandboxes forbid `dlopen` of
@@ -1643,6 +1649,20 @@ async fn finish_authenticate_pubkey(
     } else {
         None
     };
+
+    // Route software RSA signing through ring (constant-time) instead
+    // of the `rsa` crate's variable-time path (RUSTSEC-2023-0071). Non-
+    // RSA keys and any key ring declines (sub-2048-bit) fall through to
+    // the default ssh-key signer below — no key that works today stops
+    // working. See `ssh::software_rsa_signer`.
+    if let Some(mut signer) = software_rsa_signer::SoftwareRsaSigner::try_new(&key)? {
+        let public = key.public_key().clone();
+        let auth_result = session
+            .authenticate_publickey_with(user, public, hash_alg, &mut signer)
+            .await
+            .map_err(|e| Error::Auth(e.to_string()))?;
+        return check_auth_result(auth_result);
+    }
 
     let key_with_hash = PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg);
 

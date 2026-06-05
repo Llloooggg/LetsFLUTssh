@@ -19,9 +19,10 @@
 //!    Android Keystore `Signature.sign` when configured for the
 //!    `NONEwithECDSA` form. Routed through
 //!    [`ecdsa_raw_concat_to_ssh_mpint`].
-//! 3. **Raw signature blob** — RSA PKCS#1 v1.5 from PKCS#11 / NCrypt,
-//!    Ed25519 from every backend. Wrapped verbatim by
-//!    [`rsa_pkcs1_v15_to_ssh_blob`] / [`ed25519_to_ssh_blob`].
+//! 3. **Raw signature** — RSA PKCS#1 v1.5 from PKCS#11 / NCrypt / TPM,
+//!    Ed25519 from every backend. The body is the raw signature;
+//!    [`rsa_pkcs1_v15_sig_body`] / [`ed25519_sig_body`] return it for
+//!    the caller to wrap once as `string(algorithm) || string(body)`.
 //!
 //! The public-key encoders ([`encode_public_ecdsa_p256`],
 //! [`encode_public_ed25519`], [`encode_public_rsa`]) build the
@@ -108,28 +109,33 @@ pub fn ecdsa_raw_concat_to_ssh_mpint(rs: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(out)
 }
 
-/// Wrap a raw RSA PKCS#1 v1.5 signature into the SSH userauth
-/// `signature` blob shape — a single `string(sig)`. RSA signatures
-/// are emitted verbatim by the backend (no DER normalisation needed)
-/// so the wrapper is one length-prefix prepend.
-pub fn rsa_pkcs1_v15_to_ssh_blob(sig: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(sig.len() + 4);
-    push_ssh_string(&mut out, sig);
-    out
+/// Return the SSH signature *body* for an RSA PKCS#1 v1.5 signature —
+/// the raw signature bytes verbatim. For RSA the body is the signature
+/// itself (no DER normalisation, no mpint shaping), so this is the
+/// identity, kept for call-site symmetry with the ECDSA helpers.
+///
+/// Like [`ecdsa_der_to_ssh_mpint`], the output does NOT carry an outer
+/// SSH `string` prefix — the caller wraps it as
+/// `string(algorithm) || string(body)`. Pre-wrapping here would double
+/// the length prefix and the server would reject the signature.
+pub fn rsa_pkcs1_v15_sig_body(sig: &[u8]) -> Vec<u8> {
+    sig.to_vec()
 }
 
-/// Wrap a 64-byte Ed25519 signature into the SSH `signature` blob
-/// shape. Asserts the length at runtime — every Ed25519 backend
-/// returns exactly 64 bytes per RFC 8032.
-pub fn ed25519_to_ssh_blob(sig: &[u8]) -> Result<Vec<u8>, Error> {
+/// Return the SSH signature *body* for an Ed25519 signature — the raw
+/// 64 bytes. Asserts the length at runtime (every Ed25519 backend
+/// returns exactly 64 bytes per RFC 8032). Like the ECDSA / RSA
+/// helpers the output is the bare body; the caller wraps it as
+/// `string(algorithm) || string(body)`.
+pub fn ed25519_sig_body(sig: &[u8]) -> Result<Vec<u8>, Error> {
     if sig.len() != 64 {
         return Err(Error::Auth(format!(
             "ssh wire: ed25519 signature must be 64 bytes, got {}",
             sig.len()
         )));
     }
-    let mut out = Vec::with_capacity(sig.len() + 4);
-    push_ssh_string(&mut out, sig);
+    let mut out = Vec::with_capacity(sig.len());
+    out.extend_from_slice(sig);
     Ok(out)
 }
 
@@ -432,25 +438,64 @@ mod tests {
     }
 
     #[test]
-    fn rsa_pkcs1_v15_wraps_with_length() {
+    fn rsa_sig_body_is_raw() {
+        // The body is the raw signature — the caller adds the single
+        // outer `string(...)`. Pre-wrapping here would double the
+        // length prefix.
         let sig = [0xAAu8; 256];
-        let out = rsa_pkcs1_v15_to_ssh_blob(&sig);
-        assert_eq!(&out[..4], &[0, 0, 1, 0]); // 256 BE
-        assert_eq!(&out[4..], &sig[..]);
+        assert_eq!(rsa_pkcs1_v15_sig_body(&sig), &sig[..]);
     }
 
     #[test]
-    fn ed25519_wraps_64_bytes() {
+    fn ed25519_sig_body_is_raw() {
         let sig = [0xCCu8; 64];
-        let out = ed25519_to_ssh_blob(&sig).unwrap();
-        assert_eq!(&out[..4], &[0, 0, 0, 64]);
-        assert_eq!(&out[4..], &sig[..]);
+        assert_eq!(ed25519_sig_body(&sig).unwrap(), &sig[..]);
     }
 
     #[test]
     fn ed25519_rejects_wrong_size() {
-        let err = ed25519_to_ssh_blob(&[0u8; 32]).unwrap_err();
+        let err = ed25519_sig_body(&[0u8; 32]).unwrap_err();
         assert!(matches!(err, Error::Auth(_)));
+    }
+
+    /// Regression guard for the double-wrap bug: the hardware-signer
+    /// shape `string(alg) || string(sig_body)` must reproduce exactly
+    /// what ssh-key emits for the same signature. A body helper that
+    /// pre-wrapped (the old behaviour) would add an extra length
+    /// prefix and the server would reject the userauth signature.
+    #[test]
+    fn sig_body_plus_wrap_matches_ssh_key_encoding() {
+        use russh::keys::ssh_key::encoding::Encode;
+        use russh::keys::ssh_key::{Algorithm, HashAlg, Signature};
+
+        // RSA
+        let rsa_raw = vec![0x42u8; 256];
+        let mut authoritative = Vec::new();
+        Signature::new(
+            Algorithm::Rsa {
+                hash: Some(HashAlg::Sha256),
+            },
+            rsa_raw.clone(),
+        )
+        .unwrap()
+        .encode(&mut authoritative)
+        .unwrap();
+        let mut composed = Vec::new();
+        push_ssh_string(&mut composed, b"rsa-sha2-256");
+        push_ssh_string(&mut composed, &rsa_pkcs1_v15_sig_body(&rsa_raw));
+        assert_eq!(composed, authoritative, "RSA wire format");
+
+        // Ed25519
+        let ed_raw = vec![0x11u8; 64];
+        let mut authoritative = Vec::new();
+        Signature::new(Algorithm::Ed25519, ed_raw.clone())
+            .unwrap()
+            .encode(&mut authoritative)
+            .unwrap();
+        let mut composed = Vec::new();
+        push_ssh_string(&mut composed, b"ssh-ed25519");
+        push_ssh_string(&mut composed, &ed25519_sig_body(&ed_raw).unwrap());
+        assert_eq!(composed, authoritative, "Ed25519 wire format");
     }
 
     #[test]
