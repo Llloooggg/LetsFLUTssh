@@ -166,11 +166,8 @@ impl Signer for TpmSigner {
                         &to_sign,
                         &wire_alg,
                     )?;
-                    let mut wrapped = Vec::with_capacity(wire_alg.len() + raw_wire.len() + 8);
-                    wrapped.extend_from_slice(&(wire_alg.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(wire_alg.as_bytes());
-                    wrapped.extend_from_slice(&(raw_wire.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(&raw_wire);
+                    let wrapped =
+                        crate::ssh::wire::encode_userauth_signature_field(&wire_alg, &raw_wire);
                     Ok((to_sign, wrapped))
                 })
                 .await

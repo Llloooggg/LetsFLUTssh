@@ -35,7 +35,6 @@ use russh::Signer;
 use zeroize::Zeroizing;
 
 use crate::error::Error;
-use crate::ssh::wire::push_ssh_string;
 
 /// Constant-time software RSA signer. Holds the ring key behind an
 /// `Arc` so each `auth_sign` can hand it to a blocking task without
@@ -123,13 +122,16 @@ fn ring_sign_raw(
 }
 
 /// Assemble the russh userauth response: the signed `to_sign` buffer
-/// followed by the SSH `signature` field `string(alg) || string(sig)`.
-/// Matches `ssh_key::Signature`'s RSA encoding (a single `string` wrap
-/// of the raw signature) and the `russh::Signer` contract of returning
-/// `to_sign` with the signature appended.
+/// followed by the SSH `signature` field. That field is ONE outer SSH
+/// `string` wrapping the signature blob `string(alg) || string(raw)` —
+/// mirroring `ssh::sk::encode_signature` and what russh's own
+/// `sign_with_hash_alg(..).encode(buffer)` produces on the bare-key
+/// path. Omitting the outer string makes the server read the wrong
+/// length and reject the credential.
 fn wrap_userauth_signature(mut to_sign: Vec<u8>, wire_alg: &str, raw_sig: &[u8]) -> Vec<u8> {
-    push_ssh_string(&mut to_sign, wire_alg.as_bytes());
-    push_ssh_string(&mut to_sign, raw_sig);
+    to_sign.extend_from_slice(&crate::ssh::wire::encode_userauth_signature_field(
+        wire_alg, raw_sig,
+    ));
     to_sign
 }
 
@@ -282,21 +284,42 @@ mod tests {
         verifying.verify(msg, &sig).expect("signature must verify");
     }
 
+    /// Authoritative format check: the userauth `signature` field is
+    /// ONE outer SSH string wrapping `string(alg) || string(raw)`.
+    /// Decode the produced bytes exactly as russh's SERVER does — read
+    /// one string, then parse the inner as an ssh-key `Signature` — and
+    /// confirm it round-trips. The pre-fix wrap omitted the outer
+    /// string, so the server read a wrong length and rejected every
+    /// software RSA credential.
     #[test]
-    fn wrap_userauth_signature_layout() {
+    fn userauth_signature_field_matches_server_decode() {
+        use russh::keys::ssh_key::encoding::Decode;
+        use russh::keys::ssh_key::{Algorithm, Signature};
+
+        let raw_sig = vec![0x42u8; 256];
         let to_sign = vec![0xAAu8, 0xBB, 0xCC];
-        let raw_sig = vec![0x11u8, 0x22];
         let out = wrap_userauth_signature(to_sign.clone(), "rsa-sha2-256", &raw_sig);
 
-        // to_sign is preserved as the prefix.
+        // to_sign is preserved verbatim as the prefix russh writes
+        // before the signature field.
         assert_eq!(&out[..3], &to_sign[..]);
-        // string("rsa-sha2-256")
-        assert_eq!(&out[3..7], &[0, 0, 0, 12]);
-        assert_eq!(&out[7..19], b"rsa-sha2-256");
-        // string(raw_sig)
-        assert_eq!(&out[19..23], &[0, 0, 0, 2]);
-        assert_eq!(&out[23..25], &raw_sig[..]);
-        assert_eq!(out.len(), 25);
+
+        // The server reads the signature field as ONE SSH string...
+        let mut reader = &out[3..];
+        let inner = Vec::<u8>::decode(&mut reader).unwrap();
+        assert!(
+            reader.is_empty(),
+            "exactly one outer string follows to_sign"
+        );
+        // ...then decodes the inner blob as an ssh-key Signature.
+        let sig = Signature::decode(&mut inner.as_slice()).unwrap();
+        assert!(matches!(
+            sig.algorithm(),
+            Algorithm::Rsa {
+                hash: Some(HashAlg::Sha256)
+            }
+        ));
+        assert_eq!(sig.as_bytes(), &raw_sig[..]);
     }
 
     #[test]
@@ -321,44 +344,6 @@ mod tests {
         let small = rsa::RsaPrivateKey::new(&mut OsRng, 1024).unwrap();
         let der = small.to_pkcs8_der().unwrap();
         assert!(RsaKeyPair::from_pkcs8(der.as_bytes()).is_err());
-    }
-
-    /// Cross-check against ssh-key's own RSA signature encoding: the
-    /// userauth `signature` field is `string(alg) || string(raw_sig)`
-    /// — a SINGLE string wrap of the raw bytes. Both our software wrap
-    /// and the shared `wire::rsa_pkcs1_v15_sig_body` + outer-wrap path
-    /// (which every hardware signer uses) must reproduce it.
-    #[test]
-    fn rsa_userauth_signature_wire_format() {
-        use russh::keys::ssh_key::encoding::Encode;
-        use russh::keys::ssh_key::{Algorithm, Signature};
-
-        let raw_sig = vec![0x42u8; 256];
-        let sig = Signature::new(
-            Algorithm::Rsa {
-                hash: Some(HashAlg::Sha256),
-            },
-            raw_sig.clone(),
-        )
-        .unwrap();
-        let mut authoritative = Vec::new();
-        sig.encode(&mut authoritative).unwrap();
-
-        let software = wrap_userauth_signature(Vec::new(), "rsa-sha2-256", &raw_sig);
-        assert_eq!(
-            software, authoritative,
-            "software wrap must equal ssh-key's RSA signature encoding"
-        );
-
-        // The hardware-signer path: body helper + a single outer wrap.
-        let body = crate::ssh::wire::rsa_pkcs1_v15_sig_body(&raw_sig);
-        let mut hardware = Vec::new();
-        push_ssh_string(&mut hardware, b"rsa-sha2-256");
-        push_ssh_string(&mut hardware, &body);
-        assert_eq!(
-            hardware, authoritative,
-            "hardware path must equal ssh-key's RSA signature encoding"
-        );
     }
 
     #[test]

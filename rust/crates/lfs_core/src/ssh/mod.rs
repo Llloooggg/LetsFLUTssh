@@ -1895,4 +1895,49 @@ mod tests {
         let formatted = format!("{err}");
         assert!(formatted.starts_with("key parse failed:"), "{formatted}");
     }
+
+    /// End-to-end against a real russh server that VERIFIES the userauth
+    /// signature: authenticate with a freshly generated software RSA key
+    /// through `SoftwareRsaSigner` and assert the server accepts it. This
+    /// is the test whose absence let the missing-outer-string signature
+    /// bug ship — the only prior pubkey handshake test used Ed25519,
+    /// which never goes through the custom signer.
+    #[tokio::test]
+    async fn software_rsa_signer_authenticates_against_real_server() {
+        struct AcceptAll;
+        impl client::Handler for AcceptAll {
+            type Error = russh::Error;
+            async fn check_server_key(
+                &mut self,
+                _key: &ssh_key::PublicKey,
+            ) -> Result<bool, Self::Error> {
+                Ok(true)
+            }
+        }
+
+        let server = crate::connection::test_server::start()
+            .await
+            .expect("start test server");
+        let config = std::sync::Arc::new(client::Config::default());
+        let mut handle = client::connect(config, ("127.0.0.1", server.port), AcceptAll)
+            .await
+            .expect("connect to test server");
+
+        let km = crate::keys::generate_rsa(2048, "e2e-rsa").expect("generate rsa key");
+        let key = parse_private_key(km.private_pem.as_bytes(), None).expect("parse rsa key");
+        let mut signer = super::software_rsa_signer::SoftwareRsaSigner::try_new(&key)
+            .expect("build signer")
+            .expect("RSA key yields a ring signer");
+        let public = key.public_key().clone();
+
+        let result = handle
+            .authenticate_publickey_with("tester", public, Some(HashAlg::Sha256), &mut signer)
+            .await
+            .expect("auth call");
+        assert!(
+            matches!(result, AuthResult::Success),
+            "the real russh server verifies the signature — software RSA \
+             userauth must be accepted, got: {result:?}"
+        );
+    }
 }

@@ -153,11 +153,8 @@ impl Signer for KeystoreSigner {
             let (mut buf, sig_wrapper) = sign_native(&keystore_alias, algo, &to_sign, &wire_alg)
                 .await
                 .map(|sig_body| {
-                    let mut wrapped = Vec::with_capacity(wire_alg.len() + sig_body.len() + 8);
-                    wrapped.extend_from_slice(&(wire_alg.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(wire_alg.as_bytes());
-                    wrapped.extend_from_slice(&(sig_body.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(&sig_body);
+                    let wrapped =
+                        crate::ssh::wire::encode_userauth_signature_field(&wire_alg, &sig_body);
                     (to_sign, wrapped)
                 })?;
             buf.extend_from_slice(&sig_wrapper);

@@ -181,13 +181,8 @@ impl Signer for HelloSigner {
                             crate::ssh::wire::rsa_pkcs1_v15_sig_body(&bytes)
                         }
                     };
-                    // Compose the userauth `signature` field —
-                    //   string(algorithm) || string(sig_blob).
-                    let mut wrapped = Vec::with_capacity(wire_alg.len() + sig_blob.len() + 8);
-                    wrapped.extend_from_slice(&(wire_alg.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(wire_alg.as_bytes());
-                    wrapped.extend_from_slice(&(sig_blob.len() as u32).to_be_bytes());
-                    wrapped.extend_from_slice(&sig_blob);
+                    let wrapped =
+                        crate::ssh::wire::encode_userauth_signature_field(&wire_alg, &sig_blob);
                     Ok((to_sign, wrapped))
                 })
                 .await
