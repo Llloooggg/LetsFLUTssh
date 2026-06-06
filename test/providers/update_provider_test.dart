@@ -132,6 +132,25 @@ void main() {
       expect(s2.downloadedPath, '/tmp/file');
       expect(s2.error, 'oops');
     });
+
+    test('isDownloadingOrVerifying is true only while fetching/verifying', () {
+      // Spec: the predicate gates the update surfaces' "show progress, hide
+      // action buttons" span. It must cover both the byte-fetch
+      // (`downloading`) and the post-download check (`verifying`) phases —
+      // `verifying` was the gap that let the dialog re-expose its buttons —
+      // and exclude every other status, including `downloaded` (which hands
+      // off to the installer but keeps an escape affordance).
+      for (final status in UpdateStatus.values) {
+        final expected =
+            status == UpdateStatus.downloading ||
+            status == UpdateStatus.verifying;
+        expect(
+          UpdateState(status: status).isDownloadingOrVerifying,
+          expected,
+          reason: '$status should ${expected ? '' : 'not '}be in-flight',
+        );
+      }
+    });
   });
 
   group('UpdateNotifier.check()', () {
