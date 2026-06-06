@@ -43,8 +43,12 @@ void showUpdateDialog({
     builder: (ctx) => Consumer(
       builder: (ctx, innerRef, _) {
         final state = innerRef.watch(updateProvider);
+        // `verifying` (SHA256 + signature check after the bytes land) is
+        // in-flight too — without it the dialog dropped back to the
+        // changelog + action buttons mid-operation, re-exposing
+        // Download/Skip/Cancel while the payload was still being verified.
         final inFlight =
-            state.status == UpdateStatus.downloading ||
+            state.isDownloadingOrVerifying ||
             state.status == UpdateStatus.downloaded;
         final hasError = state.status == UpdateStatus.error;
         return AppDialog(
@@ -123,11 +127,13 @@ List<Widget> _buildUpdateDialogActions({
   required bool hasAsset,
   required UpdateState state,
 }) {
-  // No actionable buttons while bytes are in flight — the installer
-  // launcher owns the next step after `downloaded`, and Cancel
-  // would orphan the partial download without the updater picking
-  // up the signal. Show progress, hide everything else.
-  if (state.status == UpdateStatus.downloading) {
+  // No actionable buttons while bytes are being fetched or verified —
+  // the installer launcher owns the next step after `downloaded`, and
+  // Cancel/Skip would orphan the partial download or skip the version
+  // mid-flight. Show progress, hide everything else. Covers `verifying`
+  // too, not just `downloading`, so the buttons can't reappear during
+  // the post-download signature check.
+  if (state.isDownloadingOrVerifying) {
     return const [];
   }
   if (state.status == UpdateStatus.error) {

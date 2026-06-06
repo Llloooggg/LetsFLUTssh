@@ -23,6 +23,7 @@
 use std::sync::Arc;
 
 use flutter_rust_bridge::frb;
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 use lfs_core::recorder::RecordDirection;
@@ -504,13 +505,32 @@ pub enum TerminalUiEvent {
 ///
 /// Lock discipline: every method locks the engine briefly and releases
 /// before any `await` — the pump locks, feeds, drains, releases, then
-/// awaits the next shell event (and any `shell.write` for PtyWrite runs
-/// after the engine lock is dropped). Holding the engine lock across an
+/// awaits the next shell event. Holding the engine lock across an
 /// `await` would deadlock the snapshot calls against the pump.
+///
+/// Write discipline: NOTHING writes to the shell inline. The pump's
+/// PtyWrite replies and every input method push bytes onto [`writer_tx`]
+/// for the dedicated [`shell_writer_loop`] to drain. A `shell.write` can
+/// block on the channel's exhausted send-window; doing it inline in the
+/// read pump would stall `next_event`, fill the shell's inbound buffer,
+/// head-of-line-block the shared russh session loop, and starve the very
+/// window-adjust that would unblock the write — a whole-connection
+/// deadlock across every shell. See [`writer_tx`].
 #[frb(opaque)]
 pub struct TerminalSession {
     engine: Arc<Mutex<TerminalEngine>>,
     shell: Arc<lfs_core::ssh::Shell>,
+    /// Raw stdin / PtyWrite-reply byte chunks queued for the shell,
+    /// drained one at a time by the per-session [`shell_writer_loop`].
+    /// Both the read pump and the input methods (`send_key` / `paste` /
+    /// `write_input` / `send_mouse`) enqueue here instead of awaiting
+    /// `shell.write` directly: a write that blocks on the channel's
+    /// send-window must not stall the read loop (see the struct-level
+    /// write discipline). The queue is unbounded so enqueue never blocks;
+    /// the single draining task preserves write order across the pump's
+    /// replies and the user's input. The writer task exits when this and
+    /// the pump's clone are both dropped (the handle is gone).
+    writer_tx: mpsc::UnboundedSender<Vec<u8>>,
     /// A clone of the pump's UI-event sink, stashed when [`Self::events`]
     /// starts so out-of-band methods (the scrub `clear`) can push a
     /// `Wakeup` onto the same stream the renderer already listens to,
@@ -570,12 +590,50 @@ pub async fn terminal_session_open(
         scrollback as usize,
         palette.into_core(),
     )));
+    // Spawn the dedicated writer task now so every later `shell.write`
+    // routes off the read pump — see the `TerminalSession` write
+    // discipline. The task parks on an empty queue until the first
+    // enqueue and exits once every `writer_tx` clone is dropped.
+    let (writer_tx, writer_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    tokio::spawn(shell_writer_loop(shell.clone(), writer_rx));
     Ok(TerminalSession {
         engine,
         shell,
+        writer_tx,
         ui_sink: Arc::new(std::sync::Mutex::new(None)),
         recorder: Arc::new(std::sync::Mutex::new(None)),
     })
+}
+
+/// Drain queued byte chunks to the shell, one at a time, off the read
+/// pump. A `shell.write` that blocks on the channel's exhausted
+/// send-window stalls only this task; the pump keeps draining inbound
+/// bytes so window-adjusts flow and the write unblocks — the decoupling
+/// that breaks the whole-connection deadlock (see [`TerminalSession`]).
+///
+/// Exits when every `writer_tx` clone is dropped (the handle and pump
+/// are gone) — `recv` then yields `None`. A write error means the channel
+/// is going away: it is logged (length only — these are stdin / protocol
+/// reply bytes, never the payload) and skipped, and the pump's
+/// `next_event` surfaces the close as a `Closed` UI event.
+async fn shell_writer_loop(
+    shell: Arc<lfs_core::ssh::Shell>,
+    mut writer_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+) {
+    while let Some(chunk) = writer_rx.recv().await {
+        if let Err(e) = shell.write(&chunk).await {
+            // `lfs_core::app_log` is `pub(crate)`, so emit the sanitized
+            // `CoreLog` event through the public bus the Dart `AppLogger`
+            // folds into `letsflutssh.log` (length only, never the bytes).
+            lfs_core::app::instance()
+                .bus
+                .publish(lfs_core::bus::Event::CoreLog {
+                    level: lfs_core::bus::CoreLogLevel::Warn,
+                    name: "Terminal".to_string(),
+                    message: shell_write_failed_line(chunk.len(), &e.to_string()),
+                });
+        }
+    }
 }
 
 /// Read the recorder handle id out of the shared slot, or `None` when
@@ -621,9 +679,13 @@ impl TerminalSession {
     /// rejects an `add` (subscription cancelled).
     ///
     /// The pump reads shell output, locks the engine, feeds the bytes,
-    /// drains the side-effect queue, releases the lock, then forwards every
-    /// `PtyWrite` back to the shell Rust→Rust and pushes the translated
-    /// UI events (coalesced `Wakeup`, bell, title, clipboard) to `sink`.
+    /// drains the side-effect queue, releases the lock, then *queues* every
+    /// `PtyWrite` reply onto [`writer_tx`] (the [`shell_writer_loop`] writes
+    /// it back Rust→Rust) and pushes the translated UI events (coalesced
+    /// `Wakeup`, bell, title, clipboard) to `sink`. The pump never awaits a
+    /// `shell.write` itself — doing so would let an exhausted send-window
+    /// stall the read loop and deadlock the whole connection (see the
+    /// `TerminalSession` write discipline).
     ///
     /// Recorder output fork: when a recorder is attached (via
     /// [`Self::set_recorder`]) the pump tees the shell **output** bytes to
@@ -670,9 +732,9 @@ impl TerminalSession {
                 tee_to_recorder(&id, RecordDirection::Output, bytes.clone()).await;
             }
 
-            // Lock, feed, drain, then RELEASE before any write/await.
-            // `pty_writes` is collected under the lock and flushed after —
-            // never hold the engine lock across `shell.write`.
+            // Lock, feed, drain, then RELEASE before any await.
+            // `pty_writes` is collected under the lock and queued after —
+            // never hold the engine lock across the enqueue.
             let (pty_writes, ui_events) = {
                 let mut guard = engine.lock().await;
                 guard.feed(&bytes);
@@ -680,27 +742,12 @@ impl TerminalSession {
             };
 
             for chunk in pty_writes {
-                // A failed write-back means the channel is going away; the
-                // next `next_event` yields the close, which drives the
-                // `Closed` UI event. Keep draining so the close surfaces
-                // cleanly rather than spinning — the pump never gives up
-                // early on a write. The error is logged (not raw bytes:
-                // these are protocol reply frames — cursor-position / DSR
-                // replies / bracketed-paste framing — so we record only the
-                // length) before continuing.
-                if let Err(e) = shell.write(&chunk).await {
-                    // `lfs_core::app_log` is `pub(crate)`, so the internal
-                    // log macros are unreachable here; emit the same
-                    // sanitized `CoreLog` event through the public bus the
-                    // Dart `AppLogger` already folds into `letsflutssh.log`.
-                    lfs_core::app::instance()
-                        .bus
-                        .publish(lfs_core::bus::Event::CoreLog {
-                            level: lfs_core::bus::CoreLogLevel::Warn,
-                            name: "Terminal".to_string(),
-                            message: pty_write_back_failed_line(chunk.len(), &e.to_string()),
-                        });
-                }
+                // Queue the reply for the writer task — NEVER await the write
+                // here (an exhausted send-window would stall the read loop and
+                // deadlock the connection). A failed enqueue means the writer
+                // task is gone (session closing); the next `next_event` yields
+                // the close, which drives the `Closed` UI event, so drop it.
+                let _ = self.writer_tx.send(chunk);
             }
 
             for ev in ui_events {
@@ -779,6 +826,18 @@ impl TerminalSession {
         }
     }
 
+    /// Queue `bytes` for the per-session writer task instead of awaiting
+    /// `shell.write` inline — the enqueue never blocks, so an exhausted
+    /// channel send-window can never stall a caller (or, for the pump, the
+    /// read loop). Errs only when the writer task has already exited (the
+    /// session is closing): the fire-and-forget input callers ignore that,
+    /// and the pump surfaces the close as a `Closed` event regardless.
+    fn enqueue_write(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.writer_tx
+            .send(bytes)
+            .map_err(|_| "terminal writer task has stopped".to_string())
+    }
+
     /// Forward Dart key bytes straight to the remote shell's stdin. The
     /// engine processes only **server output**, never local input — so
     /// input bypasses the engine entirely (the server echoes it back, and
@@ -789,10 +848,7 @@ impl TerminalSession {
         if let Some(id) = recorder_id(&self.recorder) {
             tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
         }
-        self.shell
-            .write(&bytes)
-            .await
-            .map_err(|e| frb_err::from_core(&e))
+        self.enqueue_write(bytes)
     }
 
     /// Attach or detach the session recorder. Pass the handle id of an
@@ -816,9 +872,11 @@ impl TerminalSession {
     /// becomes CR+LF under LNM, etc., and only the engine holds that state.
     ///
     /// Lock discipline: the engine lock is taken only to read the mode
-    /// (a synchronous `Copy` read), released, and the encode + `shell.write`
-    /// run after — the lock is never held across the `await`, matching the
-    /// pump's discipline. An empty encoding (e.g. an out-of-range F-key)
+    /// (a synchronous `Copy` read), released, and the encode + enqueue run
+    /// after — the lock is never held across the `await`, matching the
+    /// pump's discipline. The encoded bytes are queued for the writer task
+    /// (never written inline), so a blocked send-window can't stall the
+    /// keystroke path. An empty encoding (e.g. an out-of-range F-key)
     /// writes nothing rather than an empty frame.
     pub async fn send_key(&self, key: TerminalKey) -> Result<(), String> {
         let mode = {
@@ -832,17 +890,14 @@ impl TerminalSession {
         if let Some(id) = recorder_id(&self.recorder) {
             tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
         }
-        self.shell
-            .write(&bytes)
-            .await
-            .map_err(|e| frb_err::from_core(&e))
+        self.enqueue_write(bytes)
     }
 
     /// Encode pasted text against the engine's current mode and write it to
     /// the shell. Under bracketed-paste mode the body is framed with
     /// `\x1b[200~` … `\x1b[201~` (and any embedded terminator stripped per
     /// the paste-safety rule); otherwise the raw bytes go through. Same
-    /// lock discipline as [`Self::send_key`].
+    /// lock + enqueue discipline as [`Self::send_key`].
     pub async fn paste(&self, text: String) -> Result<(), String> {
         let mode = {
             let guard = self.engine.lock().await;
@@ -855,10 +910,7 @@ impl TerminalSession {
         if let Some(id) = recorder_id(&self.recorder) {
             tee_to_recorder(&id, RecordDirection::Input, bytes.clone()).await;
         }
-        self.shell
-            .write(&bytes)
-            .await
-            .map_err(|e| frb_err::from_core(&e))
+        self.enqueue_write(bytes)
     }
 
     /// Encode a mouse event against the engine's current mode and write the
@@ -867,9 +919,9 @@ impl TerminalSession {
     /// under a click-only mode) — the renderer only calls this when the
     /// frame already showed tracking is active, but the mode is re-read
     /// here so the gate is authoritative even if the frame the renderer
-    /// saw was a tick stale. Same lock discipline as [`Self::send_key`]:
-    /// the engine lock is taken only to read the mode and released before
-    /// the `shell.write`.
+    /// saw was a tick stale. Same lock + enqueue discipline as
+    /// [`Self::send_key`]: the engine lock is taken only to read the mode
+    /// and released before the report is queued for the writer task.
     pub async fn send_mouse(&self, event: TerminalMouseInput) -> Result<(), String> {
         let mode = {
             let guard = self.engine.lock().await;
@@ -878,10 +930,7 @@ impl TerminalSession {
         let Some(bytes) = encode_mouse(&event.into_core(), mode) else {
             return Ok(());
         };
-        self.shell
-            .write(&bytes)
-            .await
-            .map_err(|e| frb_err::from_core(&e))
+        self.enqueue_write(bytes)
     }
 
     /// Set a selection spanning `start` to `end` in absolute grid
@@ -1107,16 +1156,16 @@ fn partition_drained(events: Vec<CoreTerminalEvent>) -> (Vec<Vec<u8>>, Vec<Termi
     (pty_writes, ui_events)
 }
 
-/// Build the log line for a failed PtyWrite write-back. The dropped
-/// chunk is a protocol reply frame (cursor-position / DSR reply /
-/// bracketed-paste framing), so the line carries only the byte length
-/// and the error string — never the payload bytes themselves. Runs the
-/// same two-pass sanitise the `lfs_core::app_log` publisher applies
-/// (secrets first, then PII): the bus does not re-sanitize, so the
-/// publisher owns it. Pure so the no-raw-bytes contract is
-/// unit-testable without a live shell.
-fn pty_write_back_failed_line(len: usize, error: &str) -> String {
-    let raw = format!("PtyWrite reply write-back to shell failed ({len} bytes dropped): {error}");
+/// Build the log line for a failed `shell.write` in the writer task. The
+/// dropped chunk is stdin or a protocol reply frame (keystroke / paste /
+/// cursor-position / DSR reply / bracketed-paste framing), so the line
+/// carries only the byte length and the error string — never the payload
+/// bytes themselves. Runs the same two-pass sanitise the
+/// `lfs_core::app_log` publisher applies (secrets first, then PII): the
+/// bus does not re-sanitize, so the publisher owns it. Pure so the
+/// no-raw-bytes contract is unit-testable without a live shell.
+fn shell_write_failed_line(len: usize, error: &str) -> String {
+    let raw = format!("Shell write failed ({len} bytes dropped): {error}");
     lfs_core::log_sanitize::sanitize_error_message(&lfs_core::log_sanitize::redact_secrets(&raw))
 }
 
@@ -1312,13 +1361,13 @@ mod tests {
     }
 
     #[test]
-    fn pty_write_back_failed_line_omits_raw_bytes() {
-        // Spec: the dropped chunk is a protocol reply frame, so the log
-        // line must carry the length + error string but never the payload
-        // bytes. Pin both: the length and error are present, and the raw
-        // byte values are absent.
+    fn shell_write_failed_line_omits_raw_bytes() {
+        // Spec: the dropped chunk is stdin / a protocol reply frame, so the
+        // log line must carry the length + error string but never the
+        // payload bytes. Pin both: the length and error are present, and the
+        // raw byte values are absent.
         let raw_bytes = [0x1B, 0x5B, 0x36, 0x6E]; // ESC [ 6 n — a DSR reply
-        let line = pty_write_back_failed_line(raw_bytes.len(), "channel closed");
+        let line = shell_write_failed_line(raw_bytes.len(), "channel closed");
         assert!(line.contains("4 bytes"), "length must be reported: {line}");
         assert!(
             line.contains("channel closed"),

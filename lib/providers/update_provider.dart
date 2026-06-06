@@ -67,6 +67,17 @@ class UpdateState {
       error: identical(error, _unset) ? this.error : error,
     );
   }
+
+  /// True while the updater is actively fetching or verifying the asset
+  /// bytes ([UpdateStatus.downloading] or [UpdateStatus.verifying]) — the
+  /// span in which the update surfaces must show progress instead of
+  /// action buttons, so the primary download/install action cannot be
+  /// re-triggered and Skip/Cancel cannot fire mid-flight. [downloaded] is
+  /// excluded: it hands off to the installer and each surface keeps an
+  /// escape (Cancel / Install Now) since [UpdateNotifier.install] leaves
+  /// the status at [downloaded].
+  bool get isDownloadingOrVerifying =>
+      status == UpdateStatus.downloading || status == UpdateStatus.verifying;
 }
 
 /// Provider for the [UpdateService] instance (injectable for tests).

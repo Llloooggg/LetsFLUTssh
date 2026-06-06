@@ -247,6 +247,43 @@ void main() {
       },
     );
 
+    testWidgets('verifying state hides the action footer and shows the progress '
+        'indicator', (tester) async {
+      // Spec: `verifying` (post-download SHA256 + signature check) is
+      // in-flight too — the footer stays collapsed and the body keeps
+      // the progress indicator. Regression guard: only `downloading`
+      // used to be treated as in-flight, so the dialog dropped back to
+      // the changelog + Download/Skip/Cancel buttons mid-verification.
+      await tester.pumpWidget(
+        _buildDialogHost(
+          info: _info(
+            assetUrl:
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/x.AppImage',
+            changelog: 'Sample release notes for this build',
+          ),
+          initial: const UpdateState(
+            status: UpdateStatus.verifying,
+            progress: 1,
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      // `verifying` paints an INDETERMINATE progress bar (the "Verifying…"
+      // animation never settles), so advance the dialog open transition
+      // with fixed pumps instead of `pumpAndSettle`, which would time out.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(UpdateProgressIndicator), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      expect(find.text('Skip This Version'), findsNothing);
+      expect(find.text('Download & Install'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+      // The changelog must NOT reappear mid-verification — that would
+      // mean the body fell back to the update-available arm.
+      expect(find.text('Sample release notes for this build'), findsNothing);
+    });
+
     testWidgets(
       'downloaded state keeps Cancel/Skip/primary footer (post-bytes terminal '
       'arm)',

@@ -3747,13 +3747,15 @@ the engine behind a `tokio::sync::Mutex` (the async pump and the sync
 flowchart LR
     SHELL["Shell.next_event()"] --> PUMP[Rust pump task]
     PUMP -->|feed bytes| ENG["engine.feed + drain_events (under lock)"]
-    ENG -->|PtyWrite bytes| WBACK["shell.write (Rust to Rust)"]
+    ENG -->|PtyWrite bytes| QUEUE["writer_tx (unbounded queue)"]
+    QUEUE --> WTASK["shell_writer_loop task"]
+    WTASK -->|"shell.write"| SHELL
     ENG -->|Bell / Title / Wakeup| SINK["StreamSink&lt;TerminalUiEvent&gt;"]
     SINK --> DART[Dart renderer]
     DART -->|"snapshot() sync"| ENG
     DART -->|"send_key(TerminalKey)"| ENC["encode_key(mode) -> VT bytes"]
-    ENC --> SHELL
-    DART -->|"write_input() pre-encoded bytes"| SHELL
+    ENC --> QUEUE
+    DART -->|"write_input() pre-encoded bytes"| QUEUE
 ```
 
 **Open / subscribe is two calls.** `terminal_session_open(session, cols,
@@ -3770,8 +3772,8 @@ shell read-half is a single-reader mutex, so a given shell is consumed by
 exactly one of `TerminalSession::events` or the non-terminal
 `SshShell::events_stream` — never both, or the two readers deadlock.
 
-**Why the loop is Rust-side.** The pump forwards every
-[`PtyWrite`](#events-and-the-ptywrite-contract) back to the shell
+**Why the loop is Rust-side.** The pump queues every
+[`PtyWrite`](#events-and-the-ptywrite-contract) for write-back to the shell
 Rust→Rust — the cursor-position reports / DSR replies / bracketed-paste
 framing never round-trip through Dart, so interactive programs keep
 working even when the Dart isolate is busy painting. Rust owns the whole
@@ -3779,15 +3781,38 @@ terminal loop per the data-ownership pillar; Dart only pulls owned
 `TerminalFrame` snapshots and reacts to a coalesced wakeup / bell / title
 / clipboard / close event stream.
 
+**Writer task — nothing writes the shell inline.** Both the pump's
+`PtyWrite` replies and every input path (`send_key` / `paste` /
+`write_input` / `send_mouse`) push raw bytes onto an unbounded
+`writer_tx` queue; a dedicated per-session `shell_writer_loop` task
+(spawned in `terminal_session_open`) drains it one chunk at a time and is
+the sole caller of `shell.write`. The decoupling is load-bearing, not a
+tidiness choice: an SSH channel's `shell.write` can block on the
+channel's exhausted send-window (russh awaits a `WINDOW_ADJUST` from the
+peer). Awaiting that **inline in the read pump** would stop the pump from
+calling `next_event`, so the shell's inbound buffer (russh's bounded
+per-channel mpsc, default 100 frames) fills, which head-of-line-blocks the
+**shared** russh session loop driving *every* channel on that one TCP
+connection — and the very `WINDOW_ADJUST` that would unblock the write
+rides that stalled loop. The result is a whole-connection deadlock: with
+two shells (split pane / a second tab to the same host) the first shell
+goes fully dead, input and output both. Routing writes through the queue
+keeps the pump draining its channel regardless of any pending write, so
+window updates keep flowing and the write unblocks on its own. The single
+draining task also preserves byte order across the pump's replies and the
+user's input. (The same head-of-line hazard is why forwarded-channel
+delivery uses `try_send` — see [§3.1 SSH](#31-ssh-coressh).)
+
 **Lock discipline.** The pump locks the engine, feeds the chunk, drains
 the event queue, then releases the lock *before* any `await` — `PtyWrite`
-bytes are collected into a local `Vec` under the lock and written to the
-shell only after the lock is dropped. Holding the engine lock across the
-`shell.write` await would deadlock the sync `snapshot` calls against the
-pump. `snapshot()` is `#[frb(sync)]` (the renderer pulls a frame without
-an await per paint) and uses `blocking_lock`: the only writer is the pump,
-which holds the lock for one non-awaiting feed/drain, so contention is
-bounded and never crosses an await.
+bytes are collected into a local `Vec` under the lock and enqueued only
+after the lock is dropped. Holding the engine lock across an `await` would
+deadlock the sync `snapshot` calls against the pump; the enqueue itself is
+non-blocking, so the pump never awaits between lock-drop and the next
+`next_event`. `snapshot()` is `#[frb(sync)]` (the renderer pulls a frame
+without an await per paint) and uses `blocking_lock`: the only writer is
+the pump, which holds the lock for one non-awaiting feed/drain, so
+contention is bounded and never crosses an await.
 
 **DTOs.** The bridge mirrors every core type into an FRB-friendly form so
 the boundary never leaks `Rgb` / `char` / `alacritty_terminal` types:
@@ -3801,13 +3826,16 @@ Dart-facing event enum — `PtyWrite` is deliberately absent (forwarded
 Rust-side), `Wakeup` is the coalesced "grid changed, pull a snapshot"
 signal emitted once per fed chunk, and `Closed` fires on channel `Eof`.
 
-**Input never feeds the engine.** Both input paths write straight to the
-shell's stdin; the engine processes only server *output* (the server echoes
-input back, and that echo is what renders). `send_key(TerminalKey)` encodes
-a keystroke (below) and writes the bytes; `write_input(bytes)` forwards
-already-encoded bytes for callers that hold them (snippets, `sendCommand`);
-`paste(text)` runs the bracketed-paste encoder. `resize(cols, rows)` resizes
-both the engine grid and the remote PTY (`window_change`).
+**Input never feeds the engine.** Both input paths queue bytes for the
+shell's stdin (via the writer task above); the engine processes only server
+*output* (the server echoes input back, and that echo is what renders).
+`send_key(TerminalKey)` encodes a keystroke (below) and enqueues the bytes;
+`write_input(bytes)` forwards already-encoded bytes for callers that hold
+them (snippets, `sendCommand`); `paste(text)` runs the bracketed-paste
+encoder. `resize(cols, rows)` is the one shell op that stays a direct await
+(it is a `window_change` channel request, not channel data, so it cannot
+exhaust the send-window) — it resizes both the engine grid and the remote
+PTY.
 
 #### Recorder fork — output in the pump, input on the send paths
 

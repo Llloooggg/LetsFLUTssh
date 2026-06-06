@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'ssh.dart';
 part 'terminal.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `pty_write_back_failed_line`, `recorder_id`, `tee_to_recorder`
+// These functions are ignored because they are not marked as `pub`: `enqueue_write`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `from_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `into_core`, `partition_drained`, `recorder_id`, `shell_write_failed_line`, `shell_writer_loop`, `tee_to_recorder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The OneDark default palette as a DTO. The Dart theme layer uses this
@@ -152,9 +152,13 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// rejects an `add` (subscription cancelled).
   ///
   /// The pump reads shell output, locks the engine, feeds the bytes,
-  /// drains the side-effect queue, releases the lock, then forwards every
-  /// `PtyWrite` back to the shell Rust→Rust and pushes the translated
-  /// UI events (coalesced `Wakeup`, bell, title, clipboard) to `sink`.
+  /// drains the side-effect queue, releases the lock, then *queues* every
+  /// `PtyWrite` reply onto [`writer_tx`] (the [`shell_writer_loop`] writes
+  /// it back Rust→Rust) and pushes the translated UI events (coalesced
+  /// `Wakeup`, bell, title, clipboard) to `sink`. The pump never awaits a
+  /// `shell.write` itself — doing so would let an exhausted send-window
+  /// stall the read loop and deadlock the whole connection (see the
+  /// `TerminalSession` write discipline).
   ///
   /// Recorder output fork: when a recorder is attached (via
   /// [`Self::set_recorder`]) the pump tees the shell **output** bytes to
@@ -172,7 +176,7 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// the shell. Under bracketed-paste mode the body is framed with
   /// `\x1b[200~` … `\x1b[201~` (and any embedded terminator stripped per
   /// the paste-safety rule); otherwise the raw bytes go through. Same
-  /// lock discipline as [`Self::send_key`].
+  /// lock + enqueue discipline as [`Self::send_key`].
   Future<void> paste({required String text});
 
   /// Resize the viewport: the engine reflows the grid and the shell
@@ -202,9 +206,11 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// becomes CR+LF under LNM, etc., and only the engine holds that state.
   ///
   /// Lock discipline: the engine lock is taken only to read the mode
-  /// (a synchronous `Copy` read), released, and the encode + `shell.write`
-  /// run after — the lock is never held across the `await`, matching the
-  /// pump's discipline. An empty encoding (e.g. an out-of-range F-key)
+  /// (a synchronous `Copy` read), released, and the encode + enqueue run
+  /// after — the lock is never held across the `await`, matching the
+  /// pump's discipline. The encoded bytes are queued for the writer task
+  /// (never written inline), so a blocked send-window can't stall the
+  /// keystroke path. An empty encoding (e.g. an out-of-range F-key)
   /// writes nothing rather than an empty frame.
   Future<void> sendKey({required TerminalKey key});
 
@@ -214,9 +220,9 @@ abstract class TerminalSession implements RustOpaqueInterface {
   /// under a click-only mode) — the renderer only calls this when the
   /// frame already showed tracking is active, but the mode is re-read
   /// here so the gate is authoritative even if the frame the renderer
-  /// saw was a tick stale. Same lock discipline as [`Self::send_key`]:
-  /// the engine lock is taken only to read the mode and released before
-  /// the `shell.write`.
+  /// saw was a tick stale. Same lock + enqueue discipline as
+  /// [`Self::send_key`]: the engine lock is taken only to read the mode
+  /// and released before the report is queued for the writer task.
   Future<void> sendMouse({required TerminalMouseInput event});
 
   /// Replace the color palette (e.g. on theme change). Takes effect on

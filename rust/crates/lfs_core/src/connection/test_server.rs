@@ -423,11 +423,24 @@ impl Handler for TestSshHandler {
         Ok(())
     }
 
+    /// Stand in for a remote shell with a byte echo: pull the stashed
+    /// channel and spawn a task that copies every inbound byte straight
+    /// back as output. Enough for a terminal-session test to observe the
+    /// full `write → writer-task → shell → server → pump → engine` round
+    /// trip without running a real PTY. Consuming the channel via
+    /// `into_stream` (the same shape as the direct-tcpip proxy) is robust
+    /// regardless of how russh would otherwise route channel data.
     async fn shell_request(
         &mut self,
-        _channel: ChannelId,
-        _session: &mut Session,
+        channel: ChannelId,
+        session: &mut Session,
     ) -> Result<(), Self::Error> {
+        if let Some(ch) = self.channels.lock().await.remove(&channel) {
+            session.channel_success(channel)?;
+            tokio::spawn(echo_channel(ch));
+        } else {
+            session.channel_failure(channel)?;
+        }
         Ok(())
     }
 
@@ -584,6 +597,17 @@ async fn remote_forward_accept_loop(
             proxy_channel_to_tcp(channel, socket).await;
         });
     }
+}
+
+/// Echo every byte a shell channel receives straight back as output —
+/// the fixture's stand-in for a remote shell. `tokio::io::copy` reads the
+/// client→server half and writes it to the server→client half of the same
+/// channel stream, returning when the client closes the channel (EOF).
+async fn echo_channel(channel: Channel<Msg>) {
+    let mut stream = channel.into_stream();
+    let (mut read, mut write) = tokio::io::split(&mut stream);
+    let _ = tokio::io::copy(&mut read, &mut write).await;
+    let _ = write.shutdown().await;
 }
 
 /// Bidirectional pipe between an SSH channel (used as an
