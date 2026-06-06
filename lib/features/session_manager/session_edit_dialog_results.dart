@@ -8,11 +8,11 @@ class SaveResult extends SessionDialogResult {
   final Session session;
   final bool connect;
 
-  /// Port-forward rules entered in the Forwarding tab. The caller is
-  /// responsible for diffing against the persisted set and writing
+  /// Port-forward rules entered in the port-forward rule editor. The caller
+  /// is responsible for diffing against the persisted set and writing
   /// the delta — see `session_panel._handleDialogResult`. Empty when
   /// the dialog was for a quick-connect / new session that never
-  /// touched the tab.
+  /// opened the editor.
   final List<PortForwardRule> forwards;
 
   /// Per-slot dirty bits. Only fields the user actually typed into
