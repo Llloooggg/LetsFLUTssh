@@ -205,7 +205,7 @@ bytes = "1"
 # `winbio.dll` so the crate still builds on Windows hosts
 # where `winbio.lib` is absent — the unit count probe degrades
 # to `0` rather than producing a link error.
-libloading = "0.8"
+libloading = "0.9"
 # Unix syscall constants (`O_NOFOLLOW`, `O_EXCL`) used by the
 # secret-bearing read/write helpers in `lfs_core::path` to defend
 # against symlink-attack vectors at the persisted-format paths.
