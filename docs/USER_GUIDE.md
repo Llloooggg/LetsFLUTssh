@@ -583,8 +583,8 @@ These are SSH command-line concepts. Every saved session can carry a list of for
 
 ### Adding a rule
 
-1. Open the session in the editor.
-2. **Forwarding** tab (4th).
+1. Open the session in the editor (SSH session kind — only SSH can tunnel TCP).
+2. Expand **More options**, then on the **port-forward rules** row press **Manage…**.
 3. **Add rule** → modal opens.
 4. Pick a kind chip: **Local** / **Remote** / **Dynamic**. The line under the chips explains the kind in plain language.
 5. Fill the fields (different per kind — see below).
