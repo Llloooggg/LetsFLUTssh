@@ -116,7 +116,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// toggle visible but disabled — the agent endpoint is desktop-only.
   bool _useAgent = false;
 
-  /// In-memory rule list backing the Forwarding tab. Hydrated from
+  /// In-memory rule list backing the port-forward rule editor. Hydrated from
   /// the store on init when editing; the new-session path starts
   /// empty. Persisted by the caller after a successful Save via
   /// the SaveResult.forwards field — same contract as the session
@@ -515,7 +515,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   /// Hydrate the in-memory rule list from the store. Only called for
   /// edited sessions — new sessions never have rules until the user
-  /// adds one in the Forwarding tab.
+  /// adds one in the port-forward rule editor.
   Future<void> _loadForwards(String sessionId) async {
     final loaded = await loadPortForwards(sessionId);
     if (!mounted) return;

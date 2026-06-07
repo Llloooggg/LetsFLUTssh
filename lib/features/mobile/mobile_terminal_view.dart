@@ -18,6 +18,7 @@ import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/terminal/connection_progress.dart';
 import '../../widgets/terminal/terminal_controller.dart';
+import '../../widgets/terminal/terminal_key_input.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../../widgets/terminal/terminal_view.dart';
 import '../snippets/snippet_picker.dart';
@@ -36,7 +37,19 @@ import 'terminal_copy_overlay.dart';
 /// encodes the VT bytes Rust-side against the live terminal mode. System
 /// soft-keyboard text is captured by a hidden text field and routed the same
 /// way, one [rust_terminal.TerminalKey] per typed character so the bar's
-/// modifiers apply.
+/// modifiers apply. The hidden field is multi-line (so the return key inserts
+/// a capturable newline rather than firing a `done` action) and parks a
+/// zero-width sentinel rune so a Backspace on an empty buffer still surfaces
+/// as a change event — see [imeSentinel].
+///
+/// **Hardware keyboards.** An attached physical / Bluetooth keyboard delivers
+/// printable text + Enter / Backspace through the same IME path, but its
+/// navigation / function / Escape / Tab / forward-Delete keys would otherwise
+/// be eaten by the focused field as cursor-movement / focus-traversal commands.
+/// A `Focus.onKeyEvent` ancestor ([_MobileTerminalViewState._onHardwareKey])
+/// intercepts those before the ambient text-editing shortcuts and forwards them
+/// via the shared desktop [terminalKeyFromEvent] mapping — see
+/// [hardwareKeyForwards] for the forward-vs-IME split.
 ///
 /// **Gestures.** One-finger drags scroll the scrollback. Font size is driven
 /// exclusively by the Settings slider — pinch-to-zoom is intentionally absent
@@ -52,6 +65,65 @@ class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
   const MobileTerminalView({super.key, required this.connection});
+
+  /// Zero-width sentinel parked in the hidden IME field so the field is never
+  /// truly empty. A soft-keyboard Backspace on an empty buffer fires no
+  /// `onChanged` on Android — there is nothing to delete — so the keystroke
+  /// would be lost. Keeping one deletable rune in the buffer makes Backspace
+  /// surface as an `onChanged('')`, which [imeKeysFromChange] maps to the
+  /// Backspace key. The rune is a single UTF-16 unit (so the seeded cursor
+  /// offset is `1`) and never paints (the field is zero-size + opacity 0).
+  @visibleForTesting
+  static const imeSentinel = '\u200B';
+
+  /// Translate a hidden-IME `onChanged` payload into the ordered logical keys
+  /// to forward to the session. [value] is the field text *including* the
+  /// leading [imeSentinel]; an empty [value] means the sentinel itself was
+  /// deleted — a Backspace on the otherwise-empty buffer. Control runes encode
+  /// as their named key (Enter / Tab / Backspace / Escape) so the Rust encoder
+  /// applies the live mode (CR vs CR+LF under LNM, the DEL-vs-BS erase
+  /// convention, Shift+Tab back-tab) instead of typing a literal control byte
+  /// — a bare `Char(0x0A)` would emit LF where the shell expects CR.
+  @visibleForTesting
+  static List<rust_terminal.TerminalKeyName> imeKeysFromChange(String value) {
+    if (value.isEmpty) {
+      return const [rust_terminal.TerminalKeyName.backspace()];
+    }
+    final typed = value.startsWith(imeSentinel)
+        ? value.substring(imeSentinel.length)
+        : value;
+    return [
+      for (final rune in typed.runes)
+        switch (rune) {
+          0x0A || 0x0D => const rust_terminal.TerminalKeyName.enter(),
+          0x09 => const rust_terminal.TerminalKeyName.tab(),
+          0x08 || 0x7F => const rust_terminal.TerminalKeyName.backspace(),
+          0x1B => const rust_terminal.TerminalKeyName.escape(),
+          _ => rust_terminal.TerminalKeyName.char(code: rune),
+        },
+    ];
+  }
+
+  /// Whether a hardware / Bluetooth-keyboard [rust_terminal.TerminalKey]
+  /// (already mapped by [terminalKeyFromEvent]) should be forwarded to the
+  /// shell from the key-event path rather than left to the IME text path. A
+  /// physical keyboard delivers printable text plus Enter / Backspace through
+  /// the focused field's IME (`onChanged`), so those are left alone here — also
+  /// forwarding them would double the input. Everything else (navigation,
+  /// function, Escape, **Tab** — which the field would otherwise steal for
+  /// focus traversal — and forward-Delete) is swallowed by the field as a
+  /// cursor / traversal command and never reaches the shell, so it is forwarded
+  /// and consumed. A bare printable key stays with the IME; a Ctrl/Alt/Meta-
+  /// modified key is a shortcut the IME won't commit as text, so it forwards.
+  @visibleForTesting
+  static bool hardwareKeyForwards(rust_terminal.TerminalKey key) {
+    return switch (key.name) {
+      rust_terminal.TerminalKeyName_Enter() ||
+      rust_terminal.TerminalKeyName_Backspace() => false,
+      rust_terminal.TerminalKeyName_Char() => key.ctrl || key.alt || key.meta,
+      _ => true,
+    };
+  }
 
   @override
   ConsumerState<MobileTerminalView> createState() => _MobileTerminalViewState();
@@ -113,6 +185,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       if (session != null) unawaited(session.clear());
     };
     TerminalScrubber.instance.register(_scrubFn);
+    _resetImeBuffer();
     // Delay connect until after the first frame so the grid view reports the
     // real viewport size before the shell opens — opening at the default
     // 80x24 then resizing garbles the first lines on a phone viewport.
@@ -225,28 +298,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     unawaited(session.sendKey(key: key));
   }
 
-  /// Diff the hidden IME field on each change and send the inserted text. We
-  /// reset the field to empty after each change so the next change carries
-  /// only the freshly-typed text — the terminal owns the real text buffer,
-  /// the field is a pure capture surface. Each character is sent as its own
-  /// [rust_terminal.TerminalKey] so the bar's sticky Ctrl / Alt fold in.
+  /// Re-seed the hidden field with the lone sentinel
+  /// ([MobileTerminalView.imeSentinel]), cursor parked after it so the next
+  /// typed text appends and the next Backspace deletes the sentinel. Setting
+  /// the controller value does not re-enter `onChanged` (that fires only for
+  /// user edits via the input connection).
+  void _resetImeBuffer() {
+    _imeController.value = const TextEditingValue(
+      text: MobileTerminalView.imeSentinel,
+      selection: TextSelection.collapsed(offset: 1),
+    );
+  }
+
+  /// Diff the hidden IME field on each change and send the inserted text (or a
+  /// Backspace when the sentinel was deleted). The field is re-seeded to the
+  /// sentinel after each change — the terminal owns the real text buffer, the
+  /// field is a pure capture surface. Each key is sent on its own so the bar's
+  /// sticky Ctrl / Alt fold in.
   void _onImeChanged(String value) {
-    if (value.isEmpty) return;
-    final session = _session;
-    _imeController.clear();
-    if (session == null) return;
     final bar = _keyboardKey.currentState;
+    final session = _session;
+    _resetImeBuffer();
+    if (session == null) return;
+    final keys = MobileTerminalView.imeKeysFromChange(value);
+    if (keys.isEmpty) return;
     final ctrl = bar?.ctrlActive ?? false;
     final alt = bar?.altActive ?? false;
-    for (final rune in value.runes) {
-      // Newline / tab must encode as the named Enter / Tab key so the Rust
-      // encoder applies the live mode (CR vs CR+LF under LNM, etc.) — a bare
-      // Char(0x0A) would type a literal control byte instead.
-      final name = switch (rune) {
-        0x0A || 0x0D => const rust_terminal.TerminalKeyName.enter(),
-        0x09 => const rust_terminal.TerminalKeyName.tab(),
-        _ => rust_terminal.TerminalKeyName.char(code: rune),
-      };
+    for (final name in keys) {
       unawaited(
         session.sendKey(
           key: rust_terminal.TerminalKey(
@@ -260,6 +338,29 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       );
     }
     bar?.consumeOneShotModifiers();
+  }
+
+  /// Intercept hardware / Bluetooth-keyboard key events before the focused
+  /// capture field turns them into cursor-movement / focus-traversal commands.
+  /// Wired as a `Focus.onKeyEvent` ancestor of the IME field, so it runs before
+  /// the ambient text-editing shortcuts; returning [KeyEventResult.handled]
+  /// consumes the key so the field does not also act on it. Bar sticky
+  /// modifiers are deliberately NOT folded in here — a hardware keyboard
+  /// carries its own Ctrl / Alt, and folding them would risk double-encoding a
+  /// key the IME also commits. See [MobileTerminalView.hardwareKeyForwards].
+  KeyEventResult _onHardwareKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final session = _session;
+    if (session == null) return KeyEventResult.ignored;
+    final key = terminalKeyFromEvent(
+      event,
+      HardwareKeyboard.instance.logicalKeysPressed,
+    );
+    if (key == null || !MobileTerminalView.hardwareKeyForwards(key)) {
+      return KeyEventResult.ignored;
+    }
+    unawaited(session.sendKey(key: key));
+    return KeyEventResult.handled;
   }
 
   void _paste() {
@@ -553,22 +654,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       height: 0,
       child: Opacity(
         opacity: 0,
-        child: EditableText(
-          controller: _imeController,
-          focusNode: _imeFocus,
-          onChanged: _onImeChanged,
-          // Multi-line keeps Enter producing a newline character the diff
-          // can capture, rather than a submit action that loses it; the
-          // session encodes Enter from the char itself.
-          maxLines: null,
-          cursorColor: AppTheme.termCursor,
-          backgroundCursorColor: AppTheme.termCursor,
-          style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
-          keyboardType: TextInputType.text,
-          // Prediction-free so the IME doesn't rewrite already-sent text.
-          autocorrect: false,
-          enableSuggestions: false,
-          enableIMEPersonalizedLearning: false,
+        // Ancestor key observer for an attached hardware / Bluetooth keyboard.
+        // `canRequestFocus: false` keeps it off the focus chain as a target
+        // (the EditableText stays the primary focus) while it still sees the
+        // field's key events as an ancestor — see [_onHardwareKey].
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _onHardwareKey,
+          child: EditableText(
+            controller: _imeController,
+            focusNode: _imeFocus,
+            onChanged: _onImeChanged,
+            maxLines: null,
+            cursorColor: AppTheme.termCursor,
+            backgroundCursorColor: AppTheme.termCursor,
+            style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
+            // `multiline` (not `text`) makes the soft-keyboard return key
+            // insert a newline the diff can capture instead of firing a `done`
+            // action that never reaches `onChanged` — `maxLines: null` alone
+            // does not change the action key. `newline` pins that intent.
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            // Prediction-free so the IME doesn't rewrite already-sent text.
+            autocorrect: false,
+            enableSuggestions: false,
+            enableIMEPersonalizedLearning: false,
+          ),
         ),
       ),
     );

@@ -1124,15 +1124,266 @@ void main() {
     // live controller and the engine reports a viewport. The mobile
     // integration suite exercises these.
 
-    // covered by integration: `_onImeChanged` per-rune dispatch — needs
-    // a focused EditableText with a live session to observe the diffed
-    // text routed to `session.sendKey`. The hidden IME field is wired
-    // but unreachable to discrete pumps without the soft-keyboard
-    // platform channel.
+    // covered by integration: `_onImeChanged` per-rune dispatch through a
+    // live `session.sendKey` — needs a focused EditableText with a live
+    // session. The pure rune→key mapping it delegates to is unit-tested in
+    // the `imeKeysFromChange` group below (no session, no platform channel).
+  });
+
+  group('imeKeysFromChange', () {
+    const bs = rust_terminal.TerminalKeyName.backspace();
+    const enter = rust_terminal.TerminalKeyName.enter();
+    const tab = rust_terminal.TerminalKeyName.tab();
+    const esc = rust_terminal.TerminalKeyName.escape();
+    const sentinel = MobileTerminalView.imeSentinel;
+
+    test(
+      'empty payload means the sentinel was deleted → a single Backspace',
+      () {
+        // A soft-keyboard Backspace deletes the parked sentinel and leaves the
+        // field empty; that is the ONLY way `onChanged('')` fires, so it must
+        // map to exactly one Backspace key — not a no-op (the historical bug
+        // where the field was cleared and Backspace produced no event at all).
+        expect(MobileTerminalView.imeKeysFromChange(''), [bs]);
+      },
+    );
+
+    test('a single typed character strips the sentinel and emits one Char', () {
+      // The user typed `a`; the field holds sentinel+`a`. The sentinel prefix
+      // is dropped so only the real rune is forwarded.
+      expect(MobileTerminalView.imeKeysFromChange('${sentinel}a'), [
+        const rust_terminal.TerminalKeyName.char(code: 0x61),
+      ]);
+    });
+
+    test(
+      'a captured newline maps to the named Enter key, not a literal byte',
+      () {
+        // The multi-line field turns the return key into a `\n` insertion. It
+        // must encode as Enter so the Rust side applies the live CR/CR+LF mode
+        // — a `Char(0x0A)` would type a raw control byte instead.
+        expect(MobileTerminalView.imeKeysFromChange('$sentinel\n'), [enter]);
+        expect(MobileTerminalView.imeKeysFromChange('$sentinel\r'), [enter]);
+      },
+    );
+
+    test('a captured tab maps to the named Tab key', () {
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel\t'), [tab]);
+    });
+
+    test('a captured ESC rune maps to the named Escape key', () {
+      // Hacker-style soft keyboards (and some attached keyboards) deliver Esc
+      // as a literal 0x1B rune. The named key keeps parity with the desktop
+      // map (`terminal_key_input.dart`) instead of relying on the Char
+      // fall-through.
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel\u001B'), [esc]);
+    });
+
+    test('rubout control runes (BS / DEL) map to the Backspace key', () {
+      // Some IMEs / hardware keyboards deliver Backspace as a literal 0x08 or
+      // 0x7F rune inside the payload rather than as an empty-buffer deletion.
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel'), [bs]);
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel'), [bs]);
+    });
+
+    test(
+      'a multi-character paste-like payload emits one key per rune in order',
+      () {
+        // Glide typing / IME batch commits arrive as a whole word in one change.
+        expect(MobileTerminalView.imeKeysFromChange('${sentinel}ls\n'), [
+          const rust_terminal.TerminalKeyName.char(code: 0x6C),
+          const rust_terminal.TerminalKeyName.char(code: 0x73),
+          enter,
+        ]);
+      },
+    );
+
+    test('a payload missing the sentinel forwards every rune verbatim', () {
+      // Defensive: if an IME replaces the whole buffer and drops the sentinel,
+      // treat the entire payload as typed text rather than swallowing a rune.
+      expect(MobileTerminalView.imeKeysFromChange('hi'), [
+        const rust_terminal.TerminalKeyName.char(code: 0x68),
+        const rust_terminal.TerminalKeyName.char(code: 0x69),
+      ]);
+    });
+
+    test('the sentinel alone (no typed text) emits nothing', () {
+      // A bare re-commit of the sentinel must not inject a phantom key.
+      expect(MobileTerminalView.imeKeysFromChange(sentinel), isEmpty);
+    });
 
     // covered by integration: `_pasteAsync` end-to-end — the
     // `Clipboard.getData` interceptor returns empty here, so the
     // `text.isEmpty` guard fires and `session.paste` is never reached;
     // the non-empty path is integration-tested.
+  });
+
+  group('hardwareKeyForwards', () {
+    rust_terminal.TerminalKey key(
+      rust_terminal.TerminalKeyName name, {
+      bool ctrl = false,
+      bool alt = false,
+      bool meta = false,
+    }) => rust_terminal.TerminalKey(
+      name: name,
+      ctrl: ctrl,
+      alt: alt,
+      shift: false,
+      meta: meta,
+    );
+
+    test('Enter and Backspace stay with the IME text path', () {
+      // A hardware Enter inserts a newline the field captures via onChanged,
+      // and Backspace deletes the sentinel the same way — forwarding them from
+      // the key path too would double the input.
+      expect(
+        MobileTerminalView.hardwareKeyForwards(
+          key(const rust_terminal.TerminalKeyName.enter()),
+        ),
+        isFalse,
+      );
+      expect(
+        MobileTerminalView.hardwareKeyForwards(
+          key(const rust_terminal.TerminalKeyName.backspace()),
+        ),
+        isFalse,
+      );
+    });
+
+    test('a bare printable key stays with the IME (avoids double-typing)', () {
+      // The field commits the character through onChanged; the key path must
+      // not also send it.
+      expect(
+        MobileTerminalView.hardwareKeyForwards(
+          key(const rust_terminal.TerminalKeyName.char(code: 0x61)),
+        ),
+        isFalse,
+      );
+    });
+
+    test('a Ctrl/Alt/Meta-modified char forwards (the IME emits no text)', () {
+      // Ctrl+C / Alt+x are shortcuts the IME will not commit as text, so the
+      // key path is the only route to the shell.
+      for (final mod in ['ctrl', 'alt', 'meta']) {
+        final k = key(
+          const rust_terminal.TerminalKeyName.char(code: 0x63),
+          ctrl: mod == 'ctrl',
+          alt: mod == 'alt',
+          meta: mod == 'meta',
+        );
+        expect(
+          MobileTerminalView.hardwareKeyForwards(k),
+          isTrue,
+          reason: '$mod+char must forward from the key path',
+        );
+      }
+    });
+
+    test('Tab forwards so the field cannot steal it for focus traversal', () {
+      // Unlike Enter, a hardware Tab in a text field triggers focus traversal
+      // by default — it never reaches onChanged, so the key path must own it.
+      expect(
+        MobileTerminalView.hardwareKeyForwards(
+          key(const rust_terminal.TerminalKeyName.tab()),
+        ),
+        isTrue,
+      );
+    });
+
+    test('navigation / function / escape keys are all forwarded', () {
+      // These never arrive as IME text; the field would otherwise consume them
+      // as cursor / page commands.
+      final forwarded = <rust_terminal.TerminalKeyName>[
+        const rust_terminal.TerminalKeyName.up(),
+        const rust_terminal.TerminalKeyName.down(),
+        const rust_terminal.TerminalKeyName.left(),
+        const rust_terminal.TerminalKeyName.right(),
+        const rust_terminal.TerminalKeyName.home(),
+        const rust_terminal.TerminalKeyName.end(),
+        const rust_terminal.TerminalKeyName.pageUp(),
+        const rust_terminal.TerminalKeyName.pageDown(),
+        const rust_terminal.TerminalKeyName.insert(),
+        const rust_terminal.TerminalKeyName.delete(),
+        const rust_terminal.TerminalKeyName.escape(),
+        const rust_terminal.TerminalKeyName.f(number: 5),
+      ];
+      for (final name in forwarded) {
+        expect(
+          MobileTerminalView.hardwareKeyForwards(key(name)),
+          isTrue,
+          reason: '$name must forward from the key path',
+        );
+      }
+    });
+  });
+
+  group('hardware-key interception mechanism', () {
+    testWidgets(
+      'a Focus.onKeyEvent ancestor consumes an arrow key before the focused '
+      'EditableText runs its default cursor-move action',
+      (tester) async {
+        // This is the load-bearing assumption behind the hardware-keyboard
+        // path: a `Focus(canRequestFocus: false)` wrapping the IME field sees
+        // the field's key events as an ancestor and, by returning
+        // `handled`, stops the ambient text-editing shortcuts (arrow → move
+        // cursor) from firing. If this regressed, navigation keys would move
+        // the hidden field's cursor instead of reaching the shell.
+        final controller = TextEditingController(text: 'ab');
+        final focus = FocusNode();
+        addTearDown(() {
+          controller.dispose();
+          focus.dispose();
+        });
+        final seen = <LogicalKeyboardKey>[];
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: S.localizationsDelegates,
+            supportedLocales: S.supportedLocales,
+            home: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onKeyEvent: (node, event) {
+                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                seen.add(event.logicalKey);
+                // Mirror `_onHardwareKey`: consume navigation keys.
+                return event.logicalKey == LogicalKeyboardKey.arrowLeft
+                    ? KeyEventResult.handled
+                    : KeyEventResult.ignored;
+              },
+              child: EditableText(
+                controller: controller,
+                focusNode: focus,
+                style: const TextStyle(),
+                cursorColor: const Color(0xFF000000),
+                backgroundCursorColor: const Color(0xFF000000),
+              ),
+            ),
+          ),
+        );
+
+        focus.requestFocus();
+        await tester.pump();
+        controller.selection = const TextSelection.collapsed(offset: 2);
+        await tester.pump();
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await tester.pump();
+
+        expect(
+          seen,
+          contains(LogicalKeyboardKey.arrowLeft),
+          reason: 'The ancestor Focus must observe the field key event.',
+        );
+        expect(
+          controller.selection.baseOffset,
+          2,
+          reason:
+              'Returning handled from the ancestor onKeyEvent must pre-empt '
+              'the EditableText arrow-left cursor move — proof the hardware '
+              'navigation keys can be intercepted before the field acts.',
+        );
+      },
+    );
   });
 }
