@@ -18,6 +18,7 @@ import '../../utils/logger.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/terminal/connection_progress.dart';
 import '../../widgets/terminal/terminal_controller.dart';
+import '../../widgets/terminal/terminal_key_input.dart';
 import '../../widgets/terminal/terminal_palette_theme.dart';
 import '../../widgets/terminal/terminal_view.dart';
 import '../snippets/snippet_picker.dart';
@@ -40,6 +41,15 @@ import 'terminal_copy_overlay.dart';
 /// a capturable newline rather than firing a `done` action) and parks a
 /// zero-width sentinel rune so a Backspace on an empty buffer still surfaces
 /// as a change event — see [imeSentinel].
+///
+/// **Hardware keyboards.** An attached physical / Bluetooth keyboard delivers
+/// printable text + Enter / Backspace through the same IME path, but its
+/// navigation / function / Escape / Tab / forward-Delete keys would otherwise
+/// be eaten by the focused field as cursor-movement / focus-traversal commands.
+/// A `Focus.onKeyEvent` ancestor ([_MobileTerminalViewState._onHardwareKey])
+/// intercepts those before the ambient text-editing shortcuts and forwards them
+/// via the shared desktop [terminalKeyFromEvent] mapping — see
+/// [hardwareKeyForwards] for the forward-vs-IME split.
 ///
 /// **Gestures.** One-finger drags scroll the scrollback. Font size is driven
 /// exclusively by the Settings slider — pinch-to-zoom is intentionally absent
@@ -92,6 +102,27 @@ class MobileTerminalView extends ConsumerStatefulWidget {
           _ => rust_terminal.TerminalKeyName.char(code: rune),
         },
     ];
+  }
+
+  /// Whether a hardware / Bluetooth-keyboard [rust_terminal.TerminalKey]
+  /// (already mapped by [terminalKeyFromEvent]) should be forwarded to the
+  /// shell from the key-event path rather than left to the IME text path. A
+  /// physical keyboard delivers printable text plus Enter / Backspace through
+  /// the focused field's IME (`onChanged`), so those are left alone here — also
+  /// forwarding them would double the input. Everything else (navigation,
+  /// function, Escape, **Tab** — which the field would otherwise steal for
+  /// focus traversal — and forward-Delete) is swallowed by the field as a
+  /// cursor / traversal command and never reaches the shell, so it is forwarded
+  /// and consumed. A bare printable key stays with the IME; a Ctrl/Alt/Meta-
+  /// modified key is a shortcut the IME won't commit as text, so it forwards.
+  @visibleForTesting
+  static bool hardwareKeyForwards(rust_terminal.TerminalKey key) {
+    return switch (key.name) {
+      rust_terminal.TerminalKeyName_Enter() ||
+      rust_terminal.TerminalKeyName_Backspace() => false,
+      rust_terminal.TerminalKeyName_Char() => key.ctrl || key.alt || key.meta,
+      _ => true,
+    };
   }
 
   @override
@@ -307,6 +338,29 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       );
     }
     bar?.consumeOneShotModifiers();
+  }
+
+  /// Intercept hardware / Bluetooth-keyboard key events before the focused
+  /// capture field turns them into cursor-movement / focus-traversal commands.
+  /// Wired as a `Focus.onKeyEvent` ancestor of the IME field, so it runs before
+  /// the ambient text-editing shortcuts; returning [KeyEventResult.handled]
+  /// consumes the key so the field does not also act on it. Bar sticky
+  /// modifiers are deliberately NOT folded in here — a hardware keyboard
+  /// carries its own Ctrl / Alt, and folding them would risk double-encoding a
+  /// key the IME also commits. See [MobileTerminalView.hardwareKeyForwards].
+  KeyEventResult _onHardwareKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final session = _session;
+    if (session == null) return KeyEventResult.ignored;
+    final key = terminalKeyFromEvent(
+      event,
+      HardwareKeyboard.instance.logicalKeysPressed,
+    );
+    if (key == null || !MobileTerminalView.hardwareKeyForwards(key)) {
+      return KeyEventResult.ignored;
+    }
+    unawaited(session.sendKey(key: key));
+    return KeyEventResult.handled;
   }
 
   void _paste() {
@@ -600,24 +654,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       height: 0,
       child: Opacity(
         opacity: 0,
-        child: EditableText(
-          controller: _imeController,
-          focusNode: _imeFocus,
-          onChanged: _onImeChanged,
-          maxLines: null,
-          cursorColor: AppTheme.termCursor,
-          backgroundCursorColor: AppTheme.termCursor,
-          style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
-          // `multiline` (not `text`) makes the soft-keyboard return key insert
-          // a newline the diff can capture instead of firing a `done` action
-          // that never reaches `onChanged` — `maxLines: null` alone does not
-          // change the action key. `newline` pins that intent across IMEs.
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          // Prediction-free so the IME doesn't rewrite already-sent text.
-          autocorrect: false,
-          enableSuggestions: false,
-          enableIMEPersonalizedLearning: false,
+        // Ancestor key observer for an attached hardware / Bluetooth keyboard.
+        // `canRequestFocus: false` keeps it off the focus chain as a target
+        // (the EditableText stays the primary focus) while it still sees the
+        // field's key events as an ancestor — see [_onHardwareKey].
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _onHardwareKey,
+          child: EditableText(
+            controller: _imeController,
+            focusNode: _imeFocus,
+            onChanged: _onImeChanged,
+            maxLines: null,
+            cursorColor: AppTheme.termCursor,
+            backgroundCursorColor: AppTheme.termCursor,
+            style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
+            // `multiline` (not `text`) makes the soft-keyboard return key
+            // insert a newline the diff can capture instead of firing a `done`
+            // action that never reaches `onChanged` — `maxLines: null` alone
+            // does not change the action key. `newline` pins that intent.
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            // Prediction-free so the IME doesn't rewrite already-sent text.
+            autocorrect: false,
+            enableSuggestions: false,
+            enableIMEPersonalizedLearning: false,
+          ),
         ),
       ),
     );
