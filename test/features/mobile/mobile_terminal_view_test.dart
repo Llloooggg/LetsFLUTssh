@@ -1124,11 +1124,93 @@ void main() {
     // live controller and the engine reports a viewport. The mobile
     // integration suite exercises these.
 
-    // covered by integration: `_onImeChanged` per-rune dispatch — needs
-    // a focused EditableText with a live session to observe the diffed
-    // text routed to `session.sendKey`. The hidden IME field is wired
-    // but unreachable to discrete pumps without the soft-keyboard
-    // platform channel.
+    // covered by integration: `_onImeChanged` per-rune dispatch through a
+    // live `session.sendKey` — needs a focused EditableText with a live
+    // session. The pure rune→key mapping it delegates to is unit-tested in
+    // the `imeKeysFromChange` group below (no session, no platform channel).
+  });
+
+  group('imeKeysFromChange', () {
+    const bs = rust_terminal.TerminalKeyName.backspace();
+    const enter = rust_terminal.TerminalKeyName.enter();
+    const tab = rust_terminal.TerminalKeyName.tab();
+    const esc = rust_terminal.TerminalKeyName.escape();
+    const sentinel = MobileTerminalView.imeSentinel;
+
+    test(
+      'empty payload means the sentinel was deleted → a single Backspace',
+      () {
+        // A soft-keyboard Backspace deletes the parked sentinel and leaves the
+        // field empty; that is the ONLY way `onChanged('')` fires, so it must
+        // map to exactly one Backspace key — not a no-op (the historical bug
+        // where the field was cleared and Backspace produced no event at all).
+        expect(MobileTerminalView.imeKeysFromChange(''), [bs]);
+      },
+    );
+
+    test('a single typed character strips the sentinel and emits one Char', () {
+      // The user typed `a`; the field holds sentinel+`a`. The sentinel prefix
+      // is dropped so only the real rune is forwarded.
+      expect(MobileTerminalView.imeKeysFromChange('${sentinel}a'), [
+        const rust_terminal.TerminalKeyName.char(code: 0x61),
+      ]);
+    });
+
+    test(
+      'a captured newline maps to the named Enter key, not a literal byte',
+      () {
+        // The multi-line field turns the return key into a `\n` insertion. It
+        // must encode as Enter so the Rust side applies the live CR/CR+LF mode
+        // — a `Char(0x0A)` would type a raw control byte instead.
+        expect(MobileTerminalView.imeKeysFromChange('$sentinel\n'), [enter]);
+        expect(MobileTerminalView.imeKeysFromChange('$sentinel\r'), [enter]);
+      },
+    );
+
+    test('a captured tab maps to the named Tab key', () {
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel\t'), [tab]);
+    });
+
+    test('a captured ESC rune maps to the named Escape key', () {
+      // Hacker-style soft keyboards (and some attached keyboards) deliver Esc
+      // as a literal 0x1B rune. The named key keeps parity with the desktop
+      // map (`terminal_key_input.dart`) instead of relying on the Char
+      // fall-through.
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel\u001B'), [esc]);
+    });
+
+    test('rubout control runes (BS / DEL) map to the Backspace key', () {
+      // Some IMEs / hardware keyboards deliver Backspace as a literal 0x08 or
+      // 0x7F rune inside the payload rather than as an empty-buffer deletion.
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel'), [bs]);
+      expect(MobileTerminalView.imeKeysFromChange('$sentinel'), [bs]);
+    });
+
+    test(
+      'a multi-character paste-like payload emits one key per rune in order',
+      () {
+        // Glide typing / IME batch commits arrive as a whole word in one change.
+        expect(MobileTerminalView.imeKeysFromChange('${sentinel}ls\n'), [
+          const rust_terminal.TerminalKeyName.char(code: 0x6C),
+          const rust_terminal.TerminalKeyName.char(code: 0x73),
+          enter,
+        ]);
+      },
+    );
+
+    test('a payload missing the sentinel forwards every rune verbatim', () {
+      // Defensive: if an IME replaces the whole buffer and drops the sentinel,
+      // treat the entire payload as typed text rather than swallowing a rune.
+      expect(MobileTerminalView.imeKeysFromChange('hi'), [
+        const rust_terminal.TerminalKeyName.char(code: 0x68),
+        const rust_terminal.TerminalKeyName.char(code: 0x69),
+      ]);
+    });
+
+    test('the sentinel alone (no typed text) emits nothing', () {
+      // A bare re-commit of the sentinel must not inject a phantom key.
+      expect(MobileTerminalView.imeKeysFromChange(sentinel), isEmpty);
+    });
 
     // covered by integration: `_pasteAsync` end-to-end — the
     // `Clipboard.getData` interceptor returns empty here, so the

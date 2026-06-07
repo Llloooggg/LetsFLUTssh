@@ -36,7 +36,10 @@ import 'terminal_copy_overlay.dart';
 /// encodes the VT bytes Rust-side against the live terminal mode. System
 /// soft-keyboard text is captured by a hidden text field and routed the same
 /// way, one [rust_terminal.TerminalKey] per typed character so the bar's
-/// modifiers apply.
+/// modifiers apply. The hidden field is multi-line (so the return key inserts
+/// a capturable newline rather than firing a `done` action) and parks a
+/// zero-width sentinel rune so a Backspace on an empty buffer still surfaces
+/// as a change event — see [imeSentinel].
 ///
 /// **Gestures.** One-finger drags scroll the scrollback. Font size is driven
 /// exclusively by the Settings slider — pinch-to-zoom is intentionally absent
@@ -52,6 +55,44 @@ class MobileTerminalView extends ConsumerStatefulWidget {
   final Connection connection;
 
   const MobileTerminalView({super.key, required this.connection});
+
+  /// Zero-width sentinel parked in the hidden IME field so the field is never
+  /// truly empty. A soft-keyboard Backspace on an empty buffer fires no
+  /// `onChanged` on Android — there is nothing to delete — so the keystroke
+  /// would be lost. Keeping one deletable rune in the buffer makes Backspace
+  /// surface as an `onChanged('')`, which [imeKeysFromChange] maps to the
+  /// Backspace key. The rune is a single UTF-16 unit (so the seeded cursor
+  /// offset is `1`) and never paints (the field is zero-size + opacity 0).
+  @visibleForTesting
+  static const imeSentinel = '\u200B';
+
+  /// Translate a hidden-IME `onChanged` payload into the ordered logical keys
+  /// to forward to the session. [value] is the field text *including* the
+  /// leading [imeSentinel]; an empty [value] means the sentinel itself was
+  /// deleted — a Backspace on the otherwise-empty buffer. Control runes encode
+  /// as their named key (Enter / Tab / Backspace / Escape) so the Rust encoder
+  /// applies the live mode (CR vs CR+LF under LNM, the DEL-vs-BS erase
+  /// convention, Shift+Tab back-tab) instead of typing a literal control byte
+  /// — a bare `Char(0x0A)` would emit LF where the shell expects CR.
+  @visibleForTesting
+  static List<rust_terminal.TerminalKeyName> imeKeysFromChange(String value) {
+    if (value.isEmpty) {
+      return const [rust_terminal.TerminalKeyName.backspace()];
+    }
+    final typed = value.startsWith(imeSentinel)
+        ? value.substring(imeSentinel.length)
+        : value;
+    return [
+      for (final rune in typed.runes)
+        switch (rune) {
+          0x0A || 0x0D => const rust_terminal.TerminalKeyName.enter(),
+          0x09 => const rust_terminal.TerminalKeyName.tab(),
+          0x08 || 0x7F => const rust_terminal.TerminalKeyName.backspace(),
+          0x1B => const rust_terminal.TerminalKeyName.escape(),
+          _ => rust_terminal.TerminalKeyName.char(code: rune),
+        },
+    ];
+  }
 
   @override
   ConsumerState<MobileTerminalView> createState() => _MobileTerminalViewState();
@@ -113,6 +154,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       if (session != null) unawaited(session.clear());
     };
     TerminalScrubber.instance.register(_scrubFn);
+    _resetImeBuffer();
     // Delay connect until after the first frame so the grid view reports the
     // real viewport size before the shell opens — opening at the default
     // 80x24 then resizing garbles the first lines on a phone viewport.
@@ -225,28 +267,33 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     unawaited(session.sendKey(key: key));
   }
 
-  /// Diff the hidden IME field on each change and send the inserted text. We
-  /// reset the field to empty after each change so the next change carries
-  /// only the freshly-typed text — the terminal owns the real text buffer,
-  /// the field is a pure capture surface. Each character is sent as its own
-  /// [rust_terminal.TerminalKey] so the bar's sticky Ctrl / Alt fold in.
+  /// Re-seed the hidden field with the lone sentinel
+  /// ([MobileTerminalView.imeSentinel]), cursor parked after it so the next
+  /// typed text appends and the next Backspace deletes the sentinel. Setting
+  /// the controller value does not re-enter `onChanged` (that fires only for
+  /// user edits via the input connection).
+  void _resetImeBuffer() {
+    _imeController.value = const TextEditingValue(
+      text: MobileTerminalView.imeSentinel,
+      selection: TextSelection.collapsed(offset: 1),
+    );
+  }
+
+  /// Diff the hidden IME field on each change and send the inserted text (or a
+  /// Backspace when the sentinel was deleted). The field is re-seeded to the
+  /// sentinel after each change — the terminal owns the real text buffer, the
+  /// field is a pure capture surface. Each key is sent on its own so the bar's
+  /// sticky Ctrl / Alt fold in.
   void _onImeChanged(String value) {
-    if (value.isEmpty) return;
-    final session = _session;
-    _imeController.clear();
-    if (session == null) return;
     final bar = _keyboardKey.currentState;
+    final session = _session;
+    _resetImeBuffer();
+    if (session == null) return;
+    final keys = MobileTerminalView.imeKeysFromChange(value);
+    if (keys.isEmpty) return;
     final ctrl = bar?.ctrlActive ?? false;
     final alt = bar?.altActive ?? false;
-    for (final rune in value.runes) {
-      // Newline / tab must encode as the named Enter / Tab key so the Rust
-      // encoder applies the live mode (CR vs CR+LF under LNM, etc.) — a bare
-      // Char(0x0A) would type a literal control byte instead.
-      final name = switch (rune) {
-        0x0A || 0x0D => const rust_terminal.TerminalKeyName.enter(),
-        0x09 => const rust_terminal.TerminalKeyName.tab(),
-        _ => rust_terminal.TerminalKeyName.char(code: rune),
-      };
+    for (final name in keys) {
       unawaited(
         session.sendKey(
           key: rust_terminal.TerminalKey(
@@ -557,14 +604,16 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
           controller: _imeController,
           focusNode: _imeFocus,
           onChanged: _onImeChanged,
-          // Multi-line keeps Enter producing a newline character the diff
-          // can capture, rather than a submit action that loses it; the
-          // session encodes Enter from the char itself.
           maxLines: null,
           cursorColor: AppTheme.termCursor,
           backgroundCursorColor: AppTheme.termCursor,
           style: TextStyle(fontSize: _fontSize, color: AppTheme.fg),
-          keyboardType: TextInputType.text,
+          // `multiline` (not `text`) makes the soft-keyboard return key insert
+          // a newline the diff can capture instead of firing a `done` action
+          // that never reaches `onChanged` — `maxLines: null` alone does not
+          // change the action key. `newline` pins that intent across IMEs.
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
           // Prediction-free so the IME doesn't rewrite already-sent text.
           autocorrect: false,
           enableSuggestions: false,
