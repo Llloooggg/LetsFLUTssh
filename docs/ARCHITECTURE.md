@@ -4959,7 +4959,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
-When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **40/20 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) drops to **36/18 on mobile, 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
+When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **44/22 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) is **44/22 on mobile (unchanged), 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
 When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
@@ -5850,7 +5850,7 @@ Use `sanitizeErrorMessage()` before logging any error message that may contain c
 ```dart
 Future<void> writeFileAtomic(String path, String content);
 Future<void> writeBytesAtomic(String path, List<int> bytes);
-Future<void> restrictFilePermissions(String path);  // async chmod 600
+Future<void> hardenFilePerms(String path);  // chmod 600 (POSIX), via lfs_core::path::harden_file_perms
 ```
 
 ### Platform
