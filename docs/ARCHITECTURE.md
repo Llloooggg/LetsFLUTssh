@@ -2247,9 +2247,12 @@ All methods catch exceptions and return null/false — graceful fallback to plai
 
 ```dart
 class SecureKeyStorage {
-  Future<bool> isAvailable();      // write+read+delete probe
-  Future<Uint8List?> readKey();    // null on failure
-  Future<bool> writeKey(Uint8List key); // false on failure
+  Future<bool> isAvailable();                       // write+read+delete probe
+  // SecretRef discipline: the key bytes never cross FRB as a Uint8List —
+  // read stages them into the Rust SecretStore under the caller's id,
+  // write reads them back out of it.
+  Future<bool> readKeyToSecret(String secretId);    // false on miss
+  Future<bool> writeKeyFromSecret(String secretId); // false on failure
   Future<void> deleteKey();
 }
 ```
