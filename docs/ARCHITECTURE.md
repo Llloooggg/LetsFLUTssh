@@ -6782,7 +6782,6 @@ returns.
 ```
 _mainBody (synchronous, pre-runApp):
   WidgetsFlutterBinding.ensureInitialized
-  SecureKeyStorage.enableRuntimeSubprocessProbes()      // bool flag
   AppLogger.init()                                      // path resolution
                                                          // (path_provider only;
                                                          // no dart:io File ops)
@@ -6959,7 +6958,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
 - [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe routes through FRB into `lfs_os_security::secure_key_storage::secret_service_reachable` — a `zbus`-driven `SecretService::connect` against `org.freedesktop.secrets`. `Ok(connection)` = service registered and responds → `available`; transport failure / `ServiceUnknown` / no daemon → `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. **Don't pattern-match `WSL_DISTRO_NAME` or check `DBUS_SESSION_BUS_ADDRESS`** — both are proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so env-var branches give the wrong answer. **Don't shell out to `gdbus`** — keeping the keyring data-path single-language (zbus inside Rust) avoids the "Dart subprocess for one introspection call" maintenance liability. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `lfs_os_security::secure_key_storage`; failure = `probeFailed`.
 
-The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
+The Linux keyring probe no longer spawns a Dart subprocess — it is the Rust `zbus` `secret_service_reachable` FRB call above. `SecureKeyStorage` takes its probe surface through constructor injection (which retired the older static subprocess-probe latch), so widget tests pass a fake instead of reaching the live FRB call, and FakeAsync never sees a stray `Process.run` timer.
 
 Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Tier cards read the classified probe's `AsyncValue` as the authoritative availability signal too, not just for the reason-line copy — the fast-path `SecureKeyStorage.isAvailable()` uses only env + marker-file checks and would falsely mark WSL as "keychain available", leaving the Select button enabled on a broken system; the classified `probe()` is the actual truth. `caps.keychainAvailable` from the startup capabilities snapshot is kept as a fallback while the classified probe's future is still resolving, so the card renders optimistically on the first frame and snaps to the correct state milliseconds later.
 
