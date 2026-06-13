@@ -841,14 +841,19 @@ because each available fix would cost more than the finding is worth
 for a solo-maintained SSH client. They are recorded here for
 transparency:
 
-- **Branch-Protection — "require approvers" / "last push approval".**
-  Every other control on `main` is already at maximum (PRs required,
-  enforced on admins, status checks + up-to-date branch required,
-  CODEOWNER review, stale-review dismissal, no force-push, no
-  deletion). The two remaining warnings need a *second human*
-  reviewer; a single maintainer cannot approve their own PR, so
-  requiring approvers would make every change unmergeable. Inherent to
-  a one-person project.
+- **Branch-Protection — "require approvers" / "last push approval" /
+  "up-to-date branches".** Every other control on `main` is already at
+  maximum (PRs required, enforced on admins, status checks, CODEOWNER
+  review, stale-review dismissal, no force-push, no deletion). The
+  approver and last-push warnings need a *second human* reviewer; a
+  single maintainer cannot approve their own PR, so requiring approvers
+  would make every change unmergeable — inherent to a one-person
+  project. The "up-to-date branches" warning is declined on its own
+  merits: a strict required-checks policy serialises the monthly
+  Dependabot batch into a manual-rebase cascade, while the
+  semantic-merge break it would block is already caught by the
+  post-merge `push`-to-`main` CI run. See the branch-protection
+  rationale in ARCHITECTURE.md (§15).
 - **Vulnerabilities — RUSTSEC-2023-0071 (`rsa` Marvin timing attack).**
   `rsa` is a transitive dependency of the core SSH crates (`ssh-key`,
   `russh`) with no fixed release upstream. The attack's exploitable

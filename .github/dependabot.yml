@@ -35,8 +35,9 @@ updates:
           - "pointycastle"
       # Catch-all: every remaining minor/patch bump collapses into one
       # PR per run so a batch never stacks into N branches that each
-      # need a rebase under the up-to-date-before-merge rule. Majors
-      # stay individual (no update-types match) for manual review.
+      # touch the same lock file and force a rebase + CI re-run on the
+      # ones merged later. Majors stay individual (no update-types
+      # match) for manual review.
       all-minor-patch:
         patterns:
           - "*"
