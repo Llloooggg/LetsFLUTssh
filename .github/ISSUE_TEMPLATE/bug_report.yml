@@ -67,15 +67,12 @@ body:
         - AppImage
         - deb (Linux)
         - rpm (Linux)
-        - flatpak (Linux)
         - snap (Linux)
         - exe (Windows installer)
         - portable zip (Windows)
         - dmg (macOS)
-        - Homebrew Cask (macOS)
         - APK (Android)
         - Play Store (Android)
-        - App Store (iOS / iPadOS)
         - Built from source
         - Other
     validations:

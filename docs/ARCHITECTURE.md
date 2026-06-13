@@ -101,7 +101,7 @@ Order of preference when a feature needs OS capability: **bundle it** (e.g. SQLi
 
 - **UI primitives** in `lib/widgets/` — `AppIconButton`, `AppButton` (`.cancel`/`.primary`/`.secondary`/`.destructive`), `AppDialog` (+ `AppDialogHeader`/`Footer`), `HoverRegion`, `AppDataRow`, `AppDataSearchBar`, `StyledFormField`, `SortableHeaderCell`, `ColumnResizeHandle`, `StatusIndicator`, `MobileSelectionBar`. No widget that has more than one caller is duplicated.
 - **Theme primitives** in `lib/theme/` — `AppTheme.radius{Sm,Md,Lg}`, `AppTheme.barHeight*`, `AppTheme.controlHeight*`, `AppTheme.itemHeight*`, `AppTheme.*ColWidth`, `AppFonts.{tiny,xxs,xs,sm,md,lg,xl}`. Hardcoded sizes/radii/heights are treated as bugs.
-- **Cross-feature mixins and helpers** in `lib/core/**` — `SftpBrowserMixin` (shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart`, `column_widths.dart`, `progress_writer.dart`. New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
+- **Cross-feature mixins and helpers** live at the layer they belong to (UI-bound ones cannot sit in Flutter-free `core/`) — `SftpBrowserMixin` (`lib/features/file_browser/`, shared SFTP init/upload/download for desktop + mobile browsers), `key_file_helper.dart` (`lib/core/import/`, PEM detection shared by importer / `~/.ssh` scanner / file picker), `breadcrumb_path.dart` + `column_widths.dart` (`lib/features/file_browser/`), `progress_writer.dart` (`lib/widgets/terminal/`). New cross-cutting logic gets a `*_helper.dart` or mixin instead of being inlined per call site.
 - **DAO + Store layering** — every persisted entity has the same `Store → DAO` shape ([§11](#11-persistence--storage)); a new entity follows the existing template, not its own ad-hoc pattern.
 
 The practical upshot: before adding a widget, helper, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent; if behaviour is close but not identical, extend the shared primitive (add a parameter) rather than fork it. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason should be obvious from the code.
@@ -190,8 +190,7 @@ lib/
 │   ├── webdav/                       # `WebDavFileSystem` (`FileSystem` impl) over the Rust `lfs_core::webdav` transport
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
 │   │   ├── rust_db_init.dart         # `lfsCoreDbExists` (existence probe) / `verifyRustDbReadable` (post-unlock SELECT probe) / `ensureRustDbOpen({key, secretId})` (Rust handle bring-up). `dbClose` is invoked directly through the FRB-bridged `lib/src/rust/api/app.dart` shim from auto-lock + the controller.
-│   │   ├── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
-│   │   └── _folder_path_compat.dart  # Folder-path resolver used by the import path
+│   │   └── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
@@ -296,7 +295,7 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 
 | File | Class/Function | Purpose |
 |------|---------------|---------|
-| `transport/ssh_transport.dart` | `SshTransport` interface, `SshAuthMethod` family (`SshAuthPassword`, `SshAuthPubkey`, `SshAuthPubkeyCert`, `SshAuthAgent` + `*Ref` variants), `SshShellChannel`, `SshDirectTcpipChannel`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`) | Engine-agnostic transport surface — `connect` / `openShell` / `openTerminalSession` / `openSftp` / `openDirectTcpip` / `requestRemoteForward`. `openTerminalSession` returns a Rust-engine `TerminalSession` (the desktop terminal path); the raw `SshSession` stays encapsulated. `RustTransport` is the only impl; the interface stays so tests can swap in fakes through the constructor seam on `ConnectionsNotifier`. |
+| `transport/ssh_transport.dart` | `SshTransport` interface, `SshAuthMethod` family (`SshAuthAgent` + the `*Ref` variants — `SshAuthPasswordRef`, `SshAuthPubkeyRef`, `SshAuthPubkeyCertRef`, and the hardware-key refs `SshAuthPubkeySkRef` / `SshAuthPubkeySkCertRef` / `SshAuthPubkeyPkcs11Ref` / `SshAuthPubkeyEnclaveRef` / `SshAuthPubkeyHelloRef` / `SshAuthPubkeyTpmRef` / `SshAuthPubkeyKeystoreRef`; there are no non-`Ref` plaintext variants — even quick-connect bytes are staged Rust-side first), `SshShellChannel`, `SshDirectTcpipChannel`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`) | Engine-agnostic transport surface — `connect` / `openShell` / `openTerminalSession` / `openSftp` / `openDirectTcpip` / `requestRemoteForward`. `openTerminalSession` returns a Rust-engine `TerminalSession` (the desktop terminal path); the raw `SshSession` stays encapsulated. `RustTransport` is the only impl; the interface stays so tests can swap in fakes through the constructor seam on `ConnectionsNotifier`. |
 | `transport/rust_transport.dart` | `RustTransport` | Routes channel-ops calls into FRB (`lfs_core::ssh`). The Rust connection actor builds the authenticated session; this wrapper bridges the channel-ops surface and materialises shell + direct-tcpip channels as Dart streams. ProxyJump dialled child sessions adopt the parent's session via `RustTransport.adopt(session)` rather than re-connecting on the bridge. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`, plus the `useAgent` flag (`Session.toSSHConfig` sets it from `authType == AuthType.agent`); the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). When `useAgent` is set, `ConnectionsNotifier._authFromConfig` short-circuits to `SshAuthAgent` before the auth composer runs — the system ssh-agent owns the credential and no SecretStore staging is required. |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
@@ -321,7 +320,6 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 
 ```dart
 abstract class SshTransport {
-  void adopt(rust_ssh.SshSession session);
   Future<SshShellChannel> openShell({required int cols, required int rows});
   Future<TerminalSession> openTerminalSession({
     required int cols, required int rows,
@@ -338,12 +336,12 @@ abstract class SshTransport {
 
 `openTerminalSession` returns the FRB `TerminalSession` rather than the raw `SshSession`, so the connection actor's session never leaves the transport — the renderer (`TerminalView`, [§5.1](#desktop-rendering--custompaint-cell-grid)) only ever sees the terminal handle. The Rust core opens the PTY shell and builds the engine + pump inside `terminalSessionOpen`; the session is the single consumer of the shell's read-half, so this path does not coexist with `openShell` on the same logical terminal.
 
-The Rust connection actor owns the connect handshake itself — `connectAsync` in `ConnectionsNotifier` enqueues an `lfs_core::connection::ConnectCommand` over FRB; the actor authenticates via russh, publishes `BusEvent::ConnectionStateChanged(Connected)`, and the Dart `Connection` hands the resulting handle to `RustTransport.adopt(session)` (see `_adoptSession` in [§3.5](#35-connection-lifecycle-coreconnection)).
+The Rust connection actor owns the connect handshake itself — `connectAsync` in `ConnectionsNotifier` enqueues an `lfs_core::connection::ConnectArgs` over FRB (the actor then drives the handshake through its internal `ConnectionCommand` channel); the actor authenticates via russh, publishes `BusEvent::ConnectionStateChanged(Connected)`, and the Dart `Connection` hands the resulting handle to `RustTransport.adopt(session)` (see `_adoptSession` in [§3.5](#35-connection-lifecycle-coreconnection)).
 
-Auth method selection happens before the FRB hop in `ConnectionsNotifier._authFromConfig`:
+Auth-method selection happens **Rust-side** in `lfs_core::connection::auth_compose::prepare_auth`, reached through the `connectionPrepareAuth` FRB call; `ConnectionsNotifier._authFromConfig` makes that call and maps the returned `DbPreparedAuthRef_*` onto the typed `SshAuth*Ref` family (the system-agent case short-circuits to `SshAuthAgent` ahead of the call). The composer stages every credential byte into the SecretStore inside Rust, so Dart only ever sees the typed ref plus the transient-id list to drop after the attempt:
 
 - `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` / `SshAuthPubkeyCertRef(...)` — the bytes already live in the [`SecretStore`](#36-security--encryption-coresecurity) under the named ids, so the actor passes only the ids; russh fetches the bytes inside Rust.
-- `SshAuthPassword(password)` / `SshAuthPubkey(pem, passphrase)` — quick-connect fallback for the no-session-id path; the Dart heap holds the bytes for the duration of the connect attempt and the matching transient SecretStore entry is dropped when the attempt completes.
+- Quick-connect (no session id): the composer stages the inline `keyData` / `password` bytes into a fresh transient `conn.*` SecretStore entry inside Rust and returns the **same** `SshAuthPubkeyRef` / `SshAuthPasswordRef`; the transient id rides `conn.transientSecretIds` and is dropped when the attempt completes.
 - `SshAuthAgent` — proxies through the OS ssh-agent socket; no key bytes cross the boundary.
 
 `SshSession` inside Rust is held under `Mutex<Option<Arc<lfs_core::ssh::Session>>>`. Every channel-opening call in `RustTransport` clones the `Arc` under a short-lived lock, drops the lock, then awaits — long-running `openShell` / `openSftp` calls do not block one another and the surface is reentrant per session.
@@ -359,7 +357,7 @@ The transport receives **one** auth method per connect attempt. `ConnectionsNoti
 2. `sessionId` set + `has_password` → `SshAuthPasswordRef("sess.password.<id>")`.
 3. `auth.keyId` set + `db_ssh_keys_stage_secret` returns true → `SshAuthPubkeyRef("key.priv.<keyId>", passphraseSecretId: "key.passphrase.<keyId>" if user typed a passphrase for this attempt)`.
 4. Quick-connect: inline `auth.keyData` / `auth.password` → push into a transient SecretStore entry under `conn.<slot>.<uuid>` and emit the same Ref variants.
-5. Empty auth → `SshAuthPassword('')` so russh surfaces "no credentials" rather than auto-rejecting.
+5. Empty auth → the composer stages an empty-bytes blob under a transient `conn.password.<uuid>` and returns `SshAuthPasswordRef`, so russh surfaces "no credentials" rather than auto-rejecting.
 
 If the user has an encrypted key with no stored or passed passphrase, the connect fails inside the Rust actor with `Error::PassphraseRequired`. Rather than surface that as a dead end, `run_auth_with_credential_prompts` fires a `CredentialPromptRequest`, the Dart `CredentialPromptListener` shows the passphrase overlay, and the typed passphrase is staged into the key's SecretStore slot + the dispatch retried — a wrong passphrase re-prompts up to `MAX_CREDENTIAL_PROMPTS = 3`, a cancel surfaces the original error. Password auth with no stored password prompts the same way (proactively, since a wrong password has no typed re-prompt signal). See [§3.5 → Mid-connect credential overlay](#35-connection-lifecycle-coreconnection).
 
@@ -395,7 +393,7 @@ class KnownHostsMutator extends Notifier<Map<String, String>> {
 }
 ```
 
-The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsMutator` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
+The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { prompt_id, host, port, key_type, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::known_hosts` (the `app.known_hosts_prompts` registry). The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsMutator` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
 
 While the host-key prompt is on screen the connect driver's `ssh_timeout_sec` cap is suspended — the wall-clock spent waiting on the user does not count against the network budget. See [§3.5 Connect timeout](#connect-timeout--ssh_timeout_sec-with-prompt-pause) for the pause-aware-timeout machinery.
 
@@ -490,6 +488,8 @@ abstract class RemoteSftpFs {
                          void Function(TransferProgress)? onProgress);
   Future<void> downloadDir(String remoteDir, String localDir,
                            void Function(TransferProgress)? onProgress);
+  Future<int> dirSizeRecursive(String path, int maxDepth);          // bounded recursive size
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth); // one-hop leaf walk
 }
 
 class RustSftpFs extends RemoteSftpFs {
@@ -514,6 +514,9 @@ abstract class FileSystem {
   Future<void> rename(String oldPath, String newPath);
   Future<bool> exists(String path) async { ... }          // default: parent-listing probe
   Future<int>  dirSize(String path);                      // recursive size in bytes
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root,   // leaf walk; LocalFS/RemoteFS
+      {int maxDepth = 100});                              // override with one Rust call,
+                                                          // object stores use flatWalkViaList
 
   /// What this backend can surface. Defaults to "all-false"
   /// (the conservative shape every HTTP-style object store fits).
@@ -580,34 +583,44 @@ The FRB surface for SFTP stays unchanged with this layer in place — provider p
 - Workers: sized from the user's "Parallel workers" setting (`AppConfig.transfer_workers`, default 4, clamped `[1, 10]`). `lfs_core::transfer::worker_count_from_config_store` reads + clamps the live config value and the FRB adapter passes it to `WorkerPool::spawn`; `DEFAULT_TRANSFER_WORKERS = 4` is the fallback when the config store is unreadable. The pool is spawned lazily on the first transfer and never resized, so a changed setting applies on the next launch
 - History: unbounded in memory — terminal tasks stay until the user clears them (per-row drop or "clear history"); no automatic cap
 - States: `queued → running → completed / failed / cancelled`
-- Streams: `onChange → UI updates`, `onHistoryChange → history`
+- Snapshot delivery: a `BusTopic.transfer` subscription schedules a refresh on every `TransferTask*` event; the UI reads through the selector providers `activeTransfersProvider` / `transferHistoryProvider` / `transferStatusProvider` over `transfersProvider`
 
 ```dart
-class TransfersNotifier extends Notifier<TransferState> {
+class TransfersNotifier extends Notifier<TransfersState> {
   // Worker parallelism lives on the Rust side
   // (lfs_core::transfer::WorkerPool); the Dart notifier mirrors
   // snapshots only. History is kept in insertion order until the
   // user clears it — there is no automatic cap or per-task timeout.
 
-  Future<void> enqueue({
-    required TransferDirection direction,
-    required String sessionId,
-    required String remotePath,
-    required String localPath,
-    int bytesTotal = 0,
+  // Upload and download are separate entry points (direction is the
+  // method, not a parameter); each returns the assigned task id and
+  // routes to lfs_frb::api::transfer::transfer_enqueue, where the
+  // Rust worker pool owns the live task and emits per-chunk
+  // BusEvent::TransferTaskProgress + lifecycle events the notifier
+  // subscribes to.
+  Future<String> enqueueDownload({
+    required String connectionId, required String name,
+    required String remotePath, required String localPath,
+    int sizeBytes = 0,
   });
-  // Routes to lfs_frb::api::transfer::transfer_enqueue; the Rust
-  // worker pool owns the live task object and emits per-chunk
-  // BusEvent::TransferTaskProgress + lifecycle events that the
-  // notifier subscribes to.
+  Future<String> enqueueUpload({
+    required String connectionId, required String name,
+    required String localPath, required String remotePath,
+    int sizeBytes = 0,
+  });
 
-  Future<void> cancel(String taskId);
-  Future<void> cancelAll();
+  Future<bool> cancel(String id);             // false if the id had already finished
+  void cancelAll();
   Future<void> clearHistory();
+  Future<void> deleteHistory(List<String> ids);
+}
 
-  List<ActiveEntry> get activeEntries;        // running + queued tasks with progress
-  List<HistoryEntry> get history;             // completed/failed/cancelled
-  ({int running, int queued}) get status;
+// The snapshot the UI reads — exposed through the selector providers
+// transferHistoryProvider / activeTransfersProvider / transferStatusProvider:
+class TransfersState {
+  final List<HistoryEntry> history;           // completed/failed/cancelled
+  final List<ActiveEntry>  active;            // running + queued, with progress
+  final ActiveTransferState status;           // running + queued counts + currentInfo
 }
 ```
 
@@ -710,12 +723,16 @@ class Session {
 
   SSHConfig toSSHConfig();    // conversion for connection
   Session copyWith({...});    // preserves id, updates updatedAt
-  Session duplicate();        // new id, "(copy)" suffix, preserves authType
-  Map<String, dynamic> toJson();
+  Map<String, dynamic> toJson();                // secrets stripped (canonical Rust encoder)
+  Map<String, dynamic> toJsonWithCredentials(); // same wire shape, secrets included
   factory Session.fromJson(Map<String, dynamic> json);
+  // No Dart-side `duplicate()`: duplication is one Rust transaction
+  // (`dbSessionsDuplicateWithPath` — label-dedup + folder-resolve +
+  // new-id mint + insert) so `extras` / `via*` are never dropped.
 }
 
-enum SessionKind { ssh, webdav, s3 }
+typedef SessionKind = DbSessionKind; // FRB-generated enum { ssh, webdav, s3 }
+typedef AuthType = DbAuthType;       // FRB-generated enum { password, key, keyWithPassword, agent }
 ```
 
 ##### Session kind — SSH vs WebDAV vs S3
@@ -848,7 +865,7 @@ Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column. Holds fe
 
 **Persistence path.** On save the Dart layer hands a `DbSessionJsonInput` to the Rust encoder; the wire shape (key order, conditional-omit rules for `kind` / `key_id` / `extras` / `via_*` / `notes` / `sort_order` / `last_connected_at_ms`) lives in `lfs_core::session_json::encode_canonical_json`. On load the mapper (`mappers.dart::_decodeExtras`) routes the column verbatim through `session_extras_decode`, and `Session.fromJson` routes through `session_decode_from_json`. The Dart `Session` class still owns the domain methods (`displayName`, `effectiveHost`, `withoutCredentials`, typed accessors) but no longer hand-rolls the JSON walk — the single source of truth for the wire shape is Rust.
 
-**Typed `extras` leaves.** The Rust decoder converts each map leaf into a `SessionJsonValue` tagged union (`Null` / `Bool` / `Int` / `Double` / `Text` / `Array(String)` / `Object(String)`); the FRB shim mirrors it as `DbSessionJsonValue`; the Dart `extrasListToMap` helper in `session_json_codec.dart` re-keys the `Vec<DbSessionJsonExtra>` carrier into a `Map<String, Object?>` the typed accessors (`extrasBool` / `extrasStr` / `extrasInt`) consume. Whole-number floats round-trip as `Int` so the `extrasInt` contract matches the Dart `num` shape `jsonDecode` used to produce.
+**Typed `extras` leaves.** The Rust decoder converts each map leaf into a `SessionJsonValue` tagged union (`Null` / `Bool` / `Int` / `Double` / `Text` / `Array(String)` / `Object(String)`); the FRB shim mirrors it as `DbSessionJsonValue`; the Dart `extrasListToMap` helper in `core/session/session.dart` re-keys the `Vec<DbSessionJsonExtra>` carrier into a `Map<String, Object?>` the typed accessors (`extrasBool` / `extrasStr` / `extrasInt`) consume. Whole-number floats round-trip as `Int` so the `extrasInt` contract matches the Dart `num` shape `jsonDecode` used to produce.
 
 #### SessionMutator + read-provider split — FRB-backed persistence
 
@@ -941,7 +958,7 @@ flag the sidebar mutates as the user clicks chevrons).
 |------|-------|---------|
 | `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer, progress stream) |
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
-| `connection_step_mappers.dart` | Bus → `ConnectionStep` mappers | Translates `BusEvent::ConnectionProgress` payloads into the Dart `ConnectionStep` shape the progress tracker consumes. |
+| `connection_step_mappers.dart` | `mapBusPhase` / `mapBusStatus` / `busAuthRef` / `busConnectArgs` | Pure mappers across the FRB bus boundary, split out so value-type tests can import `connection_step.dart` without the native lib. Inbound: `mapBusPhase` → `ConnectionPhase`, `mapBusStatus` → `StepStatus` (the two fields a `ConnectionStep` is built from). Outbound: `busAuthRef` lowers the `SshAuthMethod` sealed family to a `BusConnectAuthRef`, and `busConnectArgs` builds the `BusConnectArgs` that `ConnectionsNotifier._doConnect` feeds the Rust connect actor. |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
 | `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to a `ReplayTerminalController` (Rust engine, shared by desktop and mobile terminal views) |
 | `connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, bus subscription |
@@ -1049,8 +1066,9 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   // Construction is via NotifierProvider; no required ctor args.
   // sessionCredentialCacheProvider is read inside build().
   // FRB-unreachable contexts (flutter_test) skip the bus subscription.
-
-  PassphrasePromptCallback? onPassphraseRequired;  // set by UI layer (main.dart)
+  // (Passphrase / password prompts are bus-driven via
+  // CredentialPromptListener — there is no `onPassphraseRequired`
+  // callback field.)
 
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
@@ -1061,8 +1079,10 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   // / typed-passphrase paths use transient ids under conn.<slot>.<uuid>
   // and add them to Connection.transientSecretIds for cleanup on
   // terminal state. cachedPassphrase covers the interactive retry path.
-  void disconnect(String connectionId);
-  void disconnectAll();  // also completes pending ready futures for in-progress connections
+  void disconnect(String id);
+  // Disconnect-all is the internal `_disconnectAll()` (fired on notifier
+  // dispose); it also completes pending ready futures for in-progress
+  // connections. There is no public `disconnectAll`.
 
   List<Connection> get connections;
 
@@ -1079,7 +1099,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
 
 #### Connect timeout — `ssh_timeout_sec` with prompt pause
 
-The connect driver in `lfs_core::connection::run_connect_driver` wraps the entire `run_auth` future — TCP dial + russh KEX + host-key verification + userauth — in a wall-clock cap so an unreachable host does not pin the actor for the OS-level TCP timeout (60–130 s on Linux). The cap is sourced from `AppConfig.ssh_timeout_sec` (Settings → Connection → "Connection timeout (s)"), defaults to 30 s, and is clamped to ≥1 s so a hostile / corrupt config entry cannot disable the bound entirely.
+The connect driver in `lfs_core::connection::run_connect_driver` wraps the entire `run_auth` future — TCP dial + russh KEX + host-key verification + userauth — in a wall-clock cap so an unreachable host does not pin the actor for the OS-level TCP timeout (60–130 s on Linux). The cap is sourced from `AppConfig.ssh_timeout_sec` (Settings → Connection → "Connection timeout (s)"), defaults to 10 s, and is clamped to ≥1 s so a hostile / corrupt config entry cannot disable the bound entirely.
 
 **Prompt pause invariant.** The cap covers **network and handshake time only** — wall-clock spent waiting on a user-facing prompt is *not* counted against it. Today the only such prompt is the TOFU host-key dialog (`BusEvent::KnownHostPromptRequest`, see [§3.1 host-key TOFU flow](#31-ssh-coressh)); future interactive prompts during connect (keyboard-interactive MFA, hardware-vault unlock) plug into the same gate by registering with their own prompt registry on `AppState`.
 
@@ -1097,7 +1117,7 @@ class ForegroundServiceManager {
   // Android → real foreground service via binding
   // Other platforms → no-op internally
 
-  void onConnectionCountChanged(int count);
+  Future<void> onConnectionCountChanged(int count);
   // count > 0 → starts foreground service with notification
   // count == 0 → stops service
 }
@@ -1125,7 +1145,7 @@ All app data lives in one SQLite database (`letsflutssh.db`) opened by `lfs_core
 |---|---|---|---|---|
 | **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
 | **T1** | Keychain | OS keychain on Apple/Linux/Windows (Keychain / libsecret / Credential Manager); Android uses an AES-256-GCM frame whose wrap key lives in AndroidKeyStore (TEE / StrongBox-backed when available), with the wrapped value bytes persisted as a 0600 file under `<filesDir>/lfs_secure_storage/<alias>.bin` | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
-| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key, wrapped bytes persisted as `hardware_vault_password_overlay_<plat>.bin` (`hardware_vault_android_bio.bin` on Android) |
 | **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only inside `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) during the unlocked window |
 
 See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
@@ -1151,9 +1171,13 @@ bypasses the OS keychain layer).
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
   keychain alias on T1 / per-platform biometric-gated key on T2:
-  `letsflutssh_hw_password_overlay` Keystore on Android, SE alias
-  on iOS/macOS, `LetsFLUTssh-BioOverlay-v2` CNG key with
-  `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
+  an AndroidKeyStore biometric wrap key on Android, the
+  `com.letsflutssh.hw_password_overlay` Secure Enclave tag on
+  iOS/macOS, and the `letsflutssh_hardware_vault_bio_v1` CNG key
+  gated by `NCRYPT_UI_PROTECT_KEY_FLAG` on Windows — wrapped bytes
+  persisted as `hardware_vault_password_overlay_<plat>.bin`, or
+  `hardware_vault_android_bio.bin` on Android) that
+  holds the typed password;
   biometric unlock releases the password from that slot and replays
   the HMAC gate without requiring the user to retype.
 The JSON decoder silently ignores any key outside the typed
@@ -1360,8 +1384,8 @@ Per-install salt is generated on `store()` and written alongside the sealed blob
 | Platform | File | Mechanism |
 |---|---|---|
 | **iOS / macOS** | `hardware_vault_apple.bin`, `hardware_vault_password_overlay_apple.bin` | `Data.write(to:options:[.atomic, .completeFileProtection])` — Swift's own tmp-file + rename. |
-| **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, `Permissions::from_mode(0o600)`, `fs::rename` atomic inode swap on ext4 / f2fs). |
-| **Windows** | `hardware_vault.bin`, `hardware_vault_password_overlay.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, then `fs::rename` — NTFS atomic-on-same-volume rename invariant, same primitive as Android). |
+| **Android** | `hardware_vault_android.bin`, `hardware_vault_android_bio.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, `Permissions::from_mode(0o600)`, `fs::rename` atomic inode swap on ext4 / f2fs). |
+| **Windows** | `hardware_vault.bin`, `hardware_vault_password_overlay_windows.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, then `fs::rename` — NTFS atomic-on-same-volume rename invariant, same primitive as Android). |
 
 A torn blob on any platform otherwise yields `readVault` → null → `isStored` → true-but-garbage → next unseal returns nothing → Dart side silently drops biometric / hardware unlock without a "vault corrupted" hint. The invariant matches the Dart-side hardware-vault atomic write and the biometric-vault atomic write already enforced by `writeBytesAtomic`.
 
@@ -1504,7 +1528,7 @@ The transient PIN id is added to `transient_secret_ids` so it drops out of the S
 
 ###### Certificate authentication via sk-*
 
-russh 0.61 ships `Handle::authenticate_certificate_with<U: Into<String>, S: auth::Signer>` — the cert-bearing twin of the bare-pubkey `authenticate_publickey_with`. The composer with [`FidoSigner`](../rust/crates/lfs_core/src/ssh/sk_signer.rs) is a free combination: the signer already produces SSH wire-format signatures over arbitrary userauth payloads, so the cert-form variant only changes the SSH message that wraps the signature — algorithm names switch to `*-cert-v01@openssh.com`, and russh handles the cert encoding internally. No additional CTAP2 round trips beyond what the bare-sk path already pays. See [cert lifecycle in §6.2](#62-ssh-certificates) for how OpenSSH certificates pair to keys + the `ssh_key_certificates` row that backs the join.
+russh 0.61 ships `Handle::authenticate_certificate_with<U: Into<String>, S: auth::Signer>` — the cert-bearing twin of the bare-pubkey `authenticate_publickey_with`. The composer with [`FidoSigner`](../rust/crates/lfs_core/src/ssh/sk_signer.rs) is a free combination: the signer already produces SSH wire-format signatures over arbitrary userauth payloads, so the cert-form variant only changes the SSH message that wraps the signature — algorithm names switch to `*-cert-v01@openssh.com`, and russh handles the cert encoding internally. No additional CTAP2 round trips beyond what the bare-sk path already pays. See [OpenSSH certificates](#openssh-certificates) for how OpenSSH certificates pair to keys + the `ssh_key_certificates` row that backs the join.
 
 Selection precedence in `auth_compose::prepare_auth` matches the software path: cert beats bare-pubkey because the cert is the strictly stronger credential (CA-signed). Without that precedence rule, every short-lived cert rotation on the server would force the user to re-authenticate with the bare key instead of letting the CA carry the validity claim.
 
@@ -1860,7 +1884,7 @@ flowchart LR
     DBW --> SIGNW[connect_pubkey_tpm_owned + TpmSigner]
     SIGNL --> TPM2[TPM2_Sign<br/>raw r||s or PKCS#1 v1.5]
     SIGNW --> NCSIGN[NCryptSignHash<br/>unattended - no prompt]
-    TPM2 --> WRAP[ssh::wire::ecdsa_raw_concat / rsa_pkcs1_v15]
+    TPM2 --> WRAP[ssh::wire::ecdsa_raw_concat_to_ssh_mpint / rsa_pkcs1_v15_sig_body]
     NCSIGN --> WRAP
     WRAP --> SSH[SSH userauth signature]
 ```
@@ -1889,7 +1913,7 @@ Ed25519 is not defined by the TPM 2.0 specification — the wizard refuses with 
 - **PIN-bound (Linux)** — `TPM2B_AUTH` set on the sensitive area at create time. Every `TPM2_Sign` rebinds the auth value via `tr_set_auth`; the TPM's own dictionary-attack lockout fires after 4 wrong PINs (typical Microsoft fTPM policy) and locks the **entire chip** including BitLocker / disk-unlock for a cooldown window. The wizard surfaces `tpmSshPinLockoutWarning` aggressively at every PIN entry surface — TPM lockout is the largest user-facing footgun in this whole path.
 - **No-PIN (Linux)** — `TPM2B_AUTH` empty. Convenient for headless service-account keys where no human is present to type a PIN; the key is bound to the OS install (any process that can reach `/dev/tpmrm0` and load the blob can sign).
 - **Silent (Windows PCP)** — same security contract as Linux no-PIN: any process running as the logged-in user can sign without a prompt. The wizard surfaces `tpmSshSilentWarning` in red so the user understands the trade-off before opting in. This is the load-bearing contrast with Hello-gated keys, which fire a PIN/fingerprint/face prompt on every sign.
-- **PCR-binding** — deferred to v2. The UX cost (key breaks after every BIOS update) outweighs the threat-model win for an SSH key. See [Appendix B](#appendix-b---forward-commitments).
+- **PCR-binding** — deferred to v2. The UX cost (key breaks after every BIOS update) outweighs the threat-model win for an SSH key.
 
 **Probe + capability ladder.**
 
@@ -1907,7 +1931,7 @@ Ed25519 is not defined by the TPM 2.0 specification — the wizard refuses with 
 
 **Signing path.** Linux: the signer reads `ssh_keys.tpm_blob`, calls `tpm_ssh::import_blob` to recover the `TpmSshKey`, then `tpm_ssh::sign(cfg, key, auth_value, data)` — the auth value comes from the SecretStore entry under `tpm.pin.<key_id>` for PIN-bound rows, `None` for empty-auth. The TPM driver returns `TpmSshSignature::{EcdsaP256RawConcat, Rsa2048}` (raw bytes); the `lfs_core` caller builds the body via `ssh::wire::ecdsa_raw_concat_to_ssh_mpint` / `ssh::wire::rsa_pkcs1_v15_sig_body`, then `ssh::wire::encode_userauth_signature_field` wraps it into the userauth `signature` field. Windows: the signer reads `ssh_keys.cng_key_name`, builds a `TpmSilentKeyHandle`, calls `ncrypt_ssh::sign_for_ssh_silent` (no `set_ui_policy` call ever fires on this row), and wraps the same way. `TPM_RC_BAD_AUTH` / `TPM_RC_LOCKOUT` on the Linux path map to `Error::Tpm("pin incorrect: ...")` / `Error::Tpm("lockout: ...")` so the Dart connect dialog routes a wrong-PIN retry distinctly from a cooldown banner.
 
-**Cross-tool blob compat.** The TSS2 PRIVATE KEY ASN.1 envelope this module emits is byte-shape-compatible with `ssh-tpm-agent` / `openssl-tpm2-engine`. Imports are best-effort one-way: a `.tpm` file produced by `tpm2_create -i` + the matching `tpm2_marshall` round-trips through `tpm_ssh::import_blob`, but blobs carrying a **PCR policy** reject at import in v1 with a typed `Error::Crypto("policy = pcr-binding-not-supported")` reason — the TPM-side policy session machinery needs more UX than v1 affords. Wired in [Appendix B](#appendix-b---forward-commitments).
+**Cross-tool blob compat.** The TSS2 PRIVATE KEY ASN.1 envelope this module emits is byte-shape-compatible with `ssh-tpm-agent` / `openssl-tpm2-engine`. Imports are best-effort one-way: a `.tpm` file produced by `tpm2_create -i` + the matching `tpm2_marshall` round-trips through `tpm_ssh::import_blob`, but blobs carrying a **PCR policy** reject at import in v1 with a typed `Error::Crypto("policy = pcr-binding-not-supported")` reason — the TPM-side policy session machinery needs more UX than v1 affords.
 
 **`.lfs` export semantics.** Linux TPM rows in **blob mode** include the wrapped blob in the archive; the importing device's connect path drops the bytes into `ssh_keys.tpm_blob` and can sign as long as the same chip primary key derives identically (which holds because the [`tpm_native::build_primary_template`](https://github.com/parallaxsecond/rust-tss-esapi) template matches the `tpm2 createprimary -C o` default byte-for-byte). Cross-device portability **does not work** for persistent-handle Linux rows (the chip on the new device is different) or for Windows PCP rows (CNG keys are chip + user-SID bound). The wizard's device-bound warning surfaces the constraint at create time.
 
@@ -1960,9 +1984,9 @@ EC P-256 is the only uniformly StrongBox-eligible algorithm across the project's
 
 **Enrolment-change invalidation.** `setInvalidatedByBiometricEnrollment(true)` is set at create time: adding / removing / re-enrolling a fingerprint or face destroys the on-chip key. Catch `KeyPermanentlyInvalidatedException` on the next sign and surface `keystoreKeyInvalidatedByEnrollment` so the user re-generates + re-registers the public key on servers. Mirrors Apple's `biometryCurrentSet` ACL — the load-bearing security property that distinguishes hardware-bound keys from a software key sat behind a biometric gate.
 
-**`MainActivity` requirement.** `BiometricPrompt` hosts its UI inside a Fragment; a plain `FlutterActivity` host crashes. `MainActivity extends FlutterFragmentActivity` (`android/app/src/main/kotlin/com/llloooggg/letsflutssh/MainActivity.kt:13`) — already in place for the biometric-unlock vault path; the SSH signer reuses the same capture (`MAIN_ACTIVITY` `OnceLock<GlobalRef>` in `jni_bootstrap`).
+**`MainActivity` requirement.** `BiometricPrompt` hosts its UI inside a Fragment; a plain `FlutterActivity` host crashes. `MainActivity extends FlutterFragmentActivity` (`android/app/src/main/kotlin/com/llloooggg/letsflutssh/MainActivity.kt`) — already in place for the biometric-unlock vault path; the SSH signer reuses the same capture (`MAIN_ACTIVITY` `OnceLock<GlobalRef>` in `jni_bootstrap`).
 
-**`AndroidManifest.xml::allowBackup` invariant.** `android:allowBackup="false"` (set at line 51 of `android/app/src/main/AndroidManifest.xml`) forces a device transfer / cloud restore to land as a clean install — the AndroidKeyStore alias does not survive the round trip anyway (the chip on the new device is different), but the DB rows must not survive either, otherwise the user lands on a fresh phone with `backend = 'keystore'` rows whose private key is unreachable.
+**`AndroidManifest.xml::allowBackup` invariant.** `android:allowBackup="false"` (in `android/app/src/main/AndroidManifest.xml`) forces a device transfer / cloud restore to land as a clean install — the AndroidKeyStore alias does not survive the round trip anyway (the chip on the new device is different), but the DB rows must not survive either, otherwise the user lands on a fresh phone with `backend = 'keystore'` rows whose private key is unreachable.
 
 **DB schema.** `ssh_keys` carries the Android Hardware Keystore / StrongBox column block alongside the existing FIDO2 / PKCS#11 / Enclave / Hello / TPM block: `keystore_alias TEXT NULL` (AndroidKeyStore alias the `KeyStore.getEntry(alias, null)` lookup re-binds to on every sign — minted under the `lfs-keystore-` prefix to stay separate from `FlutterSecureStorageKeyAlias_`), `keystore_strongbox INTEGER NOT NULL DEFAULT 0` (`1` when StrongBox actually accepted the request — drives the badge label split), `keystore_user_auth_required INTEGER NOT NULL DEFAULT 0` (`1` for every current Keystore row — the wizard always sets `setUserAuthenticationRequired(true)`; reserved for a future no-auth variant), `keystore_platform TEXT NULL` (capture-time `Build.MODEL` + Android version surfaced in the badge popover). The columns stay NULL / 0 for every non-Keystore row.
 
@@ -2020,14 +2044,14 @@ flowchart LR
 |---|---|
 | `mod.rs` | Cfg-gated re-exports + the desktop / mobile split. |
 | `endpoint.rs` | `Endpoint` struct + `impl Session`; `start_endpoint` / `stop` / `status` lifecycle; per-process `AgentHandle` parking lot; per-platform accept loop that spawns one `loop_runner::handle_socket` task per accepted client. |
-| `loop_runner.rs` | Custom framing loop. Reads u32-prefixed frames, peeks the message-type byte, routes `SSH_AGENTC_REQUEST_IDENTITIES` (msg id 11) through the cert-aware path in `identities`, intercepts `SSH_AGENTC_SIGN_REQUEST` (msg id 13) when the `key_blob` algorithm ends in `-cert-v01@openssh.com` to drive the cert-aware sign path, everything else through `Session::handle` for typed encoding. The reason this exists at all: `ssh-agent-lib 0.5`'s `Session::handle` returns the strongly typed `Response`, which encodes IDENTITIES_ANSWER through `Identity::encode` → `KeyData::encode_prefixed`. `KeyData` has no `Certificate` variant; the `Other(OpaquePublicKey)` catch-all injects an extra `string` length prefix between the algo name and the rest of the encoded bytes, which doesn't match the OpenSSH certificate wire shape (`algo_name || string nonce || inline public-key fields || serial || ... || string signature`). `SignRequest::decode` hits the same mismatch — `reader.read_prefixed(KeyData::decode)` rejects cert-form `key_blob` payloads. Cert blobs cannot route through the typed path at all; bypassing `listen()` is the least-invasive fix that keeps every non-cert verb typed. The cert-form sign path peeks the algorithm string in `key_blob`, parses the cert via `ssh_key::Certificate::from_bytes`, extracts the bare `KeyData` via `cert.public_key()`, looks up the matching `ssh_keys` row via `Endpoint::find_row_by_keydata`, and dispatches through the shared `Endpoint::run_sign` helper. The response signature is bare-key shape (`string ssh-ed25519 \|\| string raw_sig`) regardless of whether the request `key_blob` was a cert — OpenSSH's per-type sign callbacks (`ssh_ed25519_encode_store_sig`, the matching RSA/ECDSA siblings) always write the bare algorithm name without the `-cert-v01@openssh.com` suffix. The `key_blob` field in the request only selects the identity. |
+| `loop_runner.rs` | Custom framing loop. Reads u32-prefixed frames, peeks the message-type byte, routes `SSH_AGENTC_REQUEST_IDENTITIES` (msg id 11) through the cert-aware path in `identities`, intercepts `SSH_AGENTC_SIGN_REQUEST` (msg id 13) when the `key_blob` algorithm ends in `-cert-v01@openssh.com` to drive the cert-aware sign path, everything else through `Session::handle` for typed encoding. The reason this exists at all: `ssh-agent-lib 0.6`'s `Session::handle` returns the strongly typed `Response`, which encodes IDENTITIES_ANSWER through `Identity::encode` → `KeyData::encode_prefixed`. `KeyData` has no `Certificate` variant; the `Other(OpaquePublicKey)` catch-all injects an extra `string` length prefix between the algo name and the rest of the encoded bytes, which doesn't match the OpenSSH certificate wire shape (`algo_name || string nonce || inline public-key fields || serial || ... || string signature`). `SignRequest::decode` hits the same mismatch — `reader.read_prefixed(KeyData::decode)` rejects cert-form `key_blob` payloads. Cert blobs cannot route through the typed path at all; bypassing `listen()` is the least-invasive fix that keeps every non-cert verb typed. The cert-form sign path peeks the algorithm string in `key_blob`, parses the cert via `ssh_key::Certificate::from_bytes`, extracts the bare `KeyData` via `cert.public_key()`, looks up the matching `ssh_keys` row via `Endpoint::find_row_by_keydata`, and dispatches through the shared `Endpoint::run_sign` helper. The response signature is bare-key shape (`string ssh-ed25519 \|\| string raw_sig`) regardless of whether the request `key_blob` was a cert — OpenSSH's per-type sign callbacks (`ssh_ed25519_encode_store_sig`, the matching RSA/ECDSA siblings) always write the bare algorithm name without the `-cert-v01@openssh.com` suffix. The `key_blob` field in the request only selects the identity. |
 | `identities.rs` | Cert-aware IDENTITIES_ANSWER serialiser. `build_advertised` walks live `ssh_keys` rows (filters Software + Deny), emits the bare-key wire blob, then — when `ssh_key_certificates` holds a paired cert — appends a second entry whose `key_blob` is `Certificate::to_bytes()`. Matches OpenSSH `ssh-agent` semantics: `ssh-add cert.pub` adds both the bare key and the cert form through two separate `SSH_AGENTC_ADD_IDENTITY` calls (OpenSSH's `lookup_identity` compares full key equality, not just the public half, so the two entries don't collide). Cert-aware clients (OpenSSH 8+) pick the cert during userauth; bare-only clients fall back to the public-key form. `encode_identities_answer` writes the byte sequence draft-miller-ssh-agent-14 §3.5 specifies: `u8 msg_id(12) || u32 nkeys || (string key_blob || string comment)*`. |
 | `backends.rs` | `BackendKind` discriminator + `dispatch_sign` / `dispatch_sign_by_kind`. One arm per Signer impl; today only `Fido2`. |
 | `transport.rs` | `bind_unix` (Linux/macOS) + `bind_windows` (named pipe) + per-platform cleanup helpers. |
 | `per_key_confirm.rs` | Parked-prompt registry + `enqueue` / `respond_to_request` / `cancel_request`. Fires bus events on `EventTopic::SshAgent`; the Dart `SshAgentPromptListener` mounts `AgentSignatureRequestDialog`. |
 | `stub.rs` | Mobile no-op stub. |
 
-**Crate.** `ssh-agent-lib = "0.5.2"` (wiktor-k/ssh-agent-lib, MIT/Apache-2.0). The trait surface we implement is [`ssh_agent_lib::agent::Session`]; the listener is **NOT** `ssh_agent_lib::agent::listen` — we run our own framing loop in `loop_runner` (see the row above for why) and only delegate the typed verbs (`SignRequest`, `Lock`, `Unlock`, `Extension`, the various refused add/remove arms) back through `Session::handle`. `ssh-key = "0.6"` is a separate crate identity from the russh-forked `internal-russh-forked-ssh-key` — both resolve side by side, the agent surface uses the canonical crates.io shape (including `ssh_key::Certificate::from_openssh` / `to_bytes` for the cert-advertise path).
+**Crate.** `ssh-agent-lib = "0.6.0"` (wiktor-k/ssh-agent-lib, MIT/Apache-2.0). The trait surface we implement is [`ssh_agent_lib::agent::Session`]; the listener is **NOT** `ssh_agent_lib::agent::listen` — we run our own framing loop in `loop_runner` (see the row above for why) and only delegate the typed verbs (`SignRequest`, `Lock`, `Unlock`, `Extension`, the various refused add/remove arms) back through `Session::handle`. `ssh-key = "0.6"` is a separate crate identity from the russh-forked `internal-russh-forked-ssh-key` — both resolve side by side, the agent surface uses the canonical crates.io shape (including `ssh_key::Certificate::from_openssh` / `to_bytes` for the cert-advertise path).
 
 **Transport.**
 
@@ -2052,7 +2076,7 @@ The `<pid>` suffix keeps parallel instances from colliding on the same path (the
 
 **Certificate advertising.** Cert-paired rows surface through `request_identities` as two separate entries (bare key blob + cert blob). The connect path's cert-bearing twin `Session::connect_pubkey_sk_cert_owned` and the agent endpoint's cert advertising share the same `ssh_key_certificates` DAO row — the connect side reads `key.cert.<key_id>` out of the SecretStore through `auth_compose::prepare_auth`, the agent side calls `Certificate::from_openssh` then `to_bytes()` on the same DB column. See [Certificate authentication via sk-*](#certificate-authentication-via-sk-) for the userauth-side composition with `FidoSigner` and the wire-format trailer detail. The advertising path is the agent-endpoint mirror: cert-aware external clients (OpenSSH 8+, current PuTTY) pick the cert during userauth automatically; bare-only clients fall back transparently.
 
-**Certificate signing.** Cert-form SIGN_REQUEST (`key_blob` algorithm ending in `-cert-v01@openssh.com`) routes through the same backend signer the bare-key request would use. `ssh-agent-lib 0.5`'s `SignRequest::decode` cannot represent a cert in its `KeyData` field — `reader.read_prefixed(KeyData::decode)` injects a length prefix the cert wire layout doesn't carry — so the cert path is intercepted in `loop_runner` before the typed decoder runs. The interceptor reads the SIGN_REQUEST body manually (`string key_blob || string data || uint32 flags`), parses `key_blob` via `ssh_key::Certificate::from_bytes`, extracts the embedded bare `KeyData` via `cert.public_key()`, resolves the matching `ssh_keys` row through the same `find_row_by_keydata` equality check the bare-key path uses, and drives `Endpoint::run_sign` — the helper shared with `Session::sign` that runs the `agent_policy = 'ask'` confirm gate and dispatches to the backend. The SIGN_RESPONSE carries a bare-key signature (`string ssh-ed25519 || string raw_64_byte_sig` for ed25519; matching shapes for the other algorithms). Verified against OpenSSH `process_sign_request2` / `agent_decode_alg` and the per-type sign callbacks (`ssh_ed25519_encode_store_sig` and siblings): every callback writes the bare algorithm name regardless of whether the lookup key was a cert; the cert algorithm appears only as the request-side discriminator that selects the identity. Bare-key SIGN_REQUEST stays on the typed path.
+**Certificate signing.** Cert-form SIGN_REQUEST (`key_blob` algorithm ending in `-cert-v01@openssh.com`) routes through the same backend signer the bare-key request would use. `ssh-agent-lib 0.6`'s `SignRequest::decode` cannot represent a cert in its `KeyData` field — `reader.read_prefixed(KeyData::decode)` injects a length prefix the cert wire layout doesn't carry — so the cert path is intercepted in `loop_runner` before the typed decoder runs. The interceptor reads the SIGN_REQUEST body manually (`string key_blob || string data || uint32 flags`), parses `key_blob` via `ssh_key::Certificate::from_bytes`, extracts the embedded bare `KeyData` via `cert.public_key()`, resolves the matching `ssh_keys` row through the same `find_row_by_keydata` equality check the bare-key path uses, and drives `Endpoint::run_sign` — the helper shared with `Session::sign` that runs the `agent_policy = 'ask'` confirm gate and dispatches to the backend. The SIGN_RESPONSE carries a bare-key signature (`string ssh-ed25519 || string raw_64_byte_sig` for ed25519; matching shapes for the other algorithms). Verified against OpenSSH `process_sign_request2` / `agent_decode_alg` and the per-type sign callbacks (`ssh_ed25519_encode_store_sig` and siblings): every callback writes the bare algorithm name regardless of whether the lookup key was a cert; the cert algorithm appears only as the request-side discriminator that selects the identity. Bare-key SIGN_REQUEST stays on the typed path.
 
 **Per-key dispatch policy.** `ssh_keys.agent_policy` (TEXT NOT NULL DEFAULT `'ask'`) drives the gate:
 
@@ -2095,7 +2119,7 @@ Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Us
 
 #### Auto-lock
 
-Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/security/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/core/security/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/security/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
+Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60) arms an idle timer in [`AutoLockDetector`](../lib/widgets/security/auto_lock_detector.dart) that wraps the app root. The value lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) — storing it there rather than in plaintext `config.json` was deliberate so an attacker with disk access cannot weaken the security control by editing a config file. On expiry `securityStateProvider.clearEncryption()` zeros the in-memory key and [`lockStateProvider`](../lib/providers/lock_state.dart) flips to `true`; the root widget overlays [`LockScreen`](../lib/widgets/security/lock_screen.dart) blocking interaction until the user re-authenticates (biometric first, MP form as fallback). The tile is always rendered — muted with a tooltip reason when the user is not on a tier with a user-typed secret — so the option never silently disappears.
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
@@ -2121,7 +2145,7 @@ Lifetime:
 
 Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, decrypts nothing at rest, and only helps the user's own reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock would flatten the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
 
-**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path. The desktop trio (Linux + macOS + Windows) all run through `lfs_os_security::session_lock_listener` Rust paths and surface as a single FRB Stream `subscribeOsSessionLock`; the matching `com.letsflutssh/session_lock` MethodChannel + native plugins remain wired in parallel until end-to-end verification on real macOS + Windows hardware lets us drop them.
+**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path. The desktop trio (Linux + macOS + Windows) all run through `lfs_os_security::session_lock_listener` Rust paths and surface as a single FRB Stream `osSecuritySessionLockSubscribe`; the matching `com.letsflutssh/session_lock` MethodChannel + native plugins remain wired in parallel until end-to-end verification on real macOS + Windows hardware lets us drop them.
 
 | Platform | Source |
 |---|---|
@@ -2223,9 +2247,12 @@ All methods catch exceptions and return null/false — graceful fallback to plai
 
 ```dart
 class SecureKeyStorage {
-  Future<bool> isAvailable();      // write+read+delete probe
-  Future<Uint8List?> readKey();    // null on failure
-  Future<bool> writeKey(Uint8List key); // false on failure
+  Future<bool> isAvailable();                       // write+read+delete probe
+  // SecretRef discipline: the key bytes never cross FRB as a Uint8List —
+  // read stages them into the Rust SecretStore under the caller's id,
+  // write reads them back out of it.
+  Future<bool> readKeyToSecret(String secretId);    // false on miss
+  Future<bool> writeKeyFromSecret(String secretId); // false on failure
   Future<void> deleteKey();
 }
 ```
@@ -2368,9 +2395,9 @@ lib/core/migration/migration_runner.dart
                         has_failures / migrated_count) + the
                         `runStartupMigrations()` async entry that
                         resolves support dir and dispatches the FRB
-                        call. `currentConfigSchemaVersion()` reads
-                        `SchemaVersions::CONFIG` through FRB so the
-                        constant lives one place across the workspace.
+                        call. (The on-disk config-version probe is the
+                        FRB `migrationConfigVersionOnDisk()`, called
+                        directly by SecurityInitController.)
 ```
 
 ##### Envelope (future use — not registered today)
@@ -2701,6 +2728,7 @@ class AppConfig {
   //   keepAliveSec: default 30
   //   defaultPort: default 22
   //   sshTimeoutSec: default 10
+  //   verboseConnectionLog: bool (default false; russh -vvv trace → file log)
 
   final UiConfig ui;
   //   windowWidth/Height
@@ -2801,7 +2829,7 @@ class DeepLinkHandler {
 | File | Purpose |
 |------|---------|
 | `import_service.dart` | Thin Dart wrapper over the Rust apply driver: `applyResultViaRust(ImportResult, refreshAfterImport)` serialises the result to the staged-import JSON envelope, calls `dbImportStage` + `dbImportApply` (FRB → `lfs_core::archive::apply_pending_import`), then runs the caller's cache-refresh hook. Hosts `ImportSummary` (per-type counters consumed by the success toast) and `LfsImportRolledBackException` (raised on replace-mode failure so the UI shows "data restored" — the surrounding sqlite transaction guarantees the rollback). All collisions, junction inserts, folder-hierarchy reconstruction, and replace-mode rollback live Rust-side now |
-| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
+| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are recognised here too — the helper hands the file to the Rust core (`lfs_core::keys::try_read_pem_from_path` detects PPK vs PEM and re-encodes to OpenSSH PEM), keeping the Dart side format-agnostic (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for the SSH-config import UI in Settings → Data — see [§5.5 Settings](#55-settings-featuressettings) |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `SshKeysMutator.importForMerge` so fingerprint-duplicate keys are not re-added |
 
@@ -2982,7 +3010,7 @@ tags, snippets, junction links, empty folders, known_hosts text),
 hands it to `dbImportStage` for handle minting, then calls
 `dbImportApply` with a `DbApplyOptions{mode, applyX...}` selector
 mask. The Rust driver
-([`lfs_core::archive::apply_pending_import`](../rust/crates/lfs_core/src/archive/apply.rs))
+([`lfs_core::archive::apply_pending_import`](../rust/crates/lfs_core/src/archive/apply/mod.rs))
 does the heavy lifting:
 
 - **Manager keys first.** Imported under a fingerprint-dedup so identical keys reuse the existing id; returned id map remaps every `Sessions.keyId` reference. Sessions pointing at a key that wasn't imported get `keyId` cleared so the row still inserts without a `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`. The `DbApplyOptions.applyKeys` gate is a single boolean even though the export side splits key scope into two flags (`includeManagerKeys` session-bound + `includeAllManagerKeys` whole store) — both land in the same `keys` envelope block, so the caller must enable the gate when *either* flag is set (`ExportOptions.hasManagerKeys`). Keying it off `includeManagerKeys` alone silently drops keys whenever the preview dialog's default "Full import" preset (which sets only `includeAllManagerKeys`) is used
@@ -3035,7 +3063,7 @@ class UpdateService {
   // DI: HttpFetcher (test-time replacement for the Releases JSON
   // body fetch — production routes through
   // lfs_core::update::http::fetch_text). Download + verify is a
-  // single Rust call (lfs_core::update::http::download_with_verification)
+  // single Rust call (lfs_core::update::orchestrator::download_with_verification)
   // with a static @visibleForTesting `debugDownloadOverride` seam
   // that scripts a DbDownloadResult for the failure-shape tests.
   // Download: streams every chunk straight to disk while hashing —
@@ -3146,7 +3174,7 @@ Reusable shell command templates with optional placeholder substitution. Persist
 | `label` | `Session.label` |
 | `now` | ISO-8601 timestamp at render time |
 
-User-defined names are anything else; the picker collects them via [`_SnippetFillDialog`](features/snippets/snippet_picker.dart) which renders one `StyledInput` per unresolved token, fills with `fillSnippetUnresolved`, and pops with the final command.
+User-defined names are anything else; the picker collects them via [`_SnippetFillDialog`](../lib/features/snippets/snippet_picker.dart) which renders one `StyledInput` per unresolved token, fills with `fillSnippetUnresolved`, and pops with the final command.
 
 **Why this grammar.** Same shape as `~/.ssh/config` `%h`/`%p`/`%u` and as IDE live-templates — predictable for a power user, no surprises around shell escaping. Tradeoffs frozen explicitly:
 
@@ -3157,7 +3185,7 @@ User-defined names are anything else; the picker collects them via [`_SnippetFil
 
 #### Picker integration
 
-`SnippetPicker.show(context, sessionId, templateContext)` in `features/snippets/snippet_picker.dart` is the single entry point used from the desktop terminal pane and the mobile terminal view. The caller assembles the built-in context from `widget.connection.sshConfig` (host, user, port, label, now) and hands it to the picker; the picker handles the render → prompt → fill flow internally and returns the final command (or `null` on cancel). The terminal pane never sees the unrendered command — by the time it calls `sendCommand` every placeholder has either resolved against the session or been filled by the user.
+`SnippetPicker.show(context, sessionId, templateContext)` in `lib/features/snippets/snippet_picker.dart` is the single entry point used from the desktop terminal pane and the mobile terminal view. The caller assembles the built-in context from `widget.connection.sshConfig` (host, user, port, label, now) and hands it to the picker; the picker handles the render → prompt → fill flow internally and returns the final command (or `null` on cancel). The terminal pane never sees the unrendered command — by the time it calls `sendCommand` every placeholder has either resolved against the session or been filled by the user.
 
 ---
 
@@ -3840,7 +3868,7 @@ PTY.
 #### Recorder fork — output in the pump, input on the send paths
 
 A live `TerminalSession` can tee its bytes into the session recorder
-([§3.13 Session Recording](#313-session-recording-recorder)). The session
+([§3.13 Session Recording](#313-session-recording-coresessionsession_recorderdart)). The session
 holds an optional recorder handle id behind a `std::sync::Mutex<Option<String>>`;
 `set_recorder(id)` (`#[frb(sync)]`) attaches or detaches it. Dart's
 `SessionRecorder` owns the register / spawn / header / close lifecycle and
@@ -4134,7 +4162,7 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `hardwareProbeDetailProvider` | `FutureProvider<HardwareProbeDetail>` | `security_provider.dart` — typed unavailability reason for the hardware-vault Settings card |
 | `keyringProbeDetailProvider` | `FutureProvider<DbKeyringProbeResult>` | `security_provider.dart` — typed unavailability reason for the keychain Settings card |
 | `securityStateProvider` | `NotifierProvider<SecurityStateNotifier, SecurityState>` | `security_provider.dart` — current tier + modifiers + DB key holder |
-| `lockStateProvider` | `NotifierProvider<LockStateNotifier, bool>` | `core/security/lock_state.dart` |
+| `lockStateProvider` | `NotifierProvider<LockStateNotifier, bool>` | `providers/lock_state.dart` |
 | `autoLockMinutesProvider` | `NotifierProvider<AutoLockMinutesNotifier, int>` | `auto_lock_provider.dart` |
 | `firstLaunchBannerProvider` | `NotifierProvider<FirstLaunchBannerNotifier, FirstLaunchBannerData?>` | `first_launch_banner_provider.dart` |
 | `securityReinitProvider` | `NotifierProvider<SecurityReinitNotifier, int>` | `security_reinit_provider.dart` — bumps to force re-evaluation after a tier switch / wipe |
@@ -4284,11 +4312,11 @@ class _FooDialogState extends State<FooDialog> {
 #### Split tree (tiling)
 
 ```dart
-sealed class SplitNode {}
-
-class LeafNode extends SplitNode {
-  final String id;   // unique pane ID
+sealed class SplitNode {
+  final String id;   // unique node id (the pane id on a leaf)
 }
+
+class LeafNode extends SplitNode {}
 
 class BranchNode extends SplitNode {
   final SplitDirection direction;  // horizontal | vertical
@@ -4455,7 +4483,7 @@ flowchart TD
 `TerminalView` owns pointer input (under a `selectable` / `mouseReportable` config). On a pointer-down it reads the current frame's `mouseTracking` level and the live Shift state and calls `routePointerGesture`:
 
 - **No tracking, or Shift held** → **local text selection**. The down clears any prior selection and anchors a drag; each move maps the pixel offset to a cell via `pointerToCell` (subtracting the frame's `displayOffset` to recover the absolute grid line) and calls the controller's `setSelection(start, end, kind)` (the live adapter forwards to `session.setSelection(...)`). The **geometry** is chosen from a multi-tap count the view folds forward on each down (`nextTapCount` / `selectionKindForTapCount` in `terminal_pointer_input.dart`, both pure + unit-tested): a plain drag is `Simple`, a **double-click** is `Semantic` (whole word), a **triple-click** is `Lines` (whole line). A press extends the run only when it lands on the same cell within `kTerminalMultiTapWindow` (400 ms, matching the app's other manual double-tap windows — `GestureDetector.onDoubleTap` is avoided because its tap-delay conflicts with drags); the run caps at 3, so a fourth fast click stays a triple. For `Semantic`/`Lines` the start and end collapse onto one cell and the engine expands the span at read-back. Because the engine raises **no `Wakeup`** for a host-driven selection, the view awaits the FRB future and pulls a fresh snapshot itself so the highlight paints. A single click that does not move clears the collapsed 1-cell selection so a stray click leaves nothing to copy — a double / triple click is kept (it is a real word / line selection).
-- **Tracking on, no Shift** → **mouse report**. The press/move/release (and wheel, as buttons 64/65) become a `TerminalMouseInput` (1-based cell coords) forwarded to the controller's `sendMouse` → `session.sendMouse`, which re-reads the live mode and runs `encode_mouse` Rust-side (see [§3.16 Mouse reporting](#mouse-reporting--rust-owned-mode-gated)). The drag latches its mode at down-time so it stays in report (or select) for the whole gesture.
+- **Tracking on, no Shift** → **mouse report**. The press/move/release (and wheel, as buttons 64/65) become a `TerminalMouseInput` (1-based cell coords) forwarded to the controller's `sendMouse` → `session.sendMouse`, which re-reads the live mode and runs `encode_mouse` Rust-side (see [§3.16 Mouse reporting](#pointer-input-selection-copy--mouse-reporting)). The drag latches its mode at down-time so it stays in report (or select) for the whole gesture.
 
 **Copy.** Ctrl+Shift+C (the pane's `onCopy`) reads `session.selectionText()` and, when non-empty, routes through `TerminalClipboard.copyText` — the same `SecureClipboard` + 30 s sensitive-copy auto-wipe path (see [TerminalClipboard](#terminalclipboard)) — then clears the selection. It works for any geometry: drag (character), double-click (word), and triple-click (line) all leave their text in the Rust-side selection for copy to read. The same Copy item is reachable from the right-click [context menu](#the-unified-terminalview).
 
@@ -4475,7 +4503,7 @@ Ctrl+Shift+F opens `TerminalSearchBar` above the grid (Esc / the close button hi
 
 #### Recording — pump fork
 
-The connection-bar record button (`workspace_view._recordButton`) resolves the focused pane's `PaneRecordingHandle` from `PaneRecordingRegistry` (each `TerminalPaneState` registers in `initState`, unregisters in `dispose`). `canRecord` is false for unsaved quick-connect panes (no `sessionId` folder), which hides the button. The handle's `toggle` opens / seals a `SessionRecorder` and attaches it to the session via `session.setRecorder(id)`; a session whose saved `extras['record']` is true auto-starts on open. From there the **Rust pump tees output and the send paths tee input** into the recorder queue under that id — see [§3.16 Recorder fork](#recorder-fork--output-in-the-pump-input-on-the-send-paths). The `.cast` / `.lfsr` format and the recorder lifecycle (register / spawn / header / rotate / close) are unchanged from [§3.13](#313-session-recording-recorder); only the byte fork moved from Dart's old `ShellHelper` into the pump.
+The connection-bar record button (`workspace_view._recordButton`) resolves the focused pane's `PaneRecordingHandle` from `PaneRecordingRegistry` (each `TerminalPaneState` registers in `initState`, unregisters in `dispose`). `canRecord` is false for unsaved quick-connect panes (no `sessionId` folder), which hides the button. The handle's `toggle` opens / seals a `SessionRecorder` and attaches it to the session via `session.setRecorder(id)`; a session whose saved `extras['record']` is true auto-starts on open. From there the **Rust pump tees output and the send paths tee input** into the recorder queue under that id — see [§3.16 Recorder fork](#recorder-fork--output-in-the-pump-input-on-the-send-paths). The `.cast` / `.lfsr` format and the recorder lifecycle (register / spawn / header / rotate / close) are unchanged from [§3.13](#313-session-recording-coresessionsession_recorderdart); only the byte fork moved from Dart's old `ShellHelper` into the pump.
 
 #### Read-only rendering — `TerminalReplay`
 
@@ -4932,7 +4960,7 @@ AppIconButton({
 })
 ```
 Rectangular hover, no splash/ripple. **Replaces Material `IconButton` everywhere.**
-When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **40/20 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) drops to **36/18 on mobile, 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
+When `size`/`boxSize` are left unset the widget resolves them from responsive getters on `AppTheme`: `iconBtnBox`/`iconBtnIcon` return **44/22 on mobile, 26/14 on desktop**, and the dense pair (`iconBtnBoxDense`/`iconBtnIconDense`) is **44/22 on mobile (unchanged), 22/14 on desktop** — use `dense: true` in tight toolbars (dialog header close, toast close, file-browser breadcrumbs, transfer panel).
 When `tooltip` is set, `Tooltip` provides semantics. When absent, `Semantics(button: true)` is added for screen readers.
 
 ### HoverRegion
@@ -4976,7 +5004,7 @@ Inside a scoped `AppSelectionArea`, a parent may still need to block selection o
 | **Form row** (label + interactive control) | `_SettingsRow` used by `_IntTile`, `_Toggle`, `_ThemeTile`, `_LanguageTile` | default | **disabled** — the label + subtitle block is a field name, not content to copy; the row's control handles its own cursor |
 | **Prose** (no gesture, user may want to copy) | `SecurityThreatList` rows, dialog bodies, release notes, help text | I-beam | **enabled** |
 
-The rule exists because a clickable ancestor's `MouseRegion(cursor: click)` wins over the Selectable text's inner `MouseRegion(cursor: text)` — leaving text selectable on a clickable tile produces "selectable but cursor still a pointer", which users read as broken. The consistent answer is to disable selection on every clickable subtree, not to try to prefer the inner cursor. `HoverRegion` already handles this for its own callers; controls built on a bare `GestureDetector`, `InkWell`, or `PopupMenuButton` do not, so each wraps its child in `SelectionContainer.disabled` manually — `expandable_tier_card.dart`, `app_data_row.dart`, `tier_threat_block.dart`, the `_SegmentControl` theme picker, the shared `AppPopupSelect` trigger (covers every settings dropdown), and `_AutoLockTile`'s disabled-state trigger.
+The rule exists because a clickable ancestor's `MouseRegion(cursor: click)` wins over the Selectable text's inner `MouseRegion(cursor: text)` — leaving text selectable on a clickable tile produces "selectable but cursor still a pointer", which users read as broken. The consistent answer is to disable selection on every clickable subtree, not to try to prefer the inner cursor. `HoverRegion` already handles this for its own callers; controls built on a bare `GestureDetector`, `InkWell`, or `PopupMenuButton` do not, so each wraps its child in `SelectionContainer.disabled` manually — `expandable_tier_card.dart`, `app_data_row.dart`, the `_SegmentControl` theme picker, the shared `AppPopupSelect` trigger (covers every settings dropdown), and `_AutoLockTile`'s disabled-state trigger.
 
 ### ModeButton
 
@@ -5298,7 +5326,7 @@ LfsImportDialog.show(context, {required String filePath})
 PasteImportLinkDialog.show(context) → Future<QrDecodedSource?>
 ```
 
-Camera-less QR-import flow: accepts either a full `letsflutssh://import?d=…` deep link or the raw base64url payload, decodes Rust-side via `qrImportOpen` (which transparently strips the `letsflutssh://import?d=` wrapper), and pops the staged `QrDecodedSource.rust` on success — payload bytes never cross the FRB boundary outwards. Paste-from-clipboard button reads `Clipboard.getData('text/plain')`; on mobile an additional "Scan QR code" button launches the native scanner via [`scanQrCode()`](#qr-scanner-coreqr). Rejects invalid input with an inline error instead of closing.
+Camera-less QR-import flow: accepts either a full `letsflutssh://import?d=…` deep link or the raw base64url payload, decodes Rust-side via `qrImportOpen` (which transparently strips the `letsflutssh://import?d=` wrapper), and pops the staged `QrDecodedSource.rust` on success — payload bytes never cross the FRB boundary outwards. Paste-from-clipboard button reads `Clipboard.getData('text/plain')`; on mobile an additional "Scan QR code" button launches the native scanner via [`scanQrCode()`](#qr-scanner-platformqr_scannerdart). Rejects invalid input with an inline error instead of closing.
 
 ### LocalDirectoryPicker
 
@@ -5670,7 +5698,7 @@ TierSecretUnlockDialog.show(context, {
   BiometricSpec? biometric,
 }) → Future<TierUnlockAttempt>
 ```
-Shared T1+pw (short password) / T2 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; Rust's `run_post_unlock_cascade` opens the rusqlite handle, persists the tier, publishes the store-changed events, and finally emits `BusEvent::UnlockCascadeReady { tier_wire, has_key }`. The [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) reads `has_key` off that payload and runs the Riverpod half (`securityStateProvider.setActive`, resolve the pending `awaitNextUnlock`). [`LockStateNotifier`](../lib/core/security/lock_state.dart) subscribes to the same event and drops the lock overlay on its own — no Dart-side rendezvous between the listener and the lock screen. Cooldown back-off is wired through the `rateLimiter` parameter.
+Shared T1+pw (short password) / T2 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; Rust's `run_post_unlock_cascade` opens the rusqlite handle, persists the tier, publishes the store-changed events, and finally emits `BusEvent::UnlockCascadeReady { tier_wire, has_key }`. The [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) reads `has_key` off that payload and runs the Riverpod half (`securityStateProvider.setActive`, resolve the pending `awaitNextUnlock`). [`LockStateNotifier`](../lib/providers/lock_state.dart) subscribes to the same event and drops the lock overlay on its own — no Dart-side rendezvous between the listener and the lock screen. Cooldown back-off is wired through the `rateLimiter` parameter.
 
 ### TierResetDialog
 
@@ -5702,7 +5730,7 @@ class FatalErrorApp extends StatefulWidget {
 Bare `MaterialApp` shown when the bootstrap chain stops before the regular dialog stack can run — the Rust `config_store` actor reports a parse failure for `config.json` (surfaced by `bootstrapRustConfigStore` as `AppConfigParseException`, rethrown out of `_initRustCoreOrFatal` so the caller can route to the corrupt-config screen rather than the native-blob screen), or `_initRustCoreOrFatal` fails to load the bundled native blob itself. Carries two recovery affordances:
 
 * **Quit** (`OutlinedButton`) — exits without touching anything on disk.
-* **Wipe all data** (`FilledButton`, red) — last-resort self-recovery for a corrupt-on-disk artefact the user wants to drop. The handler tries the canonical path first: lazily loads `RustLib.init()` + `appInit()` and routes through `WipeAllService.wipeAll()` (files + keychain + hardware vault + crash-safety marker). Only when `RustLib.init` itself fails — the native blob is the broken artefact — does the handler fall through to [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart), which enumerates the immediate children of `<app_support>` and deletes each. The sweep is by enumeration, not against a hardcoded catalogue, so new artefacts the Rust side later writes are covered without a Dart-side edit. Keychain / hardware-vault orphans left by the Dart-only fallback resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for the proper Rust-backed cleanup.
+* **Wipe all data** (`FilledButton`, red) — last-resort self-recovery for a corrupt-on-disk artefact the user wants to drop. The handler tries the canonical path first: lazily loads `RustLib.init()` + `appInit()` and routes through `WipeAllService.wipeAll()` (files + keychain + hardware vault + crash-safety marker). When the retry `RustLib.init` itself fails — the native blob is the broken artefact — an in-process wipe is impossible, so the handler logs a critical breadcrumb and exits; a bundle that corrupt cannot be cleaned from inside the process and the user has to reinstall. There is no Dart-side enumerate-and-delete fallback.
 
 Rust core init runs on click, not on dialog open: a broken FRB load must not block the recovery dialog from rendering.
 
@@ -5823,7 +5851,7 @@ Use `sanitizeErrorMessage()` before logging any error message that may contain c
 ```dart
 Future<void> writeFileAtomic(String path, String content);
 Future<void> writeBytesAtomic(String path, List<int> bytes);
-Future<void> restrictFilePermissions(String path);  // async chmod 600
+Future<void> hardenFilePerms(String path);  // chmod 600 (POSIX), via lfs_core::path::harden_file_perms
 ```
 
 ### Platform
@@ -6224,9 +6252,9 @@ flowchart TD
     evt --> activedart["TransfersNotifier rebuilds ActiveEntry"]
     activedart --> ui["TransferPanel rebuilds"]
     exec --> r{outcome}
-    r -->|success| done["BusEvent::TransferTaskCompleted → HistoryEntry"]
-    r -->|cancelled| canc["BusEvent::TransferTaskCancelled → HistoryEntry"]
-    r -->|failure| err["BusEvent::TransferTaskFailed → HistoryEntry(error)"]
+    r -->|success| done["BusEvent::TransferTaskState(completed) → HistoryEntry"]
+    r -->|cancelled| canc["BusEvent::TransferTaskState(cancelled) → HistoryEntry"]
+    r -->|failure| err["BusEvent::TransferTaskError → HistoryEntry(error)"]
     done --> ui
     canc --> ui
     err --> ui
@@ -6324,37 +6352,41 @@ FileEntry {
 
 ```dart
 enum TransferDirection { upload, download }
+enum TransferStatus { queued, running, completed, failed, cancelled }
 
-// Live task — surfaced by TransfersNotifier.activeEntries; the
-// authoritative task object lives Rust-side in
-// lfs_core::transfer::WorkerPool. ActiveEntry is the Dart-side
-// snapshot that the bus subscription rebuilds per progress event.
+// HistoryEntry + ActiveEntry are the Dart-side read models the UI
+// renders from the Rust `TaskSnapshot` bus stream. The live task
+// object lives in lfs_core::transfer::WorkerPool; Dart never owns
+// the in-flight state directly. Both carry `status: TransferStatus`
+// rather than split state/outcome enums.
+
+// Live / queued entry — rebuilt per progress event.
 class ActiveEntry {
   final String id;
-  final TransferDirection direction;
   final String name;
+  final TransferDirection direction;
   final String sourcePath;
   final String targetPath;
-  final int    bytesTotal;     // 0 if unknown
-  final int    bytesDone;
-  final TransferState state;   // queued | running | cancelling
+  final TransferStatus status;
+  final double percent;   // 0..1
+  final String message;
 }
 
-// Terminal-state task — populated when a task completes / fails /
-// gets cancelled. Replaced the earlier TransferTask Dart class
-// that mixed live + history state.
+// Completed / failed / cancelled history entry.
 class HistoryEntry {
   final String id;
-  final TransferDirection direction;
   final String name;
+  final TransferDirection direction;
   final String sourcePath;
   final String targetPath;
-  final int    bytesTotal;
-  final int    bytesDone;
-  final DateTime startedAt;
+  final TransferStatus status;
+  final Object? error;
+  final double lastPercent;
+  final String lastMessage;
+  final DateTime createdAt;
+  final DateTime? startedAt;
   final DateTime? endedAt;
-  final TransferOutcome outcome;  // completed | cancelled | failed
-  final String? errorMessage;
+  final int sizeBytes;
 }
 ```
 
@@ -6375,6 +6407,7 @@ AppConfig {
     keepAliveSec: int     // default 30
     defaultPort: int      // default 22
     sshTimeoutSec: int    // default 10
+    verboseConnectionLog: bool  // default false
   }
   ui: UiConfig {
     windowWidth: double
@@ -6399,6 +6432,8 @@ AppConfig {
 ### SQLite database — Rust-owned schema
 
 All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`:
+
+> Table names below are written in PascalCase for readability; the on-disk SQL identifiers are snake_case (`sessions`, `ssh_session_details`, `webdav_session_details`, `s3_session_details`, `session_snippets`, `port_forward_rules`, …). SQLite identifiers are case-insensitive, so a query against either spelling resolves to the same table — grep `SCHEMA_SQL` for the canonical lowercase form.
 
 | Table | Purpose | Key relationships | Soft-delete |
 |-------|---------|-------------------|-------------|
@@ -6755,7 +6790,6 @@ returns.
 ```
 _mainBody (synchronous, pre-runApp):
   WidgetsFlutterBinding.ensureInitialized
-  SecureKeyStorage.enableRuntimeSubprocessProbes()      // bool flag
   AppLogger.init()                                      // path resolution
                                                          // (path_provider only;
                                                          // no dart:io File ops)
@@ -6824,7 +6858,7 @@ _mainBody (synchronous, pre-runApp):
 **Dart-side I/O carve-out — narrow, named, justified.** Rust owns persistent state and platform I/O everywhere except this fixed list, where a Flutter-only primitive forces a Dart-side touch. New Dart-side filesystem / OS-API call sites outside this list are regressions. Every entry runs without holding secret material:
 
 * **`config.json` load — Rust-routed.** [`loadAppConfigFromDisk`](../lib/providers/config_provider.dart) snapshots the Rust `config_store` actor (`config_store_get_json` + `config_store_was_loaded_from_disk`); `bootstrapRustConfigStore` (called from `_initRustCoreOrFatal`) is the single reader of the on-disk `config.json` via the Rust-side symlink-safe `read_bytes_secure`. No `dart:io File` / `Directory` operation touches the config path Dart-side. Corrupt JSON throws `AppConfigParseException` (rethrown from inside `_initRustCoreOrFatal`) → fatal-error screen, never silent-rewrites.
-* **Pre-FRB fatal wipe** — [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart) is the bottom of the recovery ladder when `RustLib.init()` itself fails (the native blob is the broken artefact). Enumerates the immediate children of `<app_support>` (a per-bundle subdir resolved by `path_provider`) and deletes each. No hardcoded filename list — the sweep is drift-proof because any future artefact the Rust side writes under `<app_support>` is covered automatically. The canonical `WipeAllService.wipeAll()` runs Rust-side once FRB is healthy and also clears keychain / hardware-vault entries; this path is reached only when the Rust-side path is unreachable. OS-secure-storage orphans left behind resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for proper cleanup.
+* **Fatal-screen wipe** — `FatalErrorApp._onWipe` ([`lib/app/fatal_error_app.dart`](../lib/app/fatal_error_app.dart)) lazily runs `RustLib.init()` + `appInit()` + the canonical Rust-side `WipeAllService.wipeAll()` (files + keychain + hardware-vault + `.wipe-pending` marker) only after the user confirms. There is **no** Dart-side enumerate-and-delete fallback: when the retry `RustLib.init()` itself fails (the native blob is the broken artefact) the handler logs a critical breadcrumb and exits, because a bundle that corrupt cannot be cleaned in-process and the user has to reinstall.
 * **Cold-start logger path resolution** — [`AppLogger.init()`](../lib/utils/logger.dart) calls `getApplicationSupportDirectory()` (a Flutter plugin, not FRB) to compose `<appSupport>/logs/letsflutssh.log` as a string; no `dart:io` File / Directory ops touch the path. The file create / append / chmod / rotate / read / clear surface lives Rust-side under `lfs_core::logger::file_sink` and routes through ten FRB entry points (`logger_open_sink`, …, `logger_close_sink`). `_mainBody` runs `_initRustCoreOrFatal` first, then calls `AppLogger.onFrbReady()` (registers the log path Rust-side, opens the sink if a threshold is already non-null, drains the pre-FRB `_preFrbCriticalBuffer` cap-64 ring through `logger_append_critical`), then `setThreshold(effectiveLevel)` against the live runtime. During the few-ms `RustLib.init()` window routine `log()` calls are no-ops (the sink has not opened yet); critical writes hit the buffer + stderr mirror on desktop so a crash inside that window still leaves a breadcrumb after boot.
 * **Single-instance lock** — `flock` (Linux/macOS) / `CreateMutexW` (Windows) live in the native shell, **not** Dart. The Dart side does not race for the lock at all; this entry is included so the mental map of "what touches OS state on cold-start" stays complete.
 * **`path_provider` resolution** — `getApplicationSupportDirectory()` is the only platform-channel call the Dart side keeps, because `lfs_core` is OS-FFI-free by design. Resolved paths cross FRB to Rust shims (`recorder_list_recordings`, `update::orchestrator::cleanup_stale_downloads`, archive read paths) so disk walks themselves stay Rust-side.
@@ -6932,7 +6966,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
 - [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe routes through FRB into `lfs_os_security::secure_key_storage::secret_service_reachable` — a `zbus`-driven `SecretService::connect` against `org.freedesktop.secrets`. `Ok(connection)` = service registered and responds → `available`; transport failure / `ServiceUnknown` / no daemon → `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. **Don't pattern-match `WSL_DISTRO_NAME` or check `DBUS_SESSION_BUS_ADDRESS`** — both are proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so env-var branches give the wrong answer. **Don't shell out to `gdbus`** — keeping the keyring data-path single-language (zbus inside Rust) avoids the "Dart subprocess for one introspection call" maintenance liability. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `lfs_os_security::secure_key_storage`; failure = `probeFailed`.
 
-The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
+The Linux keyring probe no longer spawns a Dart subprocess — it is the Rust `zbus` `secret_service_reachable` FRB call above. `SecureKeyStorage` takes its probe surface through constructor injection (which retired the older static subprocess-probe latch), so widget tests pass a fake instead of reaching the live FRB call, and FakeAsync never sees a stray `Process.run` timer.
 
 Both providers are session-scoped (keyring failure modes on Linux don't change mid-session, hardware probe results are fixed by the boot-time state of the chip). Tier cards read the classified probe's `AsyncValue` as the authoritative availability signal too, not just for the reason-line copy — the fast-path `SecureKeyStorage.isAvailable()` uses only env + marker-file checks and would falsely mark WSL as "keychain available", leaving the Select button enabled on a broken system; the classified `probe()` is the actual truth. `caps.keychainAvailable` from the startup capabilities snapshot is kept as a fallback while the classified probe's future is still resolving, so the card renders optimistically on the first frame and snaps to the correct state milliseconds later.
 
@@ -7117,7 +7151,7 @@ Usage: `sanitizeErrorMessage(message)` before logging any error that may contain
 
 #### Live log viewer (`features/settings/settings_logging.dart` + `core/logs/settings_logging_parser.dart` + `core/logs/log_store.dart` + `providers/log_store_provider.dart`)
 
-Settings → Logging section renders the live log inline with per-row severity tint. Data flows through a process-singleton [`LogStore` (`core/logs/log_store.dart`)] — a `ChangeNotifier` that subscribes once to `AppLogger.liveEntries`, retains every emitted entry in an in-memory buffer (soft cap 50 k entries), and publishes the filtered subset the `ListView.builder` iterates over. Boot priming via `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` calls `ensureSeeded()` after FRB init — that path async-reads the on-disk log file and folds its history into the buffer so opening the Logs tab is instant (no on-mount file read, no list rebuild).
+Settings → Logging section renders the live log inline with per-row severity tint. Data flows through a process-singleton [`LogStore` (`core/logs/log_store.dart`)] — a `ChangeNotifier` that subscribes once to `AppLogger.liveEntries`, retains every emitted entry in an in-memory buffer (soft cap 50 k entries), and publishes the filtered subset the viewer feeds into the read-only terminal. Boot priming via `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` calls `ensureSeeded()` after FRB init — that path async-reads the on-disk log file and folds its history into the buffer so opening the Logs tab is instant (no on-mount file read, no list rebuild).
 
 `ensureSeeded` merges the disk seed with whatever live entries already arrived during construction: builds a `(timestamp, tag, message)` signature set from the parsed seed, drops any pre-seed live entries whose signature matches the seed (those duplicates appear because `AppLogger.log` writes to disk + emits on `liveEntries` in lock-step — the seed read picks the same bytes off disk), and keeps any truly-late live entries that arrived after the seed read started. Final order: seed (chronological from disk) at the top, leftover live entries at the bottom. Without this merge, boot logs ended up doubled and out of order — live appended at the start, the disk dump trailed behind starting with the `--- Log started ---` banner.
 
@@ -7131,29 +7165,15 @@ Parsing is shared between the boot seed and the legacy export-to-clipboard path.
 - folds indented continuation lines (`  Error: ...`, `  Stack trace:`, raw stack frames) into the parent `LogEntry.continuations`
 - tags header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) + any regex-miss line as `isHeader: true` so the viewer dims them
 
-**Uniform row shape — single `Selectable` per entry, regardless of type.** Every entry flows through the same `_LogRow` widget which renders ONE `Container + Text.rich` with no nested selectable widgets. Only the `Container.decoration` border and the inline span sequence change per type:
-
-| Variant | Border | Spans |
-|---|---|---|
-| Routine | 2 px left, level-tinted | `[timestamp dim] [TAG colour] [message] [\n + continuation lines, dim]` |
-| Session-start banner (`--- Log started ... ---`) | 2 px left, `AppTheme.green` | message dim mono, verbatim — the green stripe is the only thing that distinguishes the run boundary from a routine row, keeping the row a uniform Container + Text.rich without bespoke geometry |
-| Plain header (legacy `Platform:` / `Dart:` rows from rotated pre-banner files) | none | message dim mono, verbatim |
-
-The tag is rendered inline as `[TAG]` in the level colour — NOT a `WidgetSpan` chip with its own `Text` child. A `WidgetSpan` would register the inner `Text` as a satellite `Selectable` and break the "single canvas" feel of drag-select: the tag would either skip selection or coalesce as a separate fragment, depending on which `Selectable` the drag rect intersected first. The flat `[TAG]` span keeps the entire row a single `Selectable`. Same reason the session-start line is rendered as a plain header rather than a bespoke banner widget — earlier iterations gave it hairlines + segment splitting + bright bold spans, and every variant introduced non-uniform geometry that broke the SelectionArea run. The `---` framing is enough visual signal on its own.
-
-Rows are physically contiguous (no vertical margins on the `Container`, `height: 1.55` on the base `TextStyle` so the `Text.rich` paint area fills the row vertically). No `Padding` widgets between rows, no per-type wrapper widgets — the `SelectionArea` walks a uniform run of single-`Selectable` rows in paint order, so drag-select doesn't drop on inter-row gaps or in-row padding zones.
-
-**Per-row `SelectionContainer` injects `\n` into copy output without touching layout.** Each row's `Container + Text.rich` sits inside a `SelectionContainer` whose delegate (`_RowNewlineSuffixDelegate`) extends `MultiSelectableSelectionContainerDelegate` and overrides `getSelectedContent` to append `\n` to whatever the inner `Text.rich` reports as selected. `SelectableRegion._copy` concatenates each child Selectable's `getSelectedContent()` without inserting a separator (`StringBuffer.write` only), so without the suffix a drag-select across N rows lands on the clipboard as one run-on line. The `\n` lives in the copy pipeline only — never as an `InlineSpan` — so on-screen row geometry stays unchanged. The first attempt at the same goal added a trailing `TextSpan(text: '\n', style: TextStyle(fontSize: 1, height: 0.001))` to every row; `Text.rich` still allocates baseline line metrics for the trailing newline regardless of the tiny font/height, so each row grew by one visible blank line. The `SelectionContainer` route sidesteps the rendering pipeline entirely. `ensureChildUpdated` is a no-op: each row's lifetime mounts with exactly one child `Text.rich` (one `Selectable`), so the base class's synthesised-edge-event bookkeeping (for mid-selection inserts) never has a Selectable to catch up. The toolbar `Copy log` button stays independent — it serialises `LogStore.allEntries` via `StringBuffer.writeln` directly.
+**Rendered through the Rust terminal engine, not a Widget list.** `_LogViewerHost` converts each `LogStore` entry to an ANSI-coloured text line — `_levelAnsiCode` maps `info` / `warn` / `error` to SGR `34` / `33` / `31`, headers stay default-dim — and `feed`s the joined text into a `ReplayTerminalController` (cols 80, rows 200) that renders through `TerminalView` (read-only config). Selection-across-lines, copy, and scrollback are the terminal engine's native behaviour, so there is no per-row `Container` / `Text.rich`, `SelectionContainer`, or newline-suffix delegate. The toolbar `Copy log` button stays independent — it serialises `LogStore.allEntries` via `StringBuffer.writeln` directly.
 
 The on-disk shape of the session-start line is one row: `--- Log started <YYYY-MM-DD HH:MM:SS> | <os name os version> | LetsFLUTssh <appVersion> ---`. `AppLogger._bannerWritten` suppresses duplicate banners on subsequent reopens within the same process (toggle Off → On in Settings, rotation cycling the file in place); `clearLogs` resets it because a clear is a deliberate new-session boundary. The `LetsFLUTssh <appVersion>` segment is populated from `PackageInfo.fromPlatform()` via `AppLogger.setAppVersion(...)` called from `_mainBody` pre-`runApp`. One row replaces the previous three-row block (`Log started`, `Platform: ...`, `Dart: ...`) — same forensic signal, no duplicate-meaning rows. Older rotated files still carry the legacy three-row shape; those rows fall through to the same header path (no italic, no special weight).
 
 **Cross-process banner dedup at the read side.** `AppLogger._bannerWritten` is per-process — every fresh launch writes its own banner. When two processes start in quick succession without writing anything between them, the file accumulates back-to-back `--- Log started ---` markers (the user-reported "опять два раза лейбл о начале логов"). Writing through this on the disk side would require sync tail-of-file inspection in `_openSink`, which the `path_provider` mock plumbing doesn't make easy in tests. Instead, `LogStore._collapseAdjacentBanners` (run on every seed) and `LogStore._onEntry` (live-stream path) drop the older of two adjacent banners when no content sits between them — the later banner wins because it represents the session that's actually about to log. Other header rows (`Platform: ...`, `Dart: ...` from rotated legacy files) carry distinct content and don't coalesce.
 
-Filter toolbar above the list: three toggle chips (`I W E`, all on by default) + a live-substring search input that AND-combines with the level filter against message + tag + continuation text. Toggling either calls `LogStore.applyFilter` which recomputes the filtered subset against the full buffer and notifies the `ListenableBuilder` wrapping the `ListView.builder`.
+Filter toolbar above the box: three toggle chips (`I W E`, all on by default) + a live-substring search input that AND-combines with the level filter against message + tag + continuation text. Toggling either calls `LogStore.applyFilter`, which recomputes the filtered subset against the full buffer and re-feeds the terminal with the new line set.
 
-`SelectionArea` wraps the `ListView.builder` so drag-select crosses row boundaries natively, and the right-click / long-press context menu is Flutter's default `AdaptiveTextSelectionToolbar` (Copy + Select All) — no custom builder. Toolbar buttons (`Copy log` / `Save log` / `Clear logs`) sit above the box; `Copy log` serialises the buffer's `allEntries` list (filter-independent — the action means "everything captured", not "what is shown after my level filter").
-
-Sticky-tail scroll is structural, not scripted. The `ListView.builder` runs with `reverse: true` and an index transform (`entries[entries.length - 1 - i]`) so paint order is bottom-up: scroll offset 0 sits at the visual bottom (newest entry), and new entries land at index 0 so they naturally appear at the bottom on the next rebuild. A user scrolled up keeps their pixel offset across rebuilds — reading older entries while new ones arrive does not yank the view. No `_follow` flag, no `onStoreChanged` listener firing `jumpTo(maxScrollExtent)`. An earlier post-frame `jumpTo` shape produced a visible jump on tab open: `ListView.builder`'s first `maxScrollExtent` is an estimate (`itemCount × average item height`), the jump targeted that estimate, then the lazy sliver materialised the real rows and `maxScrollExtent` recomputed — clamping the position backward by a few rows. `reverse: true` removes the failure mode by starting at the tail without needing to move.
+Selection, the Copy / Select-All menu, and sticky-tail-on-new-output are the read-only terminal's own behaviour — `feed` appends at the tail and the engine keeps the viewport pinned to the bottom unless the user has scrolled up to read older lines, so reading history while new entries arrive never yanks the view. The `Copy log` / `Save log` / `Clear logs` toolbar buttons sit above the box; `Copy log` serialises the buffer's `allEntries` list (filter-independent — the action means "everything captured", not "what is shown after my level filter").
 
 #### AppLogger (`utils/logger.dart`)
 
@@ -7327,7 +7347,7 @@ A mutation score of 100% means every algebraic / boolean / return-value mutation
 
 **When to run.** Not every commit. Mutation runs are minutes-long; trigger them when raising the testing bar on a sub-module, when reviewing a `0%` test file, or when a refactor reshapes a critical path (archive composer / crypto envelope / authn handshake).
 
-**Synthetic-Connection helper.** `Connection.debugMarkTransportAdopted()` (gated by `@visibleForTesting`) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
+**Synthetic-Connection helper.** `Connection.markTransportAdopted({bool adopted = true})` (a public method the connect path also calls on its success / failure branches) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
 
 ### Fuzz testing
 
@@ -7357,7 +7377,7 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 
 Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
 
-**Rust libFuzzer harnesses** (`rust/fuzz/`): coverage-guided harnesses for the four untrusted-bytes parsers that landed Rust-side in the migration (post-port the Dart harnesses can't reach them — `lfs_core` is consumed via FRB, not import). Member of the parent `rust/` workspace but excluded from `default-members` so `cargo build --workspace` ignores them; activated by `cargo +nightly fuzz run <target>` from `rust/fuzz/`. Targets:
+**Rust libFuzzer harnesses** (`rust/fuzz/`): coverage-guided harnesses for the untrusted-bytes parsers that live Rust-side (post-port the Dart harnesses can't reach them — `lfs_core` is consumed via FRB, not import). Member of the parent `rust/` workspace but excluded from `default-members` so `cargo build --workspace` ignores them; activated by `cargo +nightly fuzz run <target>` from `rust/fuzz/`. Targets:
 
 | Target | Driver |
 |---|---|
@@ -7365,6 +7385,14 @@ Standalone harnesses mirror production logic inline (no Flutter / pub imports) s
 | `known_hosts` | `lfs_core::known_hosts_parser::parse_line` — OpenSSH wire format + LFS internal export |
 | `qr_codec` | `lfs_core::qr_codec_decode::decode_payload` — base64url + deflate + JSON-shape payload |
 | `openssh_config` | `lfs_core::ssh_config::parse_openssh_config` — OpenSSH `~/.ssh/config` grammar |
+| `openssh_key_import` | `lfs_core::keys::import_openssh` — OpenSSH PEM private-key import |
+| `ppk_import` | `lfs_core::keys::import_ppk` — PuTTY PPK v2 / v3 import |
+| `sk_key_import` | `lfs_core::keys::parse_sk_private_key` — FIDO2 `sk-*` private-key parse |
+| `pem_certs` | `lfs_core::webdav::client::parse_pem_certs` — WebDAV / S3 trusted-cert PEM bundle |
+| `pkcs11_uri` | `lfs_os_security::pkcs11` RFC 7512 URI parse |
+| `ssh_target` | `lfs_core::sessions::parse_ssh_target` — `user@host:port` quick-connect target |
+| `transfer_entry_name` | `lfs_core::path::is_safe_transfer_entry_name` — archive / transfer entry-name vetting |
+| `terminal_engine` | `lfs_core::terminal` — ANSI / VT byte stream into the headless engine |
 
 Each `fuzz_target!(|data: &[u8]|)` shim drives bytes from libFuzzer through the parser and asserts no panic + parser-output invariants where applicable (idempotency, contract-bound field shapes). Crashes persist under `rust/fuzz/artifacts/<target>/` (gitignored — corpora live in OSS-Fuzz / ClusterFuzzLite, not the repo). Not run in CI today; the host pipeline (`make rust-test`, `cargo clippy`) ignores these targets entirely.
 
@@ -7425,18 +7453,17 @@ flowchart TD
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release + SBOM + cosign keyless signature | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
 | `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Auto-merge patch/minor; no per-PR version bump (deps ride the next release's bump — see §15.1) | — |
-| `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
+| `osv.yml` | push main / PR (all) / weekly | main | CVE scan over both `pubspec.lock` + `rust/Cargo.lock` under one repo-root `osv-scanner.toml` (`--config` overrides per-lockfile discovery so the Rust scan also sees the root suppressions) | Yes on PR |
 | `cargo-deny.yml` | push main / PR (main, dev) / weekly | main, dev | Rust advisories / licenses / bans over `rust/Cargo.lock` (runs as its own workflow, not in `make check`) | No |
 | `pana.yml` | push main / PR (main, dev) / weekly | main, dev | `pana` Dart package-health score | No |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
-| `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
+| `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (`--config auto` over `lib/ test/ rust/` — Dart + Rust; `rust_builder` excluded) | Yes on PR |
 | `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
 | `reproducibility-check.yml` | nightly cron | main | Builds Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
 | `pages.yml` | push main / manual | main | Publishes the project landing site to GitHub Pages | No |
 | `smoke.yml` | manual / tag `v*` | — | Build + launch smoke per platform (desktop trio, Android emulator, iOS simulator — no signing). Android build is the hard gate; emulator launch best-effort | No |
 | `package-extra.yml` | release published / manual | — | Builds `.rpm` (Fedora/RHEL, x64+arm64 via fpm) + Arch `.pkg.tar.zst` (arch container, x64) from the release linux tarball and attaches them to the release (incl. the FIDO udev rule). Post-publish, so not in the signed `.sha256sums` (follow-up to fold in) | No |
-| `update-manifests.yml` | release published / manual | main | Rewrites version + sha256 in `packaging/{flatpak,winget,homebrew}` from the release `.sha256sums` and commits to main. Keeps manifests in sync; does not submit to any store | No |
 
 **External Integrations:**
 
@@ -7619,7 +7646,6 @@ Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both language
 | `flutter_riverpod` | State management |
 | `crypto` | SHA-256 only (keychain fingerprints, known_hosts, update-feed checksum). AES-GCM / HKDF / Ed25519 / Argon2id all live Rust-side under `lfs_core::crypto`. |
 | `path_provider` | App data directories |
-| `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |
 | `flutter_foreground_task` | Android foreground service |
 | `app_links` | Deep links + file intents |

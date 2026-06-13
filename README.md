@@ -30,6 +30,7 @@ Cross-platform SSH/SFTP client with GUI — **Flutter UI on a Rust core** (secur
 - **SSH** — xterm/VT100 terminal (256-color, RGB, mouse), tiling with recursive splits, search, multi-tab, keep-alive & reconnect
 - **SFTP** — dual-pane file browser, drag & drop, transfer queue with parallel workers
 - **WebDAV** — browse Nextcloud / ownCloud / Apache mod_dav / Synology DSM / IIS in the same dual-pane file browser, with Basic / Digest / Bearer authentication and optional self-signed certificate pinning
+- **S3** — browse any S3-compatible object store (AWS S3, MinIO, Wasabi, Backblaze B2, Cloudflare R2, DigitalOcean Spaces, Scaleway) in the same dual-pane file browser, with multipart uploads and optional self-signed endpoint pinning
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
@@ -179,10 +180,6 @@ Sessions, credentials, known hosts, snippets, tags, and app config live in the O
 
 > [!WARNING]
 > Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
-
-### Other distribution channels
-
-Manifests for Flathub, Homebrew Cask and WinGet live under [`packaging/`](packaging/), and the Snap manifest at [`snap/snapcraft.yaml`](snap/snapcraft.yaml) — all **draft templates pending validation**, not yet submitted to upstream channels. Until those PRs land, [GitHub Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) is the only sanctioned download path. The in-app updater talks directly to GitHub Releases regardless of how the user originally installed.
 
 ## Security
 
