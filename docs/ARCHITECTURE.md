@@ -723,12 +723,16 @@ class Session {
 
   SSHConfig toSSHConfig();    // conversion for connection
   Session copyWith({...});    // preserves id, updates updatedAt
-  Session duplicate();        // new id, "(copy)" suffix, preserves authType
-  Map<String, dynamic> toJson();
+  Map<String, dynamic> toJson();                // secrets stripped (canonical Rust encoder)
+  Map<String, dynamic> toJsonWithCredentials(); // same wire shape, secrets included
   factory Session.fromJson(Map<String, dynamic> json);
+  // No Dart-side `duplicate()`: duplication is one Rust transaction
+  // (`dbSessionsDuplicateWithPath` — label-dedup + folder-resolve +
+  // new-id mint + insert) so `extras` / `via*` are never dropped.
 }
 
-enum SessionKind { ssh, webdav, s3 }
+typedef SessionKind = DbSessionKind; // FRB-generated enum { ssh, webdav, s3 }
+typedef AuthType = DbAuthType;       // FRB-generated enum { password, key, keyWithPassword, agent }
 ```
 
 ##### Session kind — SSH vs WebDAV vs S3
