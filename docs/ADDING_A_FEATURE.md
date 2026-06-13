@@ -36,7 +36,7 @@ When you add or rename a column, bump `SCHEMA_VERSION` and add the matching `ALT
 
 ### 2. FRB API surface (`rust/crates/lfs_frb/src/api/`)
 
-Expose the DAO through `lfs_frb::api::notes` — a flat `api/notes.rs` file mirroring the existing `api/snippets.rs` / `api/tags.rs` (the API modules sit directly under `api/`, not in an `api/db/` subdir). The adapter:
+Expose the DAO as `db_notes_*` async functions in `rust/crates/lfs_frb/src/api/db.rs` — the single module that fronts every DB-table CRUD surface. Mirror the existing snippet functions (`db_snippets_list_all` / `db_snippets_upsert` / `db_snippets_delete`). The adapter:
 
 - Receives Dart-friendly DTOs (`Vec<u8>` / `String` / numeric).
 - Delegates to `lfs_core::db::notes::*`.
@@ -90,7 +90,7 @@ final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
 );
 ```
 
-The notifier reads / writes via the FRB DAO (`dbNotesList` / `dbNotesUpsert` / `dbNotesDelete`) and subscribes to the matching `BusTopic::Notes` event so cross-window mutations refresh the cache without polling. Existing example: [`lib/providers/snippet_provider.dart`](../lib/providers/snippet_provider.dart).
+The notifier reads / writes via the FRB DAO (`dbNotesListAll` / `dbNotesUpsert` / `dbNotesDelete`) and subscribes to the matching `BusTopic::Notes` event so cross-window mutations refresh the cache without polling. Existing example: [`lib/providers/snippet_provider.dart`](../lib/providers/snippet_provider.dart).
 
 Consumers should `.select()` the slice they need — see [ARCHITECTURE §4 State Management](ARCHITECTURE.md#4-state-management--riverpod).
 
@@ -150,7 +150,7 @@ User-visible feature → also walk through [`USER_GUIDE.md`](USER_GUIDE.md) and 
 
 ### 10. Commit
 
-One logical change per commit. Use the right [conventional prefix](CONTRIBUTING.md#commit-messages) — it drives the auto-changelog and version bump:
+One logical change per commit. Use the right [conventional prefix](CONTRIBUTING.md#commit-messages) — it drives the auto-generated GitHub release notes and version bump:
 
 ```
 feat(notes): add per-session notes panel

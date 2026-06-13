@@ -958,7 +958,7 @@ flag the sidebar mutates as the user clicks chevrons).
 |------|-------|---------|
 | `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer, progress stream) |
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
-| `connection_step_mappers.dart` | Bus → `ConnectionStep` mappers | Translates `BusEvent::ConnectionProgress` payloads into the Dart `ConnectionStep` shape the progress tracker consumes. |
+| `connection_step_mappers.dart` | `mapBusPhase` / `mapBusStatus` / `busAuthRef` / `busConnectArgs` | Pure mappers across the FRB bus boundary, split out so value-type tests can import `connection_step.dart` without the native lib. Inbound: `mapBusPhase` → `ConnectionPhase`, `mapBusStatus` → `StepStatus` (the two fields a `ConnectionStep` is built from). Outbound: `busAuthRef` lowers the `SshAuthMethod` sealed family to a `BusConnectAuthRef`, and `busConnectArgs` builds the `BusConnectArgs` that `ConnectionsNotifier._doConnect` feeds the Rust connect actor. |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
 | `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to a `ReplayTerminalController` (Rust engine, shared by desktop and mobile terminal views) |
 | `connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, bus subscription |
@@ -1884,7 +1884,7 @@ flowchart LR
     DBW --> SIGNW[connect_pubkey_tpm_owned + TpmSigner]
     SIGNL --> TPM2[TPM2_Sign<br/>raw r||s or PKCS#1 v1.5]
     SIGNW --> NCSIGN[NCryptSignHash<br/>unattended - no prompt]
-    TPM2 --> WRAP[ssh::wire::ecdsa_raw_concat / rsa_pkcs1_v15]
+    TPM2 --> WRAP[ssh::wire::ecdsa_raw_concat_to_ssh_mpint / rsa_pkcs1_v15_sig_body]
     NCSIGN --> WRAP
     WRAP --> SSH[SSH userauth signature]
 ```
@@ -2728,6 +2728,7 @@ class AppConfig {
   //   keepAliveSec: default 30
   //   defaultPort: default 22
   //   sshTimeoutSec: default 10
+  //   verboseConnectionLog: bool (default false; russh -vvv trace → file log)
 
   final UiConfig ui;
   //   windowWidth/Height
@@ -2828,7 +2829,7 @@ class DeepLinkHandler {
 | File | Purpose |
 |------|---------|
 | `import_service.dart` | Thin Dart wrapper over the Rust apply driver: `applyResultViaRust(ImportResult, refreshAfterImport)` serialises the result to the staged-import JSON envelope, calls `dbImportStage` + `dbImportApply` (FRB → `lfs_core::archive::apply_pending_import`), then runs the caller's cache-refresh hook. Hosts `ImportSummary` (per-type counters consumed by the success toast) and `LfsImportRolledBackException` (raised on replace-mode failure so the UI shows "data restored" — the surrounding sqlite transaction guarantees the rollback). All collisions, junction inserts, folder-hierarchy reconstruction, and replace-mode rollback live Rust-side now |
-| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
+| `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are recognised here too — the helper hands the file to the Rust core (`lfs_core::keys::try_read_pem_from_path` detects PPK vs PEM and re-encodes to OpenSSH PEM), keeping the Dart side format-agnostic (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for the SSH-config import UI in Settings → Data — see [§5.5 Settings](#55-settings-featuressettings) |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `SshKeysMutator.importForMerge` so fingerprint-duplicate keys are not re-added |
 
@@ -3062,7 +3063,7 @@ class UpdateService {
   // DI: HttpFetcher (test-time replacement for the Releases JSON
   // body fetch — production routes through
   // lfs_core::update::http::fetch_text). Download + verify is a
-  // single Rust call (lfs_core::update::http::download_with_verification)
+  // single Rust call (lfs_core::update::orchestrator::download_with_verification)
   // with a static @visibleForTesting `debugDownloadOverride` seam
   // that scripts a DbDownloadResult for the failure-shape tests.
   // Download: streams every chunk straight to disk while hashing —
@@ -6251,9 +6252,9 @@ flowchart TD
     evt --> activedart["TransfersNotifier rebuilds ActiveEntry"]
     activedart --> ui["TransferPanel rebuilds"]
     exec --> r{outcome}
-    r -->|success| done["BusEvent::TransferTaskCompleted → HistoryEntry"]
-    r -->|cancelled| canc["BusEvent::TransferTaskCancelled → HistoryEntry"]
-    r -->|failure| err["BusEvent::TransferTaskFailed → HistoryEntry(error)"]
+    r -->|success| done["BusEvent::TransferTaskState(completed) → HistoryEntry"]
+    r -->|cancelled| canc["BusEvent::TransferTaskState(cancelled) → HistoryEntry"]
+    r -->|failure| err["BusEvent::TransferTaskError → HistoryEntry(error)"]
     done --> ui
     canc --> ui
     err --> ui
@@ -6351,37 +6352,41 @@ FileEntry {
 
 ```dart
 enum TransferDirection { upload, download }
+enum TransferStatus { queued, running, completed, failed, cancelled }
 
-// Live task — surfaced by TransfersNotifier.activeEntries; the
-// authoritative task object lives Rust-side in
-// lfs_core::transfer::WorkerPool. ActiveEntry is the Dart-side
-// snapshot that the bus subscription rebuilds per progress event.
+// HistoryEntry + ActiveEntry are the Dart-side read models the UI
+// renders from the Rust `TaskSnapshot` bus stream. The live task
+// object lives in lfs_core::transfer::WorkerPool; Dart never owns
+// the in-flight state directly. Both carry `status: TransferStatus`
+// rather than split state/outcome enums.
+
+// Live / queued entry — rebuilt per progress event.
 class ActiveEntry {
   final String id;
-  final TransferDirection direction;
   final String name;
+  final TransferDirection direction;
   final String sourcePath;
   final String targetPath;
-  final int    bytesTotal;     // 0 if unknown
-  final int    bytesDone;
-  final TransferState state;   // queued | running | cancelling
+  final TransferStatus status;
+  final double percent;   // 0..1
+  final String message;
 }
 
-// Terminal-state task — populated when a task completes / fails /
-// gets cancelled. Replaced the earlier TransferTask Dart class
-// that mixed live + history state.
+// Completed / failed / cancelled history entry.
 class HistoryEntry {
   final String id;
-  final TransferDirection direction;
   final String name;
+  final TransferDirection direction;
   final String sourcePath;
   final String targetPath;
-  final int    bytesTotal;
-  final int    bytesDone;
-  final DateTime startedAt;
+  final TransferStatus status;
+  final Object? error;
+  final double lastPercent;
+  final String lastMessage;
+  final DateTime createdAt;
+  final DateTime? startedAt;
   final DateTime? endedAt;
-  final TransferOutcome outcome;  // completed | cancelled | failed
-  final String? errorMessage;
+  final int sizeBytes;
 }
 ```
 
@@ -6402,6 +6407,7 @@ AppConfig {
     keepAliveSec: int     // default 30
     defaultPort: int      // default 22
     sshTimeoutSec: int    // default 10
+    verboseConnectionLog: bool  // default false
   }
   ui: UiConfig {
     windowWidth: double
@@ -6426,6 +6432,8 @@ AppConfig {
 ### SQLite database — Rust-owned schema
 
 All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`:
+
+> Table names below are written in PascalCase for readability; the on-disk SQL identifiers are snake_case (`sessions`, `ssh_session_details`, `webdav_session_details`, `s3_session_details`, `session_snippets`, `port_forward_rules`, …). SQLite identifiers are case-insensitive, so a query against either spelling resolves to the same table — grep `SCHEMA_SQL` for the canonical lowercase form.
 
 | Table | Purpose | Key relationships | Soft-delete |
 |-------|---------|-------------------|-------------|

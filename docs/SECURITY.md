@@ -204,7 +204,8 @@ snippet in the main README). The biometric modifier on Linux flows
 through `fprintd` and requires at least one enrolled finger. The
 `tss-esapi` native backend ([`lfs_os_security::linux::tpm_native`](
 ../rust/crates/lfs_os_security/src/linux/tpm_native.rs)) talks
-directly to `/dev/tpm0` through the TSS2 ABI — no per-operation
+directly to `/dev/tpmrm0` (the kernel resource-manager node) through
+the TSS2 ABI — no per-operation
 `fork()` + temp-file plumbing — and produces byte-identical sealed
 envelopes to the subprocess path so the two paths interoperate
 seamlessly.
@@ -586,9 +587,10 @@ AES-GCM AAD so an attacker who flips header bytes to coerce a
 weaker KDF derivation invalidates the AEAD tag rather than feeding
 cooked params into the verifier. Pre-AAD legacy `0x02` envelopes
 still decode through a transparent fallback so existing exports
-keep importing. The import path enforces parameter caps
-(`maxImportArgon2idMemoryKiB`, `maxImportArgon2idIterations`,
-`maxImportArgon2idParallelism`) so a hostile header cannot pin the
+keep importing. The import path enforces parameter caps Rust-side in
+`lfs_core::archive::envelope` (`MAX_IMPORT_MEMORY_KIB` = 1 GiB
+desktop / 512 MiB mobile, `MAX_IMPORT_ITERATIONS` = 20,
+`MAX_IMPORT_PARALLELISM` = 4) so a hostile header cannot pin the
 isolate into swap. Archives declaring a schema version the current
 build does not understand are rejected with
 `UnsupportedLfsVersionException` rather than silently dropping
@@ -801,7 +803,8 @@ the boundary.
 
 ## Automated security checks
 
-- **OSV-Scanner** — scans `pubspec.lock` against the
+- **OSV-Scanner** — scans both `pubspec.lock` and `rust/Cargo.lock`
+  (under one repo-root `osv-scanner.toml`) against the
   [OSV.dev](https://osv.dev) vulnerability database on every
   dependency change and weekly. Results appear in the GitHub
   Security tab. Build releases are blocked if known CVEs are found.
@@ -812,8 +815,9 @@ the boundary.
 - **CodeQL** — static analysis of GitHub Actions workflows (weekly).
   Dart is not supported by CodeQL; application code is covered by
   SonarCloud instead.
-- **Semgrep** — SAST scan of the Dart code on every PR + weekly; a
-  required check on `main` (`semgrep-scan`).
+- **Semgrep** — SAST scan (`--config auto` over `lib/ test/ rust/` —
+  Dart + Rust) on every PR + weekly; a required check on `main`
+  (`semgrep-scan`).
 - **cargo-deny** — Rust advisory / license / banned-crate audit over
   `rust/Cargo.lock` (push-main + PR + weekly), complementing OSV.
 - **SonarCloud** — static analysis, code quality, coverage, and
@@ -871,13 +875,16 @@ transparency:
   dropped outright: `ssh-key` / `russh` need it for RSA key types and
   host-key verification. Documented and ignored in `osv-scanner.toml`,
   so the OSV gate stays green; Scorecard reports it independently.
-- **Pinned-Dependencies — `choco install strawberryperl` not pinned by
-  hash.** The Windows MSVC release build needs a working Perl for the
-  vendored-OpenSSL build script. Chocolatey has no hash-pin mechanism
-  (pinning a version would not satisfy Scorecard's hash requirement
-  and risks the build breaking if that version is delisted). All
-  GitHub Actions and container images *are* SHA-pinned; this one shell
-  install is the sole unpinnable build dependency.
+- **Pinned-Dependencies — `choco install innosetup` not pinned by
+  hash.** The Windows release build invokes Inno Setup to produce the
+  `.exe` installer. Chocolatey has no hash-pin mechanism (pinning a
+  version would not satisfy Scorecard's hash requirement and risks the
+  build breaking if that version is delisted). All GitHub Actions and
+  container images *are* SHA-pinned; this one shell install is the
+  sole unpinnable build dependency. (The Windows MSVC build's Perl
+  dependency for vendored OpenSSL is **not** choco-installed — the
+  runner ships Strawberry Perl preinstalled at `C:\Strawberry`; CI
+  only re-orders it ahead of MSYS2 perl on `PATH`.)
 
 ## Reporting a vulnerability
 
