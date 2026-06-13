@@ -4311,11 +4311,11 @@ class _FooDialogState extends State<FooDialog> {
 #### Split tree (tiling)
 
 ```dart
-sealed class SplitNode {}
-
-class LeafNode extends SplitNode {
-  final String id;   // unique pane ID
+sealed class SplitNode {
+  final String id;   // unique node id (the pane id on a leaf)
 }
+
+class LeafNode extends SplitNode {}
 
 class BranchNode extends SplitNode {
   final SplitDirection direction;  // horizontal | vertical
