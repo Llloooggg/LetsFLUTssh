@@ -83,7 +83,7 @@ installer dropped by a browser) to elevated debug-capable processes.
 - **Unprivileged same-user code** (no `SeDebug` / `CAP_SYS_PTRACE` /
   debug signing) → blocked by the OS from attaching to our process:
   `PR_SET_DUMPABLE=0` on Linux, `ptrace PT_DENY_ATTACH` on macOS,
-  `SetProcessMitigationPolicy` on Windows, sandbox on mobile. The
+  `SetErrorMode` on Windows, sandbox on mobile. The
   attacker sees our files — if the tier protects the file-level state
   (T1 / T2 / Paranoid all do) the attacker gets only ciphertext.
 - **Privileged same-user code** (elevated debug privilege / root /
@@ -472,7 +472,7 @@ across T0…Paranoid); they are covered in the threat-boundary
 discussion above instead, so the gap stays explicit without
 flattening the comparison. The orthogonal mitigations — process
 hardening (`PR_SET_DUMPABLE=0`, `PT_DENY_ATTACH`,
-`SetProcessMitigationPolicy`), `mlock` on the derived key,
+`SetErrorMode`), `mlock` on the derived key,
 DB-close-on-lock, auto-lock — raise the bar against unprivileged
 same-user code; a privileged same-user attacker defeats everything
 at app level, same as every commercial password manager, SSH client,
