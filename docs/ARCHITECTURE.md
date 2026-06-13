@@ -488,6 +488,8 @@ abstract class RemoteSftpFs {
                          void Function(TransferProgress)? onProgress);
   Future<void> downloadDir(String remoteDir, String localDir,
                            void Function(TransferProgress)? onProgress);
+  Future<int> dirSizeRecursive(String path, int maxDepth);          // bounded recursive size
+  Future<List<FlatFileLeaf>> flatWalkFiles(String path, int maxDepth); // one-hop leaf walk
 }
 
 class RustSftpFs extends RemoteSftpFs {
@@ -512,6 +514,9 @@ abstract class FileSystem {
   Future<void> rename(String oldPath, String newPath);
   Future<bool> exists(String path) async { ... }          // default: parent-listing probe
   Future<int>  dirSize(String path);                      // recursive size in bytes
+  Future<List<FlatFileLeaf>> flatWalkFiles(String root,   // leaf walk; LocalFS/RemoteFS
+      {int maxDepth = 100});                              // override with one Rust call,
+                                                          // object stores use flatWalkViaList
 
   /// What this backend can surface. Defaults to "all-false"
   /// (the conservative shape every HTTP-style object store fits).
@@ -578,34 +583,44 @@ The FRB surface for SFTP stays unchanged with this layer in place — provider p
 - Workers: sized from the user's "Parallel workers" setting (`AppConfig.transfer_workers`, default 4, clamped `[1, 10]`). `lfs_core::transfer::worker_count_from_config_store` reads + clamps the live config value and the FRB adapter passes it to `WorkerPool::spawn`; `DEFAULT_TRANSFER_WORKERS = 4` is the fallback when the config store is unreadable. The pool is spawned lazily on the first transfer and never resized, so a changed setting applies on the next launch
 - History: unbounded in memory — terminal tasks stay until the user clears them (per-row drop or "clear history"); no automatic cap
 - States: `queued → running → completed / failed / cancelled`
-- Streams: `onChange → UI updates`, `onHistoryChange → history`
+- Snapshot delivery: a `BusTopic.transfer` subscription schedules a refresh on every `TransferTask*` event; the UI reads through the selector providers `activeTransfersProvider` / `transferHistoryProvider` / `transferStatusProvider` over `transfersProvider`
 
 ```dart
-class TransfersNotifier extends Notifier<TransferState> {
+class TransfersNotifier extends Notifier<TransfersState> {
   // Worker parallelism lives on the Rust side
   // (lfs_core::transfer::WorkerPool); the Dart notifier mirrors
   // snapshots only. History is kept in insertion order until the
   // user clears it — there is no automatic cap or per-task timeout.
 
-  Future<void> enqueue({
-    required TransferDirection direction,
-    required String sessionId,
-    required String remotePath,
-    required String localPath,
-    int bytesTotal = 0,
+  // Upload and download are separate entry points (direction is the
+  // method, not a parameter); each returns the assigned task id and
+  // routes to lfs_frb::api::transfer::transfer_enqueue, where the
+  // Rust worker pool owns the live task and emits per-chunk
+  // BusEvent::TransferTaskProgress + lifecycle events the notifier
+  // subscribes to.
+  Future<String> enqueueDownload({
+    required String connectionId, required String name,
+    required String remotePath, required String localPath,
+    int sizeBytes = 0,
   });
-  // Routes to lfs_frb::api::transfer::transfer_enqueue; the Rust
-  // worker pool owns the live task object and emits per-chunk
-  // BusEvent::TransferTaskProgress + lifecycle events that the
-  // notifier subscribes to.
+  Future<String> enqueueUpload({
+    required String connectionId, required String name,
+    required String localPath, required String remotePath,
+    int sizeBytes = 0,
+  });
 
-  Future<void> cancel(String taskId);
-  Future<void> cancelAll();
+  Future<bool> cancel(String id);             // false if the id had already finished
+  void cancelAll();
   Future<void> clearHistory();
+  Future<void> deleteHistory(List<String> ids);
+}
 
-  List<ActiveEntry> get activeEntries;        // running + queued tasks with progress
-  List<HistoryEntry> get history;             // completed/failed/cancelled
-  ({int running, int queued}) get status;
+// The snapshot the UI reads — exposed through the selector providers
+// transferHistoryProvider / activeTransfersProvider / transferStatusProvider:
+class TransfersState {
+  final List<HistoryEntry> history;           // completed/failed/cancelled
+  final List<ActiveEntry>  active;            // running + queued, with progress
+  final ActiveTransferState status;           // running + queued counts + currentInfo
 }
 ```
 
