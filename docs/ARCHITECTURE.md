@@ -7436,7 +7436,6 @@ flowchart TD
 | `pages.yml` | push main / manual | main | Publishes the project landing site to GitHub Pages | No |
 | `smoke.yml` | manual / tag `v*` | — | Build + launch smoke per platform (desktop trio, Android emulator, iOS simulator — no signing). Android build is the hard gate; emulator launch best-effort | No |
 | `package-extra.yml` | release published / manual | — | Builds `.rpm` (Fedora/RHEL, x64+arm64 via fpm) + Arch `.pkg.tar.zst` (arch container, x64) from the release linux tarball and attaches them to the release (incl. the FIDO udev rule). Post-publish, so not in the signed `.sha256sums` (follow-up to fold in) | No |
-| `update-manifests.yml` | release published / manual | main | Rewrites version + sha256 in `packaging/{flatpak,winget,homebrew}` from the release `.sha256sums` and commits to main. Keeps manifests in sync; does not submit to any store | No |
 
 **External Integrations:**
 
