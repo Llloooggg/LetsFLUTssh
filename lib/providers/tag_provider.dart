@@ -138,9 +138,15 @@ class TagsNotifier extends AsyncNotifier<List<Tag>> {
   }
 
   /// Force a re-pull from the DB. Used by post-import refresh paths
-  /// where the Rust apply layer wrote rows directly.
+  /// where the Rust apply layer wrote rows directly, and by the
+  /// manager panel's mount-time load. Re-fetches imperatively and
+  /// assigns `state` *after* the first await so it never schedules a
+  /// self-invalidation synchronously during a widget mount — that path
+  /// throws under the riverpod 3.3.2 vsync scheduler (`markNeedsBuild`
+  /// during build). `return future` preserves the error propagation
+  /// the old `invalidateSelf()` path had.
   Future<List<Tag>> loadAll() async {
-    ref.invalidateSelf();
+    state = await AsyncValue.guard(() => _fetchAndSort(rust_db.dbTagsListAll));
     return future;
   }
 
