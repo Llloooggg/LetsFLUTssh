@@ -2395,9 +2395,9 @@ lib/core/migration/migration_runner.dart
                         has_failures / migrated_count) + the
                         `runStartupMigrations()` async entry that
                         resolves support dir and dispatches the FRB
-                        call. `currentConfigSchemaVersion()` reads
-                        `SchemaVersions::CONFIG` through FRB so the
-                        constant lives one place across the workspace.
+                        call. (The on-disk config-version probe is the
+                        FRB `migrationConfigVersionOnDisk()`, called
+                        directly by SecurityInitController.)
 ```
 
 ##### Envelope (future use — not registered today)
