@@ -1384,7 +1384,7 @@ Per-install salt is generated on `store()` and written alongside the sealed blob
 |---|---|---|
 | **iOS / macOS** | `hardware_vault_apple.bin`, `hardware_vault_password_overlay_apple.bin` | `Data.write(to:options:[.atomic, .completeFileProtection])` — Swift's own tmp-file + rename. |
 | **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, `Permissions::from_mode(0o600)`, `fs::rename` atomic inode swap on ext4 / f2fs). |
-| **Windows** | `hardware_vault.bin`, `hardware_vault_password_overlay.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, then `fs::rename` — NTFS atomic-on-same-volume rename invariant, same primitive as Android). |
+| **Windows** | `hardware_vault.bin`, `hardware_vault_password_overlay_windows.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, then `fs::rename` — NTFS atomic-on-same-volume rename invariant, same primitive as Android). |
 
 A torn blob on any platform otherwise yields `readVault` → null → `isStored` → true-but-garbage → next unseal returns nothing → Dart side silently drops biometric / hardware unlock without a "vault corrupted" hint. The invariant matches the Dart-side hardware-vault atomic write and the biometric-vault atomic write already enforced by `writeBytesAtomic`.
 
