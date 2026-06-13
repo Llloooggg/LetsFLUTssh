@@ -1145,7 +1145,7 @@ All app data lives in one SQLite database (`letsflutssh.db`) opened by `lfs_core
 |---|---|---|---|---|
 | **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
 | **T1** | Keychain | OS keychain on Apple/Linux/Windows (Keychain / libsecret / Credential Manager); Android uses an AES-256-GCM frame whose wrap key lives in AndroidKeyStore (TEE / StrongBox-backed when available), with the wrapped value bytes persisted as a 0600 file under `<filesDir>/lfs_secure_storage/<alias>.bin` | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
-| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key, wrapped bytes persisted as `hardware_vault_password_overlay_<plat>.bin` |
 | **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only inside `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) during the unlocked window |
 
 See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
@@ -1171,9 +1171,12 @@ bypasses the OS keychain layer).
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected
   keychain alias on T1 / per-platform biometric-gated key on T2:
-  `letsflutssh_hw_password_overlay` Keystore on Android, SE alias
-  on iOS/macOS, `LetsFLUTssh-BioOverlay-v2` CNG key with
-  `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
+  an AndroidKeyStore biometric wrap key on Android, the
+  `com.letsflutssh.hw_password_overlay` Secure Enclave tag on
+  iOS/macOS, and the `letsflutssh_hardware_vault_bio_v1` CNG key
+  gated by `NCRYPT_UI_PROTECT_KEY_FLAG` on Windows — wrapped bytes
+  persisted as `hardware_vault_password_overlay_<plat>.bin`) that
+  holds the typed password;
   biometric unlock releases the password from that slot and replays
   the HMAC gate without requiring the user to retype.
 The JSON decoder silently ignores any key outside the typed
