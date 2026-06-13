@@ -1066,8 +1066,9 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   // Construction is via NotifierProvider; no required ctor args.
   // sessionCredentialCacheProvider is read inside build().
   // FRB-unreachable contexts (flutter_test) skip the bus subscription.
-
-  PassphrasePromptCallback? onPassphraseRequired;  // set by UI layer (main.dart)
+  // (Passphrase / password prompts are bus-driven via
+  // CredentialPromptListener — there is no `onPassphraseRequired`
+  // callback field.)
 
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
@@ -1078,8 +1079,10 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   // / typed-passphrase paths use transient ids under conn.<slot>.<uuid>
   // and add them to Connection.transientSecretIds for cleanup on
   // terminal state. cachedPassphrase covers the interactive retry path.
-  void disconnect(String connectionId);
-  void disconnectAll();  // also completes pending ready futures for in-progress connections
+  void disconnect(String id);
+  // Disconnect-all is the internal `_disconnectAll()` (fired on notifier
+  // dispose); it also completes pending ready futures for in-progress
+  // connections. There is no public `disconnectAll`.
 
   List<Connection> get connections;
 
@@ -1096,7 +1099,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
 
 #### Connect timeout — `ssh_timeout_sec` with prompt pause
 
-The connect driver in `lfs_core::connection::run_connect_driver` wraps the entire `run_auth` future — TCP dial + russh KEX + host-key verification + userauth — in a wall-clock cap so an unreachable host does not pin the actor for the OS-level TCP timeout (60–130 s on Linux). The cap is sourced from `AppConfig.ssh_timeout_sec` (Settings → Connection → "Connection timeout (s)"), defaults to 30 s, and is clamped to ≥1 s so a hostile / corrupt config entry cannot disable the bound entirely.
+The connect driver in `lfs_core::connection::run_connect_driver` wraps the entire `run_auth` future — TCP dial + russh KEX + host-key verification + userauth — in a wall-clock cap so an unreachable host does not pin the actor for the OS-level TCP timeout (60–130 s on Linux). The cap is sourced from `AppConfig.ssh_timeout_sec` (Settings → Connection → "Connection timeout (s)"), defaults to 10 s, and is clamped to ≥1 s so a hostile / corrupt config entry cannot disable the bound entirely.
 
 **Prompt pause invariant.** The cap covers **network and handshake time only** — wall-clock spent waiting on a user-facing prompt is *not* counted against it. Today the only such prompt is the TOFU host-key dialog (`BusEvent::KnownHostPromptRequest`, see [§3.1 host-key TOFU flow](#31-ssh-coressh)); future interactive prompts during connect (keyboard-interactive MFA, hardware-vault unlock) plug into the same gate by registering with their own prompt registry on `AppState`.
 
@@ -1114,7 +1117,7 @@ class ForegroundServiceManager {
   // Android → real foreground service via binding
   // Other platforms → no-op internally
 
-  void onConnectionCountChanged(int count);
+  Future<void> onConnectionCountChanged(int count);
   // count > 0 → starts foreground service with notification
   // count == 0 → stops service
 }
