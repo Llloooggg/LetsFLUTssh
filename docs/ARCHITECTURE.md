@@ -7339,7 +7339,7 @@ A mutation score of 100% means every algebraic / boolean / return-value mutation
 
 **When to run.** Not every commit. Mutation runs are minutes-long; trigger them when raising the testing bar on a sub-module, when reviewing a `0%` test file, or when a refactor reshapes a critical path (archive composer / crypto envelope / authn handshake).
 
-**Synthetic-Connection helper.** `Connection.debugMarkTransportAdopted()` (gated by `@visibleForTesting`) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
+**Synthetic-Connection helper.** `Connection.markTransportAdopted({bool adopted = true})` (a public method the connect path also calls on its success / failure branches) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
 
 ### Fuzz testing
 
@@ -7369,7 +7369,7 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 
 Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
 
-**Rust libFuzzer harnesses** (`rust/fuzz/`): coverage-guided harnesses for the four untrusted-bytes parsers that landed Rust-side in the migration (post-port the Dart harnesses can't reach them — `lfs_core` is consumed via FRB, not import). Member of the parent `rust/` workspace but excluded from `default-members` so `cargo build --workspace` ignores them; activated by `cargo +nightly fuzz run <target>` from `rust/fuzz/`. Targets:
+**Rust libFuzzer harnesses** (`rust/fuzz/`): coverage-guided harnesses for the untrusted-bytes parsers that live Rust-side (post-port the Dart harnesses can't reach them — `lfs_core` is consumed via FRB, not import). Member of the parent `rust/` workspace but excluded from `default-members` so `cargo build --workspace` ignores them; activated by `cargo +nightly fuzz run <target>` from `rust/fuzz/`. Targets:
 
 | Target | Driver |
 |---|---|
@@ -7377,6 +7377,14 @@ Standalone harnesses mirror production logic inline (no Flutter / pub imports) s
 | `known_hosts` | `lfs_core::known_hosts_parser::parse_line` — OpenSSH wire format + LFS internal export |
 | `qr_codec` | `lfs_core::qr_codec_decode::decode_payload` — base64url + deflate + JSON-shape payload |
 | `openssh_config` | `lfs_core::ssh_config::parse_openssh_config` — OpenSSH `~/.ssh/config` grammar |
+| `openssh_key_import` | `lfs_core::keys::import_openssh` — OpenSSH PEM private-key import |
+| `ppk_import` | `lfs_core::keys::import_ppk` — PuTTY PPK v2 / v3 import |
+| `sk_key_import` | `lfs_core::keys::parse_sk_private_key` — FIDO2 `sk-*` private-key parse |
+| `pem_certs` | `lfs_core::webdav::client::parse_pem_certs` — WebDAV / S3 trusted-cert PEM bundle |
+| `pkcs11_uri` | `lfs_os_security::pkcs11` RFC 7512 URI parse |
+| `ssh_target` | `lfs_core::sessions::parse_ssh_target` — `user@host:port` quick-connect target |
+| `transfer_entry_name` | `lfs_core::path::is_safe_transfer_entry_name` — archive / transfer entry-name vetting |
+| `terminal_engine` | `lfs_core::terminal` — ANSI / VT byte stream into the headless engine |
 
 Each `fuzz_target!(|data: &[u8]|)` shim drives bytes from libFuzzer through the parser and asserts no panic + parser-output invariants where applicable (idempotency, contract-bound field shapes). Crashes persist under `rust/fuzz/artifacts/<target>/` (gitignored — corpora live in OSS-Fuzz / ClusterFuzzLite, not the repo). Not run in CI today; the host pipeline (`make rust-test`, `cargo clippy`) ignores these targets entirely.
 
