@@ -48,8 +48,8 @@ dependencies:
   # Deep links / file open intents
   app_links: ^7.1.2
   qr_flutter: ^4.1.0
-  file_picker: ^11.0.2
-  package_info_plus: ^9.0.1
+  file_picker: ^12.0.0-beta.7
+  package_info_plus: ^10.2.0
   url_launcher: ^6.3.2
   flutter_localizations:
     sdk: flutter
