@@ -483,9 +483,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   void _onCopyScroll(int lineDelta) {
-    final session = _session;
-    if (session == null) return;
-    unawaited(session.scroll(delta: lineDelta));
+    final controller = _controller;
+    if (controller == null) return;
+    controller.scroll(lineDelta);
   }
 
   // ── Grid callbacks ───────────────────────────────────────────────────
@@ -499,9 +499,9 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   }
 
   void _onScroll(int lineDelta) {
-    final session = _session;
-    if (session == null) return;
-    unawaited(session.scroll(delta: lineDelta));
+    final controller = _controller;
+    if (controller == null) return;
+    controller.scroll(lineDelta);
   }
 
   void _onSessionClosed() {

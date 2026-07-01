@@ -159,7 +159,8 @@ class LiveTerminalController extends TerminalController {
       unawaited(_session.resize(cols: cols, rows: rows));
 
   @override
-  void scroll(int delta) => unawaited(_session.scroll(delta: delta));
+  void scroll(int delta) =>
+      unawaited(_session.scroll(delta: delta).then((_) => _notifyRepaint()));
 
   // The engine raises no Wakeup for a host-driven selection change, so the
   // controller pulses `repaint` once the change lands — that way every caller
