@@ -560,9 +560,9 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   }
 
   void _onScroll(int lineDelta) {
-    final session = _session;
-    if (session == null) return;
-    unawaited(session.scroll(delta: lineDelta));
+    final controller = _controller;
+    if (controller == null) return;
+    controller.scroll(lineDelta);
   }
 
   void _onPointerSignal(PointerSignalEvent event) {
