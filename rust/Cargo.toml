@@ -251,7 +251,7 @@ url = "2"
 # `read_event_into` loop — WebDAV servers vary on which
 # prefix they bind `DAV:` under (`<D:multistatus>`,
 # `<d:multistatus>`, default-namespaced `<multistatus>`).
-quick-xml = "0.40"
+quick-xml = "0.41"
 # MD5 hashing for HTTP Digest authentication (RFC 7616). Only
 # consumer is `lfs_core::webdav::auth::digest` — MD5 is
 # cryptographically broken but Digest auth requires it. Never

@@ -471,8 +471,8 @@ rust-codegen: ## Regenerate Dart bindings from Rust API surface
 rust-clean: ## cargo clean (wipes the whole target/ — cold rebuild after)
 	cd $(RUST_DIR) && cargo clean
 
-rust-sweep: ## Trim oldest target/ artifacts down to CARGO_TARGET_MAX_GB, keeping the hot cache (needs cargo-sweep)
-	cd $(RUST_DIR) && cargo sweep --maxsize $${CARGO_TARGET_MAX_GB:-35}GB
+rust-sweep: ## Trim target/ down to CARGO_TARGET_MAX_GB: cargo-sweep by age then size, then prune incremental/ caches if still over (needs cargo-sweep)
+	@bash dev/scripts/rust-sweep.sh
 
 rust-machete: ## Detect unused dependencies (`cargo install cargo-machete` via `make setup-rust-tools`)
 	cd $(RUST_DIR) && cargo machete --with-metadata
