@@ -59,7 +59,7 @@ jobs:
             fi
           fi
 
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           sparse-checkout: pubspec.yaml
           sparse-checkout-cone-mode: false
@@ -100,7 +100,7 @@ jobs:
       # own as a supply-chain check.
       SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -182,7 +182,7 @@ jobs:
 
       - name: Cache appimagetool
         id: cache-appimagetool
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v4
         with:
           path: appimagetool
           key: appimagetool-1.9.1-x86_64-ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
@@ -276,7 +276,7 @@ jobs:
     env:
       SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -294,7 +294,7 @@ jobs:
       # SDK we run is cryptographically reproducible across reruns.
       - name: Cache Flutter SDK + engine artefacts
         id: flutter-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v4
         with:
           path: ${{ runner.temp }}/flutter
           # Cache key carries the full SHA + OS + arch — bumping
@@ -355,7 +355,7 @@ jobs:
         # carries its own sha256 (verified against the upstream
         # 1.9.1 release artefact at workflow-author time).
         id: cache-appimagetool-arm64
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v4
         with:
           path: appimagetool
           key: appimagetool-1.9.1-aarch64-f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
@@ -436,7 +436,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -452,7 +452,7 @@ jobs:
       # plugin descriptor declares a Windows build target, so
       # Flutter compiles it on every Windows release. Fix is the
       # explicit x64 architecture pin.
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+      - uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5
         with:
           distribution: temurin
           java-version: 17
@@ -588,7 +588,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -600,7 +600,7 @@ jobs:
       # slashes uniformly through the underlying Win32 API.
       - name: Cache Flutter SDK + engine artefacts
         id: flutter-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v4
         with:
           path: ${{ runner.temp }}/flutter
           key: flutter-arm64-${{ runner.os }}-559ffa3f75e7402d65a8def9c28389a9b2e6fe42
@@ -772,7 +772,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -935,7 +935,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
@@ -1069,11 +1069,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+      - uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5
         with:
           distribution: temurin
           java-version: 17
@@ -1175,7 +1175,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
@@ -1299,7 +1299,7 @@ jobs:
         # SLSA chain — it is not: clients check the Ed25519 signature
         # through the pinned public keys in `release_signing.dart`,
         # a separate trust path.
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
             artifacts/linux-x64/*.tar.gz
