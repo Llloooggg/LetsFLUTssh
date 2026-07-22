@@ -306,7 +306,7 @@ void main() {
         _paneHasFocus(tester),
         isFalse,
         reason:
-            'A backgrounded tab must not autofocus on mount even when it '
+            'A backgrounded tab must not grab focus on mount even when it '
             'owns the focused pane within its own tab.',
       );
 
@@ -1375,13 +1375,13 @@ void main() {
     );
   });
 
-  group('focus surface autofocus arms', () {
+  group('focus surface mount — no focus without both flags', () {
     testWidgets(
       'a pane mounted with isActiveTab=true but isFocused=false does NOT '
-      'autofocus — the `&&` gate requires both flags',
+      'grab focus — the `&&` gate requires both flags',
       (tester) async {
-        // The Focus widget's `autofocus` is `isActiveTab && isFocused`.
-        // Only one true is not enough; the pane must not steal focus.
+        // initState post-frame callback only calls requestFocus when
+        // `isActiveTab && isFocused` is true. isActiveTab alone is not enough.
         final conn = _makeConnectingConnection();
         addTearDown(conn.dispose);
         final container = _container(conn);
@@ -1397,7 +1397,7 @@ void main() {
           isFalse,
           reason:
               'A pane that is the foreground tab but NOT the focused pane '
-              'within that tab must not autofocus — keyboard ownership '
+              'within that tab must not grab focus — keyboard ownership '
               'belongs to the actually-focused pane.',
         );
       },
@@ -1405,7 +1405,7 @@ void main() {
 
     testWidgets(
       'a pane mounted with isActiveTab=false and isFocused=false also does '
-      'not autofocus — both flags off, focus stays elsewhere',
+      'not grab focus — both flags off, focus stays elsewhere',
       (tester) async {
         // Symmetric coverage to the isFocused=true case in the existing
         // suite. Pinning that the inactive/unfocused arm is also clean
