@@ -17,8 +17,9 @@
 //! them in `tokio::task::spawn_blocking` if FRB demands `Send +
 //! 'static` on the future.
 
+use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::Aes256Gcm;
 use argon2::{Algorithm, Argon2, Params, Version};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
@@ -191,7 +192,7 @@ pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = build_cipher(key)?;
     let mut nonce_bytes = [0u8; AES_GCM_IV_LEN];
     rand::rng().fill_bytes(&mut nonce_bytes);
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = GenericArray::from_slice(&nonce_bytes);
     let ct = cipher
         .encrypt(nonce, plaintext)
         .map_err(|e| Error::Crypto(format!("aes-gcm encrypt: {e}")))?;
@@ -213,7 +214,7 @@ pub fn aes_gcm_decrypt(key: &[u8], data: &[u8]) -> Result<Zeroizing<Vec<u8>>, Er
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce = Nonce::from_slice(&data[..AES_GCM_IV_LEN]);
+    let nonce = GenericArray::from_slice(&data[..AES_GCM_IV_LEN]);
     cipher
         .decrypt(nonce, &data[AES_GCM_IV_LEN..])
         .map(Zeroizing::new)
@@ -236,7 +237,7 @@ pub fn aes_gcm_encrypt_raw(
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce_obj = Nonce::from_slice(nonce);
+    let nonce_obj = GenericArray::from_slice(nonce);
     cipher
         .encrypt(
             nonce_obj,
@@ -269,7 +270,7 @@ pub fn aes_gcm_decrypt_raw(
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce_obj = Nonce::from_slice(nonce);
+    let nonce_obj = GenericArray::from_slice(nonce);
     cipher
         .decrypt(
             nonce_obj,
@@ -322,7 +323,7 @@ fn build_cipher(key: &[u8]) -> Result<Aes256Gcm, Error> {
             key.len()
         )));
     }
-    let key_obj = Key::<Aes256Gcm>::from_slice(key);
+    let key_obj = GenericArray::from_slice(key);
     Ok(Aes256Gcm::new(key_obj))
 }
 
