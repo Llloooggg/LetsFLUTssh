@@ -3,7 +3,7 @@
 # `dev/scripts/install-hooks.sh`.
 #
 # Fires only when the commit message carries a
-# `Co-Authored-By: Claude` trailer — the maintainer's own commits
+# Fires on every commit — scans for plan-item IDs in commit messages and diffs.
 # skip the check entirely.
 #
 # Project rule: docs/AGENT_RULES.md § Plan-Item IDs Stay Internal.
@@ -25,24 +25,21 @@
 #                      `audit-fix-plan-YYYY-MM-DD.md`).
 #
 # Allowlist (path level) for the diff scan:
-#   docs/AGENT_RULES.md, CLAUDE.md, .claude/plans/, fonts/LICENSES/,
+#   docs/AGENT_RULES.md, AGENTS.md, .opencode/plans/, fonts/LICENSES/,
 #   this script. They describe the rule by literal example.
 # The commit-message scan has no path context — it allows the
-# directory mention `.claude/plans/` (CLAUDE.md references it as a
+# directory mention `.opencode/plans/` (AGENTS.md references it as a
 # canonical location) but blocks specific plan filenames.
 #
 # No bypass flag by design. The maintainer can drop the
-# `Co-Authored-By: Claude` trailer to ship a non-agent commit.
+# No bypass flag by design.
 set -euo pipefail
 
 msg_file="$1"
 
-if ! grep -qiE '^Co-Authored-By:.*Claude' "$msg_file"; then
-    exit 0
-fi
 
 # Path-level allowlist for the staged-diff scan.
-allowlist_re='^(docs/AGENT_RULES\.md|CLAUDE\.md|\.claude/plans/|assets/fonts/LICENSES/|dev/scripts/agent-plan-id-gate\.sh)'
+allowlist_re='^(docs/AGENT_RULES\.md|AGENTS\.md|\.opencode/plans/|assets/fonts/LICENSES/|dev/scripts/agent-plan-id-gate\.sh)'
 
 # Plan-id shapes per docs/AGENT_RULES.md § Plan-Item IDs Stay
 # Internal. mawk does not support `\b` reliably; explicit
@@ -54,7 +51,7 @@ plan_id_re='B-[A-Z][A-Z0-9]*-[0-9]+|PAT-[A-Z][^A-Za-z0-9]|P[0-3]-[0-9]+|(^|[^A-Z
 # The message file has no path context; the rule applies verbatim.
 # A commit that has to discuss the rule (the hook itself, AGENT_RULES
 # updates) is rare enough that we don't allowlist by subject — the
-# maintainer can drop the Co-Authored-By trailer for those edits,
+# maintainer can edit for those edits,
 # matching the path-allowlist's posture.
 msg_violations="$(grep -nE "$plan_id_re" "$msg_file" || true)"
 
@@ -101,7 +98,7 @@ Task N.M, "audit P2 items", "Audit Axis N High #M", "Closes
 audit P2 (axis NN)", "p2-sweep", "audit-consolidated-findings-*.md")
 in commits, code, or any tracked artefact. Stable §N.M doc
 anchors to ARCHITECTURE.md are fine. The directory mention
-`.claude/plans/` is fine; specific plan filenames are not.
+`.opencode/plans/` is fine; specific plan filenames are not.
 
 Edit the staged content + commit message to drop the IDs
 (rephrase as load-bearing prose), `git add` the fixes, retry

@@ -72,7 +72,7 @@ extension _SessionActions on SessionPanelState {
         ),
         // Paste appears only with a copy/cut entry in the clipboard —
         // on an action surface an item that can do nothing right now is
-        // hidden, not shown disabled (CLAUDE.md disable-vs-hide).
+        // hidden, not shown disabled (AGENTS.md disable-vs-hide).
         if (_ctrl.hasClipboardEntry)
           StandardMenuAction.paste.item(
             context,

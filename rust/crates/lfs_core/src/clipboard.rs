@@ -4,7 +4,7 @@
 //! on its own heap, which scoped the buffer to one tab — no path
 //! for a sibling tab to read the slot, no path for the buffer to
 //! survive tab close. Lifting the canonical slot here matches the
-//! CLAUDE.md "Rust owns data AND logic" posture for user data the
+//! AGENTS.md "Rust owns data AND logic" posture for user data the
 //! app holds across UI surfaces and unblocks cross-tab paste as a
 //! single UI tweak (the per-tab id filter today is a UX choice,
 //! not a transport limit).

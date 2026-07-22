@@ -73,7 +73,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   // lives Rust-side on `lfs_core::clipboard::FileBrowserClipboard`
   // (process-singleton). Routing through FRB lets the slot survive
   // tab swaps + future cross-tab paste, and aligns with the
-  // CLAUDE.md "Rust owns data" rule for any user-data the app
+  // AGENTS.md "Rust owns data" rule for any user-data the app
   // holds across UI surfaces — paths today, bytes when the
   // file-viewer feature lands. The tab id below scopes paste
   // matching so a cut-then-paste in a sibling tab doesn't drain

@@ -1,6 +1,6 @@
 // Property-based fuzz suite for the parsers that ingest untrusted bytes.
 //
-// CLAUDE.md mandates that any function reading untrusted input has a
+// AGENTS.md mandates that any function reading untrusted input has a
 // corresponding fuzz test that confirms it never throws an unhandled
 // exception, regardless of the shape of the input. A "handled" outcome
 // is either a typed return (`null`, an `Either`, a documented result

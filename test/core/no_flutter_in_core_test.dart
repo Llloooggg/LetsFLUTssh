@@ -5,7 +5,7 @@
 /// pure Dart (`meta`, `uuid`, `path`, …).
 ///
 /// UI state lives in `providers/`, plugin adapters in `platform/`,
-/// rendering in `widgets/` / `features/`. See CLAUDE.md → "Rust owns
+/// rendering in `widgets/` / `features/`. See AGENTS.md → "Rust owns
 /// data AND logic; Flutter renders" and ARCHITECTURE.md §1 layering.
 ///
 /// A new `package:flutter` / plugin import inside `core/` fails this

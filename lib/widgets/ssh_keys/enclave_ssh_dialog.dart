@@ -66,7 +66,7 @@ class EnclaveFrbBackend extends EnclaveBackend {
 /// 1. Probe — runs at open. If the host can't reach the chip
 ///    (`errSecMissingEntitlement`, no SE silicon, no passcode), the
 ///    configure step renders disabled with the localized reason +
-///    "Cancel". Configuration surfaces follow CLAUDE.md's "disable,
+///    "Cancel". Configuration surfaces follow AGENTS.md's "disable,
 ///    don't hide" rule: the user is exploring what the app can do.
 /// 2. Configure — label + auth-policy radio (Touch ID / Face ID
 ///    required vs passcode fallback).

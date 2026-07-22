@@ -15,7 +15,7 @@
 /// assertions check the list, so it runs in its own `flutter test`
 /// process. See dart_test.yaml.
 ///
-/// Not coverable here (and exempt per CLAUDE.md testing allow-list):
+/// Not coverable here (and exempt per AGENTS.md testing allow-list):
 /// the FIDO2 / PKCS#11 / Enclave / Hello / TPM / Keystore generate +
 /// import flows are OS-native (CTAP2 device, smart-card module,
 /// Secure Enclave, NCrypt, ESAPI, AndroidKeyStore). Those `_generate*`

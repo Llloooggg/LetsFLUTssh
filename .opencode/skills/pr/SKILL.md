@@ -37,8 +37,6 @@ gh pr create --base main --head dev --title "TITLE" --body "$(cat <<'EOF'
 
 ## Test plan
 - CI passes (ci, osv-scan, semgrep-scan, codeql-scan)
-
-Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )" && gh pr merge --auto --merge
 ```
