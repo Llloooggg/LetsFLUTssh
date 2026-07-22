@@ -7,10 +7,10 @@
 # backstop; the slow test suite runs only in CI, the real gate:
 #   pre-commit   make check-static (format + lint + workflow/hardening
 #                lint + unused-deps; no tests) — skipped for doc-only diffs
-#   pre-push     make check-static — local backstop catching a format /
-#                lint slip from an amend or SKIP_PRECOMMIT commit before
-#                it burns a CI round. Tests are NOT run locally; CI runs
-#                the full suite on every PR to main/dev (the real gate).
+#   pre-push     make check-static + dart format + flutter gen-l10n
+#                (if .arb staged) — local backstop catching format /
+#                lint slips before they hit CI. Tests are NOT run locally;
+#                CI runs the full suite on every PR to main/dev.
 #   commit-msg   conventional-commit format (all commits) + agent
 #                plan-ID gate (agent commits only)
 #   post-commit  cap rust/target size (local housekeeping)
@@ -66,7 +66,8 @@ cat > "$hook_dir/pre-push" <<'HOOK'
 # Edit dev/scripts/install-hooks.sh and re-run it instead.
 #
 # Local backstop before sharing: runs `make check-static` (format +
-# lint + workflow/hardening lint + unused-deps). Catches a format / lint
+# lint + workflow/hardening lint + unused-deps), then formats Dart
+# files and regenerates l10n if needed. Catches a format / lint
 # slip from an amend or a SKIP_PRECOMMIT commit before it burns a CI
 # round. The full test suite is NOT run here — it is slow and redundant
 # with CI, which runs it on every PR to main/dev (the real gate before a
@@ -77,11 +78,37 @@ cat > "$hook_dir/pre-push" <<'HOOK'
 set -euo pipefail
 
 if [[ "${SKIP_PREPUSH:-0}" == "1" ]]; then
-  echo "pre-push: SKIP_PREPUSH=1 set, skipping make check-static" >&2
+  echo "pre-push: SKIP_PREPUSH=1 set, skipping all checks" >&2
   exit 0
 fi
 
-exec make check-static
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# ── make check-static (format-check + lint + workflow + release + unused-deps) ─
+echo "pre-push: running make check-static..."
+output=$(make check-static 2>&1)
+status=$?
+echo "$output" | tail -20
+if [ $status -ne 0 ]; then
+  echo "pre-push: make check-static failed." >&2
+  exit 1
+fi
+
+# ── dart format ─
+dart_files=$(git diff --cached --name-only --diff-filter=ACMR HEAD~1..HEAD -- '*.dart' 2>/dev/null || git ls-tree -r --name-only HEAD -- '*.dart')
+if [ -n "$dart_files" ]; then
+  echo "pre-push: dart format..."
+  dart format . >/dev/null 2>&1 || { echo "pre-push: dart format failed." >&2; exit 1; }
+fi
+
+# ── flutter gen-l10n (only if .arb files changed) ─
+arb_files=$(git diff --cached --name-only --diff-filter=ACMR HEAD~1..HEAD -- '*.arb' 2>/dev/null || git ls-tree -r --name-only HEAD -- '*.arb')
+if [ -n "$arb_files" ]; then
+  echo "pre-push: flutter gen-l10n..."
+  (cd "$repo_root" && flutter gen-l10n >/dev/null 2>&1) || { echo "pre-push: flutter gen-l10n failed." >&2; exit 1; }
+fi
+
+echo "pre-push: all checks passed."
 HOOK
 chmod +x "$hook_dir/pre-push"
 
@@ -152,7 +179,7 @@ chmod +x "$repo_root/dev/scripts/commit-msg-gate.sh" \
 
 echo "install-hooks: wrote $hook_dir/{pre-commit,pre-push,post-commit}"
 echo "install-hooks: linked $hook_dir/commit-msg -> dev/scripts/commit-msg-gate.sh"
-echo "install-hooks: pre-commit runs \`make check-static\` (skipped for doc-only staged diffs); pre-push runs \`make check-static\` (tests run in CI on PRs, not locally)."
+echo "install-hooks: pre-commit runs \`make check-static\` (skipped for doc-only staged diffs); pre-push runs \`make check-static\` + dart format + flutter gen-l10n (tests run in CI on PRs, not locally)."
 echo "install-hooks: commit-msg checks conventional-commit format (all commits) + plan-ID gate (agent commits only)."
 echo "install-hooks: post-commit runs \`make rust-sweep\` in the background when rust/target exceeds CARGO_TARGET_MAX_GB (default 35), trimming the oldest artifacts only; log at .git/target-gc.log."
 echo "install-hooks: bypass flags — SKIP_PRECOMMIT=1, SKIP_PREPUSH=1, SKIP_TARGET_GC=1."
