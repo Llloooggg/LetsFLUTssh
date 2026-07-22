@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Install commit-msg hook (symlink to commit-msg-gate.sh)
+# Install commit-msg hook (symlink to script.sh)
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-repo_root="$(cd "$script_dir/../../../.." && pwd)"
-hook_dir="$repo_root/.git/hooks"
+hook_dir="$script_dir/../../../../.git/hooks"
 ln -sf "$script_dir/script.sh" "$hook_dir/commit-msg"
-chmod +x "$repo_root/dev/scripts/commit-msg-gate.sh"
+chmod +x "$script_dir/commit-msg-gate.sh"
 echo "commit-msg: installed (symlink)"

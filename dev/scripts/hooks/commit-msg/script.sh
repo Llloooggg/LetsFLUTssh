@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# commit-msg hook: symlink to dev/scripts/commit-msg-gate.sh
-#
-# This file is a symlink target. The actual hook is commit-msg-gate.sh.
+# commit-msg hook: symlink to commit-msg-gate.sh in same dir
+# $0 is the symlink path (.git/hooks/commit-msg)
+# dirname gives .git/hooks/
+# We need to go up to find the script dir
 
-exec bash "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/scripts/commit-msg-gate.sh" "$@"
+# Resolve the symlink to get the real path
+real_path="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+real_dir="$(dirname "$real_path")"
+
+exec bash "$real_dir/commit-msg-gate.sh" "$@"
