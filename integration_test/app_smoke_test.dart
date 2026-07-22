@@ -8,7 +8,7 @@
 ///   (FRB load failure, app::init() panic, security wizard mismount,
 ///   missing localization delegate) surfaces as a single test
 ///   failure rather than a mysterious "app won't launch" report
-///   from a release-channel user. Per CLAUDE.md, the user QAs on
+///   from a release-channel user. Per AGENTS.md, the user QAs on
 ///   real hardware; this test is the CI-side smoke that catches
 ///   regressions before the hardware run.
 /// - **Test scaffolding.** Establishes the integration_test entry

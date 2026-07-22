@@ -4,7 +4,7 @@
 #   1. conventional-commit subject format — every commit (mirrors CI's
 #      commit-lint job via the shared conventional-commit-check.sh).
 #   2. agent plan-ID gate — agent commits only (self-gates on the
-#      `Co-Authored-By: Claude` trailer).
+#      plan-item IDs.).
 # Either gate failing aborts the commit.
 set -euo pipefail
 

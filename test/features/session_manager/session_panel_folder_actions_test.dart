@@ -535,7 +535,7 @@ void main() {
     'clipboard entry (action surface follows disable-vs-hide)',
     (tester) async {
       // Contract — the Paste item is gated on
-      // `_ctrl.hasClipboardEntry`. CLAUDE.md's disable-vs-hide rule
+      // `_ctrl.hasClipboardEntry`. AGENTS.md's disable-vs-hide rule
       // says action surfaces hide unusable entries (vs config surfaces
       // which disable + explain); the context menu is an action
       // surface, so a fresh controller without a copy / cut renders

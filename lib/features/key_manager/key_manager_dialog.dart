@@ -107,7 +107,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       // hardware-tier / smart-card paths into one popup so the toolbar
       // stays a flat decision surface. Items unavailable on the host
       // platform drop from the menu rather than render disabled — action
-      // menus hide, configuration surfaces disable (CLAUDE.md UI rule).
+      // menus hide, configuration surfaces disable (AGENTS.md UI rule).
       toolbarActions: (context, ref, reload) {
         _reload = reload;
         return [_buildAddMenuButton(s)];

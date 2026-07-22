@@ -15,7 +15,7 @@ Follow these steps strictly. This is a gated workflow — do NOT skip steps.
 ### Step 2: Analyze changes
 Determine:
 1. **Type**: feat / fix / refactor / test / docs / chore / ci
-2. **Docs updated?** — Check per the documentation maintenance table in CLAUDE.md. If code changed but docs didn't, WARN the user
+2. **Docs updated?** — Check per the documentation maintenance table in AGENTS.md. If code changed but docs didn't, WARN the user
 
 Note: Version bumps are automated by `dev/scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
 
@@ -33,14 +33,9 @@ Note: Version bumps are automated by `dev/scripts/bump-version.sh` (runs during 
 
 ### Step 6: Commit
 - `git add` only the relevant files (not `git add -A`)
-- Commit with the message. Use HEREDOC format:
+- Commit with the message:
 ```
-git commit -m "$(cat <<'EOF'
-type: description
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
+git commit -m "type: description"
 ```
 
 ### Step 7: Push (only if user said "commit and push")

@@ -10,9 +10,6 @@ devtools_options.yaml
 # Local tool cache (actionlint, etc — see Makefile)
 .cache/
 
-# Claude Code session-local files
-.claude/scheduled_tasks.lock
-
 # IDE
 .idea/
 *.iml
@@ -74,12 +71,6 @@ fuzz/out/
 
 # Logs
 *.log
-
-# Claude (local-only files)
-.claude/settings.local.json
-.claude/memory/
-.claude/plans/
-.claude/worktrees/
 
 # Local-only review / audit artefacts — per maintainer these never ship
 # with the repo (they go stale fast, bloat history). Keep them as

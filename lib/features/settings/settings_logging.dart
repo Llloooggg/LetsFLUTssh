@@ -840,7 +840,7 @@ class _LogLevelSelector extends StatelessWidget {
 
   // Log-level *labels* (Info / Warn / Error / Off) stay English by
   // design — they are protocol-level terms every dev tool (Logcat,
-  // IDE consoles, Slack admin) ships untranslated. CLAUDE.md's
+  // IDE consoles, Slack admin) ships untranslated. AGENTS.md's
   // `Watchlist` keeps log-related terms in their native IT form.
   // The *subtitles* describing what each level prints ARE prose, so
   // those route through ARB.

@@ -55,7 +55,7 @@ A single string `$ARGS`. Two shapes are accepted:
 10. **No match?** If step 5 finds no heading matching the identifier:
     - Run `Grep(pattern: "^##+ ", path: "docs/ARCHITECTURE.md", output_mode: "content", -n: true)` to list all headings.
     - Report `no match for "<arg>"`, followed by the nearest candidates (headings sharing a word with the query).
-    - Do **not** fall back to reading the whole file. If the topic is genuinely missing from the docs, surface that fact — it is a gap that `CLAUDE.md § Docs First` step 2 / step 7 is designed for (read code, then write the § in the same commit).
+    - Do **not** fall back to reading the whole file. If the topic is genuinely missing from the docs, surface that fact — it is a gap that `AGENTS.md § Docs First` step 2 / step 7 is designed for (read code, then write the § in the same commit).
 
 ### Hard constraints
 

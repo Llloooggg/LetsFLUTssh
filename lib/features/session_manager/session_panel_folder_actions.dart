@@ -33,7 +33,7 @@ extension _FolderActions on SessionPanelState {
         // explicit target overrides the focus-derived default, so the
         // user does not have to pre-focus the folder. Shown only with a
         // clipboard entry; an empty clipboard hides it (action surface,
-        // CLAUDE.md disable-vs-hide).
+        // AGENTS.md disable-vs-hide).
         if (_ctrl.hasClipboardEntry)
           StandardMenuAction.paste.item(
             context,

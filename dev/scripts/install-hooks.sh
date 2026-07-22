@@ -2,7 +2,7 @@
 # Install the project's git hooks into .git/hooks. Idempotent.
 #
 # Hooks are intentionally not tracked, so each clone runs this once
-# (CLAUDE.md / docs/CONTRIBUTING.md point contributors here). Layout —
+# (AGENTS.md / docs/CONTRIBUTING.md point contributors here). Layout —
 # fast static checks fire locally on commit and again on push as a
 # backstop; the slow test suite runs only in CI, the real gate:
 #   pre-commit   make check-static (format + lint + workflow/hardening
@@ -40,7 +40,7 @@ if [[ "${SKIP_PRECOMMIT:-0}" == "1" ]]; then
   exit 0
 fi
 
-# Doc-only skip per CLAUDE.md: when nothing in the staged diff is
+# Doc-only skip per AGENTS.md: when nothing in the staged diff is
 # .dart / .rs / pubspec.yaml / Cargo.toml, the analyzers have nothing
 # to chew on. Saves time on every docs / hook / ARB / CI-config commit.
 staged=$(git diff --cached --name-only --diff-filter=ACMRT)
@@ -49,7 +49,7 @@ if [[ -z "$staged" ]]; then
   exit 0
 fi
 if ! printf '%s\n' "$staged" | grep -qE '\.(dart|rs)$|(^|/)pubspec\.yaml$|(^|/)Cargo\.toml$'; then
-  echo "pre-commit: doc-only staged diff, skipping make check-static (per CLAUDE.md)" >&2
+  echo "pre-commit: doc-only staged diff, skipping make check-static (per AGENTS.md)" >&2
   exit 0
 fi
 
@@ -144,7 +144,7 @@ chmod +x "$hook_dir/post-commit"
 # commit-msg chains the conventional-commit format check (all commits)
 # and the agent plan-ID gate (agent commits only). Symlinked so edits
 # to the tracked scripts take effect immediately. The plan-ID gate
-# still self-gates on the Co-Authored-By: Claude trailer.
+# still self-gates on plan-item IDs.
 ln -sf "../../dev/scripts/commit-msg-gate.sh" "$hook_dir/commit-msg"
 chmod +x "$repo_root/dev/scripts/commit-msg-gate.sh" \
          "$repo_root/dev/scripts/conventional-commit-check.sh" \
