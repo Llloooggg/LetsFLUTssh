@@ -249,6 +249,29 @@ jobs:
           dpkg-deb --build $PKG
           mv ${PKG}.deb letsflutssh-${VER}-linux-x64.deb
 
+      - name: Package rpm
+        # Build RPM from the spec file; the version placeholder is
+        # substituted at build time so the spec itself stays static
+        # and actionlint never sees RPM directives.
+        run: |
+           VER=${{ needs.preflight.outputs.version }}
+           SPEC=linux/letsflutssh.spec
+           sed "s/__VERSION__/$VER/g" "$SPEC" | tee /tmp/letsflutssh.spec
+           mkdir -p /tmp/SOURCES
+           cp linux/packaging/letsflutssh.desktop /tmp/SOURCES/
+           cp assets/icons/icon.png /tmp/SOURCES/letsflutssh.png
+           cp linux/packaging/70-letsflutssh-fido.rules /tmp/SOURCES/
+           # Copy app bundle to %_builddir so the spec's %install step
+           # can find it at %{_builddir}/letsflutssh-<version>/*
+           mkdir -p /tmp/letsflutssh-${VER}
+           cp -r build/linux/x64/release/bundle/* /tmp/letsflutssh-${VER}/
+           rpmbuild --define "_topdir /tmp" \
+                    --define "_sourcedir /tmp" \
+                    --define "_builddir /tmp" \
+                    -bb /tmp/letsflutssh.spec
+           mv /tmp/RPMS/x86_64/letsflutssh-${VER}-1.x86_64.rpm \
+             letsflutssh-${VER}-linux-x64.rpm
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-x64
@@ -257,6 +280,7 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.rpm
 
   build-linux-arm64:
     # Native ARM64 build on the GitHub-hosted `ubuntu-24.04-arm`
@@ -417,6 +441,24 @@ jobs:
           dpkg-deb --build $PKG
           mv ${PKG}.deb letsflutssh-${VER}-linux-arm64.deb
 
+      - name: Package rpm
+        run: |
+           VER=${{ needs.preflight.outputs.version }}
+           SPEC=linux/letsflutssh.spec
+           sed "s/__VERSION__/$VER/g" "$SPEC" | tee /tmp/letsflutssh.spec
+           mkdir -p /tmp/SOURCES
+           cp linux/packaging/letsflutssh.desktop /tmp/SOURCES/
+           cp assets/icons/icon.png /tmp/SOURCES/letsflutssh.png
+           cp linux/packaging/70-letsflutssh-fido.rules /tmp/SOURCES/
+           mkdir -p /tmp/letsflutssh-${VER}
+           cp -r build/linux/arm64/release/bundle/* /tmp/letsflutssh-${VER}/
+           rpmbuild --define "_topdir /tmp" \
+                    --define "_sourcedir /tmp" \
+                    --define "_builddir /tmp" \
+                    -bb /tmp/letsflutssh.spec
+           mv /tmp/RPMS/aarch64/letsflutssh-${VER}-1.aarch64.rpm \
+             letsflutssh-${VER}-linux-arm64.rpm
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: linux-arm64
@@ -425,6 +467,7 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.rpm
 
   build-windows:
     needs: preflight
@@ -1305,9 +1348,11 @@ jobs:
             artifacts/linux-x64/*.tar.gz
             artifacts/linux-x64/*.AppImage
             artifacts/linux-x64/*.deb
+            artifacts/linux-x64/*.rpm
             artifacts/linux-arm64/*.tar.gz
             artifacts/linux-arm64/*.AppImage
             artifacts/linux-arm64/*.deb
+            artifacts/linux-arm64/*.rpm
             artifacts/windows-x64/*.zip
             artifacts/windows-x64/*.exe
             artifacts/windows-arm64/*.zip
@@ -1565,9 +1610,11 @@ jobs:
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.rpm
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.rpm
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
             artifacts/windows-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
