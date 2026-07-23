@@ -52,7 +52,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Check: IsTaskSelected('desktopicon')
 
 ; Uninstall-time tasks (shown in the uninstaller wizard)
 [UninstallDelete]
@@ -95,6 +95,41 @@ Root: HKCU; Subkey: "Software\Classes\letsflutssh\shell\open\command"; ValueType
 [Code]
 var
   RemoveDataCheckBox: TNewCheckBox;
+  LastTaskChoiceKey: string;
+
+function IsTaskSelected(TaskName: string): Boolean;
+var
+  Value: string;
+begin
+  Result := False;
+  if not RegQueryStringValue(HKCU, LastTaskChoiceKey, TaskName, Value) then
+    Exit;
+  Result := Value = '1';
+end;
+
+procedure SaveTaskChoice(TaskName: string; Selected: Boolean);
+begin
+  RegWriteStringValue(HKCU, LastTaskChoiceKey, TaskName, IfThen(Selected, '1', '0'));
+end;
+
+procedure InitializeSetup();
+begin
+  LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
+  if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
+    RegWriteStringValue(HKCU, LastTaskChoiceKey, 'desktopicon', '1');
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  TaskName: string;
+begin
+  Result := True;
+  if CurPageID = wpSelectTasks then begin
+    TaskName := 'desktopicon';
+    SaveTaskChoice(TaskName, IsTaskSelected(TaskName));
+  end;
+end;
 
 procedure InitializeUninstallProgressForm();
 var
