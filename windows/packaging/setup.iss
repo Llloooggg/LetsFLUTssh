@@ -118,12 +118,13 @@ begin
   RegWriteStringValue(HKCU, LastTaskChoiceKey, TaskName, Value);
 end;
 
-procedure InitializeSetup();
+function InitializeSetup(): Boolean;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
     RegWriteStringValue(HKCU, LastTaskChoiceKey, 'desktopicon', '1');
   end;
+  Result := True;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
