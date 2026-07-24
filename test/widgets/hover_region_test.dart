@@ -91,11 +91,12 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('onDoubleTap fires callback', (tester) async {
+    testWidgets('onDoubleTap fires on two rapid taps', (tester) async {
       var doubleTapped = false;
       await tester.pumpWidget(
         buildApp(
           HoverRegion(
+            onTap: () {},
             onDoubleTap: () => doubleTapped = true,
             builder: (_) => const SizedBox(width: 50, height: 50),
           ),
@@ -103,10 +104,59 @@ void main() {
       );
 
       await tester.tap(find.byType(HoverRegion));
+      // Use pump only (not pumpAndSettle) — the real-time gap between
+      // the two tester.tap calls is enough for the 400 ms window.
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byType(HoverRegion));
       await tester.pumpAndSettle();
       expect(doubleTapped, isTrue);
+    });
+
+    testWidgets('onTap fires immediately even when onDoubleTap is set', (
+      tester,
+    ) async {
+      var tapCount = 0;
+      await tester.pumpWidget(
+        buildApp(
+          HoverRegion(
+            onTap: () => tapCount++,
+            onDoubleTap: () {},
+            builder: (_) => const SizedBox(width: 50, height: 50),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(HoverRegion));
+      // onTap fires on the first tap — no 300 ms gesture-arena delay.
+      expect(tapCount, 1);
+    });
+
+    testWidgets('two slow taps both fire onTap, not onDoubleTap', (
+      tester,
+    ) async {
+      var tapCount = 0;
+      var doubleTapCount = 0;
+      await tester.pumpWidget(
+        buildApp(
+          HoverRegion(
+            onTap: () => tapCount++,
+            onDoubleTap: () => doubleTapCount++,
+            builder: (_) => const SizedBox(width: 50, height: 50),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(HoverRegion));
+      expect(tapCount, 1);
+
+      // Wait past the 400 ms double-tap window. Timer (used by HoverRegion)
+      // advances with tester.pump() because it uses the fake clock.
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.byType(HoverRegion));
+      await tester.pumpAndSettle();
+
+      expect(tapCount, 2);
+      expect(doubleTapCount, 0);
     });
 
     testWidgets('onSecondaryTapUp fires callback', (tester) async {

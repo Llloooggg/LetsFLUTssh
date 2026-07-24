@@ -1,3 +1,4 @@
+import 'dart:async' show Timer;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -49,17 +50,61 @@ class HoverRegion extends StatefulWidget {
 class _HoverRegionState extends State<HoverRegion> {
   bool _hovered = false;
 
+  // Manual double-tap detection — avoids GestureDetector's onDoubleTap
+  // which delays onTap by ~300 ms in the gesture arena. Uses a Timer
+  // (not DateTime.now()) so the fake clock in widget tests advances
+  // correctly via tester.pump().
+  //
+  // Strategy: on first tap, arm a 400 ms timer. If a second tap arrives
+  // before the timer fires, cancel it and call onDoubleTap. If the timer
+  // fires with only one tap, call onTap. The 400 ms window matches
+  // session_tree_view and terminal multi-tap constants.
+  Timer? _doubleTapTimer;
+  int _tapCount = 0;
+
+  static const _kDoubleTapWindow = Duration(milliseconds: 400);
+
   static bool get _isCtrlHeld {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
     return keys.contains(LogicalKeyboardKey.controlLeft) ||
         keys.contains(LogicalKeyboardKey.controlRight);
   }
 
+  @override
+  void dispose() {
+    _doubleTapTimer?.cancel();
+    super.dispose();
+  }
+
   void _handleTap() {
     if (widget.onCtrlTap != null && _isCtrlHeld) {
       widget.onCtrlTap!();
-    } else {
+      return;
+    }
+
+    // If no double-tap callback, just fire onTap immediately.
+    final onDoubleTap = widget.onDoubleTap;
+    if (onDoubleTap == null) {
       widget.onTap?.call();
+      return;
+    }
+
+    _tapCount++;
+    if (_tapCount == 1) {
+      // Fire onTap immediately for responsiveness, then arm the timer.
+      // If a second tap arrives before the timer fires, onDoubleTap
+      // will be called. The timer just resets state when it expires.
+      widget.onTap?.call();
+      _doubleTapTimer?.cancel();
+      _doubleTapTimer = Timer(_kDoubleTapWindow, () {
+        _tapCount = 0;
+      });
+    } else if (_tapCount >= 2) {
+      // Second tap arrived — fire onDoubleTap and reset.
+      _doubleTapTimer?.cancel();
+      _doubleTapTimer = null;
+      _tapCount = 0;
+      onDoubleTap();
     }
   }
 
@@ -92,10 +137,13 @@ class _HoverRegionState extends State<HoverRegion> {
     }
 
     if (hasGesture) {
-      final effectiveTap = widget.onCtrlTap != null ? _handleTap : widget.onTap;
+      // onTap is the ONLY primary-button gesture on GestureDetector.
+      // onDoubleTap is removed from the arena — it's disambiguated
+      // manually in _handleTap via a Timer. This eliminates the
+      // ~300 ms gesture-arena delay that GestureDetector adds when
+      // both onTap and onDoubleTap are set.
       child = GestureDetector(
-        onTap: effectiveTap,
-        onDoubleTap: widget.onDoubleTap,
+        onTap: _handleTap,
         onSecondaryTapUp: widget.onSecondaryTapUp,
         onLongPressStart: widget.onLongPressStart,
         behavior: HitTestBehavior.opaque,
