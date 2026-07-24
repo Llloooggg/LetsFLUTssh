@@ -532,10 +532,8 @@ extension _Layout on _FilePaneState {
       onContextMenu: (offset) => _showContextMenu(context, offset, entry),
     );
 
-    if (!isSelected) return row;
-
     final selected = ctrl.selectedEntries;
-    final dragEntries = selected.length > 1 ? selected : [entry];
+    final dragEntries = isSelected && selected.length > 1 ? selected : [entry];
 
     return Draggable<PaneDragData>(
       data: PaneDragData(sourcePaneId: widget.paneId, entries: dragEntries),

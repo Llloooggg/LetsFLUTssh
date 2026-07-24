@@ -301,6 +301,7 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     final theme = Theme.of(context);
 
     return Listener(
+      behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
         if (event.buttons & kBackMouseButton != 0) {
           ctrl.goBack();

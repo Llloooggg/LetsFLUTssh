@@ -1474,7 +1474,9 @@ void main() {
       expect(find.byType(Draggable<PaneDragData>), findsOneWidget);
     });
 
-    testWidgets('unselected file has no Draggable', (tester) async {
+    testWidgets('unselected file has Draggable with single entry', (
+      tester,
+    ) async {
       final entries = [
         FileEntry(
           name: 'a.txt',
@@ -1492,7 +1494,11 @@ void main() {
       await tester.pumpWidget(buildApp(controller: ctrl));
       await tester.pump();
 
-      expect(find.byType(Draggable<PaneDragData>), findsNothing);
+      final draggable = tester.widget<Draggable<PaneDragData>>(
+        find.byType(Draggable<PaneDragData>),
+      );
+      expect(draggable.data!.entries.length, 1);
+      expect(draggable.data!.entries.first.name, 'a.txt');
     });
 
     testWidgets('single selected has correct PaneDragData', (tester) async {
@@ -1601,10 +1607,17 @@ void main() {
       final draggables = tester.widgetList<Draggable<PaneDragData>>(
         find.byType(Draggable<PaneDragData>),
       );
-      expect(draggables.length, 3);
-      for (final d in draggables) {
-        expect(d.data!.entries.length, 3);
-      }
+      // All rows now always have Draggable for element-tree stability.
+      // 3 selected carry 3 entries each; 2 unselected carry 1 each.
+      expect(draggables.length, 5);
+      final selectedDraggables = draggables.where(
+        (d) => d.data!.entries.length == 3,
+      );
+      expect(selectedDraggables.length, 3);
+      final unselectedDraggables = draggables.where(
+        (d) => d.data!.entries.length == 1,
+      );
+      expect(unselectedDraggables.length, 2);
     });
   });
 

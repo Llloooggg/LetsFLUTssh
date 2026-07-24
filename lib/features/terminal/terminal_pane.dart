@@ -88,8 +88,9 @@ class TerminalPane extends ConsumerStatefulWidget {
 
 class TerminalPaneState extends ConsumerState<TerminalPane> {
   /// Owned focus node so the pane can `requestFocus()` on its own schedule
-  /// across `isFocused` / `isActiveTab` flips — the grid view's own focus
-  /// surface only autofocuses on initial mount.
+  /// across `isFocused` / `isActiveTab` flips. Focus is managed explicitly
+  /// by `initState` (post-frame) and `didUpdateWidget` — no `autofocus` on
+  /// the `Focus` widget, which would race with the explicit transfer logic.
   final FocusNode _terminalFocus = FocusNode(debugLabel: 'TerminalPane');
   late final void Function() _scrubFn;
 
@@ -439,7 +440,15 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       if (_terminalFocus.hasFocus) _terminalFocus.unfocus();
     }
     if (!hadFocus && hasFocus) {
-      _terminalFocus.requestFocus();
+      // Defer requestFocus to after the build — addPostFrameCallback
+      // coalesces with initState's callback in the same frame, so the
+      // single callback sees the latest flags and requests focus once.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.isActiveTab && widget.isFocused) {
+          _terminalFocus.requestFocus();
+        }
+      });
     }
   }
 
@@ -478,9 +487,12 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // attached during the pre-session progress phase, when `requestFocus()`
     // fires from initState / didUpdateWidget. Full key-input encoding lands in
     // the input task; `handleKey` only consumes the local zoom combos today.
+    // `autofocus` is intentionally omitted — it only fires on initial mount
+    // and its dynamic toggling races with the explicit didUpdateWidget focus
+    // transfer (see `fce12693` history: autofocus + didUpdateWidget together
+    // still leaves focus stuck on the most-recently-opened tab).
     final body = Focus(
       focusNode: _terminalFocus,
-      autofocus: widget.isActiveTab && widget.isFocused,
       onKeyEvent: (_, event) => handleKey(event),
       child: _buildBody(fontSize),
     );
