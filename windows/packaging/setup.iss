@@ -108,8 +108,14 @@ begin
 end;
 
 procedure SaveTaskChoice(TaskName: string; Selected: Boolean);
+var
+  Value: string;
 begin
-  RegWriteStringValue(HKCU, LastTaskChoiceKey, TaskName, IfThen(Selected, '1', '0'));
+  if Selected then
+    Value := '1'
+  else
+    Value := '0';
+  RegWriteStringValue(HKCU, LastTaskChoiceKey, TaskName, Value);
 end;
 
 procedure InitializeSetup();
