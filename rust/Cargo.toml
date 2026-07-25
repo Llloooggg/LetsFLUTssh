@@ -57,7 +57,7 @@ log = { version = "0.4", features = ["std"] }
 #
 # 0.60.x closes GHSA-f5v4-2wr6-hqmg (pre-auth DoS via unbounded
 # allocation in the keyboard-interactive auth handler).
-russh = { version = "0.61", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh = { version = "0.62", default-features = false, features = ["flate2", "ring", "rsa"] }
 # russh's forked ssh-key crate. russh pulls it transitively (the
 # `internal-russh-forked-` prefix is the upstream's choice — pin
 # matches the exact version russh 0.61 resolves to). We re-declare

@@ -375,10 +375,12 @@ impl Handler for TestSshHandler {
     async fn channel_open_session(
         &mut self,
         channel: Channel<Msg>,
+        handle: russh::server::ChannelOpenHandle,
         _session: &mut Session,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<(), Self::Error> {
         self.channels.lock().await.insert(channel.id(), channel);
-        Ok(true)
+        handle.accept().await;
+        Ok(())
     }
 
     async fn subsystem_request(
@@ -460,8 +462,9 @@ impl Handler for TestSshHandler {
         port_to_connect: u32,
         _originator_address: &str,
         _originator_port: u32,
+        handle: russh::server::ChannelOpenHandle,
         _session: &mut Session,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<(), Self::Error> {
         if host_to_connect != "127.0.0.1" && host_to_connect != "localhost" {
             // Surface the rejection so a CI run using this fixture
             // has a breadcrumb when a test accidentally asks the
@@ -472,15 +475,24 @@ impl Handler for TestSshHandler {
                 "test_server: refused direct-tcpip to {host_to_connect}:{port_to_connect} \
                  (fixture only proxies loopback)"
             );
-            return Ok(false);
+            handle
+                .reject(russh::ChannelOpenFailure::AdministrativelyProhibited)
+                .await;
+            return Ok(());
         }
         let target = format!("127.0.0.1:{port_to_connect}");
         let tcp = match TcpStream::connect(&target).await {
             Ok(s) => s,
-            Err(_) => return Ok(false),
+            Err(_) => {
+                handle
+                    .reject(russh::ChannelOpenFailure::ConnectFailed)
+                    .await;
+                return Ok(());
+            }
         };
         tokio::spawn(proxy_channel_to_tcp(channel, tcp));
-        Ok(true)
+        handle.accept().await;
+        Ok(())
     }
 
     /// `-R` remote forward request: the client asks us to listen

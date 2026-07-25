@@ -174,10 +174,14 @@ impl Handler for LfsHandler {
         connected_port: u32,
         originator_address: &str,
         originator_port: u32,
+        handle: russh::client::ChannelOpenHandle,
         _session: &mut russh::client::Session,
     ) -> Result<(), Self::Error> {
         let Some(tx) = self.forward_tx.as_ref() else {
             // Probe handler — no receiver. Drop the channel.
+            handle
+                .reject(russh::ChannelOpenFailure::AdministrativelyProhibited)
+                .await;
             return Ok(());
         };
         let (read_half, write_half) = channel.split();
@@ -210,6 +214,7 @@ impl Handler for LfsHandler {
                 // tears the transport down on the next round-trip.
             }
         }
+        handle.accept().await;
         Ok(())
     }
 }
