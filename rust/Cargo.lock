@@ -2320,7 +2320,7 @@ dependencies = [
  "base64",
  "bytes",
  "ctap-hid-fido2",
- "ed25519-dalek 2.2.0",
+ "ed25519-dalek 3.0.0",
  "flate2",
  "futures-util",
  "hkdf 0.13.0",
