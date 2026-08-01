@@ -17,7 +17,7 @@
 //! them in `tokio::task::spawn_blocking` if FRB demands `Send +
 //! 'static` on the future.
 
-use aes_gcm::aead::generic_array::GenericArray;
+use aes_gcm::aead::array::Array;
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::Aes256Gcm;
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -192,9 +192,10 @@ pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = build_cipher(key)?;
     let mut nonce_bytes = [0u8; AES_GCM_IV_LEN];
     rand::rng().fill_bytes(&mut nonce_bytes);
-    let nonce = GenericArray::from_slice(&nonce_bytes);
+    let nonce = Array::try_from(&nonce_bytes[..])
+        .map_err(|e| Error::Crypto(format!("aes-gcm nonce from bytes: {e}")))?;
     let ct = cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|e| Error::Crypto(format!("aes-gcm encrypt: {e}")))?;
     let mut out = Vec::with_capacity(AES_GCM_IV_LEN + ct.len());
     out.extend_from_slice(&nonce_bytes);
@@ -214,9 +215,10 @@ pub fn aes_gcm_decrypt(key: &[u8], data: &[u8]) -> Result<Zeroizing<Vec<u8>>, Er
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce = GenericArray::from_slice(&data[..AES_GCM_IV_LEN]);
+    let nonce = Array::try_from(&data[..AES_GCM_IV_LEN])
+        .map_err(|e| Error::Crypto(format!("aes-gcm nonce from data: {e}")))?;
     cipher
-        .decrypt(nonce, &data[AES_GCM_IV_LEN..])
+        .decrypt(&nonce, &data[AES_GCM_IV_LEN..])
         .map(Zeroizing::new)
         .map_err(|e| Error::Crypto(format!("aes-gcm decrypt: {e}")))
 }
@@ -237,10 +239,11 @@ pub fn aes_gcm_encrypt_raw(
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce_obj = GenericArray::from_slice(nonce);
+    let nonce_obj =
+        Array::try_from(nonce).map_err(|e| Error::Crypto(format!("aes-gcm nonce: {e}")))?;
     cipher
         .encrypt(
-            nonce_obj,
+            &nonce_obj,
             Payload {
                 msg: plaintext,
                 aad,
@@ -270,10 +273,11 @@ pub fn aes_gcm_decrypt_raw(
         )));
     }
     let cipher = build_cipher(key)?;
-    let nonce_obj = GenericArray::from_slice(nonce);
+    let nonce_obj =
+        Array::try_from(nonce).map_err(|e| Error::Crypto(format!("aes-gcm nonce: {e}")))?;
     cipher
         .decrypt(
-            nonce_obj,
+            &nonce_obj,
             Payload {
                 msg: ciphertext,
                 aad,
@@ -323,8 +327,8 @@ fn build_cipher(key: &[u8]) -> Result<Aes256Gcm, Error> {
             key.len()
         )));
     }
-    let key_obj = GenericArray::from_slice(key);
-    Ok(Aes256Gcm::new(key_obj))
+    let key_obj = Array::try_from(key).map_err(|e| Error::Crypto(format!("aes-gcm key: {e}")))?;
+    Ok(Aes256Gcm::new(&key_obj))
 }
 
 #[cfg(test)]
