@@ -119,7 +119,7 @@ ed25519-dalek = { version = "2", default-features = false }
 # .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
 # pairs with `aes` 0.8 already in the russh dep tree — single
 # version, no resolver split.
-aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
 # Argon2id KDF for Phase 2.4 — master-password unlock and .lfs
 # password-encrypted archives. RustCrypto's `argon2 = "0.5"` is
 # constant-time and parameterised the same way as pointycastle's
