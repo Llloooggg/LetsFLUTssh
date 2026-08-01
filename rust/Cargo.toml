@@ -114,7 +114,7 @@ hkdf = "0.13"
 # doesn't double-stack.
 hmac = "0.13"
 sha2 = "0.11"
-ed25519-dalek = { version = "2", default-features = false }
+ed25519-dalek = { version = "3", default-features = false }
 # AES-256-GCM for Phase 2.1 envelopes (master-password verifier,
 # .lfs export, recorder per-frame). RustCrypto's `aes-gcm = "0.10"`
 # pairs with `aes` 0.8 already in the russh dep tree — single
