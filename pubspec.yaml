@@ -29,7 +29,7 @@ dependencies:
   freezed_annotation: ^3.1.0
 
   # State management
-  flutter_riverpod: ^3.3.2
+  flutter_riverpod: ^3.4.2
 
   # File system paths
   path_provider: ^2.1.6
@@ -43,7 +43,7 @@ dependencies:
 
 
   # Foreground service (keeps SSH alive on Android screen lock)
-  flutter_foreground_task: ^9.2.2
+  flutter_foreground_task: ^10.0.0
 
   # Deep links / file open intents
   app_links: ^7.2.1
