@@ -273,7 +273,17 @@ extension _TierApply on _SecuritySectionState {
       // on-disk DB encrypted under the old key while config said
       // plaintext, causing "corrupt database" on the next launch.
       _clearPlaintextDbDecryption();
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.instance.log(
+        'Plaintext DB decryption failed: $e',
+        name: 'SecurityTierSwitcher',
+        level: LogLevel.error,
+      );
+    }
+    // Update the Riverpod security state so the UI reflects the new tier
+    // immediately — the prior path only updated the config and left the
+    // UI showing the old tier until restart.
+    ref.read(securityStateProvider.notifier).setActive(level, hasKey: false);
     final existing = ref.read(configProvider).security;
     final next = SecurityConfig(
       tier: level,

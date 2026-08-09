@@ -428,8 +428,15 @@ impl Db {
                 acc
             },
         ));
-        let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
         let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        // Ensure the cipher is set even when transitioning from plaintext
+        // (where PRAGMA key was never executed). `PRAGMA rekey` on a
+        // plaintext DB needs the cipher to be known so SQLCipher can
+        // encrypt each page under the new key.
+        g.inner()
+            .execute_batch("PRAGMA cipher_compatibility = 4")
+            .map_err(|_| Error::Io("db rekey: PRAGMA cipher_compatibility failed".into()))?;
+        let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
         g.inner()
             .execute_batch(&pragma)
             .map_err(|_| Error::Io("db rekey: PRAGMA rekey failed".into()))?;
