@@ -902,6 +902,10 @@ class SFr extends S {
   String get passwordsDoNotMatch => 'Les mots de passe ne correspondent pas';
 
   @override
+  String get securityFieldsRequired =>
+      'Veuillez remplir tous les champs obligatoires';
+
+  @override
   String get passwordConfirmationRequired =>
       'Veuillez confirmer votre mot de passe';
 

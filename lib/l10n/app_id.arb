@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "sudah ada di penyimpanan",
   "setMasterPasswordHint": "Atur kata sandi utama untuk mengenkripsi arsip.",
   "passwordsDoNotMatch": "Kata sandi tidak cocok",
+  "securityFieldsRequired": "Silakan isi semua bidang yang diperlukan",
   "passwordConfirmationRequired": "Silakan konfirmasi kata sandi Anda",
   "passwordStrengthWeak": "Lemah",
   "passwordStrengthModerate": "Sedang",

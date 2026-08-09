@@ -901,6 +901,10 @@ class SPt extends S {
   String get passwordsDoNotMatch => 'As senhas não coincidem';
 
   @override
+  String get securityFieldsRequired =>
+      'Por favor, preencha todos os campos obrigatórios';
+
+  @override
   String get passwordConfirmationRequired => 'Confirme sua senha';
 
   @override

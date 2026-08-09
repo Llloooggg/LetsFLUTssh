@@ -102,6 +102,7 @@ class _PasswordPair extends StatelessWidget {
     required this.primaryHint,
     required this.confirmHint,
     required this.onChanged,
+    required this.isRequired,
   });
 
   final TextEditingController primary;
@@ -109,9 +110,21 @@ class _PasswordPair extends StatelessWidget {
   final String primaryHint;
   final String confirmHint;
   final VoidCallback onChanged;
+  final bool isRequired;
+
+  bool get _hasError {
+    if (isRequired && primary.text.isEmpty) return true;
+    if (primary.text.isEmpty) return false;
+    if (confirm.text.isEmpty) return true;
+    if (confirm.text != primary.text) return true;
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final borderSide = _hasError
+        ? const BorderSide(color: Colors.red, width: 2)
+        : const BorderSide();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -120,7 +133,11 @@ class _PasswordPair extends StatelessWidget {
           onChanged: (_) => onChanged(),
           decoration: InputDecoration(
             labelText: primaryHint,
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(borderSide: borderSide),
+            enabledBorder: OutlineInputBorder(borderSide: borderSide),
+            focusedBorder: OutlineInputBorder(borderSide: borderSide),
+            errorBorder: OutlineInputBorder(borderSide: borderSide),
+            focusedErrorBorder: OutlineInputBorder(borderSide: borderSide),
             isDense: true,
           ),
         ),
@@ -130,7 +147,11 @@ class _PasswordPair extends StatelessWidget {
           onChanged: (_) => onChanged(),
           decoration: InputDecoration(
             labelText: confirmHint,
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(borderSide: borderSide),
+            enabledBorder: OutlineInputBorder(borderSide: borderSide),
+            focusedBorder: OutlineInputBorder(borderSide: borderSide),
+            errorBorder: OutlineInputBorder(borderSide: borderSide),
+            focusedErrorBorder: OutlineInputBorder(borderSide: borderSide),
             isDense: true,
             errorText: _confirmError(context),
           ),

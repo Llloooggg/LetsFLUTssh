@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "уже в хранилище",
   "setMasterPasswordHint": "Задайте мастер-пароль для шифрования архива.",
   "passwordsDoNotMatch": "Пароли не совпадают",
+  "securityFieldsRequired": "Пожалуйста, заполните все обязательные поля",
   "passwordConfirmationRequired": "Пожалуйста, подтвердите пароль",
   "passwordStrengthWeak": "Слабый",
   "passwordStrengthModerate": "Средний",

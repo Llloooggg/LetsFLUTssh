@@ -833,6 +833,9 @@ class SKo extends S {
   String get passwordsDoNotMatch => '비밀번호가 일치하지 않습니다';
 
   @override
+  String get securityFieldsRequired => '모든 필수 필드를 입력해 주세요';
+
+  @override
   String get passwordConfirmationRequired => '비밀번호를 확인해 주세요';
 
   @override

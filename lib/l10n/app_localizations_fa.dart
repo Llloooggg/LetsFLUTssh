@@ -847,6 +847,9 @@ class SFa extends S {
   String get passwordsDoNotMatch => 'رمزهای عبور مطابقت ندارند';
 
   @override
+  String get securityFieldsRequired => 'لطفاً تمام فیلدهای ضروری را پر کنید';
+
+  @override
   String get passwordConfirmationRequired => 'لطفاً رمز عبور خود را تأیید کنید';
 
   @override

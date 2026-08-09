@@ -898,6 +898,10 @@ class SDe extends S {
   String get passwordsDoNotMatch => 'Passwörter stimmen nicht überein';
 
   @override
+  String get securityFieldsRequired =>
+      'Bitte füllen Sie alle Pflichtfelder aus';
+
+  @override
   String get passwordConfirmationRequired =>
       'Bitte bestätigen Sie Ihr Passwort';
 

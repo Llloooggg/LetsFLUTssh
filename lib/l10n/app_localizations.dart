@@ -1605,6 +1605,12 @@ abstract class S {
   /// **'Passwords do not match'**
   String get passwordsDoNotMatch;
 
+  /// No description provided for @securityFieldsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in all required fields'**
+  String get securityFieldsRequired;
+
   /// No description provided for @passwordConfirmationRequired.
   ///
   /// In en, this message translates to:

@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "ya en el almacén",
   "setMasterPasswordHint": "Establece una contraseña maestra para cifrar el archivo.",
   "passwordsDoNotMatch": "Las contraseñas no coinciden",
+  "securityFieldsRequired": "Confirme que todos los campos obligatorios están completos",
   "passwordConfirmationRequired": "Confirme su contraseña",
   "passwordStrengthWeak": "Débil",
   "passwordStrengthModerate": "Media",

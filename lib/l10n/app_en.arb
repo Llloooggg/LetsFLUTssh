@@ -490,6 +490,7 @@
   },
   "setMasterPasswordHint": "Set a master password to encrypt the archive.",
   "passwordsDoNotMatch": "Passwords do not match",
+  "securityFieldsRequired": "Please fill in all required fields",
   "passwordConfirmationRequired": "Please confirm your password",
   "passwordStrengthWeak": "Weak",
   "passwordStrengthModerate": "Moderate",

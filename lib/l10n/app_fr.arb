@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "déjà dans le magasin",
   "setMasterPasswordHint": "Définissez un mot de passe principal pour chiffrer l'archive.",
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+  "securityFieldsRequired": "Veuillez remplir tous les champs obligatoires",
   "passwordConfirmationRequired": "Veuillez confirmer votre mot de passe",
   "passwordStrengthWeak": "Faible",
   "passwordStrengthModerate": "Moyen",

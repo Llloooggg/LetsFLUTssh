@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "已在存储中",
   "setMasterPasswordHint": "设置主密码以加密存档。",
   "passwordsDoNotMatch": "密码不匹配",
+  "securityFieldsRequired": "请填写所有必填字段",
   "passwordConfirmationRequired": "请确认您的密码",
   "passwordStrengthWeak": "弱",
   "passwordStrengthModerate": "中等",

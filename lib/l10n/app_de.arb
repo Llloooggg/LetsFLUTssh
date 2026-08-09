@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "bereits im Speicher",
   "setMasterPasswordHint": "Lege ein Master-Passwort zum Verschlüsseln des Archivs fest.",
   "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
+  "securityFieldsRequired": "Bitte füllen Sie alle Pflichtfelder aus",
   "passwordConfirmationRequired": "Bitte bestätigen Sie Ihr Passwort",
   "passwordStrengthWeak": "Schwach",
   "passwordStrengthModerate": "Mittel",
