@@ -260,23 +260,6 @@ pub(crate) fn test_serial_lock() -> &'static tokio::sync::Mutex<()> {
     static M: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
     M.get_or_init(|| tokio::sync::Mutex::new(()))
 }
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn init_is_idempotent() {
-        let a = init();
-        let b = init();
-        assert!(Arc::ptr_eq(&a, &b));
-    }
-
-    #[test]
-    fn secrets_round_trip_via_singleton() {
-        let app = init();
-        app.secrets.put("singleton-test", b"value");
-        assert_eq!(&*app.secrets.get("singleton-test").unwrap(), b"value");
-        app.secrets.drop_id("singleton-test");
-    }
-}
+#[path = "../tests/unit/app.rs"]
+mod tests;
