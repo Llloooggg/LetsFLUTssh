@@ -31,72 +31,84 @@ class _Header extends StatelessWidget {
     // stayed a pointer (the InkWell's click cursor wins over the
     // ambient Selectable text cursor), which users read as "half-
     // broken". Rule: clickable tile ≠ selectable.
-    return InkWell(
-      onTap: onTap,
+    //
+    // Wrap InkWell in ClipRRect — Flutter's hover overlay can bleed
+    // slightly beyond borderRadius when the pointer enters from
+    // outside the card, causing the top edge to overlap the section
+    // header line above. The clip forces the overlay to respect the
+    // same rounding as the card container.
+    return ClipRRect(
       borderRadius: AppTheme.radiusSm,
-      child: SelectionContainer.disabled(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 30,
-                height: 20,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: AppTheme.radiusXs,
-                  border: Border.all(color: accent, width: 1),
-                ),
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: AppFonts.xs,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: AppTheme.fg,
-                        fontSize: AppFonts.sm,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppTheme.radiusSm,
+          child: SelectionContainer.disabled(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: AppTheme.radiusXs,
+                      border: Border.all(color: accent, width: 1),
                     ),
-                    Text(
-                      subtitle,
+                    child: Text(
+                      badge,
                       style: TextStyle(
-                        color: AppTheme.fgDim,
+                        color: accent,
                         fontSize: AppFonts.xs,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: AppTheme.fg,
+                            fontSize: AppFonts.sm,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: AppTheme.fgDim,
+                            fontSize: AppFonts.xs,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    trailing!,
                   ],
-                ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: AppTheme.fgDim,
+                  ),
+                ],
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                trailing!,
-              ],
-              const SizedBox(width: AppSpacing.xs),
-              Icon(
-                expanded ? Icons.expand_less : Icons.expand_more,
-                size: 18,
-                color: AppTheme.fgDim,
-              ),
-            ],
+            ),
           ),
         ),
       ),
