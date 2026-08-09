@@ -354,9 +354,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
+      // Strip raw exception details for a user-friendly toast;
+      // the full stack trace is already in the log file.
       Toast.show(
         context,
-        message: '${l10n.changeSecurityTierFailed}: $e',
+        message: l10n.changeSecurityTierFailed,
         level: ToastLevel.error,
       );
       // Re-check state so cards re-render with the correct
