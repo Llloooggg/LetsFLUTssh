@@ -4852,11 +4852,20 @@ card's own state. The pipeline runs in this order:
    `_captureKeyForBiometricEnable()` derives the DB key under the typed
    password and caches it in the biometric-gated vault. The raw bytes
    live only in `SecretStore` Rust-side.
-4. **SSH teardown.** `connectionsProvider.notifier.disconnectAll()`
+4. **Early vault availability check.** Before the target tier pipeline
+   starts, the dispatcher verifies that the target tier's vault is
+   actually available on this device. For `SecurityTier.hardware` it
+   calls `HardwareTierVault.isAvailable()` — this catches the Android
+   case where the biometric probe says "available" (user enrolled
+   fingerprints) but the TEE / StrongBox is absent, preventing a
+   silent pipeline launch that would fail at the hardware-seal step.
+   If unavailable: progress dialog never shows, a toast with
+   `tierHardwareUnavailable` is shown, and the cards stay expanded.
+5. **SSH teardown.** `connectionsProvider.notifier.disconnectAll()`
    closes every active SSH / SFTP transport so no in-memory session
    races with the DB rekey on disk. This prevents deadlocks or
    corruption when the rust-side connection actor holds file locks.
-5. **Progress dialog + rekey.** `AppProgressBarDialog.show()` covers
+6. **Progress dialog + rekey.** `AppProgressBarDialog.show()` covers
    `_applyTierChange()` (switches on `SecurityTier` and dispatches to
    `_applyPlaintextTier` / `_applyKeychainTier` /
    `_applyKeychainWithPasswordTier` / `_applyHardwareTier` /
@@ -4865,23 +4874,30 @@ card's own state. The pipeline runs in this order:
    manager), and runs the DB rekey through
    `SecurityTierSwitcher.switchTierFromSecret` (or the plaintext path
    which decrypts the DB and reopens unkeyed).
-6. **Biometric enable tail.** `_applyPendingBiometric()` runs after the
+7. **Biometric enable tail.** `_applyPendingBiometric()` runs after the
    tier rekey when the user both switched tier and enabled biometrics
    in one shot.
-7. **UI reset.** On success: toast + `_checkState()` collapses all tier
-   cards to show their correct `initiallyExpanded` state. On error:
-   toast (`changeSecurityTierFailed`) + `_checkState()` — the failed
-   tier card collapses back because it is no longer the active tier.
+8. **UI reset + error rollback.** On success: toast +
+   `_checkState()` collapses all tier cards. On error: toast
+   (`changeSecurityTierFailed`) + `SecurityTierSwitcher().clearMarker()`
+   to remove the `.tier-transition-pending` marker (preventing the
+   recovery loop on next launch) + `_checkState()`.
 
 The rekey path uses `SecurityTierSwitcher` so a mid-switch crash leaves
 a `.tier-transition-pending` marker on disk; recovery runs at next
-launch in `main._initSecurity` before the standard unlock flow.
+launch in `main._initSecurity` before the standard unlock flow. When
+`onSelectTier` catches a pipeline failure it proactively clears the
+marker so the next cold start does NOT enter recovery mode.
 
-The tier-card UI uses a `PasswordPair` widget for confirmation: the
-Submit button is active only when both the primary and confirm fields
-are filled and match. The confirm field shows `passwordConfirmationRequired`
-when empty (primary filled) or `passwordsDoNotMatch` when the values
-differ.
+The tier-card UI uses a `PasswordPair` widget for confirmation. The
+widget reports validation state via `onValidationChanged` callback
+(true when both fields are filled and match, false otherwise). The
+card tracks `_passwordPairValid` / `_masterPasswordPairValid` and
+the `_inputsReady` getter returns false when either required pair is
+invalid — this disables the Submit button so the user cannot trigger
+the pipeline with incomplete input. The confirm field shows
+`passwordConfirmationRequired` when empty (primary filled) or
+`passwordsDoNotMatch` when the values differ.
 
 ---
 
