@@ -297,17 +297,12 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   );
 
   bool get _inputsReady {
-    // If password fields are rendered, they MUST be filled and matching
-    // before the button can be enabled. This is the only source of truth
-    // — no separate state flags that can desync from the controllers.
     if (_requiresPasswordInput) {
       if (_passwordCtrl.text.isEmpty) return false;
-      if (_passwordConfirmCtrl.text.isEmpty) return false;
       if (_passwordCtrl.text != _passwordConfirmCtrl.text) return false;
     }
     if (_requiresMasterPasswordInput) {
       if (_masterPasswordCtrl.text.isEmpty) return false;
-      if (_masterPasswordConfirmCtrl.text.isEmpty) return false;
       if (_masterPasswordCtrl.text != _masterPasswordConfirmCtrl.text) return false;
     }
     return true;
@@ -519,7 +514,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.passwordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
-              isRequired: _requiresPasswordInput,
             ),
           ],
           if (_requiresMasterPasswordInput) ...[
@@ -530,7 +524,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.masterPasswordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
-              isRequired: _requiresMasterPasswordInput,
             ),
           ],
           const SizedBox(height: AppSpacing.md),
