@@ -329,6 +329,27 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
     if (!mounted) return;
+    // Early check: if the target tier requires a vault that is
+    // genuinely unavailable on this device, fail before tearing
+    // down transports and before touching the DB. This prevents
+    // the "nothing happens — progress dialog flashes — toast
+    // buried under navigation" path the user hits on Android
+    // when hardware vault (TEE / Secure Enclave) is absent but
+    // the biometric probe still says "available".
+    if (tier == SecurityTier.hardware) {
+      final hwVault = ref.read(hardwareTierVaultProvider);
+      if (!await hwVault.isAvailable()) {
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        Toast.show(
+          context,
+          message: l10n.tierHardwareUnavailable,
+          level: ToastLevel.error,
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
     // Tear down all active SSH/SFTP transports so no in-memory
     // session races with the DB rekey on disk. The rust-side
     // connection actor holds file locks; a live transport would
