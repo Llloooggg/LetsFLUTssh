@@ -469,16 +469,39 @@ impl Db {
         g.inner()
             .execute_batch("DETACH DATABASE encrypted")
             .map_err(|e| Error::Db(format!("detach encrypted: {e}")))?;
-        // Close the handle, swap files.
+        // Close the SQLite connection before swapping files. On Windows
+        // the file handle must be fully released before rename-over can
+        // succeed — rusqlite's Connection keeps the file locked until
+        // drop, not just the MutexGuard.
         drop(g);
+        // Best-effort cleanup of sidecars so rename-over doesn't
+        // collide with stale sidecars on some platforms.
         let _ = std::fs::remove_file(&db_path);
         for suffix in ["-wal", "-shm", "-journal"] {
             let _ = std::fs::remove_file(format!("{}{}", db_path.display(), suffix));
         }
-        std::fs::rename(&tmp_path, &db_path).map_err(|e| {
-            let _ = std::fs::remove_file(&tmp_path);
-            Error::Io(format!("rename encrypted over db: {e}"))
-        })?;
+        // Retry rename — Windows may need a moment to release the
+        // file handle after the Connection is dropped.
+        let mut retries = 0;
+        loop {
+            match std::fs::rename(&tmp_path, &db_path) {
+                Ok(()) => break,
+                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                    retries += 1;
+                    if retries > 10 {
+                        let _ = std::fs::remove_file(&tmp_path);
+                        return Err(Error::Io(
+                            "rename encrypted over db: permission denied after retries".into(),
+                        ));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100 * retries));
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(&tmp_path);
+                    return Err(Error::Io(format!("rename encrypted over db: {e}")));
+                }
+            }
+        }
         Ok(())
     }
 
