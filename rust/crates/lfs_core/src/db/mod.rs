@@ -413,6 +413,11 @@ impl Db {
     /// describes a key-required handle; a plaintext degrade would
     /// silently disable encryption next boot).
     ///
+    /// For encrypted→encrypted transitions this uses `PRAGMA rekey`.
+    /// For plaintext→encrypted (T0→T1) `PRAGMA rekey` fails because
+    /// no codec is attached — we fall back to `ATTACH + sqlcipher_export`
+    /// which works on any source regardless of encryption state.
+    ///
     /// On any underlying failure the SQL fragment is stripped from
     /// the error message so the hex-encoded key cannot leak into
     /// logs / crash reporters via the rusqlite default formatter.
@@ -429,17 +434,53 @@ impl Db {
             },
         ));
         let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        // Ensure the cipher is set even when transitioning from plaintext
-        // (where PRAGMA key was never executed). `PRAGMA rekey` on a
-        // plaintext DB needs the cipher to be known so SQLCipher can
-        // encrypt each page under the new key.
-        g.inner()
-            .execute_batch("PRAGMA cipher_compatibility = 4")
-            .map_err(|_| Error::Io("db rekey: PRAGMA cipher_compatibility failed".into()))?;
+        // Try PRAGMA rekey first — works for encrypted→encrypted.
         let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
+        if let Ok(()) = g.inner().execute_batch(&pragma) {
+            return Ok(());
+        }
+        // PRAGMA rekey failed — likely plaintext DB without codec.
+        // Fall back to ATTACH + sqlcipher_export which works on any source.
+        let db_path = self.path().to_path_buf();
+        let tmp_path = db_path.with_extension("tmp");
+        // Clean up any leftover from a prior crash.
+        let _ = std::fs::remove_file(&tmp_path);
+        for suffix in ["-wal", "-shm", "-journal"] {
+            let _ = std::fs::remove_file(format!("{}{}", tmp_path.display(), suffix));
+        }
+        let _ = g.inner().execute_batch("PRAGMA cipher_compatibility = 4");
+        let _ = g.inner().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
+        let escaped = tmp_path.to_string_lossy().replace('\'', "''");
+        let attach = format!(
+            "ATTACH DATABASE '{escaped}' AS encrypted KEY \"x'{}'\"",
+            &*hex_key
+        );
         g.inner()
-            .execute_batch(&pragma)
-            .map_err(|_| Error::Io("db rekey: PRAGMA rekey failed".into()))?;
+            .execute_batch(&attach)
+            .map_err(|e| Error::Db(format!("attach encrypted target: {e}")))?;
+        let export = g.inner().query_row(
+            "SELECT sqlcipher_export('encrypted')",
+            [],
+            |_row| Ok(()),
+        );
+        if let Err(e) = export {
+            let _ = g.inner().execute_batch("DETACH DATABASE encrypted");
+            let _ = std::fs::remove_file(&tmp_path);
+            return Err(Error::Db(format!("sqlcipher_export: {e}")));
+        }
+        g.inner()
+            .execute_batch("DETACH DATABASE encrypted")
+            .map_err(|e| Error::Db(format!("detach encrypted: {e}")))?;
+        // Close the handle, swap files.
+        drop(g);
+        let _ = std::fs::remove_file(&db_path);
+        for suffix in ["-wal", "-shm", "-journal"] {
+            let _ = std::fs::remove_file(format!("{}{}", db_path.display(), suffix));
+        }
+        std::fs::rename(&tmp_path, &db_path).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp_path);
+            Error::Io(format!("rename encrypted over db: {e}"))
+        })?;
         Ok(())
     }
 
@@ -1182,5 +1223,81 @@ mod tests {
         folders::delete(&conn, "f1").unwrap();
         let s = sessions::get(&conn, "s1").unwrap().unwrap();
         assert_eq!(s.folder_id, None);
+    }
+
+    /// `Db::rekey` converts a plaintext DB (opened with empty key)
+    /// to encrypted. Uses ATTACH + sqlcipher_export under the hood.
+    #[test]
+    fn rekey_plaintext_to_encrypted_via_attach_export() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("plain.db");
+        // Open plaintext — no key.
+        let db = Db::open(&path, &[]).expect("open plaintext db");
+        db.with_conn(|c| {
+            c.inner()
+                .execute_batch(
+                    "CREATE TABLE probe (id TEXT PRIMARY KEY, val TEXT);
+                     INSERT INTO probe VALUES ('x', 'rekey_works');",
+                )
+                .map_err(|e| Error::Db(format!("seed: {e}")))
+        })
+        .unwrap();
+        let new_key = [0xDEu8; 32];
+        db.rekey(&new_key).expect("rekey plaintext → encrypted");
+        // Re-open with the new key and verify data survived.
+        let rekeyed = Db::open(&path, &new_key).expect("open rekeyed db");
+        let val: String = rekeyed
+            .with_conn(|c| {
+                c.inner()
+                    .query_row(
+                        "SELECT val FROM probe WHERE id = 'x'",
+                        [],
+                        |r| r.get::<_, String>(0),
+                    )
+                    .map_err(|e| Error::Db(format!("query: {e}")))
+            })
+            .unwrap();
+        assert_eq!(val, "rekey_works");
+        // Opening the same file with the wrong key must fail.
+        let bad = Db::open(&path, &[0xADu8; 32]);
+        assert!(bad.is_err(), "wrong key should be rejected");
+    }
+
+    /// `Db::rekey` on an already-encrypted DB uses PRAGMA rekey
+    /// (swaps the key without ATTACH/export).
+    #[test]
+    fn rekey_encrypted_to_encrypted_via_pragma_rekey() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("enc.db");
+        let old_key = [0x11u8; 32];
+        let db = Db::open(&path, &old_key).expect("open encrypted db");
+        db.with_conn(|c| {
+            c.inner()
+                .execute_batch(
+                    "CREATE TABLE probe (id TEXT PRIMARY KEY, val TEXT);
+                     INSERT INTO probe VALUES ('k', 'encrypted_rekey');",
+                )
+                .map_err(|e| Error::Db(format!("seed: {e}")))
+        })
+        .unwrap();
+        let new_key = [0x22u8; 32];
+        db.rekey(&new_key).expect("rekey encrypted → encrypted");
+        // Old key must no longer work.
+        let old = Db::open(&path, &old_key);
+        assert!(old.is_err(), "old key should be rejected");
+        // New key must work and data must survive.
+        let rekeyed = Db::open(&path, &new_key).expect("open rekeyed db");
+        let val: String = rekeyed
+            .with_conn(|c| {
+                c.inner()
+                    .query_row(
+                        "SELECT val FROM probe WHERE id = 'k'",
+                        [],
+                        |r| r.get::<_, String>(0),
+                    )
+                    .map_err(|e| Error::Db(format!("query: {e}")))
+            })
+            .unwrap();
+        assert_eq!(val, "encrypted_rekey");
     }
 }
