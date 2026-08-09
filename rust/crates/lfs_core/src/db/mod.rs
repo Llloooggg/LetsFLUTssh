@@ -1225,28 +1225,35 @@ mod tests {
         assert_eq!(s.folder_id, None);
     }
 
-    /// `Db::rekey` converts a plaintext DB (opened with empty key)
-    /// to encrypted. Uses ATTACH + sqlcipher_export under the hood.
-    #[test]
-    fn rekey_plaintext_to_encrypted_via_attach_export() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("plain.db");
-        // Open plaintext — no key.
-        let db = Db::open(&path, &[]).expect("open plaintext db");
+    // ── Tier transition tests ──────────────────────────────────────
+    // Each tier is represented by a fixed 32-byte key. The DB doesn't
+    // know about tiers — it only knows the key. Tier semantics are
+    // enforced outside this module (keychain, hardware, argon2id).
+
+    /// T1 key (keychain)
+    const KEY_T1: [u8; 32] = [0x11; 32];
+    /// T2 key (hardware)
+    const KEY_T2: [u8; 32] = [0x22; 32];
+    /// Paranoid key (argon2id)
+    const KEY_P: [u8; 32] = [0x33; 32];
+
+    /// Helper: seed a DB with a probe table and a known row.
+    fn seed_probe(db: &Db) {
         db.with_conn(|c| {
             c.inner()
                 .execute_batch(
                     "CREATE TABLE probe (id TEXT PRIMARY KEY, val TEXT);
-                     INSERT INTO probe VALUES ('x', 'rekey_works');",
+                     INSERT INTO probe VALUES ('x', 'survived');",
                 )
                 .map_err(|e| Error::Db(format!("seed: {e}")))
         })
         .unwrap();
-        let new_key = [0xDEu8; 32];
-        db.rekey(&new_key).expect("rekey plaintext → encrypted");
-        // Re-open with the new key and verify data survived.
-        let rekeyed = Db::open(&path, &new_key).expect("open rekeyed db");
-        let val: String = rekeyed
+    }
+
+    /// Helper: verify a row survives in a re-opened DB.
+    fn verify_data(path: &std::path::Path, key: &[u8], expected: &str) {
+        let db = Db::open(path, key).expect("open rekeyed db");
+        let val: String = db
             .with_conn(|c| {
                 c.inner()
                     .query_row(
@@ -1257,47 +1264,228 @@ mod tests {
                     .map_err(|e| Error::Db(format!("query: {e}")))
             })
             .unwrap();
-        assert_eq!(val, "rekey_works");
-        // Opening the same file with the wrong key must fail.
-        let bad = Db::open(&path, &[0xADu8; 32]);
-        assert!(bad.is_err(), "wrong key should be rejected");
+        assert_eq!(val, expected);
     }
 
-    /// `Db::rekey` on an already-encrypted DB uses PRAGMA rekey
-    /// (swaps the key without ATTACH/export).
+    /// Verify wrong key is rejected.
+    fn assert_wrong_key(path: &std::path::Path, wrong: &[u8]) {
+        let bad = Db::open(path, wrong);
+        assert!(
+            bad.is_err(),
+            "wrong key {:?} should be rejected",
+            &wrong[..4]
+        );
+    }
+
+    // ── T0 → T1 (plaintext → encrypted): ATTACH/export ────────────
     #[test]
-    fn rekey_encrypted_to_encrypted_via_pragma_rekey() {
+    fn rekey_t0_to_t1() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("enc.db");
-        let old_key = [0x11u8; 32];
-        let db = Db::open(&path, &old_key).expect("open encrypted db");
-        db.with_conn(|c| {
-            c.inner()
-                .execute_batch(
-                    "CREATE TABLE probe (id TEXT PRIMARY KEY, val TEXT);
-                     INSERT INTO probe VALUES ('k', 'encrypted_rekey');",
-                )
-                .map_err(|e| Error::Db(format!("seed: {e}")))
-        })
-        .unwrap();
-        let new_key = [0x22u8; 32];
-        db.rekey(&new_key).expect("rekey encrypted → encrypted");
-        // Old key must no longer work.
-        let old = Db::open(&path, &old_key);
-        assert!(old.is_err(), "old key should be rejected");
-        // New key must work and data must survive.
-        let rekeyed = Db::open(&path, &new_key).expect("open rekeyed db");
-        let val: String = rekeyed
+        let path = dir.path().join("t0.db");
+        let db = Db::open(&path, &[]).expect("open plaintext");
+        seed_probe(&db);
+        db.rekey(&KEY_T1).expect("rekey T0→T1");
+        verify_data(&path, &KEY_T1, "survived");
+        assert_wrong_key(&path, &[]);
+    }
+
+    #[test]
+    fn rekey_t0_to_t2() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t0.db");
+        let db = Db::open(&path, &[]).expect("open plaintext");
+        seed_probe(&db);
+        db.rekey(&KEY_T2).expect("rekey T0→T2");
+        verify_data(&path, &KEY_T2, "survived");
+        assert_wrong_key(&path, &[]);
+    }
+
+    #[test]
+    fn rekey_t0_to_paranoid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t0.db");
+        let db = Db::open(&path, &[]).expect("open plaintext");
+        seed_probe(&db);
+        db.rekey(&KEY_P).expect("rekey T0→Paranoid");
+        verify_data(&path, &KEY_P, "survived");
+        assert_wrong_key(&path, &[]);
+    }
+
+    // ── T1 → T0 (encrypted → plaintext): export_plaintext_copy ────
+    #[test]
+    fn export_plaintext_t1_to_t0() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t1.db");
+        let plain = dir.path().join("t0.db");
+        let db = Db::open(&path, &KEY_T1).expect("open T1");
+        seed_probe(&db);
+        db.export_plaintext_copy(&plain).expect("export plaintext");
+        verify_data(&plain, &[], "survived");
+    }
+
+    #[test]
+    fn export_plaintext_t2_to_t0() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t2.db");
+        let plain = dir.path().join("t0.db");
+        let db = Db::open(&path, &KEY_T2).expect("open T2");
+        seed_probe(&db);
+        db.export_plaintext_copy(&plain).expect("export plaintext");
+        verify_data(&plain, &[], "survived");
+    }
+
+    #[test]
+    fn export_plaintext_paranoid_to_t0() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("p.db");
+        let plain = dir.path().join("t0.db");
+        let db = Db::open(&path, &KEY_P).expect("open paranoid");
+        seed_probe(&db);
+        db.export_plaintext_copy(&plain).expect("export plaintext");
+        verify_data(&plain, &[], "survived");
+    }
+
+    // ── T1 → T2 (encrypted → encrypted): PRAGMA rekey ─────────────
+    #[test]
+    fn rekey_t1_to_t2() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t1.db");
+        let db = Db::open(&path, &KEY_T1).expect("open T1");
+        seed_probe(&db);
+        db.rekey(&KEY_T2).expect("rekey T1→T2");
+        verify_data(&path, &KEY_T2, "survived");
+        assert_wrong_key(&path, &KEY_T1);
+    }
+
+    // ── T1 → Paranoid ─────────────────────────────────────────────
+    #[test]
+    fn rekey_t1_to_paranoid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t1.db");
+        let db = Db::open(&path, &KEY_T1).expect("open T1");
+        seed_probe(&db);
+        db.rekey(&KEY_P).expect("rekey T1→Paranoid");
+        verify_data(&path, &KEY_P, "survived");
+        assert_wrong_key(&path, &KEY_T1);
+    }
+
+    // ── T2 → T1 ───────────────────────────────────────────────────
+    #[test]
+    fn rekey_t2_to_t1() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t2.db");
+        let db = Db::open(&path, &KEY_T2).expect("open T2");
+        seed_probe(&db);
+        db.rekey(&KEY_T1).expect("rekey T2→T1");
+        verify_data(&path, &KEY_T1, "survived");
+        assert_wrong_key(&path, &KEY_T2);
+    }
+
+    // ── T2 → Paranoid ─────────────────────────────────────────────
+    #[test]
+    fn rekey_t2_to_paranoid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t2.db");
+        let db = Db::open(&path, &KEY_T2).expect("open T2");
+        seed_probe(&db);
+        db.rekey(&KEY_P).expect("rekey T2→Paranoid");
+        verify_data(&path, &KEY_P, "survived");
+        assert_wrong_key(&path, &KEY_T2);
+    }
+
+    // ── Paranoid → T0 ─────────────────────────────────────────────
+    #[test]
+    fn export_plaintext_paranoid_to_t0_after_rekey() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("p.db");
+        let plain = dir.path().join("t0.db");
+        // Start as T1, rekey to Paranoid, then export plaintext.
+        let db = Db::open(&path, &KEY_T1).expect("open T1");
+        seed_probe(&db);
+        db.rekey(&KEY_P).expect("rekey T1→Paranoid");
+        db.export_plaintext_copy(&plain).expect("export plaintext");
+        verify_data(&plain, &[], "survived");
+    }
+
+    // ── Paranoid → T1 ─────────────────────────────────────────────
+    #[test]
+    fn rekey_paranoid_to_t1() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("p.db");
+        let db = Db::open(&path, &KEY_P).expect("open paranoid");
+        seed_probe(&db);
+        db.rekey(&KEY_T1).expect("rekey Paranoid→T1");
+        verify_data(&path, &KEY_T1, "survived");
+        assert_wrong_key(&path, &KEY_P);
+    }
+
+    // ── Paranoid → T2 ─────────────────────────────────────────────
+    #[test]
+    fn rekey_paranoid_to_t2() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("p.db");
+        let db = Db::open(&path, &KEY_P).expect("open paranoid");
+        seed_probe(&db);
+        db.rekey(&KEY_T2).expect("rekey Paranoid→T2");
+        verify_data(&path, &KEY_T2, "survived");
+        assert_wrong_key(&path, &KEY_P);
+    }
+
+    // ── T2 → T0 via rekey + export ────────────────────────────────
+    #[test]
+    fn rekey_t2_to_t0_flow() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t2.db");
+        let plain = dir.path().join("t0.db");
+        let db = Db::open(&path, &KEY_T2).expect("open T2");
+        seed_probe(&db);
+        db.export_plaintext_copy(&plain).expect("export plaintext");
+        verify_data(&plain, &[], "survived");
+    }
+
+    // ── Full chain: T0→T1→T2→P→T1→T0 (multi-step regression) ─────
+    #[test]
+    fn full_tier_chain_preserves_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("chain.db");
+        let plain = dir.path().join("plain.db");
+
+        // T0: open plaintext, seed data
+        let db = Db::open(&path, &[]).expect("T0 open");
+        seed_probe(&db);
+
+        // T0 → T1
+        db.rekey(&KEY_T1).expect("T0→T1");
+        verify_data(&path, &KEY_T1, "survived");
+
+        // T1 → T2
+        db.rekey(&KEY_T2).expect("T1→T2");
+        verify_data(&path, &KEY_T2, "survived");
+
+        // T2 → Paranoid
+        db.rekey(&KEY_P).expect("T2→Paranoid");
+        verify_data(&path, &KEY_P, "survived");
+
+        // Paranoid → T1
+        db.rekey(&KEY_T1).expect("Paranoid→T1");
+        verify_data(&path, &KEY_T1, "survived");
+
+        // T1 → T0 (export plaintext, swap file)
+        db.export_plaintext_copy(&plain).expect("T1→T0 export");
+        verify_data(&plain, &[], "survived");
+        // Swap: move plain over original
+        let _ = std::fs::remove_file(&path);
+        std::fs::rename(&plain, &path).unwrap();
+
+        // T0 again — data should still be there
+        let db = Db::open(&path, &[]).expect("final T0 open");
+        let val: String = db
             .with_conn(|c| {
                 c.inner()
-                    .query_row(
-                        "SELECT val FROM probe WHERE id = 'k'",
-                        [],
-                        |r| r.get::<_, String>(0),
-                    )
+                    .query_row("SELECT val FROM probe WHERE id = 'x'", [], |r| r.get(0))
                     .map_err(|e| Error::Db(format!("query: {e}")))
             })
             .unwrap();
-        assert_eq!(val, "encrypted_rekey");
+        assert_eq!(val, "survived");
     }
 }
