@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/security/security_tier.dart';
@@ -381,6 +382,16 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
 
   Future<void> _onSelect() async {
     if (!_selectEnabled) return;
+    // Hard gate: if this card requires password input, reject empty fields
+    // even if `_inputsReady` somehow returned true.
+    if (_requiresPasswordInput) {
+      if (_passwordCtrl.text.isEmpty) return;
+      if (_passwordCtrl.text != _passwordConfirmCtrl.text) return;
+    }
+    if (_requiresMasterPasswordInput) {
+      if (_masterPasswordCtrl.text.isEmpty) return;
+      if (_masterPasswordCtrl.text != _masterPasswordConfirmCtrl.text) return;
+    }
     setState(() => _busy = true);
     try {
       // T1 uses `shortPassword` against the keychain-password gate;
@@ -514,6 +525,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.passwordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
+              isRequired: !widget.tierAvailable,
             ),
           ],
           if (_requiresMasterPasswordInput) ...[
@@ -524,16 +536,18 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.masterPasswordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
+              isRequired: !widget.tierAvailable,
             ),
           ],
           const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
-            child: AppButton.primary(
-              label: _selectLabel(l10n),
-              loading: _busy,
-              onTap: _selectEnabled ? _onSelect : null,
-            ),
+             child: AppButton.primary(
+               label: _selectLabel(l10n),
+               loading: _busy,
+               enabled: _selectEnabled,
+               onTap: _selectEnabled ? _onSelect : null,
+             ),
           ),
           // Active-tier orthogonal settings (biometric unlock,
           // auto-lock). Rendered under a divider so the user

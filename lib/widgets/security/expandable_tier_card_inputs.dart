@@ -102,6 +102,7 @@ class _PasswordPair extends StatelessWidget {
     required this.primaryHint,
     required this.confirmHint,
     required this.onChanged,
+    required this.isRequired,
   });
 
   final TextEditingController primary;
@@ -109,15 +110,18 @@ class _PasswordPair extends StatelessWidget {
   final String primaryHint;
   final String confirmHint;
   final VoidCallback onChanged;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveEnabled = !isRequired;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SecurePasswordField(
           controller: primary,
           onChanged: (_) => onChanged(),
+          enabled: effectiveEnabled,
           decoration: InputDecoration(
             labelText: primaryHint,
             border: const OutlineInputBorder(),
@@ -128,6 +132,7 @@ class _PasswordPair extends StatelessWidget {
         SecurePasswordField(
           controller: confirm,
           onChanged: (_) => onChanged(),
+          enabled: effectiveEnabled,
           decoration: InputDecoration(
             labelText: confirmHint,
             border: const OutlineInputBorder(),
