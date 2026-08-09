@@ -851,6 +851,9 @@ class STr extends S {
   String get passwordsDoNotMatch => 'Şifreler eşleşmiyor';
 
   @override
+  String get passwordConfirmationRequired => 'Потвърдете паролата си';
+
+  @override
   String get passwordStrengthWeak => 'Zayıf';
 
   @override

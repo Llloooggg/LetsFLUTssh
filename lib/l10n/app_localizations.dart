@@ -1605,6 +1605,12 @@ abstract class S {
   /// **'Passwords do not match'**
   String get passwordsDoNotMatch;
 
+  /// No description provided for @passwordConfirmationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm your password'**
+  String get passwordConfirmationRequired;
+
   /// No description provided for @passwordStrengthWeak.
   ///
   /// In en, this message translates to:

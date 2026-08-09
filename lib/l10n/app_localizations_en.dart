@@ -888,6 +888,9 @@ class SEn extends S {
   String get passwordsDoNotMatch => 'Passwords do not match';
 
   @override
+  String get passwordConfirmationRequired => 'Please confirm your password';
+
+  @override
   String get passwordStrengthWeak => 'Weak';
 
   @override

@@ -848,6 +848,9 @@ class SHi extends S {
   String get passwordsDoNotMatch => 'पासवर्ड मेल नहीं खाते';
 
   @override
+  String get passwordConfirmationRequired => 'कृपया अपना पासवर्ड सत्यापित करें';
+
+  @override
   String get passwordStrengthWeak => 'कमज़ोर';
 
   @override

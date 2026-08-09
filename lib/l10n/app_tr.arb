@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "zaten depoda",
   "setMasterPasswordHint": "Arşivi şifrelemek için bir ana şifre belirleyin.",
   "passwordsDoNotMatch": "Şifreler eşleşmiyor",
+  "passwordConfirmationRequired": "Потвърдете паролата си",
   "passwordStrengthWeak": "Zayıf",
   "passwordStrengthModerate": "Orta",
   "passwordStrengthStrong": "Güçlü",

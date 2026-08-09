@@ -845,6 +845,10 @@ class SVi extends S {
   String get passwordsDoNotMatch => 'Mật khẩu không khớp';
 
   @override
+  String get passwordConfirmationRequired =>
+      'Vui lòng xác nhận mật khẩu của bạn';
+
+  @override
   String get passwordStrengthWeak => 'Yếu';
 
   @override

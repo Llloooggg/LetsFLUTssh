@@ -850,6 +850,10 @@ class SId extends S {
   String get passwordsDoNotMatch => 'Kata sandi tidak cocok';
 
   @override
+  String get passwordConfirmationRequired =>
+      'Silakan konfirmasi kata sandi Anda';
+
+  @override
   String get passwordStrengthWeak => 'Lemah';
 
   @override

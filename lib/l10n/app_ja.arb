@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "既にストアにあります",
   "setMasterPasswordHint": "アーカイブを暗号化するためのマスターパスワードを設定してください。",
   "passwordsDoNotMatch": "パスワードが一致しません",
+  "passwordConfirmationRequired": "パスワードを確認してください",
   "passwordStrengthWeak": "弱い",
   "passwordStrengthModerate": "普通",
   "passwordStrengthStrong": "強い",

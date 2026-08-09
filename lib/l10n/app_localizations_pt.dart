@@ -901,6 +901,9 @@ class SPt extends S {
   String get passwordsDoNotMatch => 'As senhas não coincidem';
 
   @override
+  String get passwordConfirmationRequired => 'Confirme sua senha';
+
+  @override
   String get passwordStrengthWeak => 'Fraca';
 
   @override

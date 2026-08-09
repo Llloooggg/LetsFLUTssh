@@ -831,6 +831,9 @@ class SZh extends S {
   String get passwordsDoNotMatch => '密码不匹配';
 
   @override
+  String get passwordConfirmationRequired => '请确认您的密码';
+
+  @override
   String get passwordStrengthWeak => '弱';
 
   @override

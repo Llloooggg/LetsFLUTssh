@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "موجود بالفعل في المخزن",
   "setMasterPasswordHint": "عيّن كلمة مرور رئيسية لتشفير الأرشيف.",
   "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+  "passwordConfirmationRequired": "الرجاء تأكيد كلمة المرور",
   "passwordStrengthWeak": "ضعيفة",
   "passwordStrengthModerate": "متوسطة",
   "passwordStrengthStrong": "قوية",

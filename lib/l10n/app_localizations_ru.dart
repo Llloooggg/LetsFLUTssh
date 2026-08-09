@@ -858,6 +858,9 @@ class SRu extends S {
   String get passwordsDoNotMatch => 'Пароли не совпадают';
 
   @override
+  String get passwordConfirmationRequired => 'Пожалуйста, подтвердите пароль';
+
+  @override
   String get passwordStrengthWeak => 'Слабый';
 
   @override

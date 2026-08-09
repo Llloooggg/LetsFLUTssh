@@ -858,6 +858,9 @@ class SAr extends S {
   String get passwordsDoNotMatch => 'كلمات المرور غير متطابقة';
 
   @override
+  String get passwordConfirmationRequired => 'الرجاء تأكيد كلمة المرور';
+
+  @override
   String get passwordStrengthWeak => 'ضعيفة';
 
   @override

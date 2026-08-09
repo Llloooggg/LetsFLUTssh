@@ -901,6 +901,9 @@ class SEs extends S {
   String get passwordsDoNotMatch => 'Las contraseñas no coinciden';
 
   @override
+  String get passwordConfirmationRequired => 'Confirme su contraseña';
+
+  @override
   String get passwordStrengthWeak => 'Débil';
 
   @override

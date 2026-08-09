@@ -834,6 +834,9 @@ class SJa extends S {
   String get passwordsDoNotMatch => 'パスワードが一致しません';
 
   @override
+  String get passwordConfirmationRequired => 'パスワードを確認してください';
+
+  @override
   String get passwordStrengthWeak => '弱い';
 
   @override

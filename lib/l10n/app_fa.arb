@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "از قبل در مخزن موجود است",
   "setMasterPasswordHint": "یک رمز عبور اصلی برای رمزگذاری آرشیو تعیین کنید.",
   "passwordsDoNotMatch": "رمزهای عبور مطابقت ندارند",
+  "passwordConfirmationRequired": "لطفاً رمز عبور خود را تأیید کنید",
   "passwordStrengthWeak": "ضعیف",
   "passwordStrengthModerate": "متوسط",
   "passwordStrengthStrong": "قوی",

@@ -110,6 +110,13 @@ class _PasswordPair extends StatelessWidget {
   final String confirmHint;
   final VoidCallback onChanged;
 
+  String? _confirmError(BuildContext context) {
+    if (primary.text.isEmpty) return null;
+    if (confirm.text.isEmpty) return S.of(context).passwordConfirmationRequired;
+    if (confirm.text != primary.text) return S.of(context).passwordsDoNotMatch;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -132,9 +139,7 @@ class _PasswordPair extends StatelessWidget {
             labelText: confirmHint,
             border: const OutlineInputBorder(),
             isDense: true,
-            errorText: confirm.text.isNotEmpty && confirm.text != primary.text
-                ? S.of(context).passwordsDoNotMatch
-                : null,
+            errorText: _confirmError(context),
           ),
         ),
       ],

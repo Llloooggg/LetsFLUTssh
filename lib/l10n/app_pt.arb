@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "já no armazenamento",
   "setMasterPasswordHint": "Defina uma senha mestra para criptografar o arquivo.",
   "passwordsDoNotMatch": "As senhas não coincidem",
+  "passwordConfirmationRequired": "Confirme sua senha",
   "passwordStrengthWeak": "Fraca",
   "passwordStrengthModerate": "Média",
   "passwordStrengthStrong": "Forte",

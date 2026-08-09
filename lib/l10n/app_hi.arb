@@ -267,6 +267,7 @@
   "sshKeyAlreadyImported": "पहले से संग्रह में है",
   "setMasterPasswordHint": "आर्काइव को एन्क्रिप्ट करने के लिए मास्टर पासवर्ड सेट करें।",
   "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
+  "passwordConfirmationRequired": "कृपया अपना पासवर्ड सत्यापित करें",
   "passwordStrengthWeak": "कमज़ोर",
   "passwordStrengthModerate": "मध्यम",
   "passwordStrengthStrong": "मज़बूत",
