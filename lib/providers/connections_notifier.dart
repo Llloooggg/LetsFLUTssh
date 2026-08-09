@@ -619,6 +619,15 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     _notify();
   }
 
+  /// Gracefully disconnect all active SSH/SFTP sessions. Used
+  /// before security-tier changes so the in-memory transport
+  /// does not race with the DB rekey on disk.
+  void disconnectAll() {
+    for (final conn in _connections.values.toList()) {
+      disconnect(conn.id);
+    }
+  }
+
   /// Disconnect all connections — used by the Notifier disposal
   /// path so a teardown (test container.dispose, hot-reload)
   /// doesn't leak russh sessions / bus subscriptions.

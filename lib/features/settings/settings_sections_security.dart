@@ -329,6 +329,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
     if (!mounted) return;
+    // Tear down all active SSH/SFTP transports so no in-memory
+    // session races with the DB rekey on disk. The rust-side
+    // connection actor holds file locks; a live transport would
+    // keep the DB open and the rekey would deadlock or corrupt.
+    ref.read(connectionsProvider.notifier).disconnectAll();
     AppProgressBarDialog.show(context, reporter);
     try {
       await _applyTierChange(result);
@@ -354,6 +359,10 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         message: '${l10n.changeSecurityTierFailed}: $e',
         level: ToastLevel.error,
       );
+      // Re-check state so cards re-render with the correct
+      // `initiallyExpanded` — the failed tier is no longer
+      // active, so its card should collapse.
+      _checkState();
     }
   }
 
