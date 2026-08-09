@@ -4889,15 +4889,17 @@ launch in `main._initSecurity` before the standard unlock flow. When
 `onSelectTier` catches a pipeline failure it proactively clears the
 marker so the next cold start does NOT enter recovery mode.
 
-The tier-card UI uses a `PasswordPair` widget for confirmation. The
-widget reports validation state via `onValidationChanged` callback
-(true when both fields are filled and match, false otherwise). The
-card tracks `_passwordPairValid` / `_masterPasswordPairValid` and
-the `_inputsReady` getter returns false when either required pair is
-invalid — this disables the Submit button so the user cannot trigger
-the pipeline with incomplete input. The confirm field shows
-`passwordConfirmationRequired` when empty (primary filled) or
-`passwordsDoNotMatch` when the values differ.
+The tier-card UI uses a `PasswordPair` widget for confirmation.
+Validation is computed directly in the `_inputsReady` getter by
+inspecting the controller text — no separate state flags or
+callbacks. When either required password pair is invalid (empty or
+mismatched) `_inputsReady` returns false, which disables the Submit
+button so the user cannot trigger the pipeline. The confirm field
+shows `passwordConfirmationRequired` when empty (primary filled) or
+`passwordsDoNotMatch` when the values differ. For unavailable tiers
+(T1/T2 when hardware vault is absent), the password fields are
+rendered with `enabled: false` so they appear greyed out and cannot
+be edited.
 
 ---
 

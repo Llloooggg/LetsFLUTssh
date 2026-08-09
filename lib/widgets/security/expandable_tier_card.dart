@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/security/security_tier.dart';
@@ -169,8 +168,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   final _masterPasswordCtrl = TextEditingController();
   final _masterPasswordConfirmCtrl = TextEditingController();
 
-
-
   @override
   void initState() {
     super.initState();
@@ -304,7 +301,9 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     }
     if (_requiresMasterPasswordInput) {
       if (_masterPasswordCtrl.text.isEmpty) return false;
-      if (_masterPasswordCtrl.text != _masterPasswordConfirmCtrl.text) return false;
+      if (_masterPasswordCtrl.text != _masterPasswordConfirmCtrl.text) {
+        return false;
+      }
     }
     return true;
   }
@@ -542,12 +541,12 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
           const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
-             child: AppButton.primary(
-               label: _selectLabel(l10n),
-               loading: _busy,
-               enabled: _selectEnabled,
-               onTap: _selectEnabled ? _onSelect : null,
-             ),
+            child: AppButton.primary(
+              label: _selectLabel(l10n),
+              loading: _busy,
+              enabled: _selectEnabled,
+              onTap: _selectEnabled ? _onSelect : null,
+            ),
           ),
           // Active-tier orthogonal settings (biometric unlock,
           // auto-lock). Rendered under a divider so the user

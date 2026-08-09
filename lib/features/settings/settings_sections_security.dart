@@ -722,11 +722,8 @@ class _DisabledDropdownTrigger extends StatelessWidget {
 
   const _DisabledDropdownTrigger({required this.reason, required this.child});
 
-   @override
-   Widget build(BuildContext context) {
-     return Tooltip(
-       message: reason,
-       child: child,
-     );
-   }
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(message: reason, child: child);
+  }
 }
