@@ -4833,6 +4833,56 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Mobile:** Two separate routes — `SettingsScreen` (gear icon) for settings, `ToolsScreen` (wrench icon) for SSH Keys / Snippets / Tags / Known Hosts. Both pushed as routes from the mobile shell top bar.
 
+#### Tier switch pipeline (`_SecuritySectionState`)
+
+The security tier is changed through the card's "Select" action on each
+rung of the settings ladder. The dispatcher is
+`_SecuritySectionState.onSelectTier` — it accepts the target tier,
+modifiers, and any password / pin / master-password values staged in the
+card's own state. The pipeline runs in this order:
+
+1. **Transition classification.** `classifyTierTransition()` determines
+   whether the change is a full tier rekey, a biometric-only toggle, or
+   a modifier flip. Biometric-only flips skip the rekey entirely.
+2. **Current-password gate.** For password-dropping transitions
+   (T1+pw → weaker, Paranoid → weaker) the user must re-enter their
+   current password via `_confirmCurrentPasswordIfDropping()`. This
+   uses a dialog with a wipe-on-exit controller.
+3. **Biometric key capture.** If the pending change enables biometrics,
+   `_captureKeyForBiometricEnable()` derives the DB key under the typed
+   password and caches it in the biometric-gated vault. The raw bytes
+   live only in `SecretStore` Rust-side.
+4. **SSH teardown.** `connectionsProvider.notifier.disconnectAll()`
+   closes every active SSH / SFTP transport so no in-memory session
+   races with the DB rekey on disk. This prevents deadlocks or
+   corruption when the rust-side connection actor holds file locks.
+5. **Progress dialog + rekey.** `AppProgressBarDialog.show()` covers
+   `_applyTierChange()` (switches on `SecurityTier` and dispatches to
+   `_applyPlaintextTier` / `_applyKeychainTier` /
+   `_applyKeychainWithPasswordTier` / `_applyHardwareTier` /
+   `_applyParanoidTier`). Each tier apply stages a fresh AES-256 key,
+   writes it to the target vault (keychain / hardware / master-password
+   manager), and runs the DB rekey through
+   `SecurityTierSwitcher.switchTierFromSecret` (or the plaintext path
+   which decrypts the DB and reopens unkeyed).
+6. **Biometric enable tail.** `_applyPendingBiometric()` runs after the
+   tier rekey when the user both switched tier and enabled biometrics
+   in one shot.
+7. **UI reset.** On success: toast + `_checkState()` collapses all tier
+   cards to show their correct `initiallyExpanded` state. On error:
+   toast (`changeSecurityTierFailed`) + `_checkState()` — the failed
+   tier card collapses back because it is no longer the active tier.
+
+The rekey path uses `SecurityTierSwitcher` so a mid-switch crash leaves
+a `.tier-transition-pending` marker on disk; recovery runs at next
+launch in `main._initSecurity` before the standard unlock flow.
+
+The tier-card UI uses a `PasswordPair` widget for confirmation: the
+Submit button is active only when both the primary and confirm fields
+are filled and match. The confirm field shows `passwordConfirmationRequired`
+when empty (primary filled) or `passwordsDoNotMatch` when the values
+differ.
+
 ---
 
 ### 5.6 Mobile (`features/mobile/`)
