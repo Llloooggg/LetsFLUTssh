@@ -102,6 +102,7 @@ class _PasswordPair extends StatelessWidget {
     required this.primaryHint,
     required this.confirmHint,
     required this.onChanged,
+    required this.onValidationChanged,
   });
 
   final TextEditingController primary;
@@ -109,6 +110,14 @@ class _PasswordPair extends StatelessWidget {
   final String primaryHint;
   final String confirmHint;
   final VoidCallback onChanged;
+  final void Function(bool) onValidationChanged;
+
+  bool _isValid() {
+    if (primary.text.isEmpty) return false;
+    if (confirm.text.isEmpty) return false;
+    if (confirm.text != primary.text) return false;
+    return true;
+  }
 
   String? _confirmError(BuildContext context) {
     if (primary.text.isEmpty) return null;
@@ -119,6 +128,7 @@ class _PasswordPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    onValidationChanged(_isValid());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -134,7 +144,9 @@ class _PasswordPair extends StatelessWidget {
         const SizedBox(height: AppSpacing.xxs),
         SecurePasswordField(
           controller: confirm,
-          onChanged: (_) => onChanged(),
+          onChanged: (_) {
+            onChanged();
+          },
           decoration: InputDecoration(
             labelText: confirmHint,
             border: const OutlineInputBorder(),
