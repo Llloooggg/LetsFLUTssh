@@ -1343,6 +1343,18 @@ A crash between steps 3 and 7 leaves the marker on disk. `SecurityInitController
 
 Settings exposes the switcher through a single "Change Security Tier" action that reopens the wizard pre-marked with the current tier and routes the result through `_applyTierChange` (`settings_sections_security.dart`) — every on-disk tier switch goes through the same orchestration path.
 
+**Downgrade to plaintext (T1/T2/Paranoid → T0).** A switch TO plaintext needs a special path because SQLCipher's `PRAGMA rekey` cannot disable encryption — `PRAGMA rekey = ''` generates a fresh random key rather than plaintext. The downgrade uses `Db::export_plaintext_copy` (`lfs_core::db::mod.rs:339`), which attaches a plaintext target database and runs `SELECT sqlcipher_export('plaintext')` to copy every table view trigger meta-pragma into an unencrypted file. The sequence:
+
+1. `security_switch_to_plaintext(secret_id)` (FRB shim in [`security_config.rs`](../rust/crates/lfs_frb/src/api/security_config.rs)) resolves the current DB key from the SecretStore under `secret_id` (or `ACTIVE_DBKEY_SECRET_ID`).
+2. `convert_all_lfsr_to_cast(root, key)` — decrypts every `.lfsr` recording body under the current key and writes plaintext `.cast` sidecars.
+3. `export_plaintext_copy(tmp_path)` — SQLCipher export to a plaintext temp file.
+4. Close the `Db` handle, remove the encrypted DB + `-wal`/`-shm`/`-journal` sidecars, rename the plaintext temp over the original path, re-open with empty key.
+5. Drop the DB key from SecretStore.
+
+The Dart side calls this from `_applyAlwaysRekey` in `settings_sections_security_apply.dart` (the plaintext-tier branch of `_applyTierChange`), which runs before `runClearPlan` to wipe old vault state. The key-dropping in `security_switch_to_plaintext` happens after the export but before the vault clear — this is intentional because the vault clear needs the old key still available to read the old vault state for deletion.
+
+`master_password_disable()` (`lfs_frb::api::master_password`) performs the identical DB-decrypt sequence when the user disables the master password (T1+pw → T0 via the password-gated keychain path). It also wipes the credential files (`credentials.kdf`, `credentials.verifier`) that `security_switch_to_plaintext` intentionally skips — the credential wipe is handled by `runVaultClearPlan` for non-master-password tiers.
+
 #### T1+pw keychain-password gate (`KeychainPasswordGate`)
 
 T1+pw layers a UX-only short password in front of the T1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.

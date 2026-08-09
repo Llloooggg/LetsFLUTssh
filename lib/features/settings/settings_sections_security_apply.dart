@@ -266,7 +266,13 @@ extension _TierApply on _SecuritySectionState {
     final switcher = SecurityTierSwitcher();
     try {
       await switcher.clearMarker();
-      ref.read(securityStateProvider.notifier).clearEncryption();
+      // Decrypt the DB to plaintext (export_plaintext_copy → rename →
+      // reopen unkeyed), convert recordings `.lfsr` → `.cast`, and drop
+      // the active DB key. This replaces the prior `clearEncryption()`
+      // which only dropped the key without decrypting — that left the
+      // on-disk DB encrypted under the old key while config said
+      // plaintext, causing "corrupt database" on the next launch.
+      _clearPlaintextDbDecryption();
     } catch (_) {}
     final existing = ref.read(configProvider).security;
     final next = SecurityConfig(
@@ -278,6 +284,24 @@ extension _TierApply on _SecuritySectionState {
           .read(configProvider.notifier)
           .update((cfg) => cfg.copyWithSecurity(security: next));
     }
+  }
+
+  /// Decrypt the DB and recordings to plaintext + drop the active key.
+  ///
+  /// This is the plaintext-tier counterpart to [_applyAlwaysRekeyFromSecret]
+  /// (which re-encrypts under a new random key via SecretRef). The
+  /// `_clearPlaintextDbDecryption` helper routes through the FRB
+  /// `security_switch_to_plaintext` which:
+  ///   1. reads the active DB key from `ACTIVE_DBKEY_SECRET_ID`
+  ///   2. `sqlcipher_export` to a plaintext temp file
+  ///   3. `.lfsr` → `.cast` recordings conversion
+  ///   4. close handle, rename, reopen unkeyed
+  ///   5. drop the key from SecretStore
+  ///
+  /// No key parameter — the function pulls the key from the canonical
+  /// SecretStore slot so the caller doesn't need to know the id.
+  void _clearPlaintextDbDecryption() {
+    rust_sec_cfg.securitySwitchToPlaintext(secretId: kActiveDbKeySecretId);
   }
 
   /// SecretRef variant of [_applyAlwaysRekey]. Routes through

@@ -30,6 +30,7 @@ import '../../src/rust/api/security_capabilities.dart'
     show DbKeyringProbeResult;
 import '../../src/rust/api/ssh_agent.dart' as rust_ssh_agent;
 import '../../src/rust/api/sync.dart' as rust_sync;
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';

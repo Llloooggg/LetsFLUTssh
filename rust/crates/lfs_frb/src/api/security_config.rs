@@ -5,6 +5,15 @@
 //! lookups. Wire shape on both sides: JSON-string payloads cross
 //! the boundary so a future field bump lands inside `lfs_core`
 //! without re-generating bindings.
+//!
+//! # Plaintext tier switch
+//!
+//! `security_switch_to_plaintext` handles the T1/T2/T3 → T0
+//! downgrade: `sqlcipher_export` to a plaintext file, `.lfsr`
+//! → `.cast` recordings conversion, and dropping the active DB
+//! key from the SecretStore. This is the canonical path for
+//! "switch to plaintext" because `PRAGMA rekey = ''` does not
+//! disable encryption — it generates a fresh random key instead.
 
 use lfs_core::security::{SecurityConfig, SecurityTier, SecurityTierModifiers};
 
@@ -190,6 +199,129 @@ pub fn security_tier_modifiers_from_json(json: String) -> Option<DbSecurityTierM
         password: m.password,
         biometric: m.biometric,
     })
+}
+
+/// Full T1/T2/T3 → T0 transition for the database and recordings.
+///
+/// Drives every encrypted artefact back to a plaintext shape:
+///
+/// 1. **Recordings.** `convert_all_lfsr_to_cast` decrypts each
+///    `.lfsr` body (under the current active DB key) and writes a
+///    plaintext `.cast` next to it.
+/// 2. **SQLite DB.** `Db::export_plaintext_copy` writes a plaintext
+///    sqlite copy via `sqlcipher_export` next to the running
+///    encrypted file, then closes the handle, deletes the encrypted
+///    DB + sidecars, renames the plaintext copy over the original,
+///    and re-opens the DB unkeyed.
+/// 3. **Active DB-key slot.** Dropped from
+///    [`lfs_core::secrets::SecretStore`] — the plaintext DB needs
+///    no key.
+///
+/// Unlike [`master_password::master_password_disable`], this
+/// function does NOT wipe credential files (`credentials.kdf`,
+/// `credentials.verifier`). The Dart `runVaultClearPlan` handles
+/// that separately so the master-password credential wipe only
+/// runs when the tier actually used the master password.
+///
+/// [secret_id] is the SecretStore id holding the current DB key.
+/// When `None` the function looks up
+/// `ACTIVE_DBKEY_SECRET_ID` automatically. A `None` key with no
+/// active handle is a safe no-op (the DB may already be plaintext).
+///
+/// Sync FRB call — the entire transition runs on a single blocking
+/// thread, serialising concurrent FRB calls behind it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn security_switch_to_plaintext(secret_id: Option<String>) -> Result<(), String> {
+    let app = lfs_core::app::instance();
+
+    // Resolve the key — caller-supplied id or the canonical slot.
+    let id = secret_id.or_else(|| Some(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID.into()));
+    let active_key = id.as_ref().and_then(|s| app.secrets.get(s));
+    let active_arr: Option<[u8; 32]> = match active_key {
+        Some(k) if !k.is_empty() => Some(k.as_slice().try_into().map_err(|_| {
+            crate::api::frb_err::wire(
+                crate::api::frb_err::kind::CRYPTO,
+                "active db key wrong length",
+            )
+        })?),
+        _ => None,
+    };
+
+    // 1. lfsr → cast (only meaningful when a key actually exists).
+    if let Some(key) = active_arr {
+        let root = recordings_root_for_migrate()?;
+        lfs_core::recorder::migrate::convert_all_lfsr_to_cast(&root, &key)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    }
+
+    // 2. DB decrypt. Skip when the handle is unavailable (cold-start
+    //    before db_init, or a test fixture that never opened one).
+    if active_arr.is_some() {
+        if let Some(db) = app.db() {
+            let db_path = db.path().to_path_buf();
+            if !db_path.as_os_str().is_empty() {
+                let tmp = plaintext_export_tmp_path(&db_path)?;
+                // Clean up any leftover from a prior crashed attempt.
+                let _ = std::fs::remove_file(&tmp);
+                db.export_plaintext_copy(&tmp)
+                    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+                // Release the running handle before the file swap.
+                drop(db);
+                app.db_close();
+                // Wipe the encrypted source + WAL / SHM sidecars.
+                let _ = std::fs::remove_file(&db_path);
+                for suffix in ["-wal", "-shm", "-journal"] {
+                    let mut sidecar = db_path.clone().into_os_string();
+                    sidecar.push(suffix);
+                    let _ = std::fs::remove_file(std::path::PathBuf::from(sidecar));
+                }
+                std::fs::rename(&tmp, &db_path).map_err(|e| {
+                    let _ = std::fs::remove_file(&tmp);
+                    format!("rename plaintext over db: {e}")
+                })?;
+                // Re-open as plaintext (empty key).
+                app.db_init(&db_path, &[])
+                    .map_err(|e| crate::api::frb_err::from_core(&e))?;
+            }
+        }
+    }
+
+    // 3. Clear the ACTIVE DB-key slot.
+    if let Some(ref slot) = id {
+        app.secrets.drop_id(slot);
+    }
+
+    Ok(())
+}
+
+/// Resolve `<support_dir>/recordings` for the migration hooks.
+/// Mirrors the FRB-exposed `recorder_recordings_root` but stays
+/// inside the same task so the password / rekey paths don't have
+/// to round-trip a `String` through Dart.
+fn recordings_root_for_migrate() -> Result<std::path::PathBuf, String> {
+    let dir = lfs_core::app::instance()
+        .support_dir()
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
+    Ok(dir.join("recordings"))
+}
+
+/// Resolve the plaintext export temp path — mirrors the private
+/// helper in `master_password.rs` so this module is self-contained
+/// (no need to expose the private function from another module).
+fn plaintext_export_tmp_path(db_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let pid = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let parent = db_path
+        .parent()
+        .ok_or_else(|| format!("db path has no parent: {}", db_path.display()))?;
+    let name = db_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("db path bad name: {}", db_path.display()))?;
+    Ok(parent.join(format!("{name}.plain.{pid}.{nanos:x}")))
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `plaintext_export_tmp_path`, `recordings_root_for_migrate`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `from`, `from`, `hash`
 
 /// Parse a stored tier wire-string into the typed enum. Returns
@@ -94,6 +95,38 @@ DbSecurityTierModifiers? securityTierModifiersFromJson({
 }) => RustLib.instance.api.crateApiSecurityConfigSecurityTierModifiersFromJson(
   json: json,
 );
+
+/// Full T1/T2/T3 → T0 transition for the database and recordings.
+///
+/// Drives every encrypted artefact back to a plaintext shape:
+///
+/// 1. **Recordings.** `convert_all_lfsr_to_cast` decrypts each
+///    `.lfsr` body (under the current active DB key) and writes a
+///    plaintext `.cast` next to it.
+/// 2. **SQLite DB.** `Db::export_plaintext_copy` writes a plaintext
+///    sqlite copy via `sqlcipher_export` next to the running
+///    encrypted file, then closes the handle, deletes the encrypted
+///    DB + sidecars, renames the plaintext copy over the original,
+///    and re-opens the DB unkeyed.
+/// 3. **Active DB-key slot.** Dropped from
+///    [`lfs_core::secrets::SecretStore`] — the plaintext DB needs
+///    no key.
+///
+/// Unlike [`master_password::master_password_disable`], this
+/// function does NOT wipe credential files (`credentials.kdf`,
+/// `credentials.verifier`). The Dart `runVaultClearPlan` handles
+/// that separately so the master-password credential wipe only
+/// runs when the tier actually used the master password.
+///
+/// [secret_id] is the SecretStore id holding the current DB key.
+/// When `None` the function looks up
+/// `ACTIVE_DBKEY_SECRET_ID` automatically. A `None` key with no
+/// active handle is a safe no-op (the DB may already be plaintext).
+///
+/// Sync FRB call — the entire transition runs on a single blocking
+/// thread, serialising concurrent FRB calls behind it.
+void securitySwitchToPlaintext({String? secretId}) => RustLib.instance.api
+    .crateApiSecurityConfigSecuritySwitchToPlaintext(secretId: secretId);
 
 /// Flat DTO for a parsed `SecurityConfig` — typed tier + per-modifier
 /// scalars, returned across the FRB boundary so the Dart caller can
