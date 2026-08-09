@@ -168,8 +168,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   final _masterPasswordCtrl = TextEditingController();
   final _masterPasswordConfirmCtrl = TextEditingController();
 
-  bool _passwordPairValid = false;
-  bool _masterPasswordPairValid = false;
+
 
   @override
   void initState() {
@@ -206,8 +205,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       _passwordConfirmCtrl.wipeAndClear();
       _masterPasswordCtrl.wipeAndClear();
       _masterPasswordConfirmCtrl.wipeAndClear();
-      _passwordPairValid = false;
-      _masterPasswordPairValid = false;
     }
     final next = widget.biometricSpec?.value ?? false;
     if (next != _initialBiometric) {
@@ -300,8 +297,14 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   );
 
   bool get _inputsReady {
-    if (_requiresPasswordInput && !_passwordPairValid) return false;
-    if (_requiresMasterPasswordInput && !_masterPasswordPairValid) return false;
+    if (_requiresPasswordInput) {
+      if (_passwordCtrl.text.isEmpty) return false;
+      if (_passwordCtrl.text != _passwordConfirmCtrl.text) return false;
+    }
+    if (_requiresMasterPasswordInput) {
+      if (_masterPasswordCtrl.text.isEmpty) return false;
+      if (_masterPasswordCtrl.text != _masterPasswordConfirmCtrl.text) return false;
+    }
     return true;
   }
 
@@ -511,7 +514,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.passwordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
-              onValidationChanged: (valid) => setState(() => _passwordPairValid = valid),
             ),
           ],
           if (_requiresMasterPasswordInput) ...[
@@ -522,7 +524,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               primaryHint: l10n.masterPasswordLabel,
               confirmHint: l10n.confirmPassword,
               onChanged: () => setState(() {}),
-              onValidationChanged: (valid) => setState(() => _masterPasswordPairValid = valid),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
