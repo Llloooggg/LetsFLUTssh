@@ -382,6 +382,14 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         message: l10n.changeSecurityTierFailed,
         level: ToastLevel.error,
       );
+      // Clear the pending-transition marker so the next launch
+      // does NOT enter recovery mode. The rekey partially ran
+      // (marker was written) but did not complete — leaving the
+      // marker forces the user to relaunch or the app stuck in
+      // "transition pending" recovery on every cold start.
+      try {
+        await SecurityTierSwitcher().clearMarker();
+      } catch (_) {}
       // Re-check state so cards re-render with the correct
       // `initiallyExpanded` — the failed tier is no longer
       // active, so its card should collapse.
