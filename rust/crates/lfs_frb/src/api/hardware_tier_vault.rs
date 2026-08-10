@@ -425,7 +425,10 @@ pub async fn hardware_tier_vault_delete_salt() -> Result<(), String> {
 /// `Ok(())` when the old PIN is correct and the new PIN stores
 /// cleanly. `Err` on wrong PIN (reads fail → `None`) or storage
 /// failure (bad vault, IO error, TPM error).
-pub async fn hardware_tier_vault_change_pin(old_pin: String, new_pin: String) -> Result<(), String> {
+pub async fn hardware_tier_vault_change_pin(
+    old_pin: String,
+    new_pin: String,
+) -> Result<(), String> {
     let support_dir = pinned_support_dir()?;
     tokio::task::spawn_blocking(move || {
         let dir = std::path::Path::new(&support_dir);
@@ -436,7 +439,8 @@ pub async fn hardware_tier_vault_change_pin(old_pin: String, new_pin: String) ->
                 frb_err::kind::VAULT,
                 &format!("hw_vault salt read for change: {e}"),
             )
-        })? else {
+        })?
+        else {
             return Err(frb_err::wire(
                 frb_err::kind::VAULT,
                 "hw_vault: no salt found — not configured",
@@ -446,12 +450,7 @@ pub async fn hardware_tier_vault_change_pin(old_pin: String, new_pin: String) ->
         let auth = derive_auth_for_pin(&old_pin, &salt);
         // Try to read with old PIN — if it fails, the PIN is wrong.
         let db_key_bytes = dispatch_read(&support_dir, &auth)?
-            .ok_or_else(|| {
-                frb_err::wire(
-                    frb_err::kind::VAULT,
-                    "hw_vault: old PIN rejected",
-                )
-            })?;
+            .ok_or_else(|| frb_err::wire(frb_err::kind::VAULT, "hw_vault: old PIN rejected"))?;
 
         // 2. Clear old vault artefacts.
         dispatch_clear(&support_dir)?;
