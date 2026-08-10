@@ -119,10 +119,43 @@ begin
 end;
 
 function InitializeSetup(): Boolean;
+var
+  HostArch: Integer;
+  ExpectedArch: String;
+  ErrorMessage: String;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
     RegWriteStringValue(HKCU, LastTaskChoiceKey, 'desktopicon', '1');
+  end;
+  // Architectural mismatch guard — prevents ARM64 installers from
+  // running on x64 hosts (and vice versa) which would produce a
+  // generic "this app can't run on your PC" dialog.
+  ExpectedArch := '{#OutputArch}';
+  HostArch := ProcessorArchitecture();
+  if ExpectedArch = 'arm64' and HostArch <> paArm64 then begin
+    ErrorMessage := Format(
+      'This installer was built for ARM64 but your PC is %s.%n%n' +
+      'Please download the %s version from the releases page.',
+      [
+        IIF(HostArch = paX64, 'x64 (AMD64)', IIF(HostArch = paIntel, 'x86 (32-bit)', 'unknown')),
+        IIF(HostArch = paX64, 'x64', IIF(HostArch = paArm64, 'ARM64', 'x64'))
+      ]);
+    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+  if ExpectedArch = 'x64' and HostArch <> paX64 then begin
+    ErrorMessage := Format(
+      'This installer was built for x64 (AMD64) but your PC is %s.%n%n' +
+      'Please download the %s version from the releases page.',
+      [
+        IIF(HostArch = paArm64, 'ARM64', IIF(HostArch = paIntel, 'x86 (32-bit)', 'unknown')),
+        IIF(HostArch = paArm64, 'ARM64', 'x64')
+      ]);
+    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
+    Result := False;
+    Exit;
   end;
   Result := True;
 end;
