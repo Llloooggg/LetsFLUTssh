@@ -614,38 +614,29 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   }
 
   Widget _buildLogBody() {
-    // The log viewer renders the ANSI-formatted stream through the Rust
-    // terminal engine ([TerminalView]); the engine owns
-    // scrollback. The "is the buffer empty?" overlay rebuilds when the store
-    // signals a change (via `StreamBuilder` on `_store.changes`), so the
-    // localized empty-state stays in sync with `_store.allEntries`.
-    return StreamBuilder<void>(
-      stream: _store.changes,
-      builder: (context, _) {
-        if (_store.allEntries.isEmpty) {
-          return Center(
-            child: Text(
-              S.of(context).logIsEmpty,
-              style: TextStyle(
-                fontSize: AppFonts.sm,
-                color: AppTheme.fgDim,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          );
-        }
-        // `ClipRect` so the last partial row (when the container's pixel
-        // height isn't an integer multiple of the row height) is clipped at
-        // the bottom border instead of bleeding past it.
-        return ClipRect(
-          child: TerminalView(
-            controller: _controller,
-            config: const TerminalViewConfig.readOnly(),
+    final entries = ref.watch(logStoreProvider);
+    if (entries.allEntries.isEmpty) {
+      return Center(
+        child: Text(
+          S.of(context).logIsEmpty,
+          style: TextStyle(
             fontSize: AppFonts.sm,
-            reportResize: true,
+            color: AppTheme.fgDim,
+            fontStyle: FontStyle.italic,
           ),
-        );
-      },
+        ),
+      );
+    }
+    // `ClipRect` so the last partial row (when the container's pixel
+    // height isn't an integer multiple of the row height) is clipped at
+    // the bottom border instead of bleeding past it.
+    return ClipRect(
+      child: TerminalView(
+        controller: _controller,
+        config: const TerminalViewConfig.readOnly(),
+        fontSize: AppFonts.sm,
+        reportResize: true,
+      ),
     );
   }
 }
