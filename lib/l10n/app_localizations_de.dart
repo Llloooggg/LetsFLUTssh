@@ -1398,34 +1398,35 @@ class SDe extends S {
   String get wrongPassword => 'Falsches Passwort';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Passwort ändern';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Passwort ändern';
 
   @override
   String get currentPassword => 'Aktuelles Passwort';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Aktuelles Passwort eingeben';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Neues Passwort';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Neues Passwort eingeben';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Neues Passwort bestätigen';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Passwort geändert.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'Passwort konnte nicht geändert werden. Prüfen Sie die Logs.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'Passwort ist erforderlich.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh ist gesperrt';

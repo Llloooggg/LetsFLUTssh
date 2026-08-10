@@ -1308,34 +1308,34 @@ class SZh extends S {
   String get wrongPassword => '密码错误';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => '更改密码';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => '更改密码';
 
   @override
   String get currentPassword => '当前密码';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => '输入当前密码';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => '新密码';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => '输入新密码';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => '确认新密码';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => '密码已更改。';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed => '更改密码失败。请检查日志。';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => '需要密码。';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh 已锁定';

@@ -1342,34 +1342,34 @@ class SHi extends S {
   String get wrongPassword => 'गलत पासवर्ड';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'पासवर्ड बदलें';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'पासवर्ड बदलें';
 
   @override
   String get currentPassword => 'वर्तमान पासवर्ड';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'वर्तमान पासवर्ड दर्ज करें';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'नया पासवर्ड';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'नया पासवर्ड दर्ज करें';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'नए पासवर्ड की पुष्टि करें';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'पासवर्ड बदल दिया गया।';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed => 'पासवर्ड बदलने में विफल। लॉग देखें।';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'पासवर्ड आवश्यक है।';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh लॉक है';

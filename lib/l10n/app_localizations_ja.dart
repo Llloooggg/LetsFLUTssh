@@ -1314,34 +1314,34 @@ class SJa extends S {
   String get wrongPassword => 'パスワードが間違っています';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'パスワードを変更';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'パスワードを変更';
 
   @override
   String get currentPassword => '現在のパスワード';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => '現在のパスワードを入力';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => '新しいパスワード';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => '新しいパスワードを入力';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => '新しいパスワードを確認';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'パスワードを変更しました。';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed => 'パスワードの変更できませんでした。ログを確認してください。';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'パスワードが必要です。';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh はロックされています';

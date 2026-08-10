@@ -1404,34 +1404,35 @@ class SFr extends S {
   String get wrongPassword => 'Mot de passe incorrect';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Changer le mot de passe';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Changer le mot de passe';
 
   @override
   String get currentPassword => 'Mot de passe actuel';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Entrez le mot de passe actuel';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Nouveau mot de passe';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Entrez le nouveau mot de passe';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Confirmer le nouveau mot de passe';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Mot de passe modifié.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'Échec du changement de mot de passe. Consultez les journaux.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'Le mot de passe est requis.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh est verrouillé';

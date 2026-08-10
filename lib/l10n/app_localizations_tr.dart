@@ -1342,34 +1342,35 @@ class STr extends S {
   String get wrongPassword => 'Yanlış parola';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Şifre değiştir';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Şifre değiştir';
 
   @override
   String get currentPassword => 'Mevcut şifre';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Mevcut şifreyi girin';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Yeni şifre';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Yeni şifreyi girin';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Yeni şifreyi onayla';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Şifre değiştirildi.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'Şifre değiştirilemedi. Günlükleri kontrol edin.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'Şifre gerekli.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh kilitli';

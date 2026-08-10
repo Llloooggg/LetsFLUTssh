@@ -1396,34 +1396,35 @@ class SPt extends S {
   String get wrongPassword => 'Senha incorreta';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Alterar senha';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Alterar senha';
 
   @override
   String get currentPassword => 'Senha atual';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Digite a senha atual';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Nova senha';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Digite a nova senha';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Confirmar nova senha';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Senha alterada.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'Falha ao alterar a senha. Verifique os logs.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'A senha é obrigatória.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh está bloqueado';

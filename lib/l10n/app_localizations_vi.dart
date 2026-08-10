@@ -1338,34 +1338,35 @@ class SVi extends S {
   String get wrongPassword => 'Mật khẩu không đúng';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Đổi mật khẩu';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Đổi mật khẩu';
 
   @override
   String get currentPassword => 'Mật khẩu hiện tại';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Nhập mật khẩu hiện tại';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Mật khẩu mới';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Nhập mật khẩu mới';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Xác nhận mật khẩu mới';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Mật khẩu đã được đổi.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'Không thể đổi mật khẩu. Kiểm tra nhật ký.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'Bắt buộc có mật khẩu.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh đã bị khóa';

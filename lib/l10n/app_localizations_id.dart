@@ -1344,34 +1344,34 @@ class SId extends S {
   String get wrongPassword => 'Kata sandi salah';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'Ubah kata sandi';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'Ubah kata sandi';
 
   @override
   String get currentPassword => 'Kata sandi saat ini';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'Masukkan kata sandi saat ini';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'Kata sandi baru';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'Masukkan kata sandi baru';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'Konfirmasi kata sandi baru';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'Kata sandi diubah.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed => 'Gagal mengubah kata sandi. Periksa log.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'Kata sandi diperlukan.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh terkunci';

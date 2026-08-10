@@ -1336,34 +1336,35 @@ class SFa extends S {
   String get wrongPassword => 'گذرواژهٔ نادرست';
 
   @override
-  String get changePassword => 'CHANGE_PASSWORD';
+  String get changePassword => 'تغییر رمز عبور';
 
   @override
-  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+  String get changePasswordTitle => 'تغییر رمز عبور';
 
   @override
   String get currentPassword => 'رمز عبور فعلی';
 
   @override
-  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+  String get enterCurrentPassword => 'رمز عبور فعلی را وارد کنید';
 
   @override
-  String get newPassword => 'NEW_PASSWORD';
+  String get newPassword => 'رمز عبور جدید';
 
   @override
-  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+  String get enterNewPassword => 'رمز عبور جدید را وارد کنید';
 
   @override
-  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+  String get confirmNewPassword => 'تأیید رمز عبور جدید';
 
   @override
-  String get passwordChanged => 'PASSWORD_CHANGED';
+  String get passwordChanged => 'رمز عبور تغییر کرد.';
 
   @override
-  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+  String get passwordChangeFailed =>
+      'تغییر رمز عبور ناموفق بود. گزارش‌ها را بررسی کنید.';
 
   @override
-  String get passwordRequired => 'PASSWORD_REQUIRED';
+  String get passwordRequired => 'رمز عبور الزامی است.';
 
   @override
   String get lockScreenTitle => 'LetsFLUTssh قفل است';
