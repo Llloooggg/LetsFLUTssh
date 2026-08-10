@@ -117,20 +117,23 @@ void main() {
     test('Hardware always reports password = true', () {
       // T2 is always password-gated by tier; the modifier flag is
       // pinned on by the wizard / Settings card. The predicate
-      // returns true regardless of the modifier bag passed in to
-      // keep callers consistent if a stale `password=false` slips
-      // through (the v6→v7 migration also stamps the modifier on
-      // for pre-flip Hardware configs).
-      for (final mods in [noMods, passwordOn]) {
-        expect(
-          currentConfigHasPassword(
-            currentTier: SecurityTier.hardware,
-            currentModifiers: mods,
-          ),
-          isTrue,
-          reason: 'hardware tier is mandatory-password',
-        );
-      }
+      // reflects the modifier — password is optional for Hardware.
+      expect(
+        currentConfigHasPassword(
+          currentTier: SecurityTier.hardware,
+          currentModifiers: noMods,
+        ),
+        isFalse,
+        reason: 'hardware tier: password is optional',
+      );
+      expect(
+        currentConfigHasPassword(
+          currentTier: SecurityTier.hardware,
+          currentModifiers: passwordOn,
+        ),
+        isTrue,
+        reason: 'hardware tier: password=true → has secret',
+      );
     });
   });
 

@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
+import '../providers/config_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../utils/logger.dart';
@@ -86,13 +88,48 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
                 onTap: () {
                   // "Enable Logging" defaults to info — the most
                   // verbose level we have, which writes every routine
-                  // entry + warnings + errors.
+                  // entry + warnings + errors. Persist through the
+                  // config provider so the setting survives restart
+                  // (the old path only bumped the in-memory threshold).
                   unawaited(AppLogger.instance.setThreshold(LogLevel.info));
                   AppLogger.instance.log(
                     'Logging enabled after error',
                     name: 'ErrorBoundary',
                   );
-                  Navigator.of(ctx).pop();
+                  // Persist the new log level to config.json.
+                  final navigator = Navigator.of(ctx);
+                  navigator.pop();
+                  // Defer config update until after the dialog closes
+                  // so the async save doesn't race the pop animation.
+                  // navigatorKey.currentContext is guaranteed to be inside
+                  // the ProviderScope (it's set by the MaterialApp's
+                  // navigator), so we can use it to update the config.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    try {
+                      final ctx = navigator.context;
+                      if (!ctx.mounted) return;
+                      final scopeState = ctx
+                          .findRootAncestorStateOfType<State<ProviderScope>>();
+                      // Riverpod 3.x exposes `container` on the state
+                      // object but it's not part of the compile-time type
+                      // of State<ProviderScope>, so we use dynamic dispatch.
+                      final container = (scopeState as dynamic)?.container;
+                      if (container != null) {
+                        container
+                            .read(configProvider.notifier)
+                            .update(
+                              (c) => c.copyWith(
+                                behavior: c.behavior.copyWith(
+                                  logLevel: LogLevel.info,
+                                ),
+                              ),
+                            );
+                      }
+                    } catch (_) {
+                      // Config update failure is non-fatal — the
+                      // in-memory threshold is already active.
+                    }
+                  });
                   Toast.show(
                     ctx,
                     message: l10n.globalErrorLoggingEnabledToast,
