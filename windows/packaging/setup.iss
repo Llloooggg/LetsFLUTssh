@@ -125,6 +125,7 @@ var
   ErrorMessage: String;
   HostArchStr: String;
   DownloadArchStr: String;
+  Params: array of String;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
@@ -146,10 +147,13 @@ begin
       HostArchStr := 'unknown';
       DownloadArchStr := 'x64';
     end;
+    SetArrayLength(Params, 2);
+    Params[0] := HostArchStr;
+    Params[1] := DownloadArchStr;
     ErrorMessage := Format(
       'This installer was built for ARM64 but your PC is %s.%n%n' +
       'Please download the %s version from the releases page.',
-      [HostArchStr, DownloadArchStr]);
+      Params);
     MsgBox(ErrorMessage, mbCriticalError, MB_OK);
     Result := False;
     Exit;
@@ -165,10 +169,13 @@ begin
       HostArchStr := 'unknown';
       DownloadArchStr := 'x64';
     end;
+    SetArrayLength(Params, 2);
+    Params[0] := HostArchStr;
+    Params[1] := DownloadArchStr;
     ErrorMessage := Format(
       'This installer was built for x64 (AMD64) but your PC is %s.%n%n' +
       'Please download the %s version from the releases page.',
-      [HostArchStr, DownloadArchStr]);
+      Params);
     MsgBox(ErrorMessage, mbCriticalError, MB_OK);
     Result := False;
     Exit;
