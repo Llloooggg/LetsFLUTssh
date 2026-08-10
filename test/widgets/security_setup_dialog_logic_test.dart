@@ -64,11 +64,10 @@ void main() {
       expect(wizardPasswordToggleEnabled(WizardTier.paranoid), isFalse);
     });
 
-    test('hardware has a mandatory password — toggle locked', () {
-      // T2 is always password-gated; biometric is the optional
-      // shortcut on top. The wizard force-pins the modifier on
-      // for Hardware, so the toggle row renders as read-only.
-      expect(wizardPasswordToggleEnabled(WizardTier.hardware), isFalse);
+    test('hardware lets the user pick — toggle enabled', () {
+      // T2 password is optional (TPM/SE/StrongBox provides hardware
+      // binding); the toggle lets the user opt in.
+      expect(wizardPasswordToggleEnabled(WizardTier.hardware), isTrue);
     });
 
     test('plaintext has nothing to gate — toggle locked', () {
@@ -117,18 +116,18 @@ void main() {
       );
     });
 
-    test('hardware always asks regardless of the modifier flag', () {
-      // T2 is mandatory-password by tier; biometric is the
-      // optional shortcut layer on top. The wizard force-pins
-      // the password modifier on, but the predicate must hold
-      // even when a stale caller passes `password=false`.
+    test('hardware asks only when password modifier is on', () {
+      // T2 password is optional (TPM/SE/StrongBox provides hardware
+      // binding); the wizard follows the modifier flag.
       expect(
         wizardNeedsSecretInput(selected: WizardTier.hardware, password: true),
         isTrue,
+        reason: 'hardware+password requires the secret input',
       );
       expect(
         wizardNeedsSecretInput(selected: WizardTier.hardware, password: false),
-        isTrue,
+        isFalse,
+        reason: 'passwordless hardware skips the secret input',
       );
     });
   });

@@ -1145,7 +1145,7 @@ All app data lives in one SQLite database (`letsflutssh.db`) opened by `lfs_core
 |---|---|---|---|---|
 | **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
 | **T1** | Keychain | OS keychain on Apple/Linux/Windows (Keychain / libsecret / Credential Manager); Android uses an AES-256-GCM frame whose wrap key lives in AndroidKeyStore (TEE / StrongBox-backed when available), with the wrapped value bytes persisted as a 0600 file under `<filesDir>/lfs_secure_storage/<alias>.bin` | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
-| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (mandatory; Apple + Android were always password-gated, Linux + Windows now match) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key, wrapped bytes persisted as `hardware_vault_password_overlay_<plat>.bin` (`hardware_vault_android_bio.bin` on Android) |
+| **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Master password (optional; TPM/SE/StrongBox provides hardware binding — password is defense-in-depth against backup/leak scenarios) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key, wrapped bytes persisted as `hardware_vault_password_overlay_<plat>.bin` (`hardware_vault_android_bio.bin` on Android) |
 | **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only inside `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) during the unlocked window |
 
 See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
@@ -1160,13 +1160,14 @@ bypasses the OS keychain layer).
 - `password` — when true, the user typed a secret that acts as the
   primary auth gate for the tier. Stored as HMAC-split on disk +
   keychain; compared in constant time before the KEK provider is
-  touched. Paranoid and Hardware always imply `password == true` by
-  design — Apple + Android were always password-gated on T2, and the
-  Linux + Windows arms now match.
-  `SecurityTierModifiers::is_valid_for_tier` rejects
-  `(tier=Hardware, password=false)` outright, so a Hardware install
-  is always enrolled with a password at setup time and the wrapped
-  key on disk is sealed against it.
+  touched. Paranoid always implies `password == true` by design.
+  Hardware is optional — TPM/SE/StrongBox provides hardware binding
+  for the sealed blob; password is defense-in-depth (protects
+  against offline bruteforce if the blob file is copied or leaked).
+  The Rust `is_valid_for_tier` no longer rejects `(tier=Hardware,
+  password=false)` — the Hardware tier supports both passwordless
+  (hardware-bound only) and password-gated (hardware-bound +
+  password) configurations.
 - `biometric` — when true, the user opted into the biometric
   shortcut. Invariant: `biometric → password`. The flag enables a
   secondary biometric-gated storage slot (biometric-protected

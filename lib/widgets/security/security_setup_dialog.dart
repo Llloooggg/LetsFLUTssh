@@ -256,7 +256,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
         _password = widget.currentModifiers?.password ?? false;
         return WizardTier.keychain;
       case SecurityTier.hardware:
-        _password = true;
+        _password = widget.currentModifiers?.password ?? false;
         return WizardTier.hardware;
       case SecurityTier.paranoid:
         _password = true;
@@ -487,11 +487,6 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     onSelect: caps.hardwareVaultAvailable
         ? () => setState(() {
             _selected = WizardTier.hardware;
-            // Hardware is always password-gated; biometric is the
-            // optional shortcut on top. Force the modifier on so
-            // the secret-input panel renders and the toggle row
-            // reads "Required" instead of "Optional".
-            _password = true;
           })
         : null,
   );
@@ -588,13 +583,12 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// threshold; the switch itself is simple dispatch, each case's
   /// body belongs in its own method.
   Widget _buildMidTierPanel(S l10n, DbSecurityCapabilities caps) {
-    final passwordRequired = _selected == WizardTier.hardware;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ModifierToggle(
           label: l10n.modifierPasswordLabel,
-          subtitle: passwordRequired
+          subtitle: _password
               ? l10n.modifierPasswordRequired
               : l10n.modifierPasswordSubtitle,
           icon: Icons.password,

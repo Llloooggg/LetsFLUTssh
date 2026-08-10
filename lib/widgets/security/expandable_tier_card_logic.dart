@@ -24,10 +24,10 @@ bool tierCardIsCurrent({
 }
 
 /// Whether the currently-applied tier + modifiers already carry a
-/// user-typed password. Paranoid and Hardware always do (mandatory
-/// by tier — Hardware is password-gated by contract); Keychain
-/// flips on `currentModifiers.password` (the bank-style signal for
-/// a password-gated keychain). Used by the card to decide whether
+/// user-typed password. Paranoid always does (mandatory by tier);
+/// Hardware and Keychain flip on `currentModifiers.password`
+/// (optional — Hardware uses password as defense-in-depth on top
+/// of the hardware-bound vault). Used by the card to decide whether
 /// to render a fresh password input (the user is changing tier or
 /// adding a password) or skip it (the user already has one and the
 /// post-Apply biometric step prompts via the shared dialog).
@@ -36,16 +36,14 @@ bool currentConfigHasPassword({
   required SecurityTierModifiers currentModifiers,
 }) {
   if (currentTier == SecurityTier.paranoid) return true;
-  if (currentTier == SecurityTier.hardware) return true;
   return currentModifiers.password;
 }
 
 /// Initial value of the card's password-modifier toggle.
 ///
-/// Non-current cards: Hardware and Paranoid always start with
-/// password on (both tiers carry a mandatory password — the toggle
-/// is locked on, but the value still has to be coherent);
-/// Keychain starts with password off so the user can opt in.
+/// Non-current cards: Paranoid always starts with password on
+/// (mandatory by tier); Hardware and Keychain start with password
+/// off so the user can opt in.
 ///
 /// The current card: mirror the applied modifier so the toggle
 /// reflects reality on first paint.
@@ -59,8 +57,7 @@ bool derivePasswordModifierForCard({
     currentTier: currentTier,
   );
   if (!isCurrent) {
-    return cardTier == SecurityTier.paranoid ||
-        cardTier == SecurityTier.hardware;
+    return cardTier == SecurityTier.paranoid;
   }
   return currentConfigHasPassword(
     currentTier: currentTier,

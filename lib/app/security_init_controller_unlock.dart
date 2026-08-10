@@ -261,6 +261,44 @@ extension _UnlockFlows on SecurityInitController {
       return;
     }
     final mods = ref.read(configProvider).security?.modifiers;
+    final hasPassword = mods?.password ?? false;
+
+    // Passwordless T2 — vault sealed with empty auth value. Read
+    // directly through the passwordless orchestrator (no prompt
+    // dialog, no rate limiter).
+    if (!hasPassword) {
+      final listener = ref.read(tierUnlockedListenerProvider)..start();
+      final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
+      final outcome = await rust_orch.tierUnlockHardwareNoPassword();
+      if (outcome is rust_orch.DbUnlockOutcome_Staged) {
+        final result = await unlockDone.timeout(
+          tierUnlockedListenerWaitTimeout,
+          onTimeout: () => TierUnlockOutcome.failed,
+        );
+        if (result == TierUnlockOutcome.unlocked) {
+          AppLogger.instance.log(
+            'T2 hardware-vault unlocked (passwordless)',
+            name: 'App',
+          );
+          return;
+        }
+        AppLogger.instance.log(
+          'T2 passwordless listener returned $result after Staged — '
+          'falling through to plaintext fallback',
+          name: 'App',
+          level: LogLevel.warn,
+        );
+      }
+      listener.cancelPending();
+      await _injectDatabase();
+      AppLogger.instance.log(
+        'T2 passwordless reset — plaintext fallback',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+      return;
+    }
+
     final listener = ref.read(tierUnlockedListenerProvider)..start();
     final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
     var biometricAttempted = false;

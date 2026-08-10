@@ -597,6 +597,68 @@ pub async fn unlock_hardware(password: String) -> UnlockOutcome {
     }
 }
 
+/// Hardware tier — passwordless unlock (vault sealed with empty auth
+/// value). Reads the sealed blob through the prompt registry with
+/// `pin: None`; the Dart subscriber calls `HardwareTierVault.read(null)`
+/// which unseals without a user-typed gate. Mirrors `unlock_hardware`
+/// except for the absent PIN and rate-limit (no wrong-PIN bruteforce
+/// vector without a password, so the limiter doesn't apply).
+pub async fn unlock_hardware_no_password() -> UnlockOutcome {
+    instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
+
+    let prompt_id = generate_prompt_id();
+    let receiver = hardware_vault_unlock_prompt::instance().register(prompt_id.clone());
+    crate::app::instance()
+        .bus
+        .publish(Event::HardwareVaultUnlockPromptRequest {
+            prompt_id: prompt_id.clone(),
+            pin: None,
+        });
+
+    match receiver.await {
+        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            stage_key(&bytes);
+            instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
+            run_post_unlock_cascade(SecurityTier::Hardware);
+            UnlockOutcome::Staged
+        }
+        Ok(Ok(_)) => {
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: "hardware_vault_corrupt".into(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError("hardware_vault_corrupt".into())
+        }
+        Ok(Err(detail)) => {
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError(detail)
+        }
+        Err(_) => {
+            hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: "hardware_vault_prompt_cancelled".into(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError("hardware_vault_prompt_cancelled".into())
+        }
+    }
+}
+
 // ── First-launch orchestrators ─────────────────────────────────
 //
 // Symmetric with the unlock orchestrators above — instead of

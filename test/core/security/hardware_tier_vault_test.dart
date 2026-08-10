@@ -186,7 +186,7 @@ void main() {
     final salt = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
 
     test(
-      'password+biometric false → null (Hardware tier always password-gated)',
+      'password+biometric false → null (passwordless Hardware has no auth gate)',
       () {
         final auth = HardwareTierVault.resolveAuthValue(
           password: false,

@@ -137,24 +137,21 @@ pub struct SecurityTierModifiers {
 impl SecurityTierModifiers {
     /// True when the modifier bag is valid for the given tier.
     ///
-    /// Two invariants compose:
-    ///   - cross-cutting: `biometric → password` (biometric is the
-    ///     shortcut that releases the typed password from an
-    ///     OS-managed slot, never a replacement),
-    ///   - Hardware-specific: `password` is mandatory (T2 is always
-    ///     password-gated).
-    ///
-    /// Callers always carry a tier in hand at the validation site
-    /// — wizard mapping, config decode, settings apply — so there
-    /// is no tier-independent overload. A bag that needs to be
-    /// validated without a tier is a code smell.
+    /// Cross-cutting invariant: `biometric → password` (biometric is
+    /// the shortcut that releases the typed password from an
+    /// OS-managed slot, never a replacement). Callers always carry a
+    /// tier in hand at the validation site — wizard mapping, config
+    /// decode, settings apply — so there is no tier-independent
+    /// overload. A bag that needs to be validated without a tier is a
+    /// code smell.
     pub fn is_valid_for_tier(self, tier: SecurityTier) -> bool {
         if self.biometric && !self.password {
             return false;
         }
-        if tier == SecurityTier::Hardware && !self.password {
-            return false;
-        }
+        // Hardware tier: password is optional (TPM/SE/StrongBox
+        // provides hardware binding); biometric gate still requires
+        // password if enabled.
+        _ = tier;
         true
     }
 
@@ -237,16 +234,14 @@ impl SecurityConfig {
     }
 
     /// True when the config has any user-typed secret on the unlock
-    /// path. Paranoid and Hardware are mandatory-password by
-    /// definition (Hardware uses the password as a modifier gate on
-    /// top of the hardware-bound vault; biometric is an optional
-    /// shortcut that releases the password from an OS-managed slot,
-    /// never a replacement). Keychain flips on the explicit
-    /// password modifier (the bank-style T1+pw shape).
+    /// path. Paranoid is mandatory-password by definition; Hardware
+    /// flips on `modifiers.password` (optional — TPM/SE/StrongBox
+    /// provides hardware binding, password is defense-in-depth).
+    /// Keychain flips on the explicit password modifier.
     pub fn has_user_secret(&self) -> bool {
         match self.tier {
-            SecurityTier::Paranoid | SecurityTier::Hardware => true,
-            SecurityTier::Keychain => self.modifiers.password,
+            SecurityTier::Paranoid => true,
+            SecurityTier::Hardware | SecurityTier::Keychain => self.modifiers.password,
             SecurityTier::Plaintext => false,
         }
     }

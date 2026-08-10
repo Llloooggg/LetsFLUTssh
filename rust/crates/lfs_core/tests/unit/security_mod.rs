@@ -38,14 +38,15 @@ fn predicate_accessors() {
 }
 
 #[test]
-fn modifiers_is_valid_for_tier_hardware_requires_password() {
-    // The Hardware tier rejects `password=false` outright;
-    // biometric is an optional shortcut, never a replacement.
+fn modifiers_is_valid_for_tier_hardware_password_optional() {
+    // The Hardware tier accepts `password=false` (TPM/SE/StrongBox
+    // provides hardware binding); biometric is an optional shortcut,
+    // never a replacement.
     let no_pw = SecurityTierModifiers {
         password: false,
         biometric: false,
     };
-    assert!(!no_pw.is_valid_for_tier(SecurityTier::Hardware));
+    assert!(no_pw.is_valid_for_tier(SecurityTier::Hardware));
     // Same bag is valid on every non-Hardware tier.
     assert!(no_pw.is_valid_for_tier(SecurityTier::Plaintext));
     assert!(no_pw.is_valid_for_tier(SecurityTier::Keychain));
@@ -61,8 +62,7 @@ fn modifiers_is_valid_for_tier_hardware_requires_password() {
     assert!(with_pw.is_valid_for_tier(SecurityTier::Hardware));
 
     // Biometric without password is still invalid for every
-    // tier — the cross-cutting biometric → password rule
-    // composes with the Hardware-specific rule.
+    // tier — the cross-cutting biometric → password rule.
     let bad = SecurityTierModifiers {
         password: false,
         biometric: true,
@@ -183,13 +183,9 @@ fn config_predicates_match_dart() {
             false,
             true,
         ),
-        // Hardware always reports `has_user_secret == true`
-        // regardless of the password modifier value on disk —
-        // T2 is mandatory-password by design (the password
-        // is the primary gate, biometric is the optional
-        // shortcut). A stored `password=false` on a Hardware
-        // config is treated as drift and overridden by the
-        // mandatory-password invariant when the predicate runs.
+        // Hardware `has_user_secret` flips on `modifiers.password` —
+        // optional by design (TPM/SE/StrongBox provides hardware
+        // binding; password is defense-in-depth).
         (
             SecurityTier::Hardware,
             false,
@@ -197,7 +193,7 @@ fn config_predicates_match_dart() {
             false,
             false,
             true,
-            true,
+            false,
         ),
         (
             SecurityTier::Hardware,
