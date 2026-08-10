@@ -441,7 +441,7 @@ impl Db {
         }
         // PRAGMA rekey failed — likely plaintext DB without codec.
         // Fall back to ATTACH + sqlcipher_export which works on any source.
-        let db_path = self.path().to_path_buf();
+        let db_path = self.path.to_path_buf();
         let tmp_path = db_path.with_extension("tmp");
         // Clean up any leftover from a prior crash.
         let _ = std::fs::remove_file(&tmp_path);
@@ -469,26 +469,47 @@ impl Db {
         g.inner()
             .execute_batch("DETACH DATABASE encrypted")
             .map_err(|e| Error::Db(format!("detach encrypted: {e}")))?;
-        // Close the SQLite connection before swapping files.
         drop(g);
-        // 3-step swap — works on all platforms including Windows where
-        // rename-over is blocked while a file handle is open.
-        // Step 1: rename temp → unique name (atomic within same fs, always succeeds)
-        let unique = tmp_path.with_extension("tmp2");
-        std::fs::rename(&tmp_path, &unique).map_err(|e| {
-            let _ = std::fs::remove_file(&tmp_path);
-            Error::Io(format!("swap step 1 (temp→unique): {e}"))
-        })?;
-        // Step 2: remove original + sidecars (they are now free)
-        let _ = std::fs::remove_file(&db_path);
+        // Two-phase swap — works on Windows where rename-over is blocked
+        // while a file handle is open.
+        // Move original aside first (rename works even for open files on
+        // Windows; only delete and rename-over are blocked).
+        let backup = db_path.with_extension("bak");
+        let _ = std::fs::remove_file(&backup);
+        match std::fs::rename(&db_path, &backup) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // No original to back up — nothing to do, already clean.
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&backup);
+                return Err(Error::Io(format!("swap original→bak: {e}")));
+            }
+        }
         for suffix in ["-wal", "-shm", "-journal"] {
             let _ = std::fs::remove_file(format!("{}{}", db_path.display(), suffix));
         }
-        // Step 3: rename unique → final name
-        std::fs::rename(&unique, &db_path).map_err(|e| {
-            let _ = std::fs::remove_file(&unique);
-            Error::Io(format!("swap step 3 (unique→db): {e}"))
-        })?;
+        // Move temp → original name. If the backup (formerly original) is
+        // still locked by a background process, retry with exponential
+        // backoff — the handle will be released.
+        let mut retries = 0usize;
+        loop {
+            match std::fs::rename(&tmp_path, &db_path) {
+                Ok(()) => break,
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && retries < 5 => {
+                    std::thread::sleep(std::time::Duration::from_millis(50 * (retries + 1) as u64));
+                    retries += 1;
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(&tmp_path);
+                    let _ = std::fs::rename(&backup, &db_path);
+                    return Err(Error::Io(format!(
+                        "swap temp→original (retry={retries}): {e}"
+                    )));
+                }
+            }
+        }
+        let _ = std::fs::remove_file(&backup);
         Ok(())
     }
 
