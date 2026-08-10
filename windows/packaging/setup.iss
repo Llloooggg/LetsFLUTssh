@@ -123,6 +123,8 @@ var
   HostArch: Integer;
   ExpectedArch: String;
   ErrorMessage: String;
+  HostArchStr: String;
+  DownloadArchStr: String;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
@@ -134,25 +136,39 @@ begin
   ExpectedArch := '{#OutputArch}';
   HostArch := ProcessorArchitecture();
   if ExpectedArch = 'arm64' and HostArch <> paArm64 then begin
+    if HostArch = paX64 then begin
+      HostArchStr := 'x64 (AMD64)';
+      DownloadArchStr := 'x64';
+    end else if HostArch = paIntel then begin
+      HostArchStr := 'x86 (32-bit)';
+      DownloadArchStr := 'x64';
+    end else begin
+      HostArchStr := 'unknown';
+      DownloadArchStr := 'x64';
+    end;
     ErrorMessage := Format(
       'This installer was built for ARM64 but your PC is %s.%n%n' +
       'Please download the %s version from the releases page.',
-      [
-        IIF(HostArch = paX64, 'x64 (AMD64)', IIF(HostArch = paIntel, 'x86 (32-bit)', 'unknown')),
-        IIF(HostArch = paX64, 'x64', IIF(HostArch = paArm64, 'ARM64', 'x64'))
-      ]);
+      [HostArchStr, DownloadArchStr]);
     MsgBox(ErrorMessage, mbCriticalError, MB_OK);
     Result := False;
     Exit;
   end;
   if ExpectedArch = 'x64' and HostArch <> paX64 then begin
+    if HostArch = paArm64 then begin
+      HostArchStr := 'ARM64';
+      DownloadArchStr := 'ARM64';
+    end else if HostArch = paIntel then begin
+      HostArchStr := 'x86 (32-bit)';
+      DownloadArchStr := 'x64';
+    end else begin
+      HostArchStr := 'unknown';
+      DownloadArchStr := 'x64';
+    end;
     ErrorMessage := Format(
       'This installer was built for x64 (AMD64) but your PC is %s.%n%n' +
       'Please download the %s version from the releases page.',
-      [
-        IIF(HostArch = paArm64, 'ARM64', IIF(HostArch = paIntel, 'x86 (32-bit)', 'unknown')),
-        IIF(HostArch = paArm64, 'ARM64', 'x64')
-      ]);
+      [HostArchStr, DownloadArchStr]);
     MsgBox(ErrorMessage, mbCriticalError, MB_OK);
     Result := False;
     Exit;
