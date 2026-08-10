@@ -21,6 +21,12 @@ import 'terminal_palette_theme.dart';
 /// feature behind a [TerminalViewConfig] flag and the host wires only the
 /// callbacks the config enables, so an unsupported call is never reached.
 abstract class TerminalController {
+  /// True when the controller has been disposed and should not be called.
+  /// Only `ReplayTerminalController` returns true; `LiveTerminalController`
+  /// disposes the session separately, so this stays false — callers that
+  /// need a guard should check the session's own state instead.
+  bool get disposed => false;
+
   /// Pull the current viewport snapshot. Always re-read from Rust — the engine
   /// owns the grid; this is called on every repaint.
   TerminalFrame snapshot();
@@ -146,7 +152,25 @@ class LiveTerminalController extends TerminalController {
   bool get isLive => true;
 
   @override
-  TerminalFrame snapshot() => _session.snapshot();
+  TerminalFrame snapshot() {
+    if (_disposed) {
+      return const TerminalFrame(
+        cols: 0,
+        rows: 0,
+        cursor: TerminalCursor(
+          row: 0,
+          col: 0,
+          shape: TerminalCursorShape.hidden,
+          visible: false,
+        ),
+        displayOffset: 0,
+        historySize: 0,
+        mouseTracking: TerminalMouseTracking.none,
+        cells: [],
+      );
+    }
+    return _session.snapshot();
+  }
 
   @override
   Listenable get repaint => _repaint;
@@ -155,12 +179,16 @@ class LiveTerminalController extends TerminalController {
   Stream<TerminalUiEvent> get uiEvents => _uiEvents.stream;
 
   @override
-  void resize(int cols, int rows) =>
-      unawaited(_session.resize(cols: cols, rows: rows));
+  void resize(int cols, int rows) {
+    if (_disposed) return;
+    unawaited(_session.resize(cols: cols, rows: rows));
+  }
 
   @override
-  void scroll(int delta) =>
-      unawaited(_session.scroll(delta: delta).then((_) => _notifyRepaint()));
+  void scroll(int delta) {
+    if (_disposed) return;
+    unawaited(_session.scroll(delta: delta).then((_) => _notifyRepaint()));
+  }
 
   // The engine raises no Wakeup for a host-driven selection change, so the
   // controller pulses `repaint` once the change lands — that way every caller
@@ -173,40 +201,80 @@ class LiveTerminalController extends TerminalController {
     int endRow,
     int endCol,
     TerminalSelectionKind kind,
-  ) => _session
-      .setSelection(
+  ) async {
+    if (_disposed) return;
+    try {
+      await _session.setSelection(
         startRow: startRow,
         startCol: startCol,
         endRow: endRow,
         endCol: endCol,
         kind: kind,
-      )
-      .then((_) => _notifyRepaint());
+      );
+      _notifyRepaint();
+    } catch (_) {
+      // Session disposed or closed — the event stream will surface
+      // a `Closed` event shortly, so the view handles teardown.
+    }
+  }
 
   @override
-  void clearSelection() =>
+  void clearSelection() {
+    if (_disposed) return;
+    try {
       unawaited(_session.clearSelection().then((_) => _notifyRepaint()));
+    } catch (_) {
+      // Session disposed — ignore.
+    }
+  }
 
   @override
-  Future<String?> selectionText() => _session.selectionText();
+  Future<String?> selectionText() async {
+    if (_disposed) return null;
+    try {
+      return _session.selectionText();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
-  void sendKey(TerminalKey key) => unawaited(_session.sendKey(key: key));
+  void sendKey(TerminalKey key) {
+    if (_disposed) return;
+    unawaited(_session.sendKey(key: key));
+  }
 
   @override
-  Future<void> paste(String text) => _session.paste(text: text);
+  Future<void> paste(String text) async {
+    if (_disposed) return;
+    try {
+      await _session.paste(text: text);
+    } catch (_) {
+      // Session disposed — ignore.
+    }
+  }
 
   @override
-  void writeInput(List<int> bytes) =>
-      unawaited(_session.writeInput(bytes: bytes));
+  void writeInput(List<int> bytes) {
+    if (_disposed) return;
+    unawaited(_session.writeInput(bytes: bytes));
+  }
 
   @override
-  void sendMouse(TerminalMouseInput event) =>
-      unawaited(_session.sendMouse(event: event));
+  void sendMouse(TerminalMouseInput event) {
+    if (_disposed) return;
+    unawaited(_session.sendMouse(event: event));
+  }
 
   @override
-  Future<List<TerminalMatch>> search(String query) =>
-      _session.search(query: query);
+  Future<List<TerminalMatch>> search(String query) async {
+    if (_disposed) return const [];
+    try {
+      return _session.search(query: query);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// Release the event subscription and the bridge surfaces. The wrapped
   /// session is NOT disposed here — its lifecycle (and any attached recorder)
@@ -248,6 +316,10 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
   final TerminalReplay _replay;
   int _cols;
   int _rows;
+  bool _disposed = false;
+
+  @override
+  bool get disposed => _disposed;
 
   /// Current grid width in columns — the wrap width feeders (the log viewer)
   /// format against. Tracks [resize].
@@ -257,7 +329,25 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
   int get rows => _rows;
 
   @override
-  TerminalFrame snapshot() => _replay.snapshot();
+  TerminalFrame snapshot() {
+    if (_disposed) {
+      return const TerminalFrame(
+        cols: 0,
+        rows: 0,
+        cursor: TerminalCursor(
+          row: 0,
+          col: 0,
+          shape: TerminalCursorShape.hidden,
+          visible: false,
+        ),
+        displayOffset: 0,
+        historySize: 0,
+        mouseTracking: TerminalMouseTracking.none,
+        cells: [],
+      );
+    }
+    return _replay.snapshot();
+  }
 
   @override
   Listenable get repaint => this;
@@ -268,30 +358,50 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
   /// Feed bytes (UTF-8 / ANSI) into the engine and schedule a repaint. The
   /// engine drops any `PtyWrite` reply (no shell) — see `TerminalReplay`.
   void feed(List<int> bytes) {
-    _replay.feed(bytes: bytes);
+    if (_disposed) return;
+    try {
+      _replay.feed(bytes: bytes);
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
   /// Wipe the grid + scrollback and repaint. Used by the recording scrub path
   /// before re-feeding from `t=0`.
   void clear() {
-    _replay.clear();
+    if (_disposed) return;
+    try {
+      _replay.clear();
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
   @override
   void resize(int cols, int rows) {
+    if (_disposed) return;
     if (cols == _cols && rows == _rows) return;
     _cols = cols;
     _rows = rows;
-    _replay.resize(cols: cols, rows: rows);
+    try {
+      _replay.resize(cols: cols, rows: rows);
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
   /// Re-theme the terminal (brightness flip). Re-resolves cell colors on the
   /// next snapshot.
   void setPalette(TerminalPalette palette) {
-    _replay.setPalette(palette: palette);
+    if (_disposed) return;
+    try {
+      _replay.setPalette(palette: palette);
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
@@ -303,27 +413,45 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
     int endCol,
     TerminalSelectionKind kind,
   ) async {
-    _replay.setSelection(
-      startRow: startRow,
-      startCol: startCol,
-      endRow: endRow,
-      endCol: endCol,
-      kind: kind,
-    );
+    if (_disposed) return;
+    try {
+      _replay.setSelection(
+        startRow: startRow,
+        startCol: startCol,
+        endRow: endRow,
+        endCol: endCol,
+        kind: kind,
+      );
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
   @override
   void clearSelection() {
-    _replay.clearSelection();
+    if (_disposed) return;
+    try {
+      _replay.clearSelection();
+    } catch (_) {
+      return;
+    }
     notifyListeners();
   }
 
   @override
-  Future<String?> selectionText() async => _replay.selectionText();
+  Future<String?> selectionText() async {
+    if (_disposed) return null;
+    try {
+      return _replay.selectionText();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   void dispose() {
+    _disposed = true;
     // Release the Rust-side replay engine deterministically instead of
     // leaving the opaque handle to the FRB finalizer; the host calls
     // this from its `State.dispose`.

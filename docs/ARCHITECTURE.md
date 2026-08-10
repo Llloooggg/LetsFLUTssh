@@ -4388,6 +4388,7 @@ classDiagram
     events() subscribed once
     Wakeup -> repaint
     other events -> uiEvents
+    disposed flag — all methods safe after dispose
   }
   class ReplayTerminalController {
     wraps TerminalReplay
@@ -4395,6 +4396,7 @@ classDiagram
     feed / clear / setPalette
     uiEvents == null
     live-only caps are no-ops
+    disposed flag — all methods safe after dispose
   }
   TerminalController <|-- LiveTerminalController
   TerminalController <|-- ReplayTerminalController
@@ -4413,8 +4415,14 @@ each `Wakeup` into a public `repaint` `Listenable` and every other event onto a
 shell-less `TerminalReplay` whose `repaint` is itself, `uiEvents` is null, and whose
 live-only methods (`sendKey`/`paste`/`writeInput`/`sendMouse`/`scroll`/`search`)
 inherit inert base no-ops — the read-only config never enables the features that
-would call them. The host disposes the controller; the live adapter does **not**
-dispose its wrapped session (the pane owns that lifecycle, recorder and all).
+would call them. **Disposal safety.** Both controllers track a `disposed` flag.
+When `dispose()` runs, the flag flips and every method becomes a safe no-op
+(`snapshot` returns an empty `TerminalFrame`, async methods return immediately,
+sync methods return early) — this prevents `DroppableDisposedException` when
+Flutter's gesture queue dispatches pointer events (drag-to-select, copy-paste
+overlay pans) after the widget's `State.dispose`. The host disposes the controller;
+the live adapter does **not** dispose its wrapped session (the pane owns that
+lifecycle, recorder and all).
 
 **`TerminalViewConfig`.** Independent flags — `interactive` (route keys to the
 host's `onKey`), `selectable` (drag-select + copy + select-all), `pasteable`

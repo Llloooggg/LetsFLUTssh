@@ -561,6 +561,12 @@ class _TerminalViewState extends State<TerminalView> {
     TerminalCellCoord end,
     TerminalSelectionKind kind,
   ) {
+    // Guard against calls after the controller was disposed — gesture events
+    // can still fire after dispose (pending pointer-queue entries). The
+    // controller's own `disposed` flag + try-catch on the FRB call handle
+    // the Rust-side DroppableDisposedException, but wrap here too so the
+    // `.then` continuation never reaches a disposed widget.
+    if (widget.controller.disposed) return;
     unawaited(
       widget.controller
           .setSelection(
@@ -570,6 +576,11 @@ class _TerminalViewState extends State<TerminalView> {
             end.col,
             kind,
           )
+          .catchError((_) {
+            // FRB call on a disposed handle throws DroppableDisposedException;
+            // the controller guard above + try-catch inside the controller
+            // should prevent this, but keep the catch as a safety net.
+          })
           .then((_) {
             // The engine does not raise a Wakeup for a host-driven selection,
             // so pull a fresh frame to paint the highlight.
