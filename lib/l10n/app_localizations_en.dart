@@ -1376,6 +1376,37 @@ class SEn extends S {
   String get wrongPassword => 'Wrong password';
 
   @override
+  String get changePassword => 'Change password';
+
+  @override
+  String get changePasswordTitle => 'Change password';
+
+  @override
+  String get currentPassword => 'Current Password';
+
+  @override
+  String get enterCurrentPassword => 'Enter current password';
+
+  @override
+  String get newPassword => 'New password';
+
+  @override
+  String get enterNewPassword => 'Enter new password';
+
+  @override
+  String get confirmNewPassword => 'Confirm new password';
+
+  @override
+  String get passwordChanged => 'Password changed.';
+
+  @override
+  String get passwordChangeFailed =>
+      'Failed to change password. Check logs for details.';
+
+  @override
+  String get passwordRequired => 'Password is required.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh is locked';
 
   @override
@@ -1883,9 +1914,6 @@ class SEn extends S {
 
   @override
   String get wrongMasterPassword => 'Wrong password. Try again.';
-
-  @override
-  String get currentPassword => 'Current Password';
 
   @override
   String get forgotPassword => 'Forgot Password?';

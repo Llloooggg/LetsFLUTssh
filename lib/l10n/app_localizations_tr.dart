@@ -1342,6 +1342,36 @@ class STr extends S {
   String get wrongPassword => 'Yanlış parola';
 
   @override
+  String get changePassword => 'CHANGE_PASSWORD';
+
+  @override
+  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+
+  @override
+  String get currentPassword => 'Mevcut şifre';
+
+  @override
+  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+
+  @override
+  String get newPassword => 'NEW_PASSWORD';
+
+  @override
+  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+
+  @override
+  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+
+  @override
+  String get passwordChanged => 'PASSWORD_CHANGED';
+
+  @override
+  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+
+  @override
+  String get passwordRequired => 'PASSWORD_REQUIRED';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh kilitli';
 
   @override
@@ -1843,9 +1873,6 @@ class STr extends S {
 
   @override
   String get wrongMasterPassword => 'Yanlış şifre. Tekrar deneyin.';
-
-  @override
-  String get currentPassword => 'Mevcut şifre';
 
   @override
   String get forgotPassword => 'Şifrenizi mi unuttunuz?';

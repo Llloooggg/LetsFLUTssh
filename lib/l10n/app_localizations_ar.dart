@@ -1345,6 +1345,36 @@ class SAr extends S {
   String get wrongPassword => 'كلمة مرور خاطئة';
 
   @override
+  String get changePassword => 'CHANGE_PASSWORD';
+
+  @override
+  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+
+  @override
+  String get currentPassword => 'كلمة المرور الحالية';
+
+  @override
+  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+
+  @override
+  String get newPassword => 'NEW_PASSWORD';
+
+  @override
+  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+
+  @override
+  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+
+  @override
+  String get passwordChanged => 'PASSWORD_CHANGED';
+
+  @override
+  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+
+  @override
+  String get passwordRequired => 'PASSWORD_REQUIRED';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh مُقفل';
 
   @override
@@ -1849,9 +1879,6 @@ class SAr extends S {
 
   @override
   String get wrongMasterPassword => 'كلمة مرور خاطئة. حاول مرة أخرى.';
-
-  @override
-  String get currentPassword => 'كلمة المرور الحالية';
 
   @override
   String get forgotPassword => 'نسيت كلمة المرور؟';

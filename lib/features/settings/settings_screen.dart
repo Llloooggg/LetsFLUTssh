@@ -88,6 +88,7 @@ import '../../widgets/import_export/lfs_import_preview_dialog.dart';
 import '../../widgets/import_export/link_import_preview_dialog.dart';
 import '../../widgets/import_export/paste_import_link_dialog.dart';
 import '../../widgets/security/security_setup_dialog.dart';
+import '../../widgets/security/change_password_dialog.dart';
 import '../../widgets/import_export/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
 

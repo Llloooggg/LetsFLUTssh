@@ -114,7 +114,13 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       unavailableReason: unavailableReason,
       initiallyExpanded: isCurrent,
       onSelect: onSelectTier,
-      activeTierExtras: null,
+      activeTierExtras: _activeTierExtrasFor(
+        tier: tier,
+        isCurrent: isCurrent,
+        currentModifiers: currentModifiers,
+        available: available,
+        l10n: l10n,
+      ),
       biometricSpec: _biometricSpecFor(
         tier: tier,
         currentLevel: currentLevel,
@@ -131,6 +137,63 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         tierUnavailableReason: unavailableReason,
         l10n: l10n,
       ),
+    );
+  }
+
+  /// Build the extras slot for the current tier card. Shows a "Change
+  /// password" button when the tier has a password (keychain, hardware,
+  /// paranoid) and the tier is active. The button opens [ChangePasswordDialog]
+  /// which lets the user change the password without switching tiers.
+  Widget? _activeTierExtrasFor({
+    required SecurityTier tier,
+    required bool isCurrent,
+    required SecurityTierModifiers currentModifiers,
+    required bool available,
+    required S l10n,
+  }) {
+    // No password on plaintext — nothing to change.
+    if (tier == SecurityTier.plaintext) return null;
+    // Only show the button when this tier is the currently active one.
+    if (!isCurrent) return null;
+    // Paranoid requires a password — always show the button.
+    if (tier == SecurityTier.paranoid) {
+      return _ChangePasswordButton(
+        l10n: l10n,
+        onTap: () async {
+          final l10n = S.of(context);
+          final success = await ChangePasswordDialog.show(
+            context: context,
+            tier: tier,
+          );
+          if (success == true && mounted) {
+            Toast.show(
+              context,
+              message: l10n.passwordChanged,
+              level: ToastLevel.success,
+            );
+          }
+        },
+      );
+    }
+    // Keychain (T1) and hardware (T2) — only show if password is enabled.
+    if (!currentModifiers.password) return null;
+    // Hardware tier: only show when the tier is available.
+    if (tier == SecurityTier.hardware && !available) return null;
+    return _ChangePasswordButton(
+      l10n: l10n,
+      onTap: () async {
+        final success = await ChangePasswordDialog.show(
+          context: context,
+          tier: tier,
+        );
+        if (success == true && mounted) {
+          Toast.show(
+            context,
+            message: l10n.passwordChanged,
+            level: ToastLevel.success,
+          );
+        }
+      },
     );
   }
 
@@ -729,5 +792,40 @@ class _DisabledDropdownTrigger extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(message: reason, child: child);
+  }
+}
+
+/// "Change password" action button rendered inside the active tier card.
+///
+/// Uses a small icon button with a password label. Tapping opens
+/// [ChangePasswordDialog] which lets the user change the tier password
+/// without switching tiers.
+class _ChangePasswordButton extends StatelessWidget {
+  final S l10n;
+  final VoidCallback onTap;
+
+  const _ChangePasswordButton({required this.l10n, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        children: [
+          AppIconButton(
+            icon: Icons.lock_reset,
+            tooltip: l10n.changePassword,
+            onTap: onTap,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              l10n.changePassword,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

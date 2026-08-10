@@ -285,6 +285,43 @@ class HardwareTierVault {
     }
   }
 
+  /// Change the PIN protecting the hardware-tier vault.
+  ///
+  /// Verification + re-seal in one call: reads the vault under the
+  /// old PIN to prove ownership, clears the old artefacts, and
+  /// stores the DB key under a freshly provisioned salt sealed to
+  /// the new PIN.
+  ///
+  /// Returns `true` when the old PIN is correct and the new PIN
+  /// stores cleanly. Returns `false` on wrong PIN or storage error.
+  Future<bool> changePin({
+    required String oldPin,
+    required String newPin,
+  }) async {
+    try {
+      if (!await isAvailable()) return false;
+      try {
+        await rust_vault.hardwareTierVaultChangePin(
+          oldPin: oldPin,
+          newPin: newPin,
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'HardwareTierVault.changePin (Rust): $e',
+          name: 'HardwareTierVault',
+        );
+        return false;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.changePin failed: $e',
+        name: 'HardwareTierVault',
+      );
+      return false;
+    }
+  }
+
   /// Resolve the TPM / hw-vault auth value for a (password, biometric)
   /// modifier combo — shared across platforms, not just Linux/TPM2.
   /// Matches the "universal bank-style" model documented in the

@@ -413,6 +413,68 @@ pub async fn hardware_tier_vault_delete_salt() -> Result<(), String> {
     })?
 }
 
+/// Change the password (PIN) protecting the hardware-tier vault.
+///
+/// Verification + re-seal in one call: reads the vault under the old
+/// PIN to prove ownership, clears the old artefacts, and stores the
+/// DB key under a freshly provisioned salt sealed to the new PIN.
+///
+/// The DB key comes from the active [`SecretStore`] slot (same as
+/// the tier-switch path) so it never touches the Dart heap.
+///
+/// `Ok(())` when the old PIN is correct and the new PIN stores
+/// cleanly. `Err` on wrong PIN (reads fail → `None`) or storage
+/// failure (bad vault, IO error, TPM error).
+pub async fn hardware_tier_vault_change_pin(old_pin: String, new_pin: String) -> Result<(), String> {
+    let support_dir = pinned_support_dir()?;
+    tokio::task::spawn_blocking(move || {
+        let dir = std::path::Path::new(&support_dir);
+
+        // 1. Read the salt to verify the old PIN.
+        let Some(salt) = lfs_core::security::hardware_tier_vault::salt::read(dir).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::VAULT,
+                &format!("hw_vault salt read for change: {e}"),
+            )
+        })? else {
+            return Err(frb_err::wire(
+                frb_err::kind::VAULT,
+                "hw_vault: no salt found — not configured",
+            ));
+        };
+
+        let auth = derive_auth_for_pin(&old_pin, &salt);
+        // Try to read with old PIN — if it fails, the PIN is wrong.
+        let db_key_bytes = dispatch_read(&support_dir, &auth)?
+            .ok_or_else(|| {
+                frb_err::wire(
+                    frb_err::kind::VAULT,
+                    "hw_vault: old PIN rejected",
+                )
+            })?;
+
+        // 2. Clear old vault artefacts.
+        dispatch_clear(&support_dir)?;
+
+        // 3. Re-seal under new PIN.
+        let salt = lfs_core::security::hardware_tier_vault::salt::provision(dir).map_err(|e| {
+            frb_err::wire(
+                frb_err::kind::VAULT,
+                &format!("hw_vault salt provision for change: {e}"),
+            )
+        })?;
+        let new_auth = derive_auth_for_pin(&new_pin, &salt);
+        dispatch_store(&support_dir, &db_key_bytes, &salt, &new_auth)
+    })
+    .await
+    .map_err(|e| {
+        frb_err::wire(
+            frb_err::kind::GENERIC,
+            &format!("hw_vault change_pin join: {e}"),
+        )
+    })?
+}
+
 /// Read the on-disk salt for the Linux hardware-vault envelope.
 /// Returns `None` for missing / malformed files. No-op `Ok(None)`
 /// on non-Linux targets (Apple / Android keep the salt in a

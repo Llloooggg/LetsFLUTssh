@@ -1313,6 +1313,36 @@ class SKo extends S {
   String get wrongPassword => '잘못된 비밀번호';
 
   @override
+  String get changePassword => 'CHANGE_PASSWORD';
+
+  @override
+  String get changePasswordTitle => 'CHANGE_PASSWORD_TITLE';
+
+  @override
+  String get currentPassword => '현재 비밀번호';
+
+  @override
+  String get enterCurrentPassword => 'ENTER_CURRENT_PASSWORD';
+
+  @override
+  String get newPassword => 'NEW_PASSWORD';
+
+  @override
+  String get enterNewPassword => 'ENTER_NEW_PASSWORD';
+
+  @override
+  String get confirmNewPassword => 'CONFIRM_NEW_PASSWORD';
+
+  @override
+  String get passwordChanged => 'PASSWORD_CHANGED';
+
+  @override
+  String get passwordChangeFailed => 'PASSWORD_CHANGE_FAILED';
+
+  @override
+  String get passwordRequired => 'PASSWORD_REQUIRED';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh이(가) 잠겨 있습니다';
 
   @override
@@ -1800,9 +1830,6 @@ class SKo extends S {
 
   @override
   String get wrongMasterPassword => '비밀번호가 올바르지 않습니다. 다시 시도하세요.';
-
-  @override
-  String get currentPassword => '현재 비밀번호';
 
   @override
   String get forgotPassword => '비밀번호를 잊으셨나요?';

@@ -168,6 +168,26 @@ Future<Uint8List?> hardwareTierVaultReadSalt() =>
 Future<void> hardwareTierVaultDeleteSalt() =>
     RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultDeleteSalt();
 
+/// Change the password (PIN) protecting the hardware-tier vault.
+///
+/// Verification + re-seal in one call: reads the vault under the old
+/// PIN to prove ownership, clears the old artefacts, and stores the
+/// DB key under a freshly provisioned salt sealed to the new PIN.
+///
+/// The DB key comes from the active [`SecretStore`] slot (same as
+/// the tier-switch path) so it never touches the Dart heap.
+///
+/// `Ok(())` when the old PIN is correct and the new PIN stores
+/// cleanly. `Err` on wrong PIN (reads fail → `None`) or storage
+/// failure (bad vault, IO error, TPM error).
+Future<void> hardwareTierVaultChangePin({
+  required String oldPin,
+  required String newPin,
+}) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultChangePin(
+  oldPin: oldPin,
+  newPin: newPin,
+);
+
 /// Read the on-disk salt for the Linux hardware-vault envelope.
 /// Returns `None` for missing / malformed files. No-op `Ok(None)`
 /// on non-Linux targets (Apple / Android keep the salt in a

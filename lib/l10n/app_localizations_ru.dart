@@ -1352,6 +1352,37 @@ class SRu extends S {
   String get wrongPassword => 'Неверный пароль';
 
   @override
+  String get changePassword => 'Изменить пароль';
+
+  @override
+  String get changePasswordTitle => 'Изменить пароль';
+
+  @override
+  String get currentPassword => 'Текущий пароль';
+
+  @override
+  String get enterCurrentPassword => 'Введите текущий пароль';
+
+  @override
+  String get newPassword => 'Новый пароль';
+
+  @override
+  String get enterNewPassword => 'Введите новый пароль';
+
+  @override
+  String get confirmNewPassword => 'Подтвердите новый пароль';
+
+  @override
+  String get passwordChanged => 'Пароль изменён.';
+
+  @override
+  String get passwordChangeFailed =>
+      'Не удалось изменить пароль. Проверьте журналы.';
+
+  @override
+  String get passwordRequired => 'Пароль обязателен.';
+
+  @override
   String get lockScreenTitle => 'LetsFLUTssh заблокирован';
 
   @override
@@ -1860,9 +1891,6 @@ class SRu extends S {
 
   @override
   String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
-
-  @override
-  String get currentPassword => 'Текущий пароль';
 
   @override
   String get forgotPassword => 'Забыли пароль?';
