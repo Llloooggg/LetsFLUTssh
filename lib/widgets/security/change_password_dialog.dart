@@ -44,10 +44,8 @@ class ChangePasswordDialog extends ConsumerStatefulWidget {
   }) async {
     return Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => ChangePasswordDialog(
-          tier: tier,
-          currentPassword: currentPassword,
-        ),
+        builder: (_) =>
+            ChangePasswordDialog(tier: tier, currentPassword: currentPassword),
       ),
     );
   }
@@ -96,7 +94,8 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
       });
       return;
     }
-    if (_needsCurrentPassword && (currentPassword == null || currentPassword == '')) {
+    if (_needsCurrentPassword &&
+        (currentPassword == null || currentPassword == '')) {
       setState(() {
         _error = l10n.passwordConfirmationRequired;
       });
@@ -116,7 +115,11 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
       switch (widget.tier) {
         case SecurityTier.keychain:
           // T1+password: change the keychain/password gate password.
-          success = await _tryChangeMasterPassword(mp, currentPassword!, newPassword);
+          success = await _tryChangeMasterPassword(
+            mp,
+            currentPassword!,
+            newPassword,
+          );
         case SecurityTier.hardware:
           // T2: change the hardware-vault PIN.
           success = await vault.changePin(
@@ -125,7 +128,11 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
           );
         case SecurityTier.paranoid:
           // T3: change the paranoid master password.
-          success = await _tryChangeMasterPassword(mp, currentPassword!, newPassword);
+          success = await _tryChangeMasterPassword(
+            mp,
+            currentPassword!,
+            newPassword,
+          );
         case SecurityTier.plaintext:
           // No password to change — shouldn't reach here.
           setState(() {
