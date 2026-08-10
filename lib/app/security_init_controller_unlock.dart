@@ -205,6 +205,8 @@ extension _UnlockFlows on SecurityInitController {
     final ctx = navigatorKey.currentContext;
     if (ctx == null) return Future.value(null);
     final l10n = S.of(ctx);
+    final mods = ref.read(configProvider).security?.modifiers;
+    final bioEnabled = mods?.biometric ?? false;
     return _dialogs.showTierSecretUnlock(
       ctx: ctx,
       labels: TierSecretUnlockLabels(
@@ -240,8 +242,10 @@ extension _UnlockFlows on SecurityInitController {
           return TierUnlockAttempt.error;
         }
       },
-      biometricUnlock: () => _tryBiometricCommit(SecurityTier.keychain),
-      autoTriggerBiometric: autoTriggerBiometric,
+      biometricUnlock: bioEnabled
+          ? () => _tryBiometricCommit(SecurityTier.keychain)
+          : null,
+      autoTriggerBiometric: autoTriggerBiometric && bioEnabled,
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref
@@ -394,6 +398,7 @@ extension _UnlockFlows on SecurityInitController {
     SecurityTierModifiers? mods, {
     required bool autoTriggerBiometric,
   }) async {
+    final bioEnabled = mods?.biometric ?? false;
     return _dialogs.showTierSecretUnlock(
       ctx: ctx,
       labels: TierSecretUnlockLabels(
@@ -425,8 +430,10 @@ extension _UnlockFlows on SecurityInitController {
           return TierUnlockAttempt.error;
         }
       },
-      biometricUnlock: () => _tryBiometricCommit(SecurityTier.hardware),
-      autoTriggerBiometric: autoTriggerBiometric,
+      biometricUnlock: bioEnabled
+          ? () => _tryBiometricCommit(SecurityTier.hardware)
+          : null,
+      autoTriggerBiometric: autoTriggerBiometric && bioEnabled,
       onReset: () async {
         await WipeAllService(
           credentialCacheEvict: ref
