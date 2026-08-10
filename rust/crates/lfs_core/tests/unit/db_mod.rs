@@ -11,7 +11,7 @@ fn open_in_memory_with_no_key() {
         .execute_batch("CREATE TABLE t (x INT)")
         .unwrap();
     let db = Db {
-        conn: Mutex::new(conn),
+        conn: Mutex::new(Some(conn)),
         path: std::path::PathBuf::new(),
     };
     let n = db.schema_object_count().unwrap();

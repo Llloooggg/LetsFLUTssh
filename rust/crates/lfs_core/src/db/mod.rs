@@ -178,7 +178,7 @@ pub mod webdav_sessions;
 /// rename-over-original → `db_init` unkeyed) can swap the file
 /// without the caller threading the path through every FRB hop.
 pub struct Db {
-    conn: Mutex<Connection>,
+    conn: Mutex<Option<Connection>>,
     path: std::path::PathBuf,
 }
 
@@ -191,7 +191,7 @@ impl Db {
     /// ephemeral database without going through SQLCipher.
     pub fn from_raw_for_tests(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Mutex::new(Some(conn)),
             path: std::path::PathBuf::new(),
         }
     }
@@ -291,7 +291,7 @@ impl Db {
             t0.elapsed().as_millis()
         );
         Ok(Self {
-            conn: Mutex::new(conn),
+            conn: Mutex::new(Some(conn)),
             path: path.to_path_buf(),
         })
     }
@@ -337,7 +337,8 @@ impl Db {
     ///   `app::db_init` so the plaintext file becomes the running
     ///   handle.
     pub fn export_plaintext_copy(&self, plaintext_path: &Path) -> Result<(), Error> {
-        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = self.conn.lock().unwrap();
+        let g = guard.as_ref().expect("Connection already closed");
         // Best-effort flush; on the rare case `wal_checkpoint`
         // fails (an open read-tx holding the WAL pinned), the
         // export still sees the latest committed pages via the
@@ -399,7 +400,8 @@ impl Db {
     /// the connection is alive. Returns the count of rows in
     /// `sqlite_master` (i.e. table count + index count).
     pub fn schema_object_count(&self) -> Result<i64, Error> {
-        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = self.conn.lock().unwrap();
+        let g = guard.as_ref().expect("Connection already closed");
         g.inner()
             .query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
             .map_err(|e| Error::Db(format!("schema count: {e}")))
@@ -433,11 +435,14 @@ impl Db {
                 acc
             },
         ));
-        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         // Try PRAGMA rekey first — works for encrypted→encrypted.
-        let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
-        if let Ok(()) = g.inner().execute_batch(&pragma) {
-            return Ok(());
+        {
+            let guard = self.conn.lock().unwrap();
+            let g = guard.as_ref().expect("Connection already closed");
+            let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
+            if let Ok(()) = g.inner().execute_batch(&pragma) {
+                return Ok(());
+            }
         }
         // PRAGMA rekey failed — likely plaintext DB without codec.
         // Fall back to ATTACH + sqlcipher_export which works on any source.
@@ -448,6 +453,9 @@ impl Db {
         for suffix in ["-wal", "-shm", "-journal"] {
             let _ = std::fs::remove_file(format!("{}{}", tmp_path.display(), suffix));
         }
+        // Lock for ATTACH + EXPORT phase.
+        let guard = self.conn.lock().unwrap();
+        let g = guard.as_ref().expect("Connection already closed");
         let _ = g.inner().execute_batch("PRAGMA cipher_compatibility = 4");
         let _ = g.inner().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
         let escaped = tmp_path.to_string_lossy().replace('\'', "''");
@@ -469,17 +477,28 @@ impl Db {
         g.inner()
             .execute_batch("DETACH DATABASE encrypted")
             .map_err(|e| Error::Db(format!("detach encrypted: {e}")))?;
-        drop(g);
-        // Two-phase swap — works on Windows where rename-over is blocked
-        // while a file handle is open.
-        // Move original aside first (rename works even for open files on
-        // Windows; only delete and rename-over are blocked).
+        let _ = g;
+        drop(guard);
+        // Close the SQLite connection entirely before swapping files.
+        // drop(g) only releases the MutexGuard — the Connection stays
+        // behind the Mutex and keeps the file handle open on Windows.
+        // We take ownership of the Connection, close it, do the swap,
+        // then re-open a fresh connection.
+        let conn = self
+            .conn
+            .lock()
+            .unwrap()
+            .take()
+            .expect("Connection already closed");
+        drop(conn);
+        // Two-phase swap — no retry needed because the Connection is
+        // now closed and no file handles are held.
         let backup = db_path.with_extension("bak");
         let _ = std::fs::remove_file(&backup);
         match std::fs::rename(&db_path, &backup) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // No original to back up — nothing to do, already clean.
+                // No original — nothing to back up, proceed.
             }
             Err(e) => {
                 let _ = std::fs::remove_file(&backup);
@@ -489,27 +508,36 @@ impl Db {
         for suffix in ["-wal", "-shm", "-journal"] {
             let _ = std::fs::remove_file(format!("{}{}", db_path.display(), suffix));
         }
-        // Move temp → original name. If the backup (formerly original) is
-        // still locked by a background process, retry with exponential
-        // backoff — the handle will be released.
-        let mut retries = 0usize;
-        loop {
-            match std::fs::rename(&tmp_path, &db_path) {
-                Ok(()) => break,
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && retries < 5 => {
-                    std::thread::sleep(std::time::Duration::from_millis(50 * (retries + 1) as u64));
-                    retries += 1;
-                }
-                Err(e) => {
-                    let _ = std::fs::remove_file(&tmp_path);
-                    let _ = std::fs::rename(&backup, &db_path);
-                    return Err(Error::Io(format!(
-                        "swap temp→original (retry={retries}): {e}"
-                    )));
-                }
-            }
-        }
+        std::fs::rename(&tmp_path, &db_path).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp_path);
+            let _ = std::fs::rename(&backup, &db_path);
+            Error::Io(format!("swap temp→original: {e}"))
+        })?;
         let _ = std::fs::remove_file(&backup);
+        // Re-open the Connection under the new key. The file at db_path
+        // is now encrypted with new_key (export + swap produced it).
+        let new_conn = Connection::open(&db_path)
+            .map_err(|e| Error::Db(format!("re-open after swap: {e}")))?;
+        // Apply the new key and standard PRAGMAs.
+        let _ = new_conn
+            .inner()
+            .execute_batch(&format!("PRAGMA key = \"x'{}'\"", &*hex_key));
+        let _ = new_conn
+            .inner()
+            .execute_batch("PRAGMA cipher_compatibility = 4");
+        let _ = new_conn.inner().execute_batch("PRAGMA journal_mode = WAL");
+        let _ = new_conn
+            .inner()
+            .execute_batch("PRAGMA synchronous = NORMAL");
+        let _ = new_conn.inner().execute_batch("PRAGMA foreign_keys = ON");
+        // Smoke test the new connection.
+        let _ = new_conn
+            .inner()
+            .query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(|e| Error::Db(format!("schema probe after re-open: {e}")))?;
+        self.conn.lock().unwrap().replace(new_conn);
         Ok(())
     }
 
@@ -522,8 +550,9 @@ impl Db {
         &self,
         f: impl FnOnce(&Connection) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        f(&g)
+        let guard = self.conn.lock().unwrap();
+        let g = guard.as_ref().expect("Connection already closed");
+        f(g)
     }
 
     /// Same as [`with_conn`] but hands the closure a `&mut
@@ -536,8 +565,9 @@ impl Db {
         &self,
         f: impl FnOnce(&mut Connection) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let mut g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        f(&mut g)
+        let mut guard = self.conn.lock().unwrap();
+        let g = guard.as_mut().expect("Connection already closed");
+        f(g)
     }
 }
 
