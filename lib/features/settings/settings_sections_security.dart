@@ -354,7 +354,11 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // session races with the DB rekey on disk. The rust-side
     // connection actor holds file locks; a live transport would
     // keep the DB open and the rekey would deadlock or corrupt.
-    ref.read(connectionsProvider.notifier).disconnectAll();
+    // Await here — `disconnectAll` now waits for `BusEvent::ConnectionRemoved`
+    // to arrive on every connection's bus subscription, ensuring the Rust
+    // actors have fully dropped before we touch the DB.
+    await ref.read(connectionsProvider.notifier).disconnectAll();
+    if (!mounted) return;
     AppProgressBarDialog.show(context, reporter);
     try {
       await _applyTierChange(result);

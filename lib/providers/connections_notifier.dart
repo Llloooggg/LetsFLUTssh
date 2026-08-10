@@ -546,7 +546,13 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   }
 
   /// Disconnect a specific connection.
-  void disconnect(String id) {
+  ///
+  /// Returns when the connection has been fully torn down — the Rust
+  /// actor has dropped, `BusEvent::ConnectionRemoved` has arrived on
+  /// the bus, and all Dart-side resources (subscriptions, progress
+  /// controller) have been cancelled. This is the synchronization
+  /// primitive that prevents races with DB rekey / tier transitions.
+  Future<void> disconnect(String id) async {
     final conn = _connections[id];
     if (conn == null) return;
     AppLogger.instance.log(
@@ -602,29 +608,34 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     // Cascade-disconnect the bastion this connection rode on.
     final bastion = conn.bastion;
     if (bastion != null) {
-      disconnect(bastion.id);
+      await disconnect(bastion.id);
     }
     // Tear down Connection's persistent resources (bus
     // subscription + progress controller) now that it's no
     // longer reachable through the map. `dispose()` is async
     // because it waits for `BusEvent::ConnectionRemoved` to
     // arrive on `Connection._busSub` before cancelling the
-    // subscription. Trap: cancelling the FRB stream while the
-    // Rust worker is mid-emit produces "Fail to post message to
-    // Dart" stderr noise, so the bus event is the cancellation
-    // handshake. Fire-and-forget here: the workspace caller
-    // doesn't await disconnect, and we already removed the
-    // Connection from the map so nothing reads it after this.
-    unawaited(conn.dispose());
+    // subscription. We await it here so callers (tier switcher,
+    // shutdown) can guarantee all Rust handles are dropped before
+    // proceeding — critical for DB rekey which must not race with
+    // an active connection.
+    await conn.dispose();
     _notify();
   }
 
   /// Gracefully disconnect all active SSH/SFTP sessions. Used
   /// before security-tier changes so the in-memory transport
   /// does not race with the DB rekey on disk.
-  void disconnectAll() {
-    for (final conn in _connections.values.toList()) {
-      disconnect(conn.id);
+  ///
+  /// Returns when every connection has fully torn down — the Rust
+  /// actors have dropped, bus events have been consumed, and all
+  /// Dart-side resources are cleared. Callers awaiting this can
+  /// safely proceed with DB rekey without risk of channel sends
+  /// on broken transports.
+  Future<void> disconnectAll() async {
+    final ids = _connections.keys.toList();
+    for (final id in ids) {
+      await disconnect(id);
     }
   }
 
