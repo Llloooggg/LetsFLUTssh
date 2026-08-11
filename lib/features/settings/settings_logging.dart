@@ -224,6 +224,12 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   /// after the level filter (AND).
   String _query = '';
 
+  /// Debounce guard — coalesces a burst of `LogStore.changes` into a
+  /// single `_syncTerminal` per frame so rapid log entries don't drive
+  /// a repaint storm. The gate is cleared in [_onFramePost] after the
+  /// frame finishes painting.
+  bool _syncPending = false;
+
   @override
   void initState() {
     super.initState();
@@ -235,7 +241,14 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
     _controller = ReplayTerminalController(cols: 80, rows: 200);
     _lastFormatCols = _controller.cols;
     _controller.addListener(_onControllerChanged);
-    _changesSub = _store.changes.listen((_) => _syncTerminal());
+    _changesSub = _store.changes.listen((_) {
+      if (_syncPending) return;
+      _syncPending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncPending = false;
+        if (mounted) _syncTerminal();
+      });
+    });
     _syncTerminal();
     // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
     // already kicked the seed at boot. This just reads the
