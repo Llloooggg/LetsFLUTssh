@@ -288,10 +288,8 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
           if (status != null) _cooldown = status;
         });
         if (status != null && status.isLocked) _startTicker();
-        _ctrl.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _ctrl.text.length,
-        );
+        _ctrl.wipeAndClear();
+        _ctrl.selection = const TextSelection(baseOffset: 0, extentOffset: 0);
         _focus.requestFocus();
       case TierUnlockAttempt.cancelled:
         // Inner sub-prompt cancelled (e.g. hardware vault PIN

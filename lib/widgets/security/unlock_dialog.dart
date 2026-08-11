@@ -143,9 +143,10 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
           _cooldown = status;
         });
         if (status.isLocked) _startCooldownTicker();
-        _passwordCtrl.selection = TextSelection(
+        _passwordCtrl.wipeAndClear();
+        _passwordCtrl.selection = const TextSelection(
           baseOffset: 0,
-          extentOffset: _passwordCtrl.text.length,
+          extentOffset: 0,
         );
         _focusNode.requestFocus();
       case TierUnlockAttempt.cancelled:
