@@ -627,16 +627,20 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         ),
       );
     }
-    // `ClipRect` so the last partial row (when the container's pixel
-    // height isn't an integer multiple of the row height) is clipped at
-    // the bottom border instead of bleeding past it.
-    return ClipRect(
-      child: TerminalView(
-        controller: _controller,
-        config: const TerminalViewConfig.readOnly(),
-        fontSize: AppFonts.sm,
-        reportResize: true,
-        onScroll: (delta) => _controller.scroll(delta),
+    // The Settings `AppSelectionArea` steals pointer events from the
+    // `TerminalView` (selection, wheel scroll, context menu). Wrap in
+    // `SelectionContainer.disabled` so the terminal owns its own gesture
+    // arena — its built-in drag-select / wheel-scroll / right-click menu
+    // work without fighting the parent `SelectionArea`.
+    return SelectionContainer.disabled(
+      child: ClipRect(
+        child: TerminalView(
+          controller: _controller,
+          config: const TerminalViewConfig.readOnly(),
+          fontSize: AppFonts.sm,
+          reportResize: true,
+          onScroll: (delta) => _controller.scroll(delta),
+        ),
       ),
     );
   }
