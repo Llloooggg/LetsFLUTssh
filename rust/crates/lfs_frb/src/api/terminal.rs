@@ -1076,6 +1076,15 @@ impl TerminalReplay {
         guard.clear();
     }
 
+    /// Scroll the viewport by `delta` lines: positive scrolls up into
+    /// scrollback, negative scrolls down toward the live screen. Sync — same
+    /// lock shape as [`Self::feed`].
+    #[frb(sync)]
+    pub fn scroll(&self, delta: i32) {
+        let mut guard = self.engine.blocking_lock();
+        guard.scroll(delta);
+    }
+
     /// Replace the color palette (e.g. on a theme toggle). Takes effect on
     /// the next snapshot; already-parsed cells re-resolve their abstract
     /// colors against the new palette. Sync — same lock shape as
