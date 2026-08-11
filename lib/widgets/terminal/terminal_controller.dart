@@ -367,6 +367,17 @@ class ReplayTerminalController extends TerminalController with ChangeNotifier {
     notifyListeners();
   }
 
+  @override
+  void scroll(int delta) {
+    if (_disposed) return;
+    try {
+      _replay.scroll(delta: delta);
+    } catch (_) {
+      return;
+    }
+    notifyListeners();
+  }
+
   /// Wipe the grid + scrollback and repaint. Used by the recording scrub path
   /// before re-feeding from `t=0`.
   void clear() {

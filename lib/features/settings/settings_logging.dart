@@ -636,6 +636,7 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         config: const TerminalViewConfig.readOnly(),
         fontSize: AppFonts.sm,
         reportResize: true,
+        onScroll: (delta) => _controller.scroll(delta),
       ),
     );
   }
