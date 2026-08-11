@@ -119,64 +119,10 @@ begin
 end;
 
 function InitializeSetup(): Boolean;
-var
-  ExpectedArch: String;
-  ErrorMessage: String;
-  HostArchStr: String;
-  DownloadArchStr: String;
-  Params: array of String;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
     RegWriteStringValue(HKCU, LastTaskChoiceKey, 'desktopicon', '1');
-  end;
-  // Architectural mismatch guard — prevents ARM64 installers from
-  // running on x64 hosts (and vice versa) which would produce a
-  // generic "this app can't run on your PC" dialog.
-  ExpectedArch := '{#OutputArch}';
-  if ExpectedArch = 'arm64' and ProcessorArchitecture() <> 5 then begin
-    if ProcessorArchitecture() = 2 then begin
-      HostArchStr := 'x64 (AMD64)';
-      DownloadArchStr := 'x64';
-    end else if ProcessorArchitecture() = 1 then begin
-      HostArchStr := 'x86 (32-bit)';
-      DownloadArchStr := 'x64';
-    end else begin
-      HostArchStr := 'unknown';
-      DownloadArchStr := 'x64';
-    end;
-    SetArrayLength(Params, 2);
-    Params[0] := HostArchStr;
-    Params[1] := DownloadArchStr;
-    ErrorMessage := Format(
-      'This installer was built for ARM64 but your PC is %s.%n%n' +
-      'Please download the %s version from the releases page.',
-      Params);
-    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-  if ExpectedArch = 'x64' and ProcessorArchitecture() <> 2 then begin
-    if ProcessorArchitecture() = 5 then begin
-      HostArchStr := 'ARM64';
-      DownloadArchStr := 'ARM64';
-    end else if ProcessorArchitecture() = 1 then begin
-      HostArchStr := 'x86 (32-bit)';
-      DownloadArchStr := 'x64';
-    end else begin
-      HostArchStr := 'unknown';
-      DownloadArchStr := 'x64';
-    end;
-    SetArrayLength(Params, 2);
-    Params[0] := HostArchStr;
-    Params[1] := DownloadArchStr;
-    ErrorMessage := Format(
-      'This installer was built for x64 (AMD64) but your PC is %s.%n%n' +
-      'Please download the %s version from the releases page.',
-      Params);
-    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
-    Result := False;
-    Exit;
   end;
   Result := True;
 end;
