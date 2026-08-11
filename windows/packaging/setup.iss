@@ -22,6 +22,14 @@
 #if OutputArch == ""
   #define OutputArch "x64"
 #endif
+// ARM64 installers must only run on native ARM64 hosts — the app
+// does not support ARM64EC emulation of x64 binaries. x64 installers
+// can run on both x64 and ARM64 hosts (via ARM64EC).
+#if OutputArch == "arm64"
+  #define ArchitecturesAllowedValue "arm64"
+#else
+  #define ArchitecturesAllowedValue "x64compatible"
+#endif
 
 [Setup]
 AppId={{7A2E3B4C-1D5F-4E6A-8B9C-0D1E2F3A4B5C}
@@ -38,11 +46,9 @@ OutputBaseFilename=letsflutssh-{#MyAppVersion}-windows-{#OutputArch}-setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-; `x64compatible` matches both AMD64 and ARM64 hosts in Inno Setup
-; 6.3+. The CI release matrix ships choco's latest Inno Setup (>6.4
-; at time of writing), so a single arch directive covers both
-; runner shapes — no per-arch `#if` required.
-ArchitecturesAllowed=x64compatible
+; Per-arch ArchitecturesAllowed: arm64 installers only run on native
+; ARM64 hosts; x64 installers run on x64 and ARM64 (ARM64EC).
+ArchitecturesAllowed={#ArchitecturesAllowedValue}
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=lowest
@@ -119,69 +125,10 @@ begin
 end;
 
 function InitializeSetup(): Boolean;
-var
-  ExpectedArch: String;
-  ErrorMessage: String;
-  HostArchStr: String;
-  DownloadArchStr: String;
-  Params: array of String;
-  HostArch: TSetupProcessorArchitecture;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
     RegWriteStringValue(HKCU, LastTaskChoiceKey, 'desktopicon', '1');
-  end;
-  // Architectural mismatch guard — prevents ARM64 installers from
-  // running on x64 hosts (and vice versa) which would produce a
-  // generic "this app can't run on your PC" dialog.
-  // Uses ProcessorArchitecture() with paArm64/paX64/paX86 which are
-  // available in all Inno Setup 6.x versions (including the old
-  // version on the windows-11-arm runner).
-  ExpectedArch := '{#OutputArch}';
-  HostArch := ProcessorArchitecture();
-  if ExpectedArch = 'arm64' and HostArch <> paArm64 then begin
-    if HostArch = paX64 then begin
-      HostArchStr := 'x64 (AMD64)';
-      DownloadArchStr := 'x64';
-    end else if HostArch = paX86 then begin
-      HostArchStr := 'x86 (32-bit)';
-      DownloadArchStr := 'x64';
-    end else begin
-      HostArchStr := 'unknown';
-      DownloadArchStr := 'x64';
-    end;
-    SetArrayLength(Params, 2);
-    Params[0] := HostArchStr;
-    Params[1] := DownloadArchStr;
-    ErrorMessage := Format(
-      'This installer was built for ARM64 but your PC is %s.%n%n' +
-      'Please download the %s version from the releases page.',
-      Params);
-    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-  if ExpectedArch = 'x64' and HostArch <> paX64 then begin
-    if HostArch = paArm64 then begin
-      HostArchStr := 'ARM64';
-      DownloadArchStr := 'ARM64';
-    end else if HostArch = paX86 then begin
-      HostArchStr := 'x86 (32-bit)';
-      DownloadArchStr := 'x64';
-    end else begin
-      HostArchStr := 'unknown';
-      DownloadArchStr := 'x64';
-    end;
-    SetArrayLength(Params, 2);
-    Params[0] := HostArchStr;
-    Params[1] := DownloadArchStr;
-    ErrorMessage := Format(
-      'This installer was built for x64 (AMD64) but your PC is %s.%n%n' +
-      'Please download the %s version from the releases page.',
-      Params);
-    MsgBox(ErrorMessage, mbCriticalError, MB_OK);
-    Result := False;
-    Exit;
   end;
   Result := True;
 end;
