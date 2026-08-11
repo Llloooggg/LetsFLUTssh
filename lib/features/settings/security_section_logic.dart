@@ -141,8 +141,12 @@ BiometricModifierSpec? biometricSpecFor({
     );
   }
 
+  // Toggle stays enabled during the async probe — no platform reason
+  // means the device is assumed biometric-capable; once the probe
+  // resolves, `didUpdateWidget` / the async callback updates
+  // `_biometricProbed` and the card re-renders with the final state.
   return BiometricModifierSpec(
-    enabled: env.probed,
+    enabled: true,
     value: env.biometricEnabled,
     onChanged: (_) {},
     disabledReason: null,
