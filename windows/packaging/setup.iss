@@ -120,7 +120,6 @@ end;
 
 function InitializeSetup(): Boolean;
 var
-  HostArch: Longint;
   ExpectedArch: String;
   ErrorMessage: String;
   HostArchStr: String;
@@ -135,12 +134,11 @@ begin
   // running on x64 hosts (and vice versa) which would produce a
   // generic "this app can't run on your PC" dialog.
   ExpectedArch := '{#OutputArch}';
-  HostArch := ProcessorArchitecture();
-  if ExpectedArch = 'arm64' and HostArch <> paArm64 then begin
-    if HostArch = paX64 then begin
+  if ExpectedArch = 'arm64' and ProcessorArchitecture() <> paArm64 then begin
+    if ProcessorArchitecture() = paX64 then begin
       HostArchStr := 'x64 (AMD64)';
       DownloadArchStr := 'x64';
-    end else if HostArch = paIntel then begin
+    end else if ProcessorArchitecture() = paIntel then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
@@ -158,11 +156,11 @@ begin
     Result := False;
     Exit;
   end;
-  if ExpectedArch = 'x64' and HostArch <> paX64 then begin
-    if HostArch = paArm64 then begin
+  if ExpectedArch = 'x64' and ProcessorArchitecture() <> paX64 then begin
+    if ProcessorArchitecture() = paArm64 then begin
       HostArchStr := 'ARM64';
       DownloadArchStr := 'ARM64';
-    end else if HostArch = paIntel then begin
+    end else if ProcessorArchitecture() = paIntel then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
