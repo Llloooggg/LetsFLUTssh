@@ -125,6 +125,7 @@ var
   HostArchStr: String;
   DownloadArchStr: String;
   Params: array of String;
+  HostArch: TSetupProcessorArchitecture;
 begin
   LastTaskChoiceKey := 'Software\LetsFLUTssh\TaskChoices';
   if not RegKeyExists(HKCU, LastTaskChoiceKey) then begin
@@ -133,15 +134,16 @@ begin
   // Architectural mismatch guard — prevents ARM64 installers from
   // running on x64 hosts (and vice versa) which would produce a
   // generic "this app can't run on your PC" dialog.
-  // Uses Inno Setup's built-in architecture predicates (IsArm64,
-  // IsX64Compatible, IsX86) which return Boolean and avoid the
-  // ProcessorArchitecture() type mismatch issue.
+  // Uses ProcessorArchitecture() with paArm64/paX64/paX86 which are
+  // available in all Inno Setup 6.x versions (including the old
+  // version on the windows-11-arm runner).
   ExpectedArch := '{#OutputArch}';
-  if ExpectedArch = 'arm64' and not IsArm64 then begin
-    if IsX64Compatible then begin
+  HostArch := ProcessorArchitecture();
+  if ExpectedArch = 'arm64' and HostArch <> paArm64 then begin
+    if HostArch = paX64 then begin
       HostArchStr := 'x64 (AMD64)';
       DownloadArchStr := 'x64';
-    end else if IsX86 then begin
+    end else if HostArch = paX86 then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
@@ -159,11 +161,11 @@ begin
     Result := False;
     Exit;
   end;
-  if ExpectedArch = 'x64' and not IsX64Compatible then begin
-    if IsArm64 then begin
+  if ExpectedArch = 'x64' and HostArch <> paX64 then begin
+    if HostArch = paArm64 then begin
       HostArchStr := 'ARM64';
       DownloadArchStr := 'ARM64';
-    end else if IsX86 then begin
+    end else if HostArch = paX86 then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
