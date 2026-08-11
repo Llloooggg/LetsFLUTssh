@@ -120,7 +120,7 @@ end;
 
 function InitializeSetup(): Boolean;
 var
-  HostArch: Cardinal;
+  HostArch: Longint;
   ExpectedArch: String;
   ErrorMessage: String;
   HostArchStr: String;
