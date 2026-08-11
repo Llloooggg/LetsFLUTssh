@@ -96,6 +96,11 @@ abstract class TerminalReplay implements RustOpaqueInterface {
   /// [`Self::feed`].
   void resize({required int cols, required int rows});
 
+  /// Scroll the viewport by `delta` lines: positive scrolls up into
+  /// scrollback, negative scrolls down toward the live screen. Sync — same
+  /// lock shape as [`Self::feed`].
+  void scroll({required int delta});
+
   /// The text covered by the active selection, or `None` when there is no
   /// selection. Sync — same lock shape as [`Self::feed`].
   String? selectionText();
