@@ -82,6 +82,11 @@ android {
                         "debug keystore for local iteration."
                 )
             }
+            // Keep androidx.biometric classes — without this R8 strips
+            // BiometricManager / BiometricPrompt and JNI FindClass fails
+            // with "class not found or linkage error" on devices that
+            // do have hardware biometrics.
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
