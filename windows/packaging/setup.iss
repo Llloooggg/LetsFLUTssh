@@ -134,11 +134,11 @@ begin
   // running on x64 hosts (and vice versa) which would produce a
   // generic "this app can't run on your PC" dialog.
   ExpectedArch := '{#OutputArch}';
-  if ExpectedArch = 'arm64' and ProcessorArchitecture() <> paArm64 then begin
-    if ProcessorArchitecture() = paX64 then begin
+  if ExpectedArch = 'arm64' and ProcessorArchitecture() <> 5 then begin
+    if ProcessorArchitecture() = 2 then begin
       HostArchStr := 'x64 (AMD64)';
       DownloadArchStr := 'x64';
-    end else if ProcessorArchitecture() = paIntel then begin
+    end else if ProcessorArchitecture() = 1 then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
@@ -156,11 +156,11 @@ begin
     Result := False;
     Exit;
   end;
-  if ExpectedArch = 'x64' and ProcessorArchitecture() <> paX64 then begin
-    if ProcessorArchitecture() = paArm64 then begin
+  if ExpectedArch = 'x64' and ProcessorArchitecture() <> 2 then begin
+    if ProcessorArchitecture() = 5 then begin
       HostArchStr := 'ARM64';
       DownloadArchStr := 'ARM64';
-    end else if ProcessorArchitecture() = paIntel then begin
+    end else if ProcessorArchitecture() = 1 then begin
       HostArchStr := 'x86 (32-bit)';
       DownloadArchStr := 'x64';
     end else begin
