@@ -214,13 +214,19 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
             .map_err(|e| format!("jni: new LfsBiometricCallback: {e}"))?
         };
 
-        // Get a main-thread executor: ContextCompat.getMainExecutor(activity).
-        let executor = h::call_static_obj(
+        // Main-thread executor straight off the Activity:
+        // `Context.getMainExecutor()` is API 28+ (minSdk pins that
+        // floor) and lives on the boot classpath. The previous
+        // `ContextCompat.getMainExecutor` hop went through a
+        // library class looked up by name — R8 renames unkept
+        // library classes, so the runtime lookup broke and the
+        // prompt silently never showed.
+        let executor = h::call_obj(
             env,
-            "androidx/core/content/ContextCompat",
+            activity,
             "getMainExecutor",
-            "(Landroid/content/Context;)Ljava/util/concurrent/Executor;",
-            &[activity.as_obj().into()],
+            "()Ljava/util/concurrent/Executor;",
+            &[],
         )?;
 
         // BiometricPrompt prompt = new BiometricPrompt(activity, executor, callback);

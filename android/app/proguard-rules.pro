@@ -1,24 +1,21 @@
-# Keep androidx.biometric classes — R8 otherwise strips them and JNI FindClass fails with
-# "class not found or linkage error" on devices that do have hardware biometrics.
-# R8 requires explicit keep rules for classes loaded via JNI FindClass —
-# the generic -keep class androidx.biometric.** { *; } is not enough because
-# R8 cannot statically resolve the JNI dependency.
-
-# Keep all androidx.biometric classes and their members
--keep class androidx.biometric.BiometricManager { *; }
--keep class androidx.biometric.BiometricPrompt { *; }
--keep class androidx.biometric.BiometricPrompt$* { *; }
--keep class androidx.biometric.BiometricManager$* { *; }
--keep class androidx.biometric.BiometricResult { *; }
--keep class androidx.biometric.BiometricPrompt$AuthenticationResult { *; }
--keep class androidx.biometric.BiometricPrompt$PromptInfo { *; }
--keep class androidx.biometric.BiometricPrompt$PromptInfo$* { *; }
--keep class androidx.biometric.BiometricManager$* { *; }
+# The Rust security layer resolves these classes BY NAME at runtime
+# through JNI; R8 cannot see those lookups and would otherwise strip
+# or rename them even when they are reachable. Keep rules below pin
+# every name-resolved surface.
+#
+# androidx.biometric.* — BiometricManager / BiometricPrompt /
+# PromptInfo.Builder, looked up via jni_helpers::load_class.
 -keep class androidx.biometric.** { *; }
 
-# Keep the LfsBiometricCallback Kotlin adapter
+# Keep the Kotlin glue classes the Rust side resolves BY NAME at
+# runtime — via loadClass through the captured app ClassLoader
+# (LfsBiometricCallback, KeystoreSshSigner) or via JNI external-fun
+# binding derived from the runtime class name (LfsJniBootstrap).
+# R8 renaming any of them breaks the lookup with no build-time error.
 -keep class com.llloooggg.letsflutssh.LfsBiometricCallback { *; }
 -keep class com.llloooggg.letsflutssh.LfsKeystoreSignCallback { *; }
+-keep class com.llloooggg.letsflutssh.LfsJniBootstrap { *; }
+-keep class com.llloooggg.letsflutssh.KeystoreSshSigner { *; }
 
 # Keep ProGuard attributes
 -keepattributes *Annotation*,InnerClasses,Signature,EnclosingMethod

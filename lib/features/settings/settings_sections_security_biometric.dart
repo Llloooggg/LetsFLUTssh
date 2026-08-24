@@ -13,6 +13,17 @@ enum _BiometricKeyCaptureKind {
   stagedInSecretStore,
 }
 
+/// Thrown by [_applyPendingBiometric] when the enable did not go
+/// through (prompt rejected / failed / vault store refused). Both
+/// Apply call sites catch this specifically so the user sees the
+/// dedicated failure toast instead of the generic "changes saved".
+class _BiometricApplyFailed implements Exception {
+  const _BiometricApplyFailed();
+
+  @override
+  String toString() => '_BiometricApplyFailed';
+}
+
 class _BiometricKeyCapture {
   const _BiometricKeyCapture._(this.kind, this.secretId);
 
@@ -79,6 +90,15 @@ extension _BiometricFlow on _SecuritySectionState {
         context,
         message: l10n.changeSecurityTierDone,
         level: ToastLevel.success,
+      );
+      _checkState();
+    } on _BiometricApplyFailed {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: l10n.biometricEnableFailed,
+        level: ToastLevel.error,
       );
       _checkState();
     } catch (e) {
@@ -260,14 +280,7 @@ extension _BiometricFlow on _SecuritySectionState {
     final bio = ref.read(biometricAuthProvider);
     final l10n = S.of(context);
     if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: l10n.biometricUnlockCancelled,
-          level: ToastLevel.warning,
-        );
-      }
-      return;
+      throw const _BiometricApplyFailed();
     }
     final vault = ref.read(biometricKeyVaultProvider);
     final bool stored;
@@ -289,12 +302,7 @@ extension _BiometricFlow on _SecuritySectionState {
     }
     if (!mounted) return;
     if (!stored) {
-      Toast.show(
-        context,
-        message: l10n.biometricEnableFailed,
-        level: ToastLevel.error,
-      );
-      return;
+      throw const _BiometricApplyFailed();
     }
     rebuild(() => _biometricEnabled = true);
   }

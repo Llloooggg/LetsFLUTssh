@@ -434,6 +434,18 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
         level: ToastLevel.success,
       );
       _checkState();
+    } on _BiometricApplyFailed {
+      // Tier switch itself completed; only the biometric overlay
+      // enable was rejected. No transition marker to clear — the
+      // rekey already finished above.
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Toast.show(
+        context,
+        message: l10n.biometricEnableFailed,
+        level: ToastLevel.error,
+      );
+      _checkState();
     } catch (e) {
       AppLogger.instance.log(
         'Tier change failed: $e',
