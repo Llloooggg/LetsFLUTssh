@@ -57,6 +57,15 @@ static APP_CONTEXT: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 /// the prompt is Fragment-hosted.
 static MAIN_ACTIVITY: OnceLock<Global<JObject<'static>>> = OnceLock::new();
 
+/// The application `ClassLoader`, captured from the MainActivity
+/// while `register()` runs on a thread with live Java frames.
+/// JNI `FindClass` issued from a worker thread attached without
+/// any Java frame resolves through the system classloader, which
+/// cannot see app (`com.llloooggg…`) or bundled-library
+/// (`androidx.*`) classes — [`super::jni_helpers::load_class`]
+/// routes lookups through this handle instead.
+static APP_CLASS_LOADER: OnceLock<Global<JObject<'static>>> = OnceLock::new();
+
 /// Retrieve the JavaVM captured at startup. Returns `None` if
 /// the Kotlin bootstrap has not run yet (which would be a bug:
 /// any call into `super::keystore` etc. requires this to have
@@ -76,11 +85,18 @@ pub fn main_activity() -> Option<&'static Global<JObject<'static>>> {
     MAIN_ACTIVITY.get()
 }
 
+/// Retrieve the application ClassLoader captured at startup.
+/// Required for class resolution from worker threads — see
+/// [`super::jni_helpers::load_class`].
+pub fn app_class_loader() -> Option<&'static Global<JObject<'static>>> {
+    APP_CLASS_LOADER.get()
+}
+
 /// Bridge entry point invoked by the Kotlin object
 /// `com.llloooggg.letsflutssh.LfsJniBootstrap.register(activity)`
 /// once at `MainActivity.onCreate`.
 ///
-/// Captures three process-wide handles:
+/// Captures four process-wide handles:
 ///
 /// * `JavaVM` — lifted from the calling thread's `Env` via
 ///   `get_java_vm`. Subsequent JNI calls in any thread attach
@@ -92,8 +108,12 @@ pub fn main_activity() -> Option<&'static Global<JObject<'static>>> {
 ///   `getApplicationContext()`. Process-scoped (survives
 ///   Activity recreation), used for `getFilesDir()` /
 ///   `getMainLooper()` resolution.
+/// * `Application ClassLoader` — derived from the activity via
+///   `getClassLoader()`. Used by [`super::jni_helpers::load_class`]
+///   to resolve app and `androidx.*` classes from worker threads
+///   where JNI `FindClass` cannot.
 ///
-/// All three are held as `Global` references so the JVM does not
+/// All four are held as `Global` references so the JVM does not
 /// reclaim them across the thread-attach boundary in worker
 /// threads.
 ///
@@ -132,6 +152,24 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsJniBootstrap_reg
         {
             if let Ok(global_ctx) = env.new_global_ref(&app_ctx) {
                 let _ = APP_CONTEXT.set(global_ctx);
+            }
+        }
+        // Capture the app ClassLoader — `register()` runs inside
+        // MainActivity.onCreate, so this thread has Java frames and
+        // `getClassLoader` returns the app (PathClassLoader) loader,
+        // not the system one.
+        if let Ok(loader) = env
+            .call_method(
+                &activity,
+                jni::strings::JNIString::new("getClassLoader"),
+                jni::signature::RuntimeMethodSignature::from_str("()Ljava/lang/ClassLoader;")?
+                    .method_signature(),
+                &[],
+            )
+            .and_then(|v| v.l())
+        {
+            if let Ok(global_loader) = env.new_global_ref(&loader) {
+                let _ = APP_CLASS_LOADER.set(global_loader);
             }
         }
         Ok(())

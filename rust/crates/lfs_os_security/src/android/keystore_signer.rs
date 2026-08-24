@@ -308,9 +308,7 @@ pub async fn delete(alias: String) -> Result<(), String> {
 fn delete_blocking(alias: &str) -> Result<(), String> {
     h::with_env(|env| {
         let alias_j = h::jstring(env, alias)?;
-        let class = env
-            .find_class(h::jni_name("com/llloooggg/letsflutssh/KeystoreSshSigner"))
-            .map_err(|e| format!("jni: find_class KeystoreSshSigner: {e}"))?;
+        let class = h::load_class(env, "com/llloooggg/letsflutssh/KeystoreSshSigner")?;
         env.call_static_method(
             &class,
             h::jni_name("delete"),
@@ -361,9 +359,7 @@ fn sign_blocking(req_id: u64, alias: &str, algo: KeystoreAlgo, data: &[u8]) -> R
         let data_j: JByteArray<'_> = h::bytes_to_jbyte_array(env, data)?;
         let activity = jni_bootstrap::main_activity()
             .ok_or_else(|| "keystore: MainActivity not bootstrapped".to_string())?;
-        let class = env
-            .find_class(h::jni_name("com/llloooggg/letsflutssh/KeystoreSshSigner"))
-            .map_err(|e| format!("jni: find_class KeystoreSshSigner: {e}"))?;
+        let class = h::load_class(env, "com/llloooggg/letsflutssh/KeystoreSshSigner")?;
         let data_obj = JObject::from(data_j);
         env.call_static_method(
             &class,

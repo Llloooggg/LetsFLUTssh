@@ -148,9 +148,7 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
         // Build BiometricPrompt.PromptInfo via PromptInfo.Builder.
         let info_builder_class = "androidx/biometric/BiometricPrompt$PromptInfo$Builder";
         let info_builder = {
-            let class = env
-                .find_class(h::jni_name(info_builder_class))
-                .map_err(|e| format!("jni: find_class {info_builder_class}: {e}"))?;
+            let class = h::load_class(env, info_builder_class)?;
             env.new_object(&class, h::method_sig("()V")?.method_signature(), &[])
                 .map_err(|e| format!("jni: new PromptInfo.Builder: {e}"))?
         };
@@ -207,9 +205,7 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
         //   LfsBiometricCallback callback = new LfsBiometricCallback(reqId);
         let cb_class = "com/llloooggg/letsflutssh/LfsBiometricCallback";
         let callback = {
-            let class = env
-                .find_class(h::jni_name(cb_class))
-                .map_err(|e| format!("jni: find_class {cb_class}: {e}"))?;
+            let class = h::load_class(env, cb_class)?;
             env.new_object(
                 &class,
                 h::method_sig("(J)V")?.method_signature(),
@@ -230,9 +226,7 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
         // BiometricPrompt prompt = new BiometricPrompt(activity, executor, callback);
         let prompt_class = "androidx/biometric/BiometricPrompt";
         let prompt = {
-            let class = env
-                .find_class(h::jni_name(prompt_class))
-                .map_err(|e| format!("jni: find_class {prompt_class}: {e}"))?;
+            let class = h::load_class(env, prompt_class)?;
             env.new_object(
                 &class,
                 h::method_sig("(Landroidx/fragment/app/FragmentActivity;Ljava/util/concurrent/Executor;Landroidx/biometric/BiometricPrompt$AuthenticationCallback;)V")?.method_signature(),

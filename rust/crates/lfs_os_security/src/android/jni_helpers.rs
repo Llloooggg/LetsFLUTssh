@@ -4,7 +4,7 @@
 //! on the platform-specific call sequence rather than re-deriving
 //! `attach_current_thread` boilerplate.
 
-use jni::objects::{JByteArray, JObject, JString, JValue};
+use jni::objects::{JByteArray, JClass, JObject, JString, JValue};
 use jni::refs::Global;
 use jni::signature::{RuntimeFieldSignature, RuntimeMethodSignature};
 use jni::strings::JNIString;
@@ -151,14 +151,45 @@ pub fn field_sig(sig: &str) -> Result<RuntimeFieldSignature, String> {
     RuntimeFieldSignature::from_str(sig).map_err(|e| format!("jni: bad field signature {sig}: {e}"))
 }
 
+/// Resolve a Java class by its internal name (`"pkg/pkg/Class"`)
+/// through the application `ClassLoader` captured at bootstrap,
+/// falling back to `env.find_class` when the bootstrap has not
+/// run yet.
+///
+/// Android's JNI `FindClass` resolves names via the classloader of
+/// the nearest Java stack frame; on a worker thread attached with
+/// no Java frame at all it falls back to the system classloader,
+/// which cannot see app (`com.llloooggg…`) or bundled-library
+/// (`androidx.*`) classes — only boot-classpath framework ones.
+/// Loading through the cached app loader delegates up the parent
+/// chain, so framework, library and app classes resolve the same
+/// regardless of calling thread.
+pub fn load_class<'local>(env: &mut Env<'local>, name: &str) -> Result<JClass<'local>, String> {
+    if let Some(loader) = super::jni_bootstrap::app_class_loader() {
+        let name_jstr = jstring(env, name)?;
+        let class_obj = call_obj(
+            env,
+            loader,
+            "loadClass",
+            "(Ljava/lang/String;)Ljava/lang/Class;",
+            &[(&name_jstr).into()],
+        )
+        .map_err(|e| format!("jni: loadClass {name}: {e}"))?;
+        // SAFETY: `JClass::from_raw` rewraps the `java.lang.Class`
+        // jobject handed back by `loadClass`; we own the local
+        // reference for this frame.
+        return Ok(unsafe { JClass::from_raw(env, class_obj.into_raw()) });
+    }
+    env.find_class(JNIString::new(name))
+        .map_err(|e| format!("jni: find_class {name}: {e}"))
+}
+
 /// Look up an `int` static field on `class_name` (e.g. the
 /// `KeyProperties.PURPOSE_ENCRYPT` constants). Cached lookups
 /// would be marginally faster but the call rate is low enough
 /// (once per seal/unseal) that a fresh lookup per call is fine.
 pub fn static_int_field(env: &mut Env, class_name: &str, field: &str) -> Result<i32, String> {
-    let class = env
-        .find_class(JNIString::new(class_name))
-        .map_err(|e| format!("jni: find_class {class_name}: {e}"))?;
+    let class = load_class(env, class_name)?;
     env.get_static_field(
         &class,
         JNIString::new(field),
@@ -225,13 +256,7 @@ pub fn call_static_obj<'local>(
     args: &[JValue],
 ) -> Result<JObject<'local>, String> {
     let parsed = method_sig(sig)?;
-    let class = match env.find_class(JNIString::new(class_name)) {
-        Ok(c) => c,
-        Err(e) => {
-            drain_exception(env, &format!("find_class {class_name}"));
-            return Err(format!("jni: find_class {class_name}: {e}"));
-        }
-    };
+    let class = load_class(env, class_name)?;
     match env
         .call_static_method(
             &class,

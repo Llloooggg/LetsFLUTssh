@@ -86,7 +86,7 @@ android {
             // BiometricManager / BiometricPrompt and JNI FindClass fails
             // with "class not found or linkage error" on devices that
             // do have hardware biometrics.
-            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
