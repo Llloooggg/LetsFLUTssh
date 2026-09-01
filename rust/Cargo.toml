@@ -126,7 +126,7 @@ aes-gcm = { version = "0.11", default-features = false, features = ["aes", "allo
 # Argon2BytesGenerator (memory KiB / iterations / parallelism /
 # 32-byte output) so existing on-disk salts round-trip without any
 # schema migration.
-argon2 = "0.5"
+argon2 = "0.6"
 # SQLite + SQLCipher for Phase 4.2 — drift replacement.
 # `bundled-sqlcipher-vendored-openssl` statically links both SQLCipher
 # 4.x AND the OpenSSL it depends on (via `openssl-src`), so cross-
