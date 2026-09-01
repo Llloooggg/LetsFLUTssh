@@ -53,7 +53,7 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_localizations:
     sdk: flutter
-  intl: ^0.20.2
+  intl: ^0.20.3
 
   # `@visibleForTesting` / `@protected` annotations without
   # pulling in `package:flutter/foundation`. The annotations are
