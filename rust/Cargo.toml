@@ -32,7 +32,7 @@ rust-version = "1.85"
 # these via `{ workspace = true }` so a bump only happens in one place.
 [workspace.dependencies]
 anyhow = "1"
-flutter_rust_bridge = "=2.12.0"
+flutter_rust_bridge = "=2.13.0"
 # `log` facade — already in the tree transitively via russh (which
 # emits its handshake / auth diagnostics through it). Promoted to a
 # direct dep so we can install a logger that captures russh's verbose
