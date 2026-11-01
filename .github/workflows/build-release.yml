@@ -272,7 +272,7 @@ jobs:
            mv /tmp/RPMS/x86_64/letsflutssh-${VER}-1.x86_64.rpm \
              letsflutssh-${VER}-linux-x64.rpm
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-x64
           retention-days: 7
@@ -459,7 +459,7 @@ jobs:
            mv /tmp/RPMS/aarch64/letsflutssh-${VER}-1.aarch64.rpm \
              letsflutssh-${VER}-linux-arm64.rpm
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-arm64
           retention-days: 7
@@ -495,7 +495,7 @@ jobs:
       # plugin descriptor declares a Windows build target, so
       # Flutter compiles it on every Windows release. Fix is the
       # explicit x64 architecture pin.
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v5
         with:
           distribution: temurin
           java-version: 17
@@ -610,7 +610,7 @@ jobs:
             -TimestampServer http://timestamp.digicert.com
           Get-AuthenticodeSignature $installer
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-x64
           retention-days: 7
@@ -801,7 +801,7 @@ jobs:
             -TimestampServer http://timestamp.digicert.com
           Get-AuthenticodeSignature $installer
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-arm64
           retention-days: 7
@@ -950,7 +950,7 @@ jobs:
         run: |
           hdiutil create -volname "LetsFLUTssh" -srcfolder build/macos/Build/Products/Release/letsflutssh.app -ov -format UDZO letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-universal
           retention-days: 7
@@ -1100,7 +1100,7 @@ jobs:
           cp -r Runner.app Payload/Runner.app
           zip -r ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa Payload
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ios-unsigned
           retention-days: 7
@@ -1116,7 +1116,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v5
         with:
           distribution: temurin
           java-version: 17
@@ -1203,7 +1203,7 @@ jobs:
           mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm32.apk
           mv app-x86_64-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-apk
           retention-days: 7
@@ -1222,7 +1222,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artifacts
 
@@ -1342,7 +1342,7 @@ jobs:
         # SLSA chain — it is not: clients check the Ed25519 signature
         # through the pinned public keys in `release_signing.dart`,
         # a separate trust path.
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             artifacts/linux-x64/*.tar.gz
