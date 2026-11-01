@@ -64,7 +64,7 @@ jobs:
           rustc --version
           rustup component add rustfmt clippy
 
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         # Purpose-built Rust cache: stores `~/.cargo/registry`,
         # `~/.cargo/git`, and `rust/target/` keyed on Cargo.lock +
         # toolchain hash, AND restores mtimes so cargo's
@@ -197,7 +197,7 @@ jobs:
           cargo --version
           rustc --version
 
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         # Job-scoped cache. Swatinem keys against `github.job` by
         # default, so `ci-dart` doesn't collide with `ci-rust`'s
         # cache slot. Same toolchain pin + Cargo.lock invalidation
